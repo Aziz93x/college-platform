@@ -32,6 +32,8 @@ const PRIMITIVES = [
   "command",
   "sonner",
   "calendar",
+  "bottom-sheet",
+  "command-palette",
 ];
 
 // Each overlay: how to reach its trigger, how it opens, and the role and name it shows.
@@ -88,6 +90,18 @@ const OVERLAYS: Overlay[] = [
     name: design.command.results,
   },
   { id: "calendar", trigger: button(design.calendar.trigger), role: "grid" },
+  {
+    id: "bottom-sheet",
+    trigger: button(design.bottomSheet.trigger),
+    role: "dialog",
+    name: design.bottomSheet.title,
+  },
+  {
+    id: "command-palette",
+    trigger: button(design.commandPalette.trigger),
+    role: "dialog",
+    name: design.commandPalette.dialog,
+  },
   {
     id: "tooltip",
     trigger: button(design.tooltip.trigger),
@@ -154,6 +168,56 @@ for (const { id, trigger, role, name, open } of OVERLAYS) {
     await expect(overlay).toBeHidden();
   });
 }
+
+test("the bottom sheet takes focus, keeps Tab inside and gives focus back on close", async ({
+  page,
+}) => {
+  const trigger = button(design.bottomSheet.trigger)(page);
+  await trigger.click();
+  const sheet = page.getByRole("dialog", { name: design.bottomSheet.title });
+  await expect(sheet).toHaveAccessibleDescription(
+    design.bottomSheet.description,
+  );
+  const inside = () =>
+    sheet.evaluate((element) => element.contains(document.activeElement));
+  await expect.poll(inside).toBe(true);
+  for (const key of ["Tab", "Tab", "Tab", "Shift+Tab"]) {
+    await page.keyboard.press(key);
+    expect(await inside()).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+test("the command palette filters as you type and runs the chosen row", async ({
+  page,
+}) => {
+  const palette = design.commandPalette;
+  const trigger = button(palette.trigger)(page);
+  await trigger.click();
+  const field = page.getByRole("combobox", { name: palette.dialog });
+  await expect(field).toBeFocused();
+  const options = page.getByRole("listbox", { name: palette.list });
+  await expect(options.getByRole("option")).toHaveCount(3);
+
+  await field.fill(palette.two);
+  await expect(options.getByRole("option")).toHaveText([palette.two]);
+  await field.fill("zzz");
+  await expect(options).toContainText(palette.empty);
+
+  await field.fill("");
+  await page.keyboard.press("ArrowDown");
+  await expect(options.getByRole("option", { selected: true })).toHaveText(
+    palette.two,
+  );
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: palette.dialog })).toBeHidden();
+  await expect(
+    page.locator('[data-primitive="command-palette"]').getByRole("status"),
+  ).toHaveText(palette.chosen.replace("{name}", palette.two));
+  await expect(trigger).toBeFocused();
+});
 
 test("the toast shows in the notifications region", async ({ page }) => {
   await button(design.toast.trigger)(page).click();
@@ -412,8 +476,14 @@ const TOUCH_SCOPES: Record<string, (page: Page) => Locator> = {
 
 test.describe("touch targets", () => {
   test.skip(({ hasTouch }) => !hasTouch, "measured on the touch phone");
-  // Without motion, a sheet is measured where it stops, not while it slides in.
-  test.beforeEach(({ page }) => page.emulateMedia({ reducedMotion: "reduce" }));
+  // Without motion, a sheet is measured where it stops, not while it slides in. The dev server's
+  // indicator (absent from the standalone build CI tests) covers the page's bottom corner.
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() =>
+      document.querySelector("nextjs-portal")?.remove(),
+    );
+  });
 
   test("every enabled control on the page has a 44 px hit area", async ({
     page,
@@ -427,6 +497,11 @@ test.describe("touch targets", () => {
     test(`every enabled control in the ${id} has a 44 px hit area`, async ({
       page,
     }) => {
+      // A fixed overlay does not scroll with the page, so it opens from the top of the screen,
+      // where even the calendar, taller than half the phone, fits below its trigger.
+      await trigger(page).evaluate((element) =>
+        element.scrollIntoView({ block: "start" }),
+      );
       await trigger(page).click();
       const overlay = page.getByRole(role, { name });
       await expect(overlay).toBeVisible();
