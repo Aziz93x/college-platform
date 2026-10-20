@@ -8,13 +8,24 @@
   "timezone": "Asia/Riyadh",
   "schedule": ["before 6am on sunday"],
   "rangeStrategy": "pin",
-  "lockFileMaintenance": { "enabled": true },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
       "matchCurrentVersion": "!/^0/",
-      "groupName": "minor and patch updates"
+      "groupName": "minor and patch updates",
+      "automerge": true
     },
-    { "matchPackageNames": ["node"], "allowedVersions": "<25" }
+    {
+      "matchUpdateTypes": ["digest", "pin", "pinDigest"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["node"],
+      "allowedVersions": "<25"
+    }
   ]
 }
