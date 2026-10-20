@@ -4,6 +4,17 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 03: database, jobs and platform core
+
+- Drizzle ORM on PostgreSQL through `pg`, with a lazy pool so `next build` needs no database. Each module owns its tables: `colleges` (org), `settings` (settings) and `audit_events` (audit), in the first migration `db/migrations/0000_platform_core.sql`.
+- `pnpm db:generate` writes SQL to review in the PR, and CI fails when a `schema.ts` changed without it; `pnpm db:migrate` applies the SQL and then installs or upgrades the pg-boss schema, writing no row on a re-run; `pnpm db:seed` creates the one college from `SEED_COLLEGE_NAME` and `SEED_COLLEGE_SHORT_NAME` only when none exists, also when two runs start together.
+- `pnpm seed:demo [--seed <0 to 2^32 - 1>]`: a deterministic demo seed (mulberry32, default 42) that is safe to run twice and refuses to run when the new `APP_ENV` (`local`, `staging` or `production`, default `production`) is `production`, before it connects.
+- A settings registry in code (key, scope, Zod schema, default) with `locale.timeZone`, which accepts any IANA name or alias that `Intl` can format with, and `getSetting(key, { collegeId })`, which returns the stored value parsed with the key's schema or the registered default. Every setting is college-scoped for now.
+- `worker/index.ts` runs pg-boss: a `heartbeat` job scheduled every minute, and a graceful stop on SIGTERM or SIGINT that waits up to 8 s for running jobs, then exits 0, or exits 1 when the stop fails or is still running at 9.5 s, before Docker's SIGKILL. It logs `worker started` only once those signal handlers are installed. A failed start is logged as JSON and exits 1.
+- pino JSON logs on stdout; `src/proxy.ts` gives every request a new `x-request-id`, replacing any the client sent, and returns it on the response. Server code logs through `getRequestLogger()`, which adds it to each line, and `onRequestError` in `src/instrumentation.ts` logs every server error Next reports with it. Worker lines carry the queue and job id instead. `/healthz` reports the process alive; `/readyz` checks the database and the queue and answers 503 when either fails.
+- `check:boundaries` also checks `worker/` and `db/`, which use a module only through its `index.ts`.
+- Integration tests on Testcontainers PostgreSQL inside `pnpm test`, with a database per test file cloned from a migrated template (ADR-0003). CI sets `APP_ENV=local`, migrates the database and loads `pnpm seed:demo` before the end-to-end tests.
+
 ### Step 02: CI, containers and environment
 
 - GitHub Actions: `check:all`, knip, build and a Playwright smoke test on desktop and iPhone emulation with a PostgreSQL 18 service, traces kept on failure; a job that builds both Docker images, holds the app image under 300 MB and proves both refuse an invalid environment.
