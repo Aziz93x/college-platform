@@ -108,7 +108,6 @@ export const SharedLayoutBg = forwardRef<HTMLElement, SharedLayoutBgProps>(
                   initial="initial"
                   animate="animate"
                   exit="exit"
-                  custom={activeId !== null}
                   className={cn(
                     "pointer-events-none absolute inset-y-0",
                     pillContainerClassName,

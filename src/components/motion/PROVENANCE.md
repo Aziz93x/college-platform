@@ -36,6 +36,9 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - The dock is a list (`ul` and `li`), so a dock of links inside a `nav` reads as a list of
   pages; its items carry their own link or button and size from their content, which drops the
   `size` prop, the button mode and the separator, and the pill takes a `pillClassName`.
+- The shared-layout pill's container no longer repeats `custom={activeId !== null}`, which is
+  always true where it renders; `AnimatePresence` hands its own `custom` to a container on its way
+  out, the only place the exit variant reads it.
 - `useFocusTrap` captures the opener in a layout effect rather than a passive one, so a panel
   that mounts already open still returns focus to the control that opened it.
 - `lib/ease.ts` keeps only the tokens in use, and helper types are no longer exported.
