@@ -73,7 +73,8 @@ jobs:
         env:
           DEBUG: pw:webserver
       # The shell on phone emulation (docs/PLAN.md section 4): performance 95 or more and accessibility
-      # 100. The best of three runs counts, so a freshly started server's first answers do not.
+      # 100. The best of three runs counts, so a freshly started server's first answers do not. The
+      # throttling is applied to the real load, not simulated (ADR-0001, amendment for Step 5).
       - run: pnpm lighthouse
         env:
           HOSTNAME: localhost
@@ -82,6 +83,8 @@ jobs:
         with:
           name: lighthouse
           path: .lighthouseci/
+          # The reports' folder starts with a dot, which the action skips unless told otherwise.
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
       - if: failure()

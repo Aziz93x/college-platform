@@ -6,7 +6,8 @@
       "url": ["http://localhost:3000/today"],
       "numberOfRuns": 3,
       "settings": {
-        "chromeFlags": "--headless=new --no-sandbox"
+        "chromeFlags": "--headless=new --no-sandbox",
+        "throttlingMethod": "devtools"
       }
     },
     "assert": {
