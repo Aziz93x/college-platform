@@ -1,4 +1,5 @@
 export {
+  REMEMBERED_DEVICE_DAYS_MAX,
   type SettingKey,
   type SettingValue,
   settingsRegistry,

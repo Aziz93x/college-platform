@@ -14,6 +14,9 @@ function isTimeZoneName(value: string) {
   }
 }
 
+// The longest "remember this device" may last; Better Auth's session lifetime is set to it.
+export const REMEMBERED_DEVICE_DAYS_MAX = 90;
+
 // Every setting the code reads: its scope, the schema a stored value must pass and the default used while none is stored.
 // "college" is the only scope so far, so the settings table keys a value by (college_id, key);
 // the first setting with another scope adds that scope to the table.
@@ -36,6 +39,69 @@ export const settingsRegistry = {
     scope: "college",
     schema: z.record(z.string(), z.array(z.string())),
     default: {},
+  },
+  // The platform's name on the login page and in the authenticator app; null uses the message catalog's.
+  "platform.name": {
+    scope: "college",
+    schema: z.string().trim().min(1).max(80).nullable(),
+    default: null,
+  },
+  // The pilot banner on every page while the platform is on trial, and its text (null uses the
+  // message catalog's).
+  "pilot.banner": { scope: "college", schema: z.boolean(), default: true },
+  "pilot.bannerText": {
+    scope: "college",
+    schema: z.string().trim().min(1).max(200).nullable(),
+    default: null,
+  },
+  // The college logo on the login page, off until the dean approves it in writing (docs/PLAN.md, section 8).
+  "login.showLogo": { scope: "college", schema: z.boolean(), default: false },
+  // Password policy: the shortest password a person may set.
+  "auth.passwordMinLength": {
+    scope: "college",
+    schema: z.int().min(8).max(64),
+    default: 10,
+  },
+  // Wrong passwords in a row that lock an account, and for how long.
+  "auth.lockoutThreshold": {
+    scope: "college",
+    schema: z.int().min(3).max(20),
+    default: 5,
+  },
+  "auth.lockoutMinutes": {
+    scope: "college",
+    schema: z.int().min(1).max(1440),
+    default: 15,
+  },
+  // Sign-in attempts allowed per account and address in each window, so one address shared by a
+  // whole workshop never blocks the others (ADR-0008).
+  "auth.signInAttempts": {
+    scope: "college",
+    schema: z.int().min(5).max(100),
+    default: 10,
+  },
+  "auth.signInWindowMinutes": {
+    scope: "college",
+    schema: z.int().min(1).max(1440),
+    default: 15,
+  },
+  // A session on a device that is not remembered ends after this long without a request, and
+  // after this many hours in any case.
+  "auth.idleMinutes": {
+    scope: "college",
+    schema: z.int().min(5).max(1440),
+    default: 60,
+  },
+  "auth.sessionHours": {
+    scope: "college",
+    schema: z.int().min(1).max(24),
+    default: 12,
+  },
+  // How long "remember this device" keeps a person signed in.
+  "auth.rememberedDeviceDays": {
+    scope: "college",
+    schema: z.int().min(1).max(REMEMBERED_DEVICE_DAYS_MAX),
+    default: 30,
   },
 } as const;
 
