@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import messages from "../messages/ar.json" with { type: "json" };
 import { expectIdentityLoaded, identityImages } from "./identity-assets";
+import { settled } from "./screens/settled";
 
 const design = messages.design;
 
@@ -141,8 +142,10 @@ async function seriousViolations(page: Page, disabledRules: string[] = []) {
     .map(({ id, nodes }) => ({ id, targets: nodes.map((n) => n.target) }));
 }
 
+// The catalog, not loading.tsx's skeleton, which stays in its place until after the load event.
 test.beforeEach(async ({ page }) => {
   await page.goto("/design");
+  await settled(page);
 });
 
 test("shows every primitive", async ({ page }) => {
