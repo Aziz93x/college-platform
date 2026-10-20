@@ -1119,7 +1119,7 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 ### Section K. Going online, when you decide (steps 47 and 48)
 
-> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. It is revised once the online host is chosen (section 8, open decisions); until then nothing here is built.
+> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. The General Administration chooses between a server inside the college and cloud hosting inside the Kingdom (section 8, open decisions; `docs/ops/hosting-options.md`), and this section is revised for that choice. Until then nothing here is built.
 
 Run this section after the product-manager gate in section 7 says Ship, whenever you choose to go online. Nothing in Sections A to J depends on it.
 
@@ -1231,7 +1231,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Rayat changes its export columns | column names are settings; the import previews differences before saving and names any missing column |
 | Trainers keep sending work on WhatsApp | camera evidence in under a minute, quick requests from the phone, reminders, and the head's short weekly routine; watch the week-2 return metric |
 | The font license may not cover web use and PDF embedding | written confirmation before go-live; a fallback font is a one-token change |
-| Approval from the General Administration takes long | the trial runs under the dean's circular, and the Pilot indicators export feeds the report |
+| Approval from the General Administration takes long | the trial runs under the dean's circular, the Pilot indicators export feeds the report, and `docs/ops/hosting-options.md` lays out the hosting choice for the same request |
 | iPhone limits on installed web apps | uploads start at once and resume on the next open; push only after installation; limits recorded in `docs/ops/ios.md` |
 | Personal data in Rayat files | only the minimal columns are kept, the raw file is discarded, data stays in the Kingdom, access follows scope, and every change is audited |
 | The server fails in an exam week | continuous backups, a timed restore within 1 hour, a rehearsed rollback, and a restore drill before each exam week |
@@ -1253,13 +1253,13 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Decision | Who decides | Needed by |
 | --- | --- | --- |
 | When to go online (Section K) | you | after the product-manager gate |
-| Where the platform is hosted online: Oracle Cloud's sign-up was refused on 2026-10-20, and the college works on Microsoft 365 | you, with college IT | before Section K |
+| Where the platform runs for staff: a server inside the college (a Dell QCT1250 is bought but not yet delivered) or hosting in a cloud region inside the Kingdom; options in `docs/ops/hosting-options.md` | the General Administration, as part of the approval request | before Section K |
 | The three trial departments | the dean | go-live |
 | One alert color outside the identity palette (red) | you | Step 23, where task states first appear |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
 
-The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. The online host is open: Oracle Cloud's sign-up was refused on 2026-10-20, and the college works on Microsoft 365. The options to weigh are a server run by college IT, an Azure region inside the Kingdom if one is available to the college's tenant, or another cloud with a region in the Kingdom. The platform runs in Docker Compose, so any of them works without code changes; Section K is revised for the chosen host.
+The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. Where the platform runs for staff is decided by the General Administration as part of the approval request: a server inside the college (a Dell QCT1250 was bought after the feasibility study of 14 October 2026 and has not arrived) or hosting in a cloud region inside the Kingdom (Oracle Cloud's sign-up was refused on 2026-10-20). `docs/ops/hosting-options.md` sets out both for that request. The platform runs in Docker Compose, so either works without code changes; Section K is revised for the chosen option.
 
 ## 9. Appendix: Rayat export headers
 
