@@ -27,8 +27,8 @@ One Next.js application and one worker, on PostgreSQL, in Docker. Step 1 install
 | PDF | Playwright Chromium in the worker renders print pages |
 | Language | next-intl; Arabic by default (RTL); Latin digits with Arabic month names; Hijri through Intl `islamic-umalqura` where a setting asks |
 | Tests | Vitest (unit; integration on real PostgreSQL through Testcontainers); fast-check; Playwright (end to end, phone emulation, axe, visual snapshots); Lighthouse CI; k6 |
-| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate |
-| Monitoring | pino with request ids; GlitchTip; `/healthz` and `/readyz`; an uptime check |
+| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate (automerge of passing minor and patch updates: ADR-0006) |
+| Monitoring | pino with request ids; GlitchTip (replaced by ADR-0005: errors tracked in the platform); `/healthz` and `/readyz`; an uptime check |
 | Hosting | Docker Compose on the laptop (Caddy, app, worker, PostgreSQL, encrypted backups); later the same images on one Oracle Cloud Always Free VM in the Jeddah region |
 
 Code is laid out as `app → modules → platform`; dependency-cruiser enforces the direction, modules import each other only through `index.ts`, and `domain/` does no I/O.

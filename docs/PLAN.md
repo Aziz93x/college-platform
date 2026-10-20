@@ -104,8 +104,8 @@ A term readiness board shows each role what it still owes, before and during the
 | PDF | Playwright Chromium in the worker renders print pages | correct Arabic shaping and real CSS layout |
 | Language | next-intl; Arabic by default (RTL), English catalog optional; Latin digits with Arabic month names; Hijri dates through Intl `islamic-umalqura` where a setting asks | no interface text in code |
 | Tests | Vitest (unit, and integration on real PostgreSQL through Testcontainers); fast-check; Playwright (end to end, phone emulation, axe, visual snapshots); Lighthouse CI; k6 | each layer tested where it can break |
-| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate | fast feedback and enforced module boundaries |
-| Monitoring | pino logs with request ids; GlitchTip (self-hosted, Sentry-compatible); `/healthz` and `/readyz`; an uptime check | problems seen before users report them |
+| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate (merges passing minor and patch updates itself, ADR-0006) | fast feedback and enforced module boundaries |
+| Monitoring | pino logs with request ids; errors recorded in the platform's own database with an admin notification (ADR-0005); `/healthz` and `/readyz`; an uptime check | problems seen before users report them |
 | Hosting | Now: Docker Compose on your laptop (Docker Desktop with WSL 2): Caddy with local HTTPS, app, worker with Chromium and poppler, PostgreSQL, and encrypted backups (WAL-G or pgBackRest for the database, restic for files) to a folder you choose. Later (Section K): the same images, also built for Arm, on one Oracle Cloud Always Free VM in the Jeddah region (Ampere A1, 2 OCPUs, 12 GB RAM, up to 200 GB of storage), backups to Oracle Object Storage in the same region, and GitHub Actions building to GHCR and deploying over SSH | small, reproducible, easy to move |
 
 **Decision change, recorded as ADR-0002.** The earlier analysis chose SQLite for a demo. A new build that holds real data for 40 or more people at once, runs a job queue, and may move to institutional hosting later is better served by PostgreSQL: concurrent writes, mature point-in-time recovery, pg-boss on the same database, and managed hosting in the Kingdom later. The cost is one more container.
@@ -1044,9 +1044,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Goal:** problems are seen early, and data comes back within the targets, even on a laptop.
 
-**Do:** structured logs with rotation; GlitchTip for errors; continuous WAL archiving plus daily base backups (WAL-G or pgBackRest), run at the next start when the laptop was off, and restic for files, all encrypted, to a backup folder you choose outside the project (an external drive if you have one); a restore script; a runbook in `docs/ops/`. The admin gets an in-app notification when a backup fails.
+**Do:** structured logs with rotation; errors recorded in an `error_events` table, grouped by fingerprint, shown on the admin's system-health screen, with an in-app notification for a new error or an error rate above a setting (ADR-0005); continuous WAL archiving plus daily base backups (WAL-G or pgBackRest), run at the next start when the laptop was off, and restic for files, all encrypted, to a backup folder you choose outside the project (an external drive if you have one); a restore script; a runbook in `docs/ops/`. The admin gets an in-app notification when a backup fails.
 
-**Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, and a failed backup notifies the admin.
+**Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, a failed backup notifies the admin, and a forced error appears on the system-health screen and notifies the admin.
 
 > **Checkpoint: Audit 14.** Run `/audit 40-42`.
 >
@@ -1153,7 +1153,7 @@ staging.college.azizalmalki.com {
 
 **Goal:** the server is watched, backed up inside the Kingdom, and proven to recover.
 
-**Do:** the logs and GlitchTip from Step 42 on the server; an external uptime check on both addresses; the Step 42 backups pointed at Oracle Object Storage in the same region through its S3-compatible API (20 GB free; the backup report shows usage); the restore drill and the Step 45 load test repeated on the server.
+**Do:** the logs and error tracking from Step 42 on the server; an external uptime check on both addresses; the Step 42 backups pointed at Oracle Object Storage in the same region through its S3-compatible API (20 GB free; the backup report shows usage); the restore drill and the Step 45 load test repeated on the server.
 
 **Done when:** the restore drill on the server loses at most 1 minute of data and restores in at most 1 hour, the load test meets its targets there, and an alert fires when a backup fails.
 
