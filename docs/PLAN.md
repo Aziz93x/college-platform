@@ -549,6 +549,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - axe reports no serious issues on `/design`, and `check:hardcode` finds no hex color outside the tokens.
 - Arabic text shapes correctly in the identity font, with no layout shift when the font loads (CLS under 0.05).
 
+**Notes from Audit 1**
+
+- Fonts and non-public brand assets are fetched by `identity:sync` and gitignored, never committed (ADR-0004). `next/font/local` reads the font files at build time, so CI and the Docker build fetch them before `pnpm build`.
+- Close the color guard gaps: dark tokens without the `prefers-color-scheme` media query, `rgb()`, `hsl()` and `oklch()` in the color rule, and `--color-*: initial` in `@theme`.
+- The first `public/` files need copying next to the standalone server: `cp -r public .next/standalone/public` in `.github/workflows/ci.yml`, and `COPY --from=build --chown=node:node /repo/public ./public` in the `app` stage of `docker/Dockerfile`.
+
 #### Step 5. App shell and navigation as data (M)
 
 **Goal:** one shell for every role, with navigation driven by permissions.
@@ -652,6 +658,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Do:** append-only `audit_events` (actor, action, entity, diff, IP, user agent, time); an admin viewer with filters, search and export; a history panel reused on entity pages; retention as a setting.
 
 **Done when:** a test lists every server action and asserts each one writes an event, and the viewer pages through 100,000 events in under 300 ms.
+
+**Note from Audit 1:** `db/migrations/0001_audit_events_append_only.sql` rejects every `UPDATE`, `DELETE` and `TRUNCATE` on `audit_events`, so the retention purge needs its own allowed path past those triggers, and so does any backfill in a later migration. The triggers stop mistakes, not the table owner, which is the app's own database user.
 
 #### Step 12. Notifications foundation (M)
 

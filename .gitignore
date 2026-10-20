@@ -45,6 +45,13 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 
+# licensed or non-public brand assets: identity:sync fetches them, never commit them (ADR-0004)
+*.woff
+*.woff2
+*.ttf
+*.otf
+/public/brand/
+
 # local only
 /.local/
 /tests/explore/
