@@ -23,6 +23,7 @@
     "format": "biome check --write",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "e2e:screens": "playwright test --config e2e/screens/screens.config.ts",
     "check:hardcode": "node scripts/check-hardcode.mjs",
     "check:boundaries": "depcruise src worker db --config .dependency-cruiser.cjs",
     "check:unused": "knip",
