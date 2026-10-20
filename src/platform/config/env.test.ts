@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "./env";
+import { parseEnv, parseSeedEnv } from "./env";
 
 const valid = {
   APP_URL: "http://localhost:3000",
@@ -8,8 +8,12 @@ const valid = {
 };
 
 describe("parseEnv", () => {
-  it("accepts a complete environment and defaults NODE_ENV", () => {
-    expect(parseEnv(valid)).toEqual({ ...valid, NODE_ENV: "development" });
+  it("accepts a complete environment and defaults NODE_ENV and APP_ENV", () => {
+    expect(parseEnv(valid)).toEqual({
+      ...valid,
+      NODE_ENV: "development",
+      APP_ENV: "production",
+    });
   });
 
   it("names every missing or invalid variable", () => {
@@ -22,5 +26,24 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, NODE_ENV: "staging" })).toThrow(
       /NODE_ENV/,
     );
+  });
+
+  it("accepts a known APP_ENV and rejects an unknown one", () => {
+    expect(parseEnv({ ...valid, APP_ENV: "local" }).APP_ENV).toBe("local");
+    expect(() => parseEnv({ ...valid, APP_ENV: "demo" })).toThrow(/APP_ENV/);
+  });
+});
+
+describe("parseSeedEnv", () => {
+  const seed = { SEED_COLLEGE_NAME: "College", SEED_COLLEGE_SHORT_NAME: "C" };
+
+  it("adds the seed college values to the environment", () => {
+    expect(parseSeedEnv({ ...valid, ...seed })).toMatchObject(seed);
+  });
+
+  it("names the missing or blank seed variables", () => {
+    expect(() =>
+      parseSeedEnv({ ...valid, SEED_COLLEGE_SHORT_NAME: " " }),
+    ).toThrow(/SEED_COLLEGE_NAME[\s\S]*SEED_COLLEGE_SHORT_NAME/);
   });
 });
