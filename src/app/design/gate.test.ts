@@ -29,5 +29,6 @@ it.each([
   vi.stubEnv("APP_URL", "http://localhost:3000");
   vi.stubEnv("DATABASE_URL", "postgres://user:password@localhost:5432/db");
   vi.stubEnv("SMTP_URL", "smtp://localhost:1025");
+  vi.stubEnv("AUTH_SECRET", "unit-tests-secret-for-cookies-only");
   await expect(DesignPage()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
 });

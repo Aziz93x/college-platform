@@ -10,6 +10,9 @@ const schema = z.object({
   APP_URL: z.url({ protocol: /^https?$/ }),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   SMTP_URL: z.url({ protocol: /^smtps?$/ }),
+  // Signs session cookies and encrypts stored two-factor secrets. Changing it signs everyone out
+  // and makes the stored two-factor secrets unreadable.
+  AUTH_SECRET: z.string().min(32),
 });
 
 // The base seed also needs the placeholder college values.

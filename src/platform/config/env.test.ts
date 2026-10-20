@@ -5,6 +5,7 @@ const valid = {
   APP_URL: "http://localhost:3000",
   DATABASE_URL: "postgres://app:app@localhost:5432/app",
   SMTP_URL: "smtp://localhost:1025",
+  AUTH_SECRET: "a".repeat(32),
 };
 
 describe("parseEnv", () => {
@@ -20,6 +21,12 @@ describe("parseEnv", () => {
     expect(() =>
       parseEnv({ ...valid, DATABASE_URL: "mysql://x", SMTP_URL: undefined }),
     ).toThrow(/DATABASE_URL[\s\S]*SMTP_URL/);
+  });
+
+  it("rejects an auth secret shorter than 32 characters", () => {
+    expect(() => parseEnv({ ...valid, AUTH_SECRET: "a".repeat(31) })).toThrow(
+      /AUTH_SECRET/,
+    );
   });
 
   it("rejects an unknown NODE_ENV", () => {

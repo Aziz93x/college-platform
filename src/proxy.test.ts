@@ -49,6 +49,7 @@ describe("/design", () => {
     vi.stubEnv("APP_URL", "http://localhost:3000");
     vi.stubEnv("DATABASE_URL", "postgres://user:password@localhost:5432/db");
     vi.stubEnv("SMTP_URL", "smtp://localhost:1025");
+    vi.stubEnv("AUTH_SECRET", "unit-tests-secret-for-cookies-only");
     return proxy(new NextRequest(`http://localhost${path}`));
   }
 
