@@ -8,6 +8,8 @@ Arabic-first platform where each role fills its part of one loop: term and frame
 - Items marked "You:" in a step belong to the owner: stop and hand over a checklist.
 - Capabilities in code, everything else in data: no names, labels, week counts, role names, limits,
   colors or Arabic text in src/. Use settings, the database or messages/*.json.
+- Nothing is fetched from the internet at runtime (fonts, scripts, wasm, images, PDF assets):
+  the platform may run on an isolated network.
 - Every server action: next-safe-action, a Zod input schema, authorize(actor, permission, scope),
   and an audit event. Check permissions by key, never by role name.
 - Modules import each other only through index.ts; domain/ has no I/O.

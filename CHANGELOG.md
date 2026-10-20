@@ -48,6 +48,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - The hosting for staff is part of the approval request: the General Administration chooses between a server inside the college and cloud hosting inside the Kingdom; `docs/ops/hosting-options.md` (Arabic) sets out both.
 - ADR-0005: errors are tracked inside the platform (an `error_events` table, the admin's system-health screen and an in-app notification) instead of a self-hosted GlitchTip; docs/PLAN.md section 2 and Steps 42 and 48 follow it.
 - ADR-0006: Renovate merges passing minor and patch updates, digest pins and lock file maintenance itself; major and pre-1.0 updates stay manual.
+- ADR-0008: steps run in the order 1-6, 41, 7-29, 31, 30, 32-40, 42-46, with their numbers kept. Nothing is fetched from the internet at runtime. Alerts stay in-app, and SMTP, web push, passkeys and the Entra provider wait for the hosting decision. A GA demonstration follows lead review F. Section K is not built, and Audit 16 covers Step 46 alone. `docs/ops/hosting-options.md` now states what personal data the platform keeps and what option A rules out.
 
 ### Audit 1: steps 1-3
 
