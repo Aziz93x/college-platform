@@ -1,0 +1,3 @@
+# gitleaks configuration: run `pnpm check:secrets` locally; Step 2 adds it to CI.
+[extend]
+useDefault = true

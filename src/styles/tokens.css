@@ -1,0 +1,13 @@
+/* Design tokens. The only place in src/ where raw color values live.
+   Step 4 regenerates this file from the identity repo (pnpm identity:sync). */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
