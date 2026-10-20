@@ -72,6 +72,18 @@ jobs:
       - run: pnpm test:e2e
         env:
           DEBUG: pw:webserver
+      # The shell on phone emulation (docs/PLAN.md section 4): performance 95 or more and accessibility
+      # 100. The best of three runs counts, so a freshly started server's first answers do not.
+      - run: pnpm lighthouse
+        env:
+          HOSTNAME: localhost
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lighthouse
+          path: .lighthouseci/
+          if-no-files-found: ignore
+          retention-days: 14
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
