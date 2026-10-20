@@ -1,0 +1,20 @@
+# Services for pnpm dev on the laptop: docker compose -f docker/compose.dev.yml up -d
+name: college-dev
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: college
+      POSTGRES_PASSWORD: college
+      POSTGRES_DB: college
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U college -d college"]
+      interval: 5s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+volumes:
+  pgdata:
