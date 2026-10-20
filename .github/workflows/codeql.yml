@@ -15,6 +15,9 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -25,20 +28,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
-      # Code scanning uploads need GitHub Advanced Security on a private repository,
-      # so the results stay in the job: any alert fails it, and the SARIF file is kept.
       - uses: github/codeql-action/analyze@v3
         with:
-          upload: never
-          output: sarif
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: codeql-${{ matrix.language }}
-          path: sarif/
-          retention-days: 14
-      - name: Fail on alerts
-        run: |
-          count=$(jq '[.runs[].results[]] | length' sarif/*.sarif)
-          jq -r '.runs[].results[] | "\(.ruleId): \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine) \(.message.text)"' sarif/*.sarif
-          test "$count" -eq 0
+          category: /language:${{ matrix.language }}

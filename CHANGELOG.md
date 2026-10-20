@@ -7,7 +7,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 ### Step 02: CI, containers and environment
 
 - GitHub Actions: `check:all`, knip, build and a Playwright smoke test on desktop and iPhone emulation with a PostgreSQL 18 service, traces kept on failure; a job that builds both Docker images, holds the app image under 300 MB and proves both refuse an invalid environment.
-- CodeQL (JavaScript/TypeScript and Actions; results kept in the job because the private repository has no code scanning upload), gitleaks and Renovate.
+- CodeQL (JavaScript/TypeScript and Actions, results in code scanning), gitleaks and Renovate.
 - `docker/Dockerfile` with `app` (Next standalone on Alpine with only the node binary, non-root) and `worker` (Chromium and poppler-utils) targets; every base exists for arm64.
 - `docker/compose.dev.yml` (PostgreSQL 18, Mailpit) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, a daily `pg_dump` backup until Step 42).
 - `src/platform/config/env.ts`: one Zod schema for `NODE_ENV`, `APP_URL`, `DATABASE_URL` and `SMTP_URL`; the app (instrumentation) and the worker exit at start and name each invalid variable.
