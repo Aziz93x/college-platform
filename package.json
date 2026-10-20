@@ -2,6 +2,7 @@
   "name": "college-platform",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@12.14.0",
   "engines": {
     "node": ">=24 <25"
@@ -10,6 +11,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "worker": "node worker/index.ts",
+    "worker:dev": "node --env-file=.env.local --watch worker/index.ts",
     "check:types": "next typegen && tsc --noEmit",
     "check:lint": "biome check",
     "format": "biome check --write",
@@ -24,7 +27,8 @@
   "dependencies": {
     "next": "16.4.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
