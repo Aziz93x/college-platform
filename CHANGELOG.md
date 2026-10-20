@@ -4,6 +4,15 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 1: steps 1-3
+
+- `check:hardcode` catches role-name checks written on one line. On a line that mentions `role`, it flags a role-like string literal (one with no dot or slash, so permission keys such as `"roles.assign"` and paths pass) that is compared, searched for with `.includes`, `.has`, `.startsWith` or `.endsWith`, passed to `hasRole()` or a Drizzle comparison (`eq`, `ne`, `inArray`, `notInArray`, `like`, `ilike`), listed in an assigned array or compared in SQL (`= 'x'`); and an array or `Set` literal searched with `.includes(` or `.has(`. It also flags a `case "x"` in the innermost `switch` on a role, a `SCREAMING_CASE` name with a `ROLE` or `ROLES` part, and an `enum` named after roles. docs/reviews/audit-03.md lists the forms it misses.
+- `check:boundaries` makes `domain/` an allowlist: it imports only its own module's `domain/` files, `zod`, `vitest` and types from a module's `index.ts`, so npm I/O packages such as `pg`, `pg-boss`, `drizzle-orm` and `next/headers` fail too, in tests as well.
+- `audit_events` is append-only in the database: migration `0001_audit_events_append_only.sql` adds triggers that reject `UPDATE`, `DELETE` and `TRUNCATE`. They stop mistakes, not the table owner, which is the app's own database user.
+- CI runs the Playwright smoke test against the standalone production build (`node .next/standalone/server.js`) instead of the dev server.
+- ADR-0004 (proposed): the repository stays public, and licensed or non-public brand assets never enter git. `.gitignore` ignores `*.woff`, `*.woff2`, `*.ttf`, `*.otf` and `public/brand/`, a unit test fails when a font or brand file is tracked, and docs/PLAN.md Step 4 carries the rule.
+- docs/PLAN.md notes under Step 4 (fonts, color guard gaps, `public/` copy) and Step 11 (the triggers and the retention purge); docs/BACKLOG.md lists minors 1-5 for lead review A.
+
 ### Step 03: database, jobs and platform core
 
 - Drizzle ORM on PostgreSQL through `pg`, with a lazy pool so `next build` needs no database. Each module owns its tables: `colleges` (org), `settings` (settings) and `audit_events` (audit), in the first migration `db/migrations/0000_platform_core.sql`.
