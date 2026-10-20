@@ -17,6 +17,7 @@
     "db:migrate": "node --env-file-if-exists=.env.local db/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env.local db/seed/base.ts",
     "seed:demo": "node --env-file-if-exists=.env.local db/seed/demo.ts",
+    "identity:sync": "node scripts/identity/sync.ts",
     "check:types": "next typegen && tsc --noEmit",
     "check:lint": "biome check",
     "format": "biome check --write",

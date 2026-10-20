@@ -1,0 +1,97 @@
+{
+  "repo": "Aziz93x/identity-design",
+  "commit": "fe72ac24bc089c1e28cdacb70fbd838b252335ad",
+  "files": [
+    {
+      "from": "assets/identity/الخطوط -Fonts/DINNextLTArabic-Regular-3.ttf",
+      "to": "src/styles/fonts/din-next-lt-arabic-400.ttf",
+      "sha256": "21128d204de2676f2479dedfef937ef479fe4dbc106c2708cbf9e2afa1318e03"
+    },
+    {
+      "from": "assets/identity/الخطوط -Fonts/alfont_com_AlFont_com_DINNextLTArabic-Medium.ttf",
+      "to": "src/styles/fonts/din-next-lt-arabic-500.ttf",
+      "sha256": "2d472fae50ec701cfbf4f1b69d8677676dbf18a4e62e5eacda0badf54715e9ab"
+    },
+    {
+      "from": "assets/identity/الشعارات - Logos/SVG-outlined/horizontal-color.svg",
+      "to": "public/brand/logo-horizontal-color.svg",
+      "sha256": "78a7d7e3a467c44a90e169680c0da109b75b7aef5a01a242fab86bcfce9d995d"
+    },
+    {
+      "from": "assets/identity/الشعارات - Logos/SVG-outlined/horizontal-white.svg",
+      "to": "public/brand/logo-horizontal-white.svg",
+      "sha256": "d59897b5cd6ed3e48801c54d735926f405054316acb78d694384eb37aaa2141a"
+    },
+    {
+      "from": "assets/identity/الشعارات - Logos/SVG-outlined/vertical-color.svg",
+      "to": "public/brand/logo-vertical-color.svg",
+      "sha256": "aeb62005dcf71d0716d0ec82e1b58153abee28d37805a766864187240db40c02"
+    },
+    {
+      "from": "assets/identity/الشعارات - Logos/SVG-outlined/vertical-white.svg",
+      "to": "public/brand/logo-vertical-white.svg",
+      "sha256": "20fdfa4be1431ec417aac58d1747464b4150ad7bc7397ab96dfbabf7f9abbf29"
+    },
+    {
+      "from": "assets/identity/الأنماط والعناصر البصرية - Elements/01 copy.png",
+      "to": "public/brand/element-wave.png",
+      "sha256": "8fcd6318a972571ef9d66e42b06ed94aa400adaf7b5f43dd6fa34b10c3c754a1"
+    },
+    {
+      "from": "assets/identity/الأنماط والعناصر البصرية - Elements/lines_01.png",
+      "to": "public/brand/element-curves.png",
+      "sha256": "2be10a2302df4f093be37a3361ece2e422f59da3dfc7015470296807ad47df01"
+    },
+    {
+      "from": "assets/identity/الأنماط والعناصر البصرية - Elements/قالب شبكة خلفيات 01.png",
+      "to": "public/brand/element-dot-grid.png",
+      "sha256": "2447172c96b11a9d6f28ff759d3365150466dc6e418ac43884cafd968bb09c81"
+    }
+  ],
+  "tokens": {
+    "from": "assets/digital-tokens.json",
+    "sha256": "daa69e443951e890e6ac51ede1264e664f30bb8401e35bfd676d6381f8545e5f",
+    "hues": ["gray", "blue", "azure", "cyan", "teal", "green"],
+    "light": {
+      "background": "white",
+      "foreground": "support-r1-c1",
+      "card": "white",
+      "popover": "white",
+      "primary": "support-r1-c2",
+      "primary-foreground": "white",
+      "secondary": "support-r1-c5",
+      "muted": "support-r6-c1",
+      "muted-foreground": "support-r2-c1",
+      "accent": "support-r1-c6",
+      "border": "support-r6-c1",
+      "input": "support-r3-c1",
+      "ring": "support-r3-c2",
+      "chart-1": "support-r1-c2",
+      "chart-2": "support-r3-c4",
+      "chart-3": "support-r1-c6",
+      "chart-4": "support-r3-c2",
+      "chart-5": "support-r2-c1"
+    },
+    "dark": {
+      "background": "support-r1-c2",
+      "foreground": "white",
+      "card": "support-r1-c3",
+      "popover": "support-r1-c3",
+      "primary": "support-r6-c2",
+      "primary-foreground": "support-r1-c2",
+      "secondary": "support-r1-c5",
+      "muted": "support-r2-c2",
+      "muted-foreground": "support-r6-c1",
+      "accent": "support-r3-c6",
+      "border": "support-r2-c2",
+      "input": "support-r4-c1",
+      "ring": "support-r6-c3",
+      "chart-1": "support-r6-c2",
+      "chart-2": "support-r4-c4",
+      "chart-3": "support-r3-c6",
+      "chart-4": "support-r5-c2",
+      "chart-5": "support-r5-c1"
+    },
+    "extra": { "alert": "#B42318", "alert-foreground": "#FFFFFF" }
+  }
+}

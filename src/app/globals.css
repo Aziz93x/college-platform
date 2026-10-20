@@ -1,12 +1,45 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "../styles/tokens.css";
+@import "../styles/theme.css";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/* Touch targets of 44 px (docs/PLAN.md section 4). On a touch screen, a control smaller than that
+   gets an invisible hit area of at least 44 by 44 px around its center, in either direction. The
+   control must be positioned. */
+@utility touch-hit-area {
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      inset: min(0px, calc(50% - var(--spacing) * 5.5));
+    }
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-base text-foreground;
+  }
+
+  /* Medium for headings (docs/PLAN.md section 4); preflight would have them inherit Regular. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-medium;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
 }
