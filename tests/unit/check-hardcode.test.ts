@@ -37,22 +37,89 @@ describe("check:hardcode", () => {
 
   it("fails on role names compared in code", () => {
     root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    const roleChecks = [
+      'if (user.role === "head") {}',
+      'if ("dean" === actor.role) {}',
+      'if (roles.includes("trainer")) {}',
+      'if (user.roleKey !== "admin") {}',
+      'if (hasRole(user, "admin")) {}',
+      'if (user.role.name === "dean") {}',
+      'if (actor.role.key !== "head") {}',
+      'switch (role) { case "trainer": break; }',
+      'if (["dean", "vice_dean"].includes(user.role)) {}',
+      "const isHead = membership.roleId === HEAD_ROLE_ID;",
+      'const rows = await db.select().from(memberships).where(eq(roles.key, "head"));',
+      '  .where(and(eq(memberships.collegeId, id), eq(roles.key, "head")))',
+      '  .where(inArray(roles.key, ["dean", "vice_dean"]))',
+      '  .where(like(roles.key, "vice_%"))',
+      "const rows = await db.execute(sql`select * from roles where key = 'dean'`);",
+      'const ADMIN_ROLES = ["dean", "vice_dean"];',
+      "if (ADMIN_ROLES.includes(user.role.key)) {}",
+      'const adminRoles = ["dean", "vice_dean"];',
+      'const ROLE_DEAN = "dean";',
+      "if (role.key === ROLE_DEAN) {}",
+      'const ADMIN_ROLE_KEY = "admin";',
+      'if (new Set(["dean", "head"]).has(actor.role.key)) {}',
+      'if (user.role.key.startsWith("vice_")) {}',
+      'export enum Role { Dean = "dean", Head = "head" }',
+      'export const ROLES = { DEAN: "dean", HEAD: "head" } as const;',
+    ];
+    write("src/a.ts", roleChecks.join("\n"));
     write(
-      "src/a.ts",
+      "src/b.ts",
       [
-        'if (user.role === "head") {}',
-        'if ("dean" === actor.role) {}',
-        'if (roles.includes("trainer")) {}',
-        'if (user.roleKey !== "admin") {}',
-        "if (can(actor, permission)) {}",
+        "switch (actor.role.key) {",
+        '  case "head":',
+        "    switch (kind) {",
+        '      case "upload":',
+        "        break;",
+        "    }",
+        "    break;",
+        '  case "dean":',
+        "    break;",
+        "}",
+        "switch (kind) {",
+        '  case "upload":',
+        "    break;",
+        "}",
       ].join("\n"),
     );
-    expect(rules()).toEqual([
-      "src/a.ts:role-name-comparison",
-      "src/a.ts:role-name-comparison",
-      "src/a.ts:role-name-comparison",
-      "src/a.ts:role-name-comparison",
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      ...roleChecks.map((_, i) => `src/a.ts:${i + 1}:role-name-comparison`),
+      "src/b.ts:2:role-name-comparison",
+      "src/b.ts:8:role-name-comparison",
     ]);
+  });
+
+  it("passes permission checks and other uses of the word role", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/a.tsx",
+      [
+        'authorize(actor, "settings.edit", scope);',
+        "if (can(actor, permission)) {}",
+        'const status = <div role="status" />;',
+        "const role = await getRole(id);",
+        "if (membership.roleId === input.roleId) {}",
+        'if (status === "done") {}',
+        'const title = t("roles.title");',
+        'const canAssign = permissions.includes("roles.assign");',
+        'if (pathname === "/admin/roles") {}',
+        "const value = await db.select().from(settings).where(eq(settings.key, key));",
+        "  .where(eq(memberships.roleId, input.roleId))",
+        '  .where(eq(rolePermissions.permissionKey, "roles.assign"))',
+        'const rows = await pool.query("select * from roles where key = any($1)", [keys]);',
+        'export const roles = pgTable("roles", {',
+        '  roleId: uuid("role_id").notNull(),',
+        "switch (kind) {",
+        '  case "upload":',
+        "    break;",
+        "}",
+      ].join("\n"),
+    );
+    expect(rules()).toEqual([]);
   });
 
   it("fails on hex colors outside src/styles/tokens.css", () => {

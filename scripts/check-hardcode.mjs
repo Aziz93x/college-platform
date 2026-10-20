@@ -8,6 +8,55 @@ const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|css)$/;
 const TEST_FILE = /(\.test\.|\.spec\.|[\\/]__tests__[\\/])/;
 const TOKENS_FILE = ["src", "styles", "tokens.css"].join(sep);
 
+const ROLE = /role/i;
+// A string literal that can hold a role key or name. Permission keys ("roles.assign"), message
+// keys ("roles.title") and paths ("/admin/roles") hold a dot or a slash, so they are not one.
+const NAME = "(?:\"[^\"./]+\"|'[^'./]+'|`[^`./]+`)";
+// On a line that mentions role: a NAME compared with ==, !=, === or !==; passed to .includes,
+// .has, .startsWith, .endsWith, hasRole() or a Drizzle comparison; in an array literal that is
+// assigned; compared in SQL (= 'x', <> 'x', in ('x')); or an array or Set literal searched with
+// .includes( or .has(.
+const LITERAL_CHECK = new RegExp(
+  [
+    `[!=]==?\\s*${NAME}`,
+    `${NAME}\\s*[!=]==?`,
+    `\\.(?:includes|has|startsWith|endsWith)\\(\\s*${NAME}`,
+    `\\bhasRole\\([^)]*${NAME}`,
+    `\\b(?:eq|ne|inArray|notInArray|like|ilike)\\([^)]*${NAME}`,
+    `[=:]\\s*\\[\\s*${NAME}`,
+    `(?:=|<>|\\bin\\s*\\()\\s*'[^'./]+'`,
+    "\\]\\s*\\)?\\s*\\.(?:includes|has)\\(",
+  ].join("|"),
+  "i",
+);
+// A SCREAMING_CASE name with a ROLE or ROLES part (HEAD_ROLE_ID, ADMIN_ROLES, ROLE_DEAN, ROLES),
+// and an enum named after roles: both hold role names in code.
+const ROLE_CONSTANT = /\b(?:[A-Z][A-Z0-9]*_)*ROLES?(?:_[A-Z0-9]+)*\b/;
+const ROLE_ENUM = /\benum\s+\w*Role/;
+const CASE_LITERAL = /\bcase\s+["'`]/g;
+const SWITCH_OR_BRACE = /\bswitch\s*\(([^{}]*?)\)\s*\{|[{}]/g;
+
+// The discriminant of the innermost `switch (…) {` still open at the end of `text`.
+function openSwitch(text) {
+  const open = [];
+  for (const [token, discriminant] of text.matchAll(SWITCH_OR_BRACE)) {
+    if (token === "}") open.pop();
+    else open.push(discriminant);
+  }
+  return open.findLast((d) => d !== undefined);
+}
+
+function isRoleNameCheck(line, index, lines) {
+  if (ROLE_CONSTANT.test(line) || ROLE_ENUM.test(line)) return true;
+  if (ROLE.test(line) && LITERAL_CHECK.test(line)) return true;
+  // A `case "x":` belongs to the innermost open switch, which may start lines above.
+  for (const { index: column } of line.matchAll(CASE_LITERAL)) {
+    const before = [...lines.slice(0, index), line.slice(0, column)].join("\n");
+    if (ROLE.test(openSwitch(before) ?? "")) return true;
+  }
+  return false;
+}
+
 const RULES = [
   {
     name: "arabic-text",
@@ -17,8 +66,7 @@ const RULES = [
   {
     name: "role-name-comparison",
     message: "check a permission key with authorize(), never a role name",
-    pattern:
-      /\b\w*roles?(Name|Key|Slug|Code)?\b\s*(===|!==|==|!=)\s*["'`]|["'`][^"'`]*["'`]\s*(===|!==|==|!=)\s*[\w.?]*\broles?(Name|Key|Slug|Code)?\b|\b\w*roles?(Names|Keys)?\??\.includes\(\s*["'`]|\bhasRole\(\s*\w*,?\s*["'`]/i,
+    test: isRoleNameCheck,
   },
   {
     name: "hex-color",
@@ -53,7 +101,10 @@ export function findHardcodedValues(root) {
     lines.forEach((line, index) => {
       for (const rule of RULES) {
         if (rule.allow?.(file)) continue;
-        if (rule.pattern.test(line)) {
+        const found = rule.test
+          ? rule.test(line, index, lines)
+          : rule.pattern.test(line);
+        if (found) {
           findings.push({
             file,
             line: index + 1,
