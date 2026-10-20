@@ -93,7 +93,7 @@ A term readiness board shows each role what it still owes, before and during the
 | --- | --- | --- |
 | Runtime | Node.js 24 LTS, pnpm | current LTS; fast, strict installs |
 | Framework | Next.js 16 App Router: React 19, Server Components, Server Actions, React Compiler, Turbopack; TypeScript strict | one typed codebase for screens and server |
-| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; Motion when a step needs more than CSS transitions; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers (BeUI deferred in Step 4 to the UX review of Steps 1 to 10, ADR-0001) | full control of a premium RTL interface on accessible primitives |
+| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; Motion with the BeUI components the owner chose, each where it has a real use (ADR-0001, docs/design/beui-map.md); Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers | full control of a premium RTL interface on accessible primitives |
 | Charts | Recharts (SVG) behind one chart wrapper | SVG stays sharp in PDFs and follows the tokens |
 | Forms and validation | Zod 4 at every boundary (environment, inputs, settings, JSON payloads); react-hook-form; next-safe-action with an auth middleware | one schema from the form to the database |
 | URL state | nuqs | filters and tabs survive reloads and shared links |
@@ -223,6 +223,8 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 - **Speed for frequent users:** a command palette (Ctrl or ⌘ K) and keyboard shortcuts in the review inbox.
 - **Arabic done right:** logical CSS properties, correct mixed Arabic and Latin text, Arabic-Indic digits accepted in inputs and stored as Latin, and the week number first in dates ("Week 7 · Thursday 23 October").
 - **Every state designed:** loading, empty, partial, error, no permission and, from Step 39, offline.
+
+**Owner direction (Step 5).** Motion and the identity are the platform's spirit: Motion with the BeUI components the owner chose, each adopted where it has a real use (docs/design/beui-map.md), and the identity's dark surface, gradient and art in the shell's chrome as well as on the login page, empty states and the PDF cover. Every animation stops or fades under reduced motion, and the measurable bar below still holds.
 
 **Measurable bar**
 
@@ -577,6 +579,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - The root layout reads the locale settings from the database on every request (ADR-0007, proposed), so an error there reaches no segment `error.tsx`. `src/app/global-error.tsx` must render without the database: its own `<html lang dir>` from the registered default language and its messages imported statically.
 - Under Cache Components, a `notFound()`, `forbidden()` or `unauthorized()` thrown after a loading boundary has streamed keeps a 200 status. Where the status matters, decide it in `src/proxy.ts` first, as `/design` does.
 
+**Decisions in this step**
+
+- Owner direction during this step: motion and the identity are the platform's spirit (section 4). The shell is BeUI's dock, shared-layout pill, bottom sheet and command palette on Motion, with the identity's dark surface, gradient and art; every other BeUI component waits for its real use (docs/design/beui-map.md).
+- The header holds the search; the avatar menu (Step 6), the bell (Step 12) and the term switcher (Step 13) take their places there with their data. `print/` arrives with its first page (Step 32).
+
 #### Step 6. Sign-in and the login page (L)
 
 **Goal:** secure sign-in at `/`, on the premium login page.
@@ -597,8 +604,14 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from Step 4**
 
 - `/design` is gated by `APP_ENV` (local only) until authorization exists; add the admin permission check here, in the page, and keep the proxy's 404 for a refused request.
-- The identity gradient (`references/palette-source.md` in the identity repo) is not a token yet; the login page's identity art adds it to the token mapping in `scripts/identity/identity.lock.json`.
+- The identity gradient (`references/palette-source.md` in the identity repo) is not a token yet; the login page's identity art adds it to the token mapping in `scripts/identity/identity.lock.json`. (Done in Step 5: `--gradient-start` and `--gradient-end`.)
 - The four college logos are fetched into `public/brand/`, so `/brand/logo-*.svg` is reachable without sign-in although no page shows a logo. Keep it that way, or move the logos out of `public/`, according to the dean's answer on the logo before sign-in (section 8).
+
+**Notes from Step 5**
+
+- The login page is `src/app/(auth)/page.tsx`; remove the redirect from `/` to `/today` in `next.config.ts`. Replace the `viewer` constant in `src/app/(app)/layout.tsx` with the signed-in person's permissions and role keys, and put the shell behind sign-in.
+- A refused page calls `forbidden()` (`src/app/(app)/forbidden.tsx`); where its 403 status matters, decide it in `src/proxy.ts`, as `/design` does.
+- BeUI here (docs/design/beui-map.md): input, checkbox, alert, loader and text reveal on the login page, and the bloom menu as the avatar menu in the header.
 
 > **Checkpoint: Audit 2.** Run `/audit 4-6`.
 >
@@ -628,6 +641,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - The locale settings are read per request today (ADR-0007, proposed). If the owner chooses the cached alternative, `setSetting` invalidates the locale cache tag.
 - The calendar takes its first day of the week from react-day-picker's `ar` locale, which starts on Saturday; pass the seeded first day of the week (Sunday) to it as `weekStartsOn`.
 
+**Notes from Step 5**
+
+- The sidebar shows the college's name from `colleges`; the platform name this step seeds joins it there and in the page title. `navigation.order` is a setting already (role key to page ids).
+- BeUI here: switch, select, range slider, adaptive stepper, popover (each setting's description), tabs (the groups) and action swap (save).
+
 #### Step 8. Colleges and departments (S)
 
 **Goal:** the organization is data.
@@ -635,6 +653,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Do:** department management for admins: name, short name, Rayat matching values and active flag. From now on every tenant table carries `college_id`. No department name appears in code or in the base seed; the demo seed adds the three demo departments.
 
 **Done when:** an admin creates three departments on the screen, their matching values are stored, and audit events exist.
+
+**Notes from Step 5**
+
+- Each new page adds its item to `src/app/(app)/_shell/navigation.ts` with its permission key and a `nav.<id>` message. BeUI here: table, breadcrumb (the page header's trail) and animated badge.
 
 #### Step 9. Roles, permissions and memberships (L)
 
@@ -653,6 +675,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - The matrix test passes, and it fails when one check is removed from one action.
 - Changing a role's permissions on the grid changes access at once (end-to-end test).
 
+**Notes from Step 5**
+
+- Seed each role's page order into the `navigation.order` setting by role key; `orderFor()` in `src/app/(app)/_shell/navigation.ts` takes the first of the viewer's roles that has one. BeUI here: combobox (the membership's person).
+
 > **Checkpoint: Audit 3.** Run `/audit 7-9`.
 
 #### Step 10. People and accounts (M)
@@ -667,6 +693,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** 40 people import from a sample file with a preview; a head can reset passwords only inside their department (test); every action is audited; and `seed:demo` adds the demo people listed in Step 43.
 
+**Notes from Step 5**
+
+- BeUI here: table (people), animated badge (account states) and overflow actions (a person's row).
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 
 #### Step 11. Audit log and history (S)
@@ -679,6 +709,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Note from Audit 1:** `db/migrations/0001_audit_events_append_only.sql` rejects every `UPDATE`, `DELETE` and `TRUNCATE` on `audit_events`, so the retention purge needs its own allowed path past those triggers, and so does any backfill in a later migration. The triggers stop mistakes, not the table owner, which is the app's own database user.
 
+**Notes from Step 5**
+
+- With the administration pages the sidebar gets its first group: move it onto BeUI's animated sidebar. A viewer with more than five pages gets the phone's "More" sheet: add its end-to-end test then. BeUI here also: table (virtualized), date range picker and collapsible.
+
 #### Step 12. Notifications foundation (M)
 
 **Goal:** people hear about what matters and nothing else.
@@ -690,6 +724,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - A weekly digest job, Sunday 7:00 by default; an SMTP email adapter, off by default; web push (VAPID) behind a setting, for the installed app.
 
 **Done when:** the digest job produces the expected in-app digest for a fixture (snapshot test), and switching email on or off is a setting, not a code change.
+
+**Notes from Step 5**
+
+- The bell goes in the header (`src/app/(app)/_shell/header.tsx`) as BeUI's notification stack, with an animated badge for the unread count.
 
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.
 >
@@ -712,6 +750,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - Unit tests cover week calculations across Ramadan and Eid breaks.
 - The vice-dean creates an 18-week term with holidays on the screen, and the wizard creates the next term from it (integration test).
+
+**Notes from Step 5**
+
+- The term switcher goes in the header as BeUI's morph select; holidays and exam weeks use the date range picker and the number of weeks the adaptive stepper.
 
 #### Step 14. Portfolio axes catalog (S)
 
@@ -814,6 +856,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** assigning the secretary template grants the secretary permissions, revoking it removes them, and the template's tasks exist for the assignee (tests).
 
+**Notes from Step 5**
+
+- BeUI here: multi select (the assignment's trainers).
+
 > **Checkpoint: Audit 7.** Run `/audit 19-21`.
 
 #### Step 22. Quick requests and the term readiness board (M)
@@ -826,6 +872,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Term readiness board: each role's open responsibilities, with owner and link. It covers the term and framework published, people imported, Rayat imported and matched, and each department plan published; Step 28 adds trainer profiles. The vice-dean, dean and heads see it.
 
 **Done when:** a head sends a quick request to 12 trainers in under 30 seconds, and the board turns fully green for the demo term once every input exists (integration test).
+
+**Notes from Step 5**
+
+- BeUI here: expandable control (the quick-request button), multi select (chosen people) and animated badge (readiness).
 
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
@@ -848,6 +898,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - The red exception, pending the owner: Step 4 uses the one red (`--alert`, `#B42318`) for task states and also for destructive buttons, badges and menu items and for invalid and error states, and it ships as a fixed token in `scripts/identity/identity.lock.json`, where section 4 calls the alert color a setting. The ADR this step writes records the owner's answer on both: whether the red covers destructive and validation states, and whether a fixed token replaces the setting. In the dark theme the red reaches only 1.28:1 as text or a border on the dark background, so dark error text needs a second, lighter red or the foreground color with an icon.
 - Section 4's status colors are only the alert so far. Add the success, warning and information roles here, where task states first appear, from the identity palette and held to the same contrast test.
 
+**Notes from Step 5**
+
+- Today already greets with the time of day and the date on the college's clock (`src/app/(app)/today/`). BeUI here: pull to refresh on phones and expandable control (the head's one-tap reminder).
+
 #### Step 24. My work and my sections (M)
 
 **Goal:** all work in one list, and each section on one page.
@@ -855,6 +909,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Do:** one work list with filters (this week, overdue, plan, sections, assignments) kept in the URL; "My sections" as cards with progress; a section page with a header (course, reference, enrolled, schedule) and its tasks grouped by week.
 
 **Done when:** filters survive a reload and a shared link, and the section page shows the generated tasks with the right due dates.
+
+**Notes from Step 5**
+
+- BeUI here: tabs (the work list's filters), preview rail (the weeks) and morphing tabs (the section page).
 
 > **Checkpoint: Audit 8.** Run `/audit 22-24`.
 
@@ -869,6 +927,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** tests cover a HEIC photo, a rotated JPEG, an oversized file, a renamed executable and a PDF thumbnail, and an end-to-end test uploads 10 files on a throttled network without a failure.
 
+**Notes from Step 5**
+
+- BeUI here: project folder (a task's evidence) and loader (upload progress).
+
 #### Step 26. The task card and the done flow (L)
 
 **Goal:** one card for every kind, and finishing takes seconds.
@@ -880,6 +942,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Notes and history on every card; returned tasks show the head's note first; optimistic updates throughout.
 
 **Done when:** an end-to-end test per kind passes, and on iPhone emulation opening a task, adding photo evidence and marking it done takes 8 taps or fewer and 60 s or less (timed by the test).
+
+**Notes from Step 5**
+
+- BeUI here: animated badge (status), action swap ("Done") and overflow actions (the card's other actions).
 
 #### Step 27. Notifications in the work loop (S)
 
@@ -916,6 +982,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** on iPhone emulation a head reviews 5 sampled items in under 5 minutes, undo works, and a returned task reaches the trainer with the note.
 
+**Notes from Step 5**
+
+- BeUI here: expandable action bar (the review card) and multi select (kinds that require approval).
+
 #### Step 30. What is missing, portfolio approval and exam confidentiality (M)
 
 **Goal:** heads see gaps at a glance and approve each portfolio twice a term.
@@ -941,6 +1011,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** a demo trainer's portfolio shows every axis with the right items, including the profile and self-reported entries from Step 28, and readiness per axis.
 
+**Notes from Step 5**
+
+- BeUI here: bouncy accordion (the axes).
+
 #### Step 32. PDF generation (L)
 
 **Goal:** an official-looking PDF in one click.
@@ -952,6 +1026,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Two variants: internal (with evidence pages) and display (summary).
 
 **Done when:** a full demo trainer's PDF renders in under 30 s, `pdftotext` returns correct Arabic, the cover matches its visual snapshot, the file is under 15 MB, and each approved portfolio version stores its PDF and hash.
+
+**Notes from Step 5**
+
+- Print routes go in `src/app/print/`, outside the `(app)` shell. BeUI here: text shimmer while the PDF renders.
 
 #### Step 33. Department and college portfolios (M)
 

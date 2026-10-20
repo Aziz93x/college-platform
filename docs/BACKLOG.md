@@ -10,7 +10,7 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - Entra sign-in, SharePoint storage and Teams notifications, after approval.
 - A view across colleges for the General Administration.
 - A one-shot `migrate` service in docker/compose.yml, so the production stack gets its tables before Step 41: copy db/ into the worker image, run `node db/migrate.ts`, and make app and worker depend on it with `condition: service_completed_successfully`. From audit 1-3; it overlaps Step 41.
-- Springs for sheets and drawers (section 4): the sheet eases on `--duration-slow` and the drawer keeps vaul's 0.5 s curve. In the UX review of Steps 1 to 10, compare them with BeUI's `bottom-sheet` and `animated-toast-stack` (starc007/ui-components at `c392b2e`, ADR-0001), then choose a spring (a CSS `linear()` curve or Motion) and its duration. From the Step 4 review.
+- Sheets and toasts (section 4): the shell's phone sheet is BeUI's bottom sheet since Step 5; the Radix sheet and the vaul drawer in the design catalog ease on `--duration-slow` and vaul's 0.5 s curve, and Sonner shows toasts. In the UX review of Steps 1 to 10, decide whether BeUI's bottom sheet and drawer replace them and whether its `animated-toast-stack` replaces Sonner (docs/design/beui-map.md). From the Step 4 review, revised in Step 5.
 - A database user for the app that neither owns the tables nor is a superuser, with migrations kept on the owner, so the `audit_events` triggers bind the app too: today the app connects as the owner, which can disable them. From audit 1-3; it fits Step 11 or Step 41.
 
 ## For lead review A (audit 1-3, minors 1-5; details in docs/reviews/audit-03.md)
