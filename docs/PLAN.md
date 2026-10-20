@@ -2,7 +2,7 @@
 
 Oct 20, 2026 · @Aziz
 
-This plan builds the platform from an empty repository in 48 steps across 11 sections, with a review built in every 3 steps, every 10 steps, at the end of each section, and once more at the end. Everything runs on your laptop first; the last section takes it online when you decide. Each step is a focused unit of work in Claude Code: a goal, the work, and checks that prove it is done.
+This plan builds the platform from an empty repository in 48 steps across 11 sections, with a review built in every 3 steps, every 10 steps, at the end of each section, and once more at the end. Everything runs on your laptop first, in the order section 6 gives (ADR-0008). The last section, which takes the platform online, is rewritten for the hosting the General Administration chooses and is not part of this build. Each step is a focused unit of work in Claude Code: a goal, the work, and checks that prove it is done.
 
 ## 0. How to run this plan in Claude Code
 
@@ -23,12 +23,13 @@ then summarize what changed and the commands that proved it.
 
 | When | Command | Reviewer | Output |
 | --- | --- | --- | --- |
-| After steps 3, 6, 9 … 48 | `/audit 4-6` | auditor agent with `/karpathy-guidelines` | `docs/reviews/audit-NN.md` and its fixes, in one review pull request |
+| About every three steps of the run order, where section 6's checkpoint lines say | `/audit 4-6`, or a list such as `/audit 41,7-9` | auditor agent with `/karpathy-guidelines` | `docs/reviews/audit-NN.md` and its fixes, in one review pull request |
 | After steps 10, 20, 30, 40, 46 | `/ux-review 11-20` | UX and consistency expert | `docs/reviews/ux-NN.md` with screenshots, and its fixes |
-| End of each section (A to K) | `/lead-review C` | lead software engineer | `docs/reviews/lead-C.md`; must-fix items fixed; simpler flows proposed |
+| End of each section (A to J; K once it is rewritten) | `/lead-review C` | lead software engineer | `docs/reviews/lead-C.md`; must-fix items fixed; simpler flows proposed |
+| After lead review F | none: the checkpoint text after Step 33 | Claude Code prepares; you present | `docs/guides/demo.md`, `docs/reviews/demo-33.md` and the saved `v0.6-F` images |
 | After Step 46 | `/pm-audit` | product manager | `docs/reviews/pm-final.md`; the rebuild gate (section 7) |
 
-When several checkpoints land on the same step, run them in this order: audit, then UX review, then lead review. A report is numbered by the last step of its range, for example `audit-06.md` and `ux-20.md`.
+When several checkpoints land on the same step, run them in this order: audit, then UX review, then lead review. A report is numbered by the last of its steps in the run order, for example `audit-06.md`, `audit-09.md` for `41,7-9`, and `ux-20.md`.
 
 **Git rules**
 
@@ -42,6 +43,7 @@ When several checkpoints land on the same step, run them in this order: audit, t
 - `pnpm check:all` passes: types, Biome lint and format, unit and integration tests, `check:hardcode`, `check:boundaries`.
 - End-to-end tests for every journey the step touches pass on desktop and on iPhone emulation.
 - No domain value is written in code. Names, labels, week counts, roles, axes, limits and texts come from the database, settings or message files.
+- Nothing is fetched from the internet at runtime: fonts, scripts, wasm, images and PDF assets ship in the images, because the platform may run on an isolated network (ADR-0008). From Step 41 on, the end-to-end smoke also passes on the production images with outbound traffic blocked. A step that adds an environment variable, a volume or a worker dependency therefore updates `docker/compose.yml` in the same pull request.
 - Every server action checks a permission and validates its input with Zod. Every change to data writes an audit event.
 - Every new screen has its loading, empty, partial, error and no-permission states, and an offline state from Step 39.
 - `pnpm seed:demo` gains realistic data for whatever the step adds, so checks and reviews never run on empty screens.
@@ -99,21 +101,21 @@ A term readiness board shows each role what it still owes, before and during the
 | URL state | nuqs | filters and tabs survive reloads and shared links |
 | Database | PostgreSQL 18 with Drizzle ORM; SQL migrations reviewed in each PR | concurrent writes, point-in-time recovery, easy for IT to host later |
 | Jobs | pg-boss on the same database, run by a worker process | PDFs, imports, thumbnails, digests and metrics with retries |
-| Sign-in | Better Auth: employee number or email with password; "remember this device"; TOTP two-factor (required for admins); optional passkeys; rate limits; Microsoft Entra provider ready behind a setting | modern, self-hosted, works with Drizzle |
+| Sign-in | Better Auth: employee number or email with password; "remember this device"; TOTP two-factor (required for admins); rate limits keyed on account and IP; passkeys and a Microsoft Entra provider later (ADR-0008) | modern, self-hosted, works with Drizzle |
 | Files | `StorageAdapter`: local disk now, SharePoint through Microsoft Graph after approval; sharp; poppler `pdftoppm`; compression and HEIC conversion in the browser | one interface, swappable storage |
 | PDF | Playwright Chromium in the worker renders print pages | correct Arabic shaping and real CSS layout |
 | Language | next-intl; Arabic by default (RTL), English catalog optional; Latin digits with Arabic month names; Hijri dates through Intl `islamic-umalqura` where a setting asks | no interface text in code |
 | Tests | Vitest (unit, and integration on real PostgreSQL through Testcontainers); fast-check; Playwright (end to end, phone emulation, axe, visual snapshots); Lighthouse CI; k6 | each layer tested where it can break |
 | Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate (merges passing minor and patch updates itself, ADR-0006) | fast feedback and enforced module boundaries |
 | Monitoring | pino logs with request ids; errors recorded in the platform's own database with an admin notification (ADR-0005); `/healthz` and `/readyz`; an uptime check | problems seen before users report them |
-| Hosting | Now: Docker Compose on your laptop (Docker Desktop with WSL 2): Caddy with local HTTPS, app, worker with Chromium and poppler, PostgreSQL, and encrypted backups (WAL-G or pgBackRest for the database, restic for files) to a folder you choose. Later (Section K): the same images, also built for Arm, on one Oracle Cloud Always Free VM in the Jeddah region (Ampere A1, 2 OCPUs, 12 GB RAM, up to 200 GB of storage), backups to Oracle Object Storage in the same region, and GitHub Actions building to GHCR and deploying over SSH | small, reproducible, easy to move |
+| Hosting | Now: Docker Compose on your laptop (Docker Desktop with WSL 2): Caddy with local HTTPS, app, worker with Chromium and poppler, PostgreSQL, and encrypted backups (WAL-G or pgBackRest for the database, restic for files) to a folder you choose. Later (Section K, rewritten for the choice): the same images on the host the General Administration chooses, either a server inside the college on an isolated network or a cloud VM inside the Kingdom (`docs/ops/hosting-options.md`, ADR-0008) | small, reproducible, easy to move |
 
 **Decision change, recorded as ADR-0002.** The earlier analysis chose SQLite for a demo. A new build that holds real data for 40 or more people at once, runs a job queue, and may move to institutional hosting later is better served by PostgreSQL: concurrent writes, mature point-in-time recovery, pg-boss on the same database, and managed hosting in the Kingdom later. The cost is one more container.
 
 **Addresses**
 
-- On your laptop: `http://localhost:3000` while developing, and `https://localhost` for the production-like run (Step 41). A phone reaches the laptop through `pnpm local:share`, a temporary HTTPS tunnel used with demo data only (Step 39).
-- Later, in Section K: `https://college.azizalmalki.com` opens the login page and sends a signed-in user to their role's home, and `https://staging.college.azizalmalki.com` runs the same build with demo data only.
+- On your laptop: `http://localhost:3000` while developing, and `https://localhost` for the production-like run (Step 41). A phone reaches the laptop through `pnpm local:share`, a temporary HTTPS tunnel used with demo data only (Step 41). On the college Wi-Fi, a phone that trusts Caddy's exported root reaches the laptop's LAN address (Step 41), the way phones would reach a server inside the college.
+- Later, in Section K: the chosen host's address and certificate (an internal CA for a server inside the college, a public certificate in the cloud), and a staging copy of the same build with demo data only.
 - Cookies are host-only, Secure and HttpOnly, so nothing is shared with the main site.
 
 **Repository layout**
@@ -160,7 +162,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 | Area | Entities | Filled by |
 | --- | --- | --- |
-| Identity | Better Auth tables (user, session, account, two-factor, passkey); `people` (profile, employee number) | admin, the person |
+| Identity | Better Auth tables (user, session, account, two-factor); `people` (profile, employee number) | admin, the person |
 | Organization | colleges; departments (with Rayat matching values); roles; permissions (keys from code); role\_permissions; memberships (person, role, scope, optional term) | admin |
 | Settings | settings (key, scope, value validated by the key's schema, version) | admin, by permission |
 | Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday, exam week, grade deadline, custom) | vice-dean |
@@ -236,7 +238,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | JavaScript per route | 170 KB gzipped or less |
 | Server time | p95 under 300 ms for reads and under 1 s for writes |
 
-**The login page at `/`.** A split layout on desktop and one column on phones: identity wave art, the platform and college names from settings, employee number or email, password, "remember this device", passkey sign-in when enabled, and a pilot banner whose text is a setting. Showing the college logo before sign-in is also a setting, off until the dean gives written permission.
+**The login page at `/`.** A split layout on desktop and one column on phones: identity wave art, the platform and college names from settings, employee number or email, password, "remember this device", and a pilot banner whose text is a setting. Showing the college logo before sign-in is also a setting, off until the dean gives written permission.
 
 ## 5. Review agents and checkpoint commands
 
@@ -250,7 +252,8 @@ name: auditor
 description: Audits a range of plan steps against the karpathy guidelines and the plan's rules. Use after every 3 steps.
 tools: Read, Grep, Glob, Bash, Write
 ---
-You audit the plan steps given as a range, for example "4-6". You did not write this code; judge it as an outsider.
+You audit the plan steps given as a range or a comma list in run order, for example "4-6" or "41,7-9".
+You did not write this code; judge it as an outsider.
 First read .claude/skills/karpathy-guidelines/SKILL.md. Then read docs/PLAN.md (the steps and their "Done when")
 and CLAUDE.md. Find the range's commits, whose titles end with "(step NN)" (git log --oneline --grep "(step "),
 and read their diffs.
@@ -271,8 +274,9 @@ Then the plan's rules:
 - Loading, empty, partial, error and no-permission states on every new screen.
 - pnpm seed:demo holds realistic data for what the steps added.
 
-Write docs/reviews/audit-NN.md, where NN is the last step of the range: findings by severity (blocker, major,
-minor), each with file:line or command output and its fix; then at most 3 enhancements with benefit and cost.
+Write docs/reviews/audit-NN.md, where NN is the last of the steps in the run order (docs/PLAN.md, section 6):
+findings by severity (blocker, major, minor), each with file:line or command output and its fix;
+then at most 3 enhancements with benefit and cost.
 Write only under docs/reviews/; never edit code.
 ```
 
@@ -388,10 +392,10 @@ Read CLAUDE.md and docs/PLAN.md. Work on Step $ARGUMENTS only. NN below is the s
 ```markdown
 ---
 description: Audit plan steps with the auditor agent and the karpathy guidelines
-argument-hint: <from-to>, for example 4-6
+argument-hint: <steps>, a range or a comma list, for example 4-6 or 41,7-9
 ---
 1. Load the karpathy-guidelines skill.
-2. From an up-to-date main, create branch review/audit-NN (NN: the last step of the range, two digits).
+2. From an up-to-date main, create branch review/audit-NN (NN: the last of the steps in the run order, two digits).
 3. Use the auditor agent to audit steps $ARGUMENTS of docs/PLAN.md.
 4. Fix every blocker and major finding.
 5. Apply enhancements that stay within the plan and take under an hour; add larger ones to
@@ -446,6 +450,8 @@ description: Final product-manager audit and rebuild gate
 
 **48 steps in 11 sections, each step with its goal, its work and the checks that prove it is done. Checkpoint lines show where each review runs. Sections A to J run on your laptop; Section K takes the platform online when you decide.**
 
+**Run order (ADR-0008):** 1-6, 41, 7-29, 31, 30, 32-40, 42-46. Each step keeps its number in branches, pull request titles and references. Step 41 and Step 31 sit in this section where they run, and "the next step" means the next one in this order. This build ends with Step 46 and its checkpoints; Section K is rewritten for the hosting the General Administration chooses.
+
 ### Section A. Foundation (steps 1 to 6)
 
 #### Step 1. Repository and guardrails (M)
@@ -472,6 +478,8 @@ Arabic-first platform where each role fills its part of one loop: term and frame
 - Items marked "You:" in a step belong to the owner: stop and hand over a checklist.
 - Capabilities in code, everything else in data: no names, labels, week counts, role names, limits,
   colors or Arabic text in src/. Use settings, the database or messages/*.json.
+- Nothing is fetched from the internet at runtime (fonts, scripts, wasm, images, PDF assets):
+  the platform may run on an isolated network.
 - Every server action: next-safe-action, a Zod input schema, authorize(actor, permission, scope),
   and an audit event. Check permissions by key, never by role name.
 - Modules import each other only through index.ts; domain/ has no I/O.
@@ -509,6 +517,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - A pull request shows every check green, and a deliberate type error fails CI.
 - `docker compose -f docker/compose.dev.yml up -d` then `pnpm dev` serves the placeholder page.
 - The app image is under 300 MB and the worker image builds.
+
+**Note from ADR-0008:** the arm64 requirement existed for Oracle's Ampere VM and waits for the hosting choice. Keep choosing multi-arch images where it costs nothing, and confirm the QCT1250's processor on delivery. Step 41 updates the arm64 comment in `docker/Dockerfile`.
 
 #### Step 3. Database, jobs and platform core (M)
 
@@ -584,6 +594,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Owner direction during this step: motion and the identity are the platform's spirit (section 4). The shell is BeUI's dock, shared-layout pill, bottom sheet and command palette on Motion, with the identity's dark surface, gradient and art; every other BeUI component waits for its real use (docs/design/beui-map.md).
 - The header holds the search; the avatar menu (Step 6), the bell (Step 12) and the term switcher (Step 13) take their places there with their data. `print/` arrives with its first page (Step 32).
 
+**Note from ADR-0008:** on phones, the bell and its unread count stay in the header or a bottom tab, never in the overflow sheet. Until the hosting decision, and for good on an isolated network, in-app is the only alert channel.
+
 #### Step 6. Sign-in and the login page (L)
 
 **Goal:** secure sign-in at `/`, on the premium login page.
@@ -613,11 +625,44 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - A refused page calls `forbidden()` (`src/app/(app)/forbidden.tsx`); where its 403 status matters, decide it in `src/proxy.ts`, as `/design` does.
 - BeUI here (docs/design/beui-map.md): input, checkbox, alert, loader and text reveal on the login page, and the bloom menu as the avatar menu in the header.
 
+**Notes from ADR-0008**
+
+- Keep Better Auth's provider seam, but add no Entra provider or setting: Entra needs the server and each phone to reach Microsoft's cloud.
+- Build no passkeys (docs/BACKLOG.md): a passkey binds to a hostname, and neither the hostname nor a certificate that phones trust is chosen.
+- Sign-in rate limits key on the account plus the IP, not the IP alone (test), because college Wi-Fi may put a whole workshop behind one NAT address. Step 40 verifies them.
+- Register the login page's settings here with their defaults, including the pilot-banner text, so that Step 41, which runs next, shows the banner without Step 7's screen.
+- TOTP needs a correct server clock; on option A that means an internal time source (docs/ops/hosting-options.md).
+
 > **Checkpoint: Audit 2.** Run `/audit 4-6`.
 >
 > **Checkpoint: Lead review A.** Run `/lead-review A`, then tag `v0.1-A`.
 
-### Section B. Organization, roles and settings (steps 7 to 12)
+### Section B. Production-like stack, organization, roles and settings (Step 41, then steps 7 to 12)
+
+#### Step 41. Production-like run on your laptop (L)
+
+*Runs after Step 6 and its checkpoints (Audit 2, Lead review A), before Step 7 (ADR-0008); its number is kept.*
+
+**Goal:** the platform runs on the laptop as it will run under either hosting option in `docs/ops/hosting-options.md`.
+
+**Do**
+
+- `pnpm local:up` and `pnpm local:down` start and stop `docker/compose.yml` with the production images: Caddy serving `https://localhost` with its local certificate, app, worker and PostgreSQL, set to restart with Docker Desktop.
+- Application secrets are generated into a local `.env` file that git ignores, without printing them.
+- `pnpm admin:create` (from Step 6) creates the first admin, then refuses to run. The pilot banner is on.
+- `docs/ops/local.md` explains starting, stopping, sharing with a phone through `pnpm local:share`, and what to do after the laptop restarts.
+
+**Done when:** `https://localhost` shows the login page from the production images, every journey passes against it, and the stack comes back by itself after a restart.
+
+**Notes from ADR-0008**
+
+- `pnpm local:share` moves here from Step 39.
+- Build the one-shot `migrate` service and an app database user that neither owns the tables nor is a superuser, with migrations run as the owner (both from docs/BACKLOG.md).
+- Demo mode: `pnpm local:up --demo` sets `APP_ENV=staging` and runs `pnpm seed:demo` inside the stack with the options given (such as `--seed 42`), since PostgreSQL publishes no port. Without `--demo` the stack stays `production`, where `seed:demo` refuses. Steps 26 and 46 and the GA demonstration use demo mode.
+- App, worker and PostgreSQL sit on a Docker network with no outbound route, and only Caddy publishes ports. Caddy also serves the laptop's LAN address from its local CA. `docs/ops/local.md` explains how to export that root to iPhone and Android, and how to start the images from `docker save` archives checked against their checksums, with no registry pull, as option A's updates on approved media would arrive.
+- The pilot banner shows from the setting that Step 6 registers. "Every journey" means the journeys that exist at this point.
+- Done when, added: a CI job starts the production images this way and runs the end-to-end smoke against Caddy, with the browser failing any request outside the app's origin. The worker's Chromium prints one Arabic test page to PDF on that network, and the stack starts from saved archives without a registry. **You:** add the new check to the required checks on `main`.
+- **You, after the merge (it does not hold up Step 7):** on the college Wi-Fi, a phone that trusts the exported root opens the laptop's LAN address and shows the login page. The result goes into the GA request. A pass is only weak evidence for a server on another network segment, because of client isolation and VLANs.
 
 #### Step 7. Settings screen, defaults and audit (M)
 
@@ -679,7 +724,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - Seed each role's page order into the `navigation.order` setting by role key; `orderFor()` in `src/app/(app)/_shell/navigation.ts` takes the first of the viewer's roles that has one. BeUI here: combobox (the membership's person).
 
-> **Checkpoint: Audit 3.** Run `/audit 7-9`.
+**Note from ADR-0008:** the membership's optional term is added in Step 13, which creates terms.
+
+> **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
 
 #### Step 10. People and accounts (M)
 
@@ -697,6 +744,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - BeUI here: table (people), animated badge (account states) and overflow actions (a person's row).
 
+**Notes from ADR-0008**
+
+- There is no outgoing email. "Invited" means an account with a one-time temporary password, issued by an admin or a head, shown once and audited, until Step 6's forced change.
+- The email column holds each person's Microsoft 365 sign-in address, so Entra can link accounts later without a re-import.
+- Imports run on synthetic files until the General Administration approves the data classification.
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 
 #### Step 11. Audit log and history (S)
@@ -713,6 +766,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - With the administration pages the sidebar gets its first group: move it onto BeUI's animated sidebar. A viewer with more than five pages gets the phone's "More" sheet: add its end-to-end test then. BeUI here also: table (virtualized), date range picker and collapsible.
 
+**Note from ADR-0008:** Step 41 runs before this step and gives the app a database user that does not own the tables. The retention purge therefore runs through the table owner, and the triggers now bind the app. The retention default follows the data classification the General Administration approves; it is already a setting.
+
 #### Step 12. Notifications foundation (M)
 
 **Goal:** people hear about what matters and nothing else.
@@ -728,6 +783,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from Step 5**
 
 - The bell goes in the header (`src/app/(app)/_shell/header.tsx`) as BeUI's notification stack, with an animated badge for the unread count.
+
+**Notes from ADR-0008**
+
+- Build only the in-app channel: the bell, the notification center, preferences per kind (the channel stays a column whose only value is in-app), message templates and the Sunday digest.
+- The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A drops `SMTP_URL` and Mailpit for good.
+- Done when, replaced: the digest reaches the in-app channel for a fixture (snapshot test), and a kind the person muted is not delivered (test).
 
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.
 >
@@ -755,6 +816,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - The term switcher goes in the header as BeUI's morph select; holidays and exam weeks use the date range picker and the number of weeks the adaptive stepper.
 
+**Notes from ADR-0008**
+
+- `pnpm seed:demo --week N` (default 9) moves here from Step 43. The demo term starts on the date that puts today in week N (test), and every later step seeds its states relative to it. Step 43 keeps the full amounts, the closed previous term and the `alt` profile.
+- Memberships gain their optional term here (see Step 9).
+
 #### Step 14. Portfolio axes catalog (S)
 
 **Goal:** the administration's axes are data, protected from accidental change.
@@ -775,6 +841,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - A read-only framework view for heads and trainers.
 
 **Done when:** the impact preview comes from one shared, unit-tested counting function that the Step 20 engine reuses; publishing creates an immutable version; and the Step 13 wizard copies the framework as a draft.
+
+**Note from ADR-0008:** this step creates the kinds registry with the kind keys its items use, and Step 18 adds each kind's payload, editor and view. The due-rule and evidence-policy shapes are defined here, and Step 18 reuses them. The counting function is unit-tested on fixtures; per-section counts come from real sections once Step 17 has created them.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
@@ -819,6 +887,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Section templates at college level (from the framework) and at department level (by the head). Examples: midterm and final exam copies, quizzes, three homework samples, a grade analysis after each exam, e-learning setup, training practices. Due rules can follow the calendar, such as one week after the midterm exam week.
 
 **Done when:** payload validation is tested for every kind, a head creates section templates on the screen, every template points to an axis, and the Step 13 wizard copies templates as drafts.
+
+**Note from ADR-0008:** the kinds registry and the due-rule and evidence-policy shapes exist from Step 15. This step adds payloads, editors, read views and catalogs. Indicator mappings arrive with Step 34, their first use.
 
 > **Checkpoint: Audit 6.** Run `/audit 16-18`.
 
@@ -902,6 +972,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - Today already greets with the time of day and the date on the college's clock (`src/app/(app)/today/`). BeUI here: pull to refresh on phones and expandable control (the head's one-tap reminder).
 
+**Note from ADR-0008:** on option A, Today and the bell are the only way trainers and heads learn about work, and the head's reminders are in-app. "Nothing uploaded this week" and its one-tap reminder move to Step 27, after evidence exists (Step 25).
+
 #### Step 24. My work and my sections (M)
 
 **Goal:** all work in one list, and each section on one page.
@@ -931,6 +1003,15 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - BeUI here: project folder (a task's evidence) and loader (upload progress).
 
+**Notes from ADR-0008**
+
+- HEIC conversion and compression ship in the app bundle; nothing comes from a CDN, and no wasm is fetched at runtime.
+- `StorageAdapter` is local disk only. The malware-scan hook stays optional and off; on option A its signatures would arrive on approved media.
+- The IndexedDB queue is built here, because resuming after the page is reopened needs the files saved. On option A, a photo taken outside Wi-Fi coverage waits in it. Step 39's service worker wraps it.
+- Set the size and compression defaults against a 1 TB disk.
+- Seeded files carry the visible demo watermark from this step on, not only from Step 43.
+- The end-to-end upload test runs on a minimal task page, which Step 26 turns into the card.
+
 #### Step 26. The task card and the done flow (L)
 
 **Goal:** one card for every kind, and finishing takes seconds.
@@ -947,6 +1028,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - BeUI here: animated badge (status), action swap ("Done") and overflow actions (the card's other actions).
 
+**Notes from ADR-0008**
+
+- "I have a problem" notifies the head or the admin in-app only.
+- The head's note on returned work moves to Step 29, which records it.
+- **You (added to Done when):** with Step 41's stack in demo mode, open a demo task on a real iPhone and on an Android phone, add camera evidence and mark it done. Do it once through `pnpm local:share` on cellular, and once on the college Wi-Fi with the exported root trusted. Claude Code records what emulation missed in `docs/ops/ios.md`, which Step 39 completes, and fixes it in this step's pull request.
+
 #### Step 27. Notifications in the work loop (S)
 
 **Goal:** few messages, all useful.
@@ -954,6 +1041,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Do:** an instant notification when work is returned; the weekly digest on Sunday; a due-tomorrow reminder only for required evidence; "nothing uploaded this week" for heads. Every rule is a setting.
 
 **Done when:** digest snapshot tests pass, and a test counting messages over a full demo week shows no per-task reminder flood.
+
+**Note from ADR-0008:** every rule is an in-app item: the digest, the due-tomorrow reminder, and "nothing uploaded this week" with the head's one-tap reminder (moved from Step 23). Step 29 sends the instant notification on returned work, since it builds the return action. On option A, people see these items only when they open the app on the college Wi-Fi, so the week-2 return metric reads differently under each hosting option.
 
 > **Checkpoint: Audit 9.** Run `/audit 25-27`.
 
@@ -986,6 +1075,24 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - BeUI here: expandable action bar (the review card) and multi select (kinds that require approval).
 
+**Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
+
+#### Step 31. Portfolio builder (M)
+
+*Runs after Step 29 and before Step 30 (ADR-0008); its number is kept. "Open PDF" on phones is wired in Step 32.*
+
+**Goal:** trainers watch their portfolio grow, axis by axis.
+
+**Do:** a computed view by axis (1 to 11, plus optional 12 and 13); readiness per axis; optional curation (select, reorder, highlight); automatic cover and index. On phones: a readiness list and "Open PDF" instead of a live A4 preview.
+
+**Done when:** a demo trainer's portfolio shows every axis with the right items, including the profile and self-reported entries from Step 28, and readiness per axis.
+
+**Notes from Step 5**
+
+- BeUI here: bouncy accordion (the axes).
+
+> **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
+
 #### Step 30. What is missing, portfolio approval and exam confidentiality (M)
 
 **Goal:** heads see gaps at a glance and approve each portfolio twice a term.
@@ -999,21 +1106,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** approval freezes an immutable snapshot (Step 32 adds its PDF and hash), the change view is correct, and the confidentiality tests pass.
 
-> **Checkpoint: Audit 10.** Run `/audit 28-30`.
->
+**Note from ADR-0008:** Step 31 runs first, so the approval snapshot, the change view and the trainer-by-axis grid read its portfolio view by axis, curation included.
+
 > **Checkpoint: UX review 3.** Run `/ux-review 21-30` (Today, My work, section page, task card, uploads, review inbox, missing grid).
-
-#### Step 31. Portfolio builder (M)
-
-**Goal:** trainers watch their portfolio grow, axis by axis.
-
-**Do:** a computed view by axis (1 to 11, plus optional 12 and 13); readiness per axis; optional curation (select, reorder, highlight); automatic cover and index. On phones: a readiness list and "Open PDF" instead of a live A4 preview.
-
-**Done when:** a demo trainer's portfolio shows every axis with the right items, including the profile and self-reported entries from Step 28, and readiness per axis.
-
-**Notes from Step 5**
-
-- BeUI here: bouncy accordion (the axes).
 
 #### Step 32. PDF generation (L)
 
@@ -1031,6 +1126,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - Print routes go in `src/app/print/`, outside the `(app)` shell. BeUI here: text shimmer while the PDF renders.
 
+**Note from ADR-0008:** the worker's Chromium aborts every request that does not go to the app, and the app serves the fonts and images. A test proves a render completes with outbound traffic blocked. Axis 11's charts come with Step 35, which adds trainer indicators to the portfolio. The font-embedding license is settled before any demo PDF leaves the college; until then the GA demonstration uses the fallback font.
+
 #### Step 33. Department and college portfolios (M)
 
 **Goal:** the department file and the college summary build themselves.
@@ -1039,9 +1136,15 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** a department PDF generates from demo data with the dean's front matter, the secretary's draft needs the head's approval, a reviewer's comment reaches the portfolio's owner, download log entries exist, and the dean cannot download the internal variant (tests).
 
-> **Checkpoint: Audit 11.** Run `/audit 31-33`.
+**Note from ADR-0008:** meetings join the department portfolio in Step 37.
+
+> **Checkpoint: Audit 11.** Run `/audit 30,32,33`.
 >
 > **Checkpoint: Lead review F.** Run `/lead-review F`, then tag `v0.6-F`.
+>
+> **Checkpoint: GA demonstration (ADR-0008; it does not hold up Step 34).** On branch `review/demo-33`, in a pull request titled `demo: steps 13-33`, Claude Code prepares four things: `docs/guides/demo.md`, a script by role for weeks 1, 9 and 18; `e2e/demo.spec.ts`, the core-loop journey recorded with video on desktop and iPhone emulation, which Step 44 extends; the `v0.6-F` images, saved with `docker save` together with their checksums; and `docs/reviews/demo-33.md`, with the demo PDF (in the fallback font unless the license covers embedding) and the results of Step 41's Wi-Fi check and Step 26's phone check.
+>
+> **You:** start the saved images with `pnpm local:up --demo --seed 42 --week 9` and rehearse once. Then present with a real phone that trusts the exported root, in this order: sign-in; the term and framework; the SS01 import with its matched sections; publishing the plan and the generated tasks; a trainer's camera evidence and done; the head's review and a return; the readiness board; the portfolio and its PDF. Hand over `docs/ops/hosting-options.md` and the recording; `docs/ops/asvs.md` (Step 40) and the restore-drill result (Step 42) follow later. Use synthetic data and demo accounts only.
 
 ### Section G. Indicators (steps 34 to 36)
 
@@ -1063,6 +1166,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** every metric has a fixture test, and a full refresh takes under 5 s on demo data.
 
+**Note from ADR-0008:** indicator mappings per task kind are added here (moved from Step 18), and the improvement-plan count joins with Step 38.
+
 #### Step 35. Indicator screens (M)
 
 **Goal:** each chart sits where its reader makes a decision.
@@ -1079,6 +1184,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** the metrics computed from the end-to-end runs match their expected values.
 
+**Note from ADR-0008:** until a trial, the export is titled as demo data and end-to-end measurements. It lists sign-ins per task, the head's review time, week-2 return and the quality unit's answer as not measured.
+
 > **Checkpoint: Audit 12.** Run `/audit 34-36`.
 >
 > **Checkpoint: Lead review G.** Run `/lead-review G`, then tag `v0.7-G`.
@@ -1093,7 +1200,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** an end-to-end test covers a meeting from scheduling to published minutes, including a recommendation that becomes a task.
 
+**Note from ADR-0008:** scheduling and reminders stay in-app, with no calendar invites: an isolated server sends no email, and Outlook and Teams wait for Microsoft 365.
+
 #### Step 38. Improvement plans, documents and directory (S)
+
+**Note from ADR-0008. You:** before this step, decide whether the department document library and the contact directory are built now or wait for the General Administration's Microsoft 365 decision. They overlap SharePoint and the college's Microsoft 365 directory, and no later step depends on them. Improvement plans are built either way. If the two wait, section 1's secretary row and `docs/BACKLOG.md` say so.
 
 **Goal:** the department's shared work in one place.
 
@@ -1103,7 +1214,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 > **Checkpoint: Lead review H.** Run `/lead-review H`, then tag `v0.8-H`.
 
-### Section I. Production readiness on your laptop (steps 39 to 42)
+### Section I. Production readiness on your laptop (steps 39, 40 and 42)
 
 #### Step 39. Installed app and phone polish (M)
 
@@ -1112,6 +1223,14 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Do:** web manifest and icons from the identity; install guidance for iPhone and Android; an offline shell; the upload queue kept in IndexedDB and resumed when the app reopens (document the iOS limits in `docs/ops/ios.md`); web push behind its setting; 44 px targets; layouts that hold at 200% text size; a check that every input uses the digit preprocessor from Step 4; and `pnpm local:share`, which opens a temporary HTTPS tunnel so a phone can reach the laptop (for example a Cloudflare quick tunnel, which needs no account), used with demo data only.
 
 **Done when:** a Playwright test checks the manifest, a controlling service worker and the offline shell. **You:** through `pnpm local:share`, the manual checklist in `docs/ops/ios.md` passes on a real iPhone.
+
+**Notes from ADR-0008**
+
+- `pnpm local:share` comes from Step 41.
+- No web push: it cannot work on an isolated server and waits for the hosting decision (docs/BACKLOG.md).
+- The service worker wraps Step 25's IndexedDB queue. On option A, queued uploads are sent when the app is reopened on the college Wi-Fi.
+- `docs/ops/ios.md` adds a run on Step 41's stack over the college Wi-Fi, with Caddy's root installed and fully trusted on the iPhone, and names Intune for distributing the root to staff phones.
+- The real-iPhone check repeats Step 26's check on the installed app.
 
 > **Checkpoint: Audit 13.** Run `/audit 37-39`.
 
@@ -1126,20 +1245,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** the budgets pass in CI, the ZAP baseline reports no high findings, and `docs/ops/asvs.md` is complete.
 
+**Note from ADR-0008:** `docs/ops/asvs.md` marks the TLS, HSTS and network-exposure items "after the hosting decision". The dependency audit names option A's update path (a monthly image bundle on approved media, plus an urgent path for vulnerabilities) beside Renovate's automerge (ADR-0006). This step also verifies the account-plus-IP sign-in limits from Step 6.
+
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
-
-#### Step 41. Production-like run on your laptop (M)
-
-**Goal:** the platform runs on the laptop exactly as it will run online.
-
-**Do**
-
-- `pnpm local:up` and `pnpm local:down` start and stop `docker/compose.yml` with the production images: Caddy serving `https://localhost` with its local certificate, app, worker and PostgreSQL, set to restart with Docker Desktop.
-- Application secrets are generated into a local `.env` file that git ignores, without printing them.
-- `pnpm admin:create` (from Step 6) creates the first admin, then refuses to run. The pilot banner is on.
-- `docs/ops/local.md` explains starting, stopping, sharing with a phone through `pnpm local:share`, and what to do after the laptop restarts.
-
-**Done when:** `https://localhost` shows the login page from the production images, every journey passes against it, and the stack comes back by itself after a restart.
 
 #### Step 42. Logs, backups and a timed restore on your laptop (M)
 
@@ -1149,7 +1257,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, a failed backup notifies the admin, and a forced error appears on the system-health screen and notifies the admin.
 
-> **Checkpoint: Audit 14.** Run `/audit 40-42`.
+**Note from ADR-0008:** error and failed-backup alerts are in-app, as ADR-0005 sets out. The backup target is configuration: a folder or rotating external drives now (option A adds RAID1 on the server), or S3-compatible storage inside the Kingdom (option B). Keep the restore-drill result for the GA request as evidence for the data-owner question.
+
+> **Checkpoint: Audit 14.** Run `/audit 40,42`.
 >
 > **Checkpoint: Lead review I.** Run `/lead-review I`, then tag `v0.9-I`.
 
@@ -1178,6 +1288,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 **Done when:** the seed finishes in under 2 minutes, a second run creates no duplicates, every screen shows meaningful data at weeks 1, 9 and 18, and the `alt` profile loads.
 
+**Note from ADR-0008:** `--week` exists since Step 13; this step completes the data it drives. Demo data stays synthetic.
+
 #### Step 44. Every role's journey, end to end (L)
 
 **Goal:** the whole app works for every role.
@@ -1204,6 +1316,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 **Done when:** reads stay under 300 ms and writes under 1 s at p95 with zero errors, every job recovers, and the restore meets its targets.
 
+**Note from ADR-0008:** "modest hardware" means the minimum in `docs/ops/hosting-options.md`. Run k6 with the containers capped at 4 cores and 8 GB in total, so the result carries over to the QCT1250 or a cloud VM; Section K repeats the test on the chosen host. Wi-Fi capacity for about 40 phones uploading at once cannot be measured on the laptop, so it goes into the GA request.
+
 > **Checkpoint: Audit 15.** Run `/audit 43-45`.
 
 #### Step 46. Acceptance test with five trainers (M)
@@ -1214,13 +1328,17 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 **Done when:** 4 of 5 finish without help within 10 minutes, and every success metric in section 1 that can be measured before launch meets its target.
 
+**Note from ADR-0008:** the stack runs in demo mode (Step 41). Testers sign in to demo trainer accounts and photograph printed demo exam copies handed out with their task cards, never real papers or their own records, until the General Administration approves the data classification. `local:share` tests neither the college Wi-Fi nor an internal CA, so while option A is possible, add one run over the college Wi-Fi with the laptop's Caddy root trusted. The vice-dean's guide says that on option A, SS01, SF01 and SO01 are downloaded on an internet PC and brought in on approved media. Metrics that only a trial can measure stay open.
+
+> **Checkpoint: Audit 16.** Run `/audit 46-46`.
+>
 > **Checkpoint: UX review 5.** Run `/ux-review 41-46`, the final consistency pass over every screen.
 >
 > **Checkpoint: Lead review J.** Run `/lead-review J`, then tag `v1.0-rc`.
 
 ### Section K. Going online, when you decide (steps 47 and 48)
 
-> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. The General Administration chooses between a server inside the college and cloud hosting inside the Kingdom (section 8, open decisions; `docs/ops/hosting-options.md`), and this section is revised for that choice. Until then nothing here is built.
+> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. The General Administration chooses between a server inside the college and cloud hosting inside the Kingdom (section 8, open decisions; `docs/ops/hosting-options.md`), and this section is revised for that choice. Until then nothing here is built. This build stops after Step 46 and its checkpoints (ADR-0008): Audit 16 covers Step 46 alone, Lead review K runs only once this section is rewritten and built, and the go-live checklist in section 7 is revised with it.
 
 Run this section after the product-manager gate in section 7 says Ship, whenever you choose to go online. Nothing in Sections A to J depends on it.
 
@@ -1260,7 +1378,7 @@ staging.college.azizalmalki.com {
 
 **Done when:** the restore drill on the server loses at most 1 minute of data and restores in at most 1 hour, the load test meets its targets there, and an alert fires when a backup fails.
 
-> **Checkpoint: Audit 16.** Run `/audit 46-48`.
+> **Checkpoint: Audit 17, once this section is rewritten.** Run `/audit 47-48`.
 >
 > **Checkpoint: Lead review K.** Run `/lead-review K`, then tag `v1.1` and deploy it.
 
@@ -1271,7 +1389,7 @@ After Step 46 and its checkpoints, run `/pm-audit`. The product-manager agent st
 **What the product manager checks**
 
 1. **The teamwork closes.** One run of the whole loop with the demo people: the vice-dean opens the term and publishes the framework; the head publishes the plan and assignments; trainers deliver their work with evidence; the secretary publishes minutes; the head reviews the sample and approves portfolios; the dean reads the indicators and portfolios. Each row of "Who fills what" in section 1 is done by its own role, on its own screens, with no workaround.
-2. **Every requirement is traced.** A table in the report links each requirement to a screen, a test and a result. It covers at least: the login page (at `https://localhost` now, and at `college.azizalmalki.com` after Section K); nothing hardcoded; each role's part; the premium interface; demo data for courses, sections, trainers, the dean, the vice-dean, homework and tests; and a closed report for every checkpoint in `docs/reviews/`.
+2. **Every requirement is traced.** A table in the report links each requirement to a screen, a test and a result. It covers at least: the login page (at `https://localhost` now, and at the chosen host's address after Section K); nothing hardcoded; each role's part; the premium interface; demo data for courses, sections, trainers, the dean, the vice-dean, homework and tests; and a closed report for every checkpoint in `docs/reviews/`.
 3. **Nothing hardcoded, proven.** `pnpm check:hardcode` passes, and every journey passes on the `alt` profile (Step 43), a different college built from data alone, with no code change.
 4. **Numbers, not impressions.** Each success metric in section 1 is reported from the Pilot indicators page and the acceptance test. Four can only be measured in the trial: sign-ins per completed task, the head's weekly review time, trainers who return in week 2, and the quality unit's answer.
 5. **Less is better.** Screens, settings and options that nobody used in the acceptance test, or that needed explaining, are listed for removal or merging.
@@ -1281,7 +1399,7 @@ After Step 46 and its checkpoints, run `/pm-audit`. The product-manager agent st
 
 | Verdict | When | Then |
 | --- | --- | --- |
-| Ship | Every metric that can be measured before launch meets its target, no P0 or P1 defect is open, and every requirement is traced | Tag `v1.0`. When you decide to go online, run Section K, then the go-live checklist |
+| Ship | Every metric that can be measured before launch meets its target, no P0 or P1 defect is open, and every requirement is traced | Tag `v1.0`. Once the General Administration has chosen the hosting, rewrite Section K for that option and run it, then the go-live checklist |
 | Fix, then ship | Gaps remain, and no rebuild condition below applies | Add fix steps (46a, 46b and so on) in the same format, run their checkpoints on the same cadence, then run `/pm-audit` again |
 | Rebuild a section | One section causes two or more missed metrics, or its core journey stays more than 50% over target after one round of fixes | Write an ADR in `docs/ADR/` on what failed and why; rebuild the section from its first step on a branch, with its tests as the specification; re-run every checkpoint from that section on |
 | Rebuild the product | The core loop (task, evidence, done, review, portfolio) fails the acceptance test twice | Write an ADR; restart from Step 18 and keep Sections A to C if their reviews passed, or from Step 1 if the foundation is the cause; carry over the tests, the demo generator and the review reports |
@@ -1290,7 +1408,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 
 **During the trial.** Run `/pm-audit` again at week 4 and at the end of the term, with the Pilot indicators export in place of demo data. Its improvements become a new section of steps with the same checkpoints.
 
-**Go-live checklist.** Confirm every item before the first real trainer signs in.
+**Go-live checklist.** Confirm every item before the first real trainer signs in. It is revised with Section K for the chosen hosting (ADR-0008).
 
 - The dean's written circular for the trial: its purpose, the three departments, the people, the data collected, and how long it is kept.
 - Production runs in the Kingdom (Step 47), and a restore from last night's backup was timed this week (Step 48).
@@ -1316,9 +1434,9 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 
 | Later | Why it is ready |
 | --- | --- |
-| Microsoft Entra sign-in | Better Auth takes it as one more provider |
-| SharePoint storage | every file goes through `StorageAdapter`; local disk is the first adapter |
-| Teams or Outlook notifications | notifications go through channels; in-app and web push come first |
+| Microsoft Entra sign-in | Better Auth takes it as one more provider; the server and each phone must reach Microsoft's cloud, so it also waits for the hosting choice |
+| SharePoint storage | every file goes through `StorageAdapter`; local disk is the first adapter; the server must reach Microsoft's cloud |
+| Teams or Outlook notifications | notifications go through channels; in-app comes first, email and web push wait for the hosting decision, and Teams or Outlook need the server to reach Microsoft's cloud |
 | Several colleges | every tenant row carries `college_id`; roles and settings are data |
 | English interface | every string is a message key; Arabic is the first locale |
 | Dark theme | dark tokens are defined from the start |
@@ -1332,11 +1450,11 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Rayat changes its export columns | column names are settings; the import previews differences before saving and names any missing column |
 | Trainers keep sending work on WhatsApp | camera evidence in under a minute, quick requests from the phone, reminders, and the head's short weekly routine; watch the week-2 return metric |
 | The font license may not cover web use and PDF embedding | written confirmation before go-live; a fallback font is a one-token change |
-| Approval from the General Administration takes long | the trial runs under the dean's circular, the Pilot indicators export feeds the report, and `docs/ops/hosting-options.md` lays out the hosting choice for the same request |
-| iPhone limits on installed web apps | uploads start at once and resume on the next open; push only after installation; limits recorded in `docs/ops/ios.md` |
+| Approval from the General Administration takes long | the written request (`docs/ops/hosting-options.md`: hosting, data classification, owners) goes out now; the GA demonstration after lead review F shows the core loop on demo data with a real phone; the Pilot indicators export (Step 36) and the restore drill (Step 42) follow |
+| iPhone limits on installed web apps | uploads start at once and resume on the next open; no web push until the hosting decision, and none on an isolated server; limits recorded in `docs/ops/ios.md` |
 | Personal data in Rayat files | only the minimal columns are kept, the raw file is discarded, data stays in the Kingdom, access follows scope, and every change is audited |
 | The server fails in an exam week | continuous backups, a timed restore within 1 hour, a rehearsed rollback, and a restore drill before each exam week |
-| Oracle changes its free tier, runs out of capacity, or reclaims an instance it finds idle | stay within the Always Free limits; upgrade to Pay As You Go if needed (Always Free resources stay free) with a small budget alert; Docker Compose and the backups move the platform to any VM in the Kingdom within an hour |
+| Hosting is undecided: a server inside the college on an isolated network, or a cloud VM inside the Kingdom | Docker Compose runs either way; alerts stay in-app and nothing is fetched from the internet at runtime; Step 41 proves the stack offline, with an internal CA and images loaded from archives; Section K is rewritten for the choice (`docs/ops/hosting-options.md`, ADR-0008) |
 | Scope grows during the build | one step per session, `docs/BACKLOG.md`, and the product-manager gate |
 
 **Backlog.** `docs/BACKLOG.md` collects the enhancements that reviewers defer, and the product manager ranks it. It starts with:
@@ -1355,8 +1473,10 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | --- | --- | --- |
 | When to go online (Section K) | you | after the product-manager gate |
 | Where the platform runs for staff: a server inside the college (a Dell QCT1250 is bought but not yet delivered) or hosting in a cloud region inside the Kingdom; options in `docs/ops/hosting-options.md` | the General Administration, as part of the approval request | before Section K |
+| Data classification, and the platform, data and technical owners | the General Administration, in the same request | before any real staff or trainee data is loaded; demo data stays synthetic until then |
 | The three trial departments | the dean | go-live |
 | One alert color outside the identity palette (red) | you | Step 23, where task states first appear |
+| The department document library and contact directory, or Microsoft 365 for both | you | Step 38 |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
 

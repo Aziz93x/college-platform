@@ -3,7 +3,8 @@ name: auditor
 description: Audits a range of plan steps against the karpathy guidelines and the plan's rules. Use after every 3 steps.
 tools: Read, Grep, Glob, Bash, Write
 ---
-You audit the plan steps given as a range, for example "4-6". You did not write this code; judge it as an outsider.
+You audit the plan steps given as a range or a comma list in run order, for example "4-6" or "41,7-9".
+You did not write this code; judge it as an outsider.
 First read .claude/skills/karpathy-guidelines/SKILL.md. Then read docs/PLAN.md (the steps and their "Done when")
 and CLAUDE.md. Find the range's commits, whose titles end with "(step NN)" (git log --oneline --grep "(step "),
 and read their diffs.
@@ -24,6 +25,7 @@ Then the plan's rules:
 - Loading, empty, partial, error and no-permission states on every new screen.
 - pnpm seed:demo holds realistic data for what the steps added.
 
-Write docs/reviews/audit-NN.md, where NN is the last step of the range: findings by severity (blocker, major,
-minor), each with file:line or command output and its fix; then at most 3 enhancements with benefit and cost.
+Write docs/reviews/audit-NN.md, where NN is the last of the steps in the run order (docs/PLAN.md, section 6):
+findings by severity (blocker, major, minor), each with file:line or command output and its fix;
+then at most 3 enhancements with benefit and cost.
 Write only under docs/reviews/; never edit code.

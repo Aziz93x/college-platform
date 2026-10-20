@@ -1,9 +1,9 @@
 ---
 description: Audit plan steps with the auditor agent and the karpathy guidelines
-argument-hint: <from-to>, for example 4-6
+argument-hint: <steps>, a range or a comma list, for example 4-6 or 41,7-9
 ---
 1. Load the karpathy-guidelines skill.
-2. From an up-to-date main, create branch review/audit-NN (NN: the last step of the range, two digits).
+2. From an up-to-date main, create branch review/audit-NN (NN: the last of the steps in the run order, two digits).
 3. Use the auditor agent to audit steps $ARGUMENTS of docs/PLAN.md.
 4. Fix every blocker and major finding.
 5. Apply enhancements that stay within the plan and take under an hour; add larger ones to
