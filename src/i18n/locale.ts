@@ -1,22 +1,6 @@
 import { findCollegeId } from "@/modules/org";
 import { getSetting, settingsRegistry } from "@/modules/settings";
-
-declare global {
-  namespace Intl {
-    // Node 24 implements it; TypeScript 5.9's lib does not declare it yet.
-    interface Locale {
-      getTextInfo(): { direction: "ltr" | "rtl" };
-    }
-  }
-}
-
-// The document's language and direction. The direction comes from the language, so they never disagree.
-export function documentLocale(language: string) {
-  return {
-    lang: language,
-    dir: new Intl.Locale(language).getTextInfo().direction,
-  };
-}
+import { documentLocale } from "@/platform/i18n/language";
 
 type LocaleKey = "locale.language" | "locale.timeZone";
 

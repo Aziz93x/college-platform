@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { languages } from "../../../platform/i18n/language.ts";
 
 // An IANA time zone name, canonical or alias (UTC, Europe/Kyiv), that Intl can format with.
 // Intl.supportedValuesOf lists only the names ICU treats as canonical, and those change between versions.
@@ -26,8 +27,15 @@ export const settingsRegistry = {
   // direction follows from it.
   "locale.language": {
     scope: "college",
-    schema: z.enum(["ar"]),
-    default: "ar",
+    schema: z.enum(languages),
+    default: languages[0],
+  },
+  // The order of the shell's pages per role: role key to page ids. A role without an order, and
+  // the pages an order leaves out, follow the order the code lists them in.
+  "navigation.order": {
+    scope: "college",
+    schema: z.record(z.string(), z.array(z.string())),
+    default: {},
   },
 } as const;
 

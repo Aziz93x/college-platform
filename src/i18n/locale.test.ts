@@ -1,18 +1,8 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { settingsRegistry } from "@/modules/settings";
-import { documentLocale, loadCollegeLocale } from "./locale.ts";
-
-describe("documentLocale", () => {
-  it.each([
-    ["ar", "rtl"],
-    ["fa", "rtl"],
-    ["en", "ltr"],
-    ["fr", "ltr"],
-  ])("gives %s the direction %s", (language, dir) => {
-    expect(documentLocale(language)).toEqual({ lang: language, dir });
-  });
-});
+import { documentLocale } from "@/platform/i18n/language";
+import { loadCollegeLocale } from "./locale.ts";
 
 describe("loadCollegeLocale", () => {
   it("uses the stored language and time zone of the deployment's college", async () => {
