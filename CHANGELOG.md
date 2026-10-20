@@ -6,6 +6,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ### Maintenance decisions
 
+- The hosting for staff is part of the approval request: the General Administration chooses between a server inside the college and cloud hosting inside the Kingdom; `docs/ops/hosting-options.md` (Arabic) sets out both.
 - ADR-0005: errors are tracked inside the platform (an `error_events` table, the admin's system-health screen and an in-app notification) instead of a self-hosted GlitchTip; docs/PLAN.md section 2 and Steps 42 and 48 follow it.
 - ADR-0006: Renovate merges passing minor and patch updates, digest pins and lock file maintenance itself; major and pre-1.0 updates stay manual.
 
