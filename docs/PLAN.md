@@ -93,7 +93,7 @@ A term readiness board shows each role what it still owes, before and during the
 | --- | --- | --- |
 | Runtime | Node.js 24 LTS, pnpm | current LTS; fast, strict installs |
 | Framework | Next.js 16 App Router: React 19, Server Components, Server Actions, React Compiler, Turbopack; TypeScript strict | one typed codebase for screens and server |
-| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; Motion when a step needs more than CSS transitions; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers (BeUI dropped in Step 4, ADR-0001) | full control of a premium RTL interface on accessible primitives |
+| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; Motion when a step needs more than CSS transitions; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers (BeUI deferred in Step 4 to the UX review of Steps 1 to 10, ADR-0001) | full control of a premium RTL interface on accessible primitives |
 | Charts | Recharts (SVG) behind one chart wrapper | SVG stays sharp in PDFs and follows the tokens |
 | Forms and validation | Zod 4 at every boundary (environment, inputs, settings, JSON payloads); react-hook-form; next-safe-action with an auth middleware | one schema from the form to the database |
 | URL state | nuqs | filters and tabs survive reloads and shared links |

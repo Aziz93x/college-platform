@@ -16,7 +16,7 @@ One Next.js application and one worker, on PostgreSQL, in Docker. Step 1 install
 | --- | --- |
 | Runtime | Node.js 24 LTS, pnpm |
 | Framework | Next.js 16 App Router: React 19, Server Components, Server Actions, React Compiler, Turbopack; TypeScript strict |
-| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui (Radix) owned in the repo; Motion when a step needs more than CSS transitions (none has yet); Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul (BeUI dropped in Step 4, see below) |
+| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui (Radix) owned in the repo; Motion when a step needs more than CSS transitions (none has yet); Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul (BeUI deferred in Step 4, see below) |
 | Charts | Recharts (SVG) behind one chart wrapper |
 | Forms and validation | Zod 4 at every boundary; react-hook-form; next-safe-action with an auth middleware |
 | URL state | nuqs |
@@ -35,7 +35,9 @@ Code is laid out as `app → modules → platform`; dependency-cruiser enforces 
 
 ## Amendment (Step 4)
 
-The plan also named "selected BeUI motion components (MIT, pinned commit)", to be added only where they beat the plain primitive, for the bottom sheet and the toast stack. BeUI has no identifiable package or repository to pin, and vaul (the bottom sheet) and Sonner (the toast stack) already cover both, so no BeUI component is used. Motion is not installed: Step 4's motion is CSS transitions on the motion tokens, and the springs that section 4 asks for sheets and drawers are open (docs/BACKLOG.md).
+The plan also named "selected BeUI motion components (MIT, pinned commit)", to be added only where they beat the plain primitive, for the bottom sheet and the toast stack. BeUI is Saurabh Chauhan's MIT component catalog at https://github.com/starc007/ui-components, pinned at commit `c392b2e712c3d4944bfa4b24c54c8699bbf5f4c7`, the commit the earlier department tracker copied from. Its two candidates are the registry entries `bottom-sheet` and `animated-toast-stack` (also listed at 21st.dev/@starc007), both built on Motion 12; the earlier tracker had to add Radix focus and dismissal handling to the bottom sheet.
+
+Step 4 adds neither: vaul (the bottom sheet) and Sonner (the toast stack) already cover both, and whether a BeUI piece beats them belongs to the open question of springs for sheets and drawers (docs/BACKLOG.md), settled in the UX review of Steps 1 to 10. A piece that wins is copied from that commit with its LICENSE and a provenance note, and Motion is installed with it. Until then Motion is not installed, and Step 4's motion is CSS transitions on the motion tokens.
 
 ## Consequences
 
