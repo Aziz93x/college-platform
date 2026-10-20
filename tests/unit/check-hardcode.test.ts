@@ -135,4 +135,98 @@ describe("check:hardcode", () => {
       "src/app/globals.css:hex-color",
     ]);
   });
+
+  it("fails on color functions outside src/styles/tokens.css, but not on color-mix()", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    const notations = [
+      "rgb(0 0 0)",
+      "rgba(0, 0, 0, 0.5)",
+      "hsl(0 0% 0%)",
+      "hsla(0, 0%, 0%, 0.5)",
+      "hwb(0 0% 100%)",
+      "lab(0% 0 0)",
+      "lch(0% 0 0)",
+      "oklab(0 0 0)",
+      "oklch(0.5 0.1 200)",
+      "color(srgb 0 0 0)",
+      "RGB(0 0 0)",
+    ];
+    write(
+      "src/styles/tokens.css",
+      notations.map((n) => `:root { --a: ${n}; }`).join("\n"),
+    );
+    write(
+      "src/app/a.css",
+      notations.map((n) => `.a { color: ${n}; }`).join("\n"),
+    );
+    write("src/app/b.tsx", 'const style = { color: "oklch(0.5 0.1 200)" };\n');
+    write(
+      "src/styles/theme.css",
+      [
+        ".a { box-shadow: 0 1px color-mix(in srgb, var(--x) 10%, transparent); }",
+        ".b { color: var(--color-primary); background-color: var(--muted); }",
+      ].join("\n"),
+    );
+    write(
+      "src/app/c.ts",
+      "const tone = toLab(getColor(x)); const ok = slab(1) + collab();\n",
+    );
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      ...notations.map((_, i) => `src/app/a.css:${i + 1}:color-function`),
+      "src/app/b.tsx:1:color-function",
+    ]);
+  });
+
+  it("fails on CSS named colors outside src/styles/tokens.css", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/app/a.tsx",
+      [
+        'const style = { color: "red" };',
+        'const icon = <path fill="white" />;',
+        'const box = <div className="bg-[Black] text-[color:navy]" />;',
+        "const quiet = { backgroundColor: 'transparent', stroke: \"currentColor\" };",
+        'const words = { name: "Redwood", label: "white-space", flag: "tan-1" };',
+      ].join("\n"),
+    );
+    write(
+      "src/app/b.css",
+      [
+        ".a { color: red; }",
+        ".b {",
+        "  border: 1px solid WhiteSmoke;",
+        "}",
+        ".c { background: var(--bg); white-space: nowrap; }",
+        ".d-red:hover { color: color-mix(in srgb, var(--x) 10%, transparent); }",
+      ].join("\n"),
+    );
+    write("src/styles/tokens.css", ":root { --white: white; }\n");
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      "src/app/a.tsx:1:named-color",
+      "src/app/a.tsx:2:named-color",
+      "src/app/a.tsx:3:named-color",
+      "src/app/b.css:1:named-color",
+      "src/app/b.css:3:named-color",
+    ]);
+  });
+
+  it("fails on prefers-color-scheme anywhere in src/, tokens.css included", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/styles/tokens.css",
+      "@media (prefers-color-scheme: dark) { :root { --background: #000; } }\n",
+    );
+    write(
+      "src/app/c.tsx",
+      'const dark = matchMedia("(prefers-color-scheme: dark)");\n',
+    );
+    expect(rules()).toEqual([
+      "src/app/c.tsx:prefers-color-scheme",
+      "src/styles/tokens.css:prefers-color-scheme",
+    ]);
+  });
 });

@@ -57,6 +57,30 @@ function isRoleNameCheck(line, index, lines) {
   return false;
 }
 
+// The CSS named colors (CSS Color 4). transparent and currentColor make no new color, so they pass.
+const NAMED_COLORS = `
+  aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
+  brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
+  darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta
+  darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue
+  darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey
+  dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray
+  green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush
+  lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen
+  lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey
+  lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue
+  mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise
+  mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive
+  olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred
+  papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue
+  saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray
+  slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
+  whitesmoke yellow yellowgreen
+`
+  .trim()
+  .split(/\s+/)
+  .join("|");
+
 const RULES = [
   {
     name: "arabic-text",
@@ -74,6 +98,40 @@ const RULES = [
     pattern:
       /(^|[\s:("'`,[])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![0-9a-zA-Z_-])/,
     allow: (file) => file === TOKENS_FILE,
+  },
+  {
+    // color-mix() of tokens stays allowed: it makes no new color.
+    name: "color-function",
+    message: "colors come from src/styles/tokens.css",
+    pattern: /(?<![\w$.-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i,
+    allow: (file) => file === TOKENS_FILE,
+  },
+  {
+    // A Tailwind arbitrary value (bg-[red], [color:white]) or a string that is only a color name
+    // (style={{ color: "red" }}, fill="white"). --color-*: initial removes only Tailwind's names.
+    name: "named-color",
+    message: "colors come from src/styles/tokens.css",
+    pattern: new RegExp(
+      `\\[(?:[\\w-]+:)?(?:${NAMED_COLORS})\\]|(["'\`])(?:${NAMED_COLORS})\\1`,
+      "i",
+    ),
+    allow: (file) => file === TOKENS_FILE,
+  },
+  {
+    // A CSS declaration with a color name in its value (color: red; border: 1px solid white).
+    name: "named-color",
+    message: "colors come from src/styles/tokens.css",
+    pattern: new RegExp(
+      `:[^;{}]*(?<![\\w-])(?:${NAMED_COLORS})(?![\\w-])[^;{}]*[;}]`,
+      "i",
+    ),
+    allow: (file) => file === TOKENS_FILE || !file.endsWith(".css"),
+  },
+  {
+    name: "prefers-color-scheme",
+    message:
+      "dark tokens apply only under .dark, never through prefers-color-scheme",
+    pattern: /prefers-color-scheme/i,
   },
 ];
 
