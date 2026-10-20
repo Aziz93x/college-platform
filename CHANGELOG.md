@@ -4,6 +4,11 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Maintenance decisions
+
+- ADR-0005: errors are tracked inside the platform (an `error_events` table, the admin's system-health screen and an in-app notification) instead of a self-hosted GlitchTip; docs/PLAN.md section 2 and Steps 42 and 48 follow it.
+- ADR-0006: Renovate merges passing minor and patch updates, digest pins and lock file maintenance itself; major and pre-1.0 updates stay manual.
+
 ### Audit 1: steps 1-3
 
 - `check:hardcode` catches role-name checks written on one line. On a line that mentions `role`, it flags a role-like string literal (one with no dot or slash, so permission keys such as `"roles.assign"` and paths pass) that is compared, searched for with `.includes`, `.has`, `.startsWith` or `.endsWith`, passed to `hasRole()` or a Drizzle comparison (`eq`, `ne`, `inArray`, `notInArray`, `like`, `ilike`), listed in an assigned array or compared in SQL (`= 'x'`); and an array or `Set` literal searched with `.includes(` or `.has(`. It also flags a `case "x"` in the innermost `switch` on a role, a `SCREAMING_CASE` name with a `ROLE` or `ROLES` part, and an `enum` named after roles. docs/reviews/audit-03.md lists the forms it misses.
