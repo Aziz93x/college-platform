@@ -1119,6 +1119,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 ### Section K. Going online, when you decide (steps 47 and 48)
 
+> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. It is revised once the online host is chosen (section 8, open decisions); until then nothing here is built.
+
 Run this section after the product-manager gate in section 7 says Ship, whenever you choose to go online. Nothing in Sections A to J depends on it.
 
 #### Step 47. Deploy to college.azizalmalki.com (M)
@@ -1251,12 +1253,13 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Decision | Who decides | Needed by |
 | --- | --- | --- |
 | When to go online (Section K) | you | after the product-manager gate |
+| Where the platform is hosted online: Oracle Cloud's sign-up was refused on 2026-10-20, and the college works on Microsoft 365 | you, with college IT | before Section K |
 | The three trial departments | the dean | go-live |
 | One alert color outside the identity palette (red) | you | Step 23, where task states first appear |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
 
-The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting is decided: your laptop while building, then Oracle Cloud's Always Free tier in the Jeddah region when you go online (Section K).
+The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. The online host is open: Oracle Cloud's sign-up was refused on 2026-10-20, and the college works on Microsoft 365. The options to weigh are a server run by college IT, an Azure region inside the Kingdom if one is available to the college's tenant, or another cloud with a region in the Kingdom. The platform runs in Docker Compose, so any of them works without code changes; Section K is revised for the chosen host.
 
 ## 9. Appendix: Rayat export headers
 
