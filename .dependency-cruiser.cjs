@@ -44,17 +44,31 @@ module.exports = {
     },
     {
       name: "domain-has-no-io",
-      comment: "domain/ is pure: no platform and no server or UI code.",
+      comment:
+        "domain/ is pure: it imports only its own module's domain/ files, the pure libraries listed here " +
+        "(add one when a step needs it), the test runner in its tests, and types from a module's index.ts.",
       severity: "error",
-      from: { path: "^src/modules/[^/]+/domain/" },
-      to: { path: ["^src/platform/", "^src/modules/[^/]+/(server|ui)/"] },
+      from: { path: "^src/modules/([^/]+)/domain/" },
+      // pnpm resolves a package to node_modules/.pnpm/<name>@<version>/node_modules/<name>/.
+      to: {
+        pathNot: [
+          "^src/modules/$1/domain/",
+          "(^|/)node_modules/zod/",
+          "(^|/)node_modules/vitest/",
+          "^src/modules/[^/]+/index\\.ts$",
+        ],
+      },
     },
     {
-      name: "domain-has-no-node-builtins",
-      comment: "domain/ is pure: no Node built-ins such as fs or net.",
+      name: "domain-imports-only-types-from-modules",
+      comment:
+        "A module's index.ts also exports server code, so domain/ takes only types from it.",
       severity: "error",
       from: { path: "^src/modules/[^/]+/domain/" },
-      to: { dependencyTypes: ["core"] },
+      to: {
+        path: "^src/modules/[^/]+/index\\.ts$",
+        dependencyTypesNot: ["type-only"],
+      },
     },
   ],
   options: {
