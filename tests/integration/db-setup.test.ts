@@ -1,5 +1,8 @@
 import type { Pool } from "pg";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import journal from "../../db/migrations/meta/_journal.json" with {
+  type: "json",
+};
 import {
   createBlankDatabase,
   runScript,
@@ -54,7 +57,10 @@ it("running db:migrate and db:seed twice leaves the database unchanged", async (
   expect(second).toEqual(first);
   expect(first.rows).toMatchObject({
     "public.colleges": [expect.any(String)],
-    "drizzle.__drizzle_migrations": [expect.any(String)],
+    // One row per migration in the journal.
+    "drizzle.__drizzle_migrations": journal.entries.map(() =>
+      expect.any(String),
+    ),
     "pgboss.version": [expect.any(String)],
   });
 });

@@ -8,6 +8,13 @@
       "when": 1792501477834,
       "tag": "0000_platform_core",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792511246667,
+      "tag": "0001_audit_events_append_only",
+      "breakpoints": true
     }
   ]
 }
