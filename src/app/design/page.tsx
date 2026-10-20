@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { parseEnv } from "@/platform/config/env";
 import { paletteTokens, roleTokens } from "@/styles/token-names";
 import { isDesignCatalogEnabled } from "./gate";
+import { MotionDemos } from "./motion-demos";
 import { Overlays } from "./overlays";
 import { Primitives } from "./primitives";
 
@@ -193,6 +194,7 @@ function Catalog() {
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <Primitives />
           <Overlays />
+          <MotionDemos />
         </div>
       </Section>
     </main>

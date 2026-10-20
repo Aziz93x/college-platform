@@ -13,7 +13,10 @@ export async function settled(page: Page) {
       const { data } = node as Comment;
       if (data === "$?" || data === "$~") return false;
     }
-    return [...document.images].every((image) => image.complete);
+    // An image in a part of the page that is not shown (the sidebar on a phone) is never fetched.
+    return [...document.images].every(
+      (image) => image.complete || !image.checkVisibility(),
+    );
   });
   await page.evaluate(() => document.fonts.ready);
 }

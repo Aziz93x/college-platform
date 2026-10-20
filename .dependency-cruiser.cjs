@@ -56,13 +56,15 @@ module.exports = {
       name: "domain-has-no-io",
       comment:
         "domain/ is pure: it imports only its own module's domain/ files, the pure libraries listed here " +
-        "(add one when a step needs it), the test runner in its tests, and types from a module's index.ts.",
+        "(add one when a step needs it), the language list in platform/i18n, the test runner in its " +
+        "tests, and types from a module's index.ts.",
       severity: "error",
       from: { path: "^src/modules/([^/]+)/domain/" },
       // pnpm resolves a package to node_modules/.pnpm/<name>@<version>/node_modules/<name>/.
       to: {
         pathNot: [
           "^src/modules/$1/domain/",
+          "^src/platform/i18n/language\\.ts$",
           "(^|/)node_modules/zod/",
           "(^|/)node_modules/vitest/",
           "^src/modules/[^/]+/index\\.ts$",

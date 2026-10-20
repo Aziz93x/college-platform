@@ -16,6 +16,23 @@
   }
 }
 
+/* A sticky bar gains its shadow as the page scrolls under it, where the browser has scroll-driven
+   animations; elsewhere it stays flat. */
+@keyframes raise {
+  to {
+    box-shadow: 0 1px 3px
+      color-mix(in srgb, var(--palette-gray-1) 10%, transparent);
+  }
+}
+
+@utility raise-on-scroll {
+  @supports (animation-timeline: scroll()) {
+    animation: raise linear both;
+    animation-timeline: scroll();
+    animation-range: 0 4rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

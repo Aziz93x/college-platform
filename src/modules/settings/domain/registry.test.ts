@@ -26,3 +26,19 @@ it.each([
 ])("rejects %j as a time zone", (value) => {
   expect(timeZone.safeParse(value).success).toBe(false);
 });
+
+const navigationOrder = settingsRegistry["navigation.order"].schema;
+
+it("accepts an order of page ids for each role key", () => {
+  expect(
+    navigationOrder.safeParse({ trainer: ["today"], head: [] }).success,
+  ).toBe(true);
+});
+
+it.each([
+  ["a list without role keys", ["today"]],
+  ["an order that is not a list", { trainer: "today" }],
+  ["a page id that is not text", { trainer: [7] }],
+])("rejects %s as a navigation order", (_name, value) => {
+  expect(navigationOrder.safeParse(value).success).toBe(false);
+});

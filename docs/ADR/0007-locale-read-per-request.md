@@ -28,3 +28,7 @@ Cache the locale settings with `"use cache"` and a cache tag per college, and le
 ## Owner decision needed
 
 Keep the per-request read (the simplest; costs the static shells and ties every page to the database) or move to the cached settings when Step 7 adds `setSetting`.
+
+## Update (Step 5)
+
+With the locale read on every request no navigation can be instant, so `next.config.ts` sets `experimental.instantInsights.validationLevel` to `"manual-warning"`: development validates only the segments that set `instant`. If the owner chooses the cached alternative, return to the default level, so every page is validated again.

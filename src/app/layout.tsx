@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { Direction } from "radix-ui";
 import { Toaster } from "@/components/ui/sonner";
-import { documentLocale } from "@/i18n/locale";
+import { documentLocale } from "@/platform/i18n/language";
 import { identityFont } from "@/styles/fonts";
 
 // <html lang dir> comes from a setting read per request and cannot wait behind a Suspense

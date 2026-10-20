@@ -61,4 +61,6 @@ export const roleTokens = [
   "--chart-5",
   "--alert",
   "--alert-foreground",
+  "--gradient-start",
+  "--gradient-end",
 ] as const;

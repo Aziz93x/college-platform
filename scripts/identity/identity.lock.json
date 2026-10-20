@@ -92,6 +92,15 @@
       "chart-4": "support-r5-c2",
       "chart-5": "support-r5-c1"
     },
-    "extra": { "alert": "#B42318", "alert-foreground": "#FFFFFF" }
+    "extra": {
+      "alert": "#B42318",
+      "alert-foreground": "#FFFFFF",
+      "gradient-start": "#324D76",
+      "gradient-end": "#22AC9D"
+    },
+    "derived": {
+      "gradient-start": "The identity gradient /Sh0 of references/palette-source.md, end C0 (CMYK 0.987121 0.808072 0.300023 0.159792), converted the way assets/digital-tokens.json records under conversion: the SWOP v2 profile of the letterhead asset, LittleCMS 2.19, relative colorimetric, 8-bit input. The same conversion gives all 36 swatches of digital-tokens.json.",
+      "gradient-end": "The same gradient's end C1 (CMYK 0.783108 0.0899977 0.477577 0.000274662), converted the same way. 2.8:1 on white: decoration only, never under or as text."
+    }
   }
 }

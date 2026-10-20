@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { settled } from "./screens/settled";
 
 // Every Arabic letter (a pangram), the hamza forms, taa marbuta, alif maqsura, lam-alif, Arabic
 // punctuation and the Latin digits the platform shows.
@@ -118,7 +119,8 @@ async function loadWithLateFont(page: Page, path: string) {
   });
 
   await page.goto(path);
-  await page.evaluate(() => document.fonts.ready);
+  // The page's own text, not its loading skeleton, which has none to request the font.
+  await settled(page);
   // Two frames later, so the shift the swap causes is recorded.
   return page.evaluate(
     () =>
@@ -140,22 +142,17 @@ async function loadWithLateFont(page: Page, path: string) {
   );
 }
 
-test("on /design the identity font replaces the fallback without a layout shift", async ({
-  page,
-}) => {
-  const { fontAtFirstFrame, fontAtEnd, layoutShift } = await loadWithLateFont(
+// The catalog, and the shell's first page.
+for (const path of ["/design", "/today"]) {
+  test(`on ${path} the identity font replaces the fallback without a layout shift`, async ({
     page,
-    "/design",
-  );
-  expect(fontAtFirstFrame).toBe(false);
-  expect(fontAtEnd).toBe(true);
-  expect(layoutShift).toBeLessThan(0.05);
-});
-
-// The home page has no text until the login page arrives, so only the shift is measured there.
-test("on / the page does not shift while the identity font loads", async ({
-  page,
-}) => {
-  const { layoutShift } = await loadWithLateFont(page, "/");
-  expect(layoutShift).toBeLessThan(0.05);
-});
+  }) => {
+    const { fontAtFirstFrame, fontAtEnd, layoutShift } = await loadWithLateFont(
+      page,
+      path,
+    );
+    expect(fontAtFirstFrame).toBe(false);
+    expect(fontAtEnd).toBe(true);
+    expect(layoutShift).toBeLessThan(0.05);
+  });
+}

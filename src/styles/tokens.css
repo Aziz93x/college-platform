@@ -24,6 +24,8 @@
   --color-chart-5: var(--chart-5);
   --color-alert: var(--alert);
   --color-alert-foreground: var(--alert-foreground);
+  --color-gradient-start: var(--gradient-start);
+  --color-gradient-end: var(--gradient-end);
 }
 
 :root {
@@ -83,6 +85,8 @@
   --chart-5: var(--palette-gray-2);
   --alert: #b42318;
   --alert-foreground: #ffffff;
+  --gradient-start: #324d76;
+  --gradient-end: #22ac9d;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

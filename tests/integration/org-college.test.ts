@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { findCollegeId } from "../../src/modules/org/index.ts";
+import { findCollege, findCollegeId } from "../../src/modules/org/index.ts";
 import { createTestDatabase } from "./support/database.ts";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
@@ -20,6 +20,7 @@ const insertCollege = async (name: string) =>
 
 it("finds no college before db:seed", async () => {
   await expect(findCollegeId(database.db)).resolves.toBeUndefined();
+  await expect(findCollege(database.db)).resolves.toBeUndefined();
 });
 
 it("finds the college created first", async () => {
@@ -32,4 +33,13 @@ it("finds the college created first", async () => {
   );
 
   await expect(findCollegeId(database.db)).resolves.toBe(first);
+});
+
+it("gives the first college's names with its id", async () => {
+  const id = await findCollegeId(database.db);
+  await expect(findCollege(database.db)).resolves.toEqual({
+    id,
+    name: "Renamed",
+    shortName: "First",
+  });
 });
