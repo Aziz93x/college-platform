@@ -21,7 +21,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm dev --port ${port}`,
+    // CI tests the standalone build that the app image runs; the laptop tests the dev server.
+    command: process.env.CI
+      ? "node .next/standalone/server.js"
+      : `pnpm dev --port ${port}`,
+    // The standalone server binds to HOSTNAME, which CI runners set to the machine name.
+    env: { PORT: String(port), HOSTNAME: "localhost" },
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

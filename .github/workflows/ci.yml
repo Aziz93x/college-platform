@@ -52,10 +52,15 @@ jobs:
             exit 1
           fi
       - run: pnpm build
+      # The standalone server serves only the static files copied next to it, as in docker/Dockerfile.
+      - run: cp -r .next/static .next/standalone/.next/static
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm db:migrate
       - run: pnpm seed:demo
+      # The debug log names the web server command, so the log shows which build was tested.
       - run: pnpm test:e2e
+        env:
+          DEBUG: pw:webserver
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
