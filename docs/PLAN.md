@@ -104,8 +104,8 @@ A term readiness board shows each role what it still owes, before and during the
 | PDF | Playwright Chromium in the worker renders print pages | correct Arabic shaping and real CSS layout |
 | Language | next-intl; Arabic by default (RTL), English catalog optional; Latin digits with Arabic month names; Hijri dates through Intl `islamic-umalqura` where a setting asks | no interface text in code |
 | Tests | Vitest (unit, and integration on real PostgreSQL through Testcontainers); fast-check; Playwright (end to end, phone emulation, axe, visual snapshots); Lighthouse CI; k6 | each layer tested where it can break |
-| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate | fast feedback and enforced module boundaries |
-| Monitoring | pino logs with request ids; GlitchTip (self-hosted, Sentry-compatible); `/healthz` and `/readyz`; an uptime check | problems seen before users report them |
+| Quality gates | Biome, `tsc`, knip, dependency-cruiser, gitleaks, CodeQL, Renovate (merges passing minor and patch updates itself, ADR-0006) | fast feedback and enforced module boundaries |
+| Monitoring | pino logs with request ids; errors recorded in the platform's own database with an admin notification (ADR-0005); `/healthz` and `/readyz`; an uptime check | problems seen before users report them |
 | Hosting | Now: Docker Compose on your laptop (Docker Desktop with WSL 2): Caddy with local HTTPS, app, worker with Chromium and poppler, PostgreSQL, and encrypted backups (WAL-G or pgBackRest for the database, restic for files) to a folder you choose. Later (Section K): the same images, also built for Arm, on one Oracle Cloud Always Free VM in the Jeddah region (Ampere A1, 2 OCPUs, 12 GB RAM, up to 200 GB of storage), backups to Oracle Object Storage in the same region, and GitHub Actions building to GHCR and deploying over SSH | small, reproducible, easy to move |
 
 **Decision change, recorded as ADR-0002.** The earlier analysis chose SQLite for a demo. A new build that holds real data for 40 or more people at once, runs a job queue, and may move to institutional hosting later is better served by PostgreSQL: concurrent writes, mature point-in-time recovery, pg-boss on the same database, and managed hosting in the Kingdom later. The cost is one more container.
@@ -1067,9 +1067,9 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Goal:** problems are seen early, and data comes back within the targets, even on a laptop.
 
-**Do:** structured logs with rotation; GlitchTip for errors; continuous WAL archiving plus daily base backups (WAL-G or pgBackRest), run at the next start when the laptop was off, and restic for files, all encrypted, to a backup folder you choose outside the project (an external drive if you have one); a restore script; a runbook in `docs/ops/`. The admin gets an in-app notification when a backup fails.
+**Do:** structured logs with rotation; errors recorded in an `error_events` table, grouped by fingerprint, shown on the admin's system-health screen, with an in-app notification for a new error or an error rate above a setting (ADR-0005); continuous WAL archiving plus daily base backups (WAL-G or pgBackRest), run at the next start when the laptop was off, and restic for files, all encrypted, to a backup folder you choose outside the project (an external drive if you have one); a restore script; a runbook in `docs/ops/`. The admin gets an in-app notification when a backup fails.
 
-**Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, and a failed backup notifies the admin.
+**Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, a failed backup notifies the admin, and a forced error appears on the system-health screen and notifies the admin.
 
 > **Checkpoint: Audit 14.** Run `/audit 40-42`.
 >
@@ -1142,6 +1142,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 
 ### Section K. Going online, when you decide (steps 47 and 48)
 
+> **Note (2026-10-20):** this section is written for Oracle Cloud, whose sign-up was refused. The General Administration chooses between a server inside the college and cloud hosting inside the Kingdom (section 8, open decisions; `docs/ops/hosting-options.md`), and this section is revised for that choice. Until then nothing here is built.
+
 Run this section after the product-manager gate in section 7 says Ship, whenever you choose to go online. Nothing in Sections A to J depends on it.
 
 #### Step 47. Deploy to college.azizalmalki.com (M)
@@ -1176,7 +1178,7 @@ staging.college.azizalmalki.com {
 
 **Goal:** the server is watched, backed up inside the Kingdom, and proven to recover.
 
-**Do:** the logs and GlitchTip from Step 42 on the server; an external uptime check on both addresses; the Step 42 backups pointed at Oracle Object Storage in the same region through its S3-compatible API (20 GB free; the backup report shows usage); the restore drill and the Step 45 load test repeated on the server.
+**Do:** the logs and error tracking from Step 42 on the server; an external uptime check on both addresses; the Step 42 backups pointed at Oracle Object Storage in the same region through its S3-compatible API (20 GB free; the backup report shows usage); the restore drill and the Step 45 load test repeated on the server.
 
 **Done when:** the restore drill on the server loses at most 1 minute of data and restores in at most 1 hour, the load test meets its targets there, and an alert fires when a backup fails.
 
@@ -1252,7 +1254,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Rayat changes its export columns | column names are settings; the import previews differences before saving and names any missing column |
 | Trainers keep sending work on WhatsApp | camera evidence in under a minute, quick requests from the phone, reminders, and the head's short weekly routine; watch the week-2 return metric |
 | The font license may not cover web use and PDF embedding | written confirmation before go-live; a fallback font is a one-token change |
-| Approval from the General Administration takes long | the trial runs under the dean's circular, and the Pilot indicators export feeds the report |
+| Approval from the General Administration takes long | the trial runs under the dean's circular, the Pilot indicators export feeds the report, and `docs/ops/hosting-options.md` lays out the hosting choice for the same request |
 | iPhone limits on installed web apps | uploads start at once and resume on the next open; push only after installation; limits recorded in `docs/ops/ios.md` |
 | Personal data in Rayat files | only the minimal columns are kept, the raw file is discarded, data stays in the Kingdom, access follows scope, and every change is audited |
 | The server fails in an exam week | continuous backups, a timed restore within 1 hour, a rehearsed rollback, and a restore drill before each exam week |
@@ -1274,12 +1276,13 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | Decision | Who decides | Needed by |
 | --- | --- | --- |
 | When to go online (Section K) | you | after the product-manager gate |
+| Where the platform runs for staff: a server inside the college (a Dell QCT1250 is bought but not yet delivered) or hosting in a cloud region inside the Kingdom; options in `docs/ops/hosting-options.md` | the General Administration, as part of the approval request | before Section K |
 | The three trial departments | the dean | go-live |
 | One alert color outside the identity palette (red) | you | Step 23, where task states first appear |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
 
-The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting is decided: your laptop while building, then Oracle Cloud's Always Free tier in the Jeddah region when you go online (Section K).
+The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. Where the platform runs for staff is decided by the General Administration as part of the approval request: a server inside the college (a Dell QCT1250 was bought after the feasibility study of 14 October 2026 and has not arrived) or hosting in a cloud region inside the Kingdom (Oracle Cloud's sign-up was refused on 2026-10-20). `docs/ops/hosting-options.md` sets out both for that request. The platform runs in Docker Compose, so either works without code changes; Section K is revised for the chosen option.
 
 ## 9. Appendix: Rayat export headers
 
