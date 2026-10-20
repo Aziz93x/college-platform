@@ -34,7 +34,7 @@ module.exports = {
     {
       name: "outside-modules-only-through-index",
       comment:
-        "Routes, the worker and components use a module only through its index.ts.",
+        "Routes, components, the worker and db/ scripts use a module only through its index.ts.",
       severity: "error",
       from: { pathNot: "^src/modules/" },
       to: {
