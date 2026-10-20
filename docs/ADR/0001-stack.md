@@ -16,7 +16,7 @@ One Next.js application and one worker, on PostgreSQL, in Docker. Step 1 install
 | --- | --- |
 | Runtime | Node.js 24 LTS, pnpm |
 | Framework | Next.js 16 App Router: React 19, Server Components, Server Actions, React Compiler, Turbopack; TypeScript strict |
-| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui (Radix) owned in the repo; selected BeUI motion components (MIT, pinned commit); Motion; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul |
+| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui (Radix) owned in the repo; Motion when a step needs more than CSS transitions (none has yet); Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul (BeUI dropped in Step 4, see below) |
 | Charts | Recharts (SVG) behind one chart wrapper |
 | Forms and validation | Zod 4 at every boundary; react-hook-form; next-safe-action with an auth middleware |
 | URL state | nuqs |
@@ -32,6 +32,10 @@ One Next.js application and one worker, on PostgreSQL, in Docker. Step 1 install
 | Hosting | Docker Compose on the laptop (Caddy, app, worker, PostgreSQL, encrypted backups); later the same images on one Oracle Cloud Always Free VM in the Jeddah region |
 
 Code is laid out as `app → modules → platform`; dependency-cruiser enforces the direction, modules import each other only through `index.ts`, and `domain/` does no I/O.
+
+## Amendment (Step 4)
+
+The plan also named "selected BeUI motion components (MIT, pinned commit)", to be added only where they beat the plain primitive, for the bottom sheet and the toast stack. BeUI has no identifiable package or repository to pin, and vaul (the bottom sheet) and Sonner (the toast stack) already cover both, so no BeUI component is used. Motion is not installed: Step 4's motion is CSS transitions on the motion tokens, and the springs that section 4 asks for sheets and drawers are open (docs/BACKLOG.md).
 
 ## Consequences
 

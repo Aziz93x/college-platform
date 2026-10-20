@@ -93,7 +93,7 @@ A term readiness board shows each role what it still owes, before and during the
 | --- | --- | --- |
 | Runtime | Node.js 24 LTS, pnpm | current LTS; fast, strict installs |
 | Framework | Next.js 16 App Router: React 19, Server Components, Server Actions, React Compiler, Turbopack; TypeScript strict | one typed codebase for screens and server |
-| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; selected BeUI motion components (MIT, pinned commit); Motion; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers | full control of a premium RTL interface on accessible primitives |
+| UI | Tailwind CSS v4 with tokens generated from the identity repo; shadcn/ui components (Radix) owned in the repo; Motion when a step needs more than CSS transitions; Lucide; Sonner; cmdk; TanStack Table and Virtual; vaul drawers (BeUI dropped in Step 4, ADR-0001) | full control of a premium RTL interface on accessible primitives |
 | Charts | Recharts (SVG) behind one chart wrapper | SVG stays sharp in PDFs and follows the tokens |
 | Forms and validation | Zod 4 at every boundary (environment, inputs, settings, JSON payloads); react-hook-form; next-safe-action with an auth middleware | one schema from the form to the database |
 | URL state | nuqs | filters and tabs survive reloads and shared links |
@@ -129,9 +129,10 @@ college-platform/
       <module>/server   queries, actions, repositories
       <module>/ui       components of this module
       <module>/index.ts the module's only public entry
-    platform/       db, auth, authz, storage, jobs, i18n, config, logging
+    platform/       db, auth, authz, storage, jobs, validation, config, logging
+    i18n/           next-intl request config from the college's locale settings (reads modules)
     components/ui/  design-system primitives
-    styles/         tokens.css generated from the identity repo
+    styles/         tokens.css generated from the identity repo, fonts, theme scales
   worker/           job handlers
   db/               migrations, seed/base, seed/demo
   messages/         ar.json (en.json when English is added)
@@ -571,6 +572,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - A unit test renders the navigation for fixture permission sets and matches the expected items (roles arrive in Step 9).
 - Lighthouse on the shell, mobile: performance 95 or more, accessibility 100.
 
+**Notes from Step 4**
+
+- The root layout reads the locale settings from the database on every request (ADR-0007, proposed), so an error there reaches no segment `error.tsx`. `src/app/global-error.tsx` must render without the database: its own `<html lang dir>` from the registered default language and its messages imported statically.
+- Under Cache Components, a `notFound()`, `forbidden()` or `unauthorized()` thrown after a loading boundary has streamed keeps a 200 status. Where the status matters, decide it in `src/proxy.ts` first, as `/design` does.
+
 #### Step 6. Sign-in and the login page (L)
 
 **Goal:** secure sign-in at `/`, on the premium login page.
@@ -587,6 +593,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - End-to-end tests pass for sign-in, sign-out, lockout after wrong passwords, a remembered device, admin two-factor and the forced password change.
 - Every response carries the security headers (test); the login page meets the section 4 targets on phone emulation (LCP under 2.0 s); and `pnpm admin:create` makes an admin who can sign in.
+
+**Notes from Step 4**
+
+- `/design` is gated by `APP_ENV` (local only) until authorization exists; add the admin permission check here, in the page, and keep the proxy's 404 for a refused request.
+- The identity gradient (`references/palette-source.md` in the identity repo) is not a token yet; the login page's identity art adds it to the token mapping in `scripts/identity/identity.lock.json`.
+- The four college logos are fetched into `public/brand/`, so `/brand/logo-*.svg` is reachable without sign-in although no page shows a logo. Keep it that way, or move the logos out of `public/`, according to the dean's answer on the logo before sign-in (section 8).
 
 > **Checkpoint: Audit 2.** Run `/audit 4-6`.
 >
@@ -609,6 +621,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - A value changed on the screen is what `getSetting` returns on the next request (integration test).
 - Every setting has a description and an audit trail, and invalid values are rejected by the schema.
+
+**Notes from Step 4**
+
+- There is no direction setting: the direction follows from `locale.language` through `Intl.Locale#getTextInfo()`, so "language and direction" above seeds the language only.
+- The locale settings are read per request today (ADR-0007, proposed). If the owner chooses the cached alternative, `setSetting` invalidates the locale cache tag.
+- The calendar takes its first day of the week from react-day-picker's `ar` locale, which starts on Saturday; pass the seeded first day of the week (Sunday) to it as `weekStartsOn`.
 
 #### Step 8. Colleges and departments (S)
 
@@ -824,6 +842,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Vice-dean and dean: term readiness and framework progress; indicators join them in Section G.
 
 **Done when:** Today's server time stays under 300 ms at p95 on demo data (section 4), the empty and first-use states exist, and in the scripted test a trainer finds the next task in under 5 s.
+
+**Notes from Step 4**
+
+- The red exception, pending the owner: Step 4 uses the one red (`--alert`, `#B42318`) for task states and also for destructive buttons, badges and menu items and for invalid and error states, and it ships as a fixed token in `scripts/identity/identity.lock.json`, where section 4 calls the alert color a setting. The ADR this step writes records the owner's answer on both: whether the red covers destructive and validation states, and whether a fixed token replaces the setting. In the dark theme the red reaches only 1.28:1 as text or a border on the dark background, so dark error text needs a second, lighter red or the foreground color with an icon.
+- Section 4's status colors are only the alert so far. Add the success, warning and information roles here, where task states first appear, from the identity palette and held to the same contrast test.
 
 #### Step 24. My work and my sections (M)
 
