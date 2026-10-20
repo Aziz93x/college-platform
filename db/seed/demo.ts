@@ -5,6 +5,7 @@ import { createDb } from "../../src/platform/db/client.ts";
 import { seedBase } from "./base.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
 import { createRandom } from "./demo/random.ts";
+import { seedDemoSettings } from "./demo/settings.ts";
 
 const MAX_SEED = 2 ** 32 - 1;
 
@@ -41,6 +42,7 @@ try {
     const ctx = { db, random: createRandom(seed) };
     const collegeId = await seedBase(db, demoCollege);
     await seedDemoCollege(ctx, collegeId);
+    await seedDemoSettings(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed}: college ${collegeId}.`,
     );

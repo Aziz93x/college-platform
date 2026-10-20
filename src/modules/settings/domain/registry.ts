@@ -22,6 +22,13 @@ export const settingsRegistry = {
     schema: z.string().refine(isTimeZoneName),
     default: "Asia/Riyadh",
   },
+  // The interface language: one of the languages with a catalog in messages/. The document
+  // direction follows from it.
+  "locale.language": {
+    scope: "college",
+    schema: z.enum(["ar"]),
+    default: "ar",
+  },
 } as const;
 
 export type SettingKey = keyof typeof settingsRegistry;

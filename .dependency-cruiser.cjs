@@ -9,17 +9,27 @@ module.exports = {
     },
     {
       name: "platform-not-to-modules-or-app",
-      comment: "platform/ is the bottom layer.",
+      comment:
+        "platform/ is the bottom layer: no modules, routes, interface, styles or request i18n setup " +
+        "(i18n/ reads module settings, so it sits above modules).",
       severity: "error",
       from: { path: "^src/platform/" },
-      to: { path: "^src/(modules|app)/" },
+      to: { path: "^src/(modules|app|components|i18n|styles)/" },
     },
     {
       name: "modules-not-to-app",
-      comment: "modules/ never import routes.",
+      comment: "modules/ never import routes or the request i18n setup.",
       severity: "error",
       from: { path: "^src/modules/" },
-      to: { path: "^src/app/" },
+      to: { path: "^src/(app|i18n)/" },
+    },
+    {
+      name: "module-logic-not-to-components",
+      comment:
+        "A module's domain/ and server/ hold no interface; its ui/ uses the design system.",
+      severity: "error",
+      from: { path: "^src/modules/[^/]+/(domain|server)/" },
+      to: { path: "^src/components/" },
     },
     {
       name: "modules-only-through-index",
