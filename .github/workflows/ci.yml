@@ -41,6 +41,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Fonts and brand assets stay out of git (ADR-0004); next/font reads the fonts at build time.
+      - run: pnpm identity:sync
+      - name: tokens.css matches the pinned identity commit
+        run: git diff --exit-code -- src/styles/tokens.css src/styles/token-names.ts
       - run: pnpm check:all
       - run: pnpm check:unused
       - name: Migrations match the schemas
@@ -51,9 +55,16 @@ jobs:
             git status --porcelain -- db/migrations
             exit 1
           fi
+      # The Docker build has no environment or database, so the build must not read either: empty
+      # values make any build-time read fail here, not only in the images job.
       - run: pnpm build
+        env:
+          APP_URL: ""
+          DATABASE_URL: ""
+          SMTP_URL: ""
       # The standalone server serves only the static files copied next to it, as in docker/Dockerfile.
       - run: cp -r .next/static .next/standalone/.next/static
+      - run: cp -r public .next/standalone/public
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm db:migrate
       - run: pnpm seed:demo

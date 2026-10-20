@@ -16,6 +16,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Fonts and brand assets stay out of git (ADR-0004); next/font reads the fonts at build time.
+RUN pnpm identity:sync
 RUN pnpm build
 
 FROM deps AS prod-deps
@@ -30,6 +32,7 @@ WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=build --chown=node:node /repo/.next/standalone ./
 COPY --from=build --chown=node:node /repo/.next/static ./.next/static
+COPY --from=build --chown=node:node /repo/public ./public
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
