@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { expect, it } from "vitest";
+import lock from "../../scripts/identity/identity.lock.json" with {
+  type: "json",
+};
 
 const repo = join(import.meta.dirname, "../..");
 const git = (...args: string[]) =>
@@ -23,4 +26,13 @@ it("keeps font files and fetched brand assets out of git", () => {
   expect(
     git("ls-files", "*.woff", "*.woff2", "*.ttf", "*.otf", "public/brand"),
   ).toBe("");
+});
+
+it("keeps every file identity:sync fetches out of git", () => {
+  const targets = lock.files.map((file) => file.to);
+  expect(
+    git("check-ignore", "--no-index", ...targets)
+      .trim()
+      .split("\n"),
+  ).toEqual(targets);
 });

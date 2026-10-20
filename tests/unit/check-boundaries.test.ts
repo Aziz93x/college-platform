@@ -42,11 +42,15 @@ function violations() {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
+function probeRoot() {
+  root = mkdtempSync(join(tmpdir(), "boundaries-"));
+  symlinkSync(join(repo, "node_modules"), join(root, "node_modules"));
+  copyFileSync(join(repo, "tsconfig.json"), join(root, "tsconfig.json"));
+}
+
 describe("check:boundaries", () => {
   it("lets domain/ import only zod and its own domain files", () => {
-    root = mkdtempSync(join(tmpdir(), "boundaries-"));
-    symlinkSync(join(repo, "node_modules"), join(root, "node_modules"));
-    copyFileSync(join(repo, "tsconfig.json"), join(root, "tsconfig.json"));
+    probeRoot();
     const domain = "src/modules/probe/domain";
     write(
       `${domain}/ok.ts`,
@@ -91,6 +95,43 @@ describe("check:boundaries", () => {
           (file) => `${domain}/${file}.ts:domain-has-no-io`,
         ),
         `${domain}/runtime.ts:domain-imports-only-types-from-modules`,
+      ].sort(),
+    );
+  });
+});
+
+describe("the design system and the request i18n setup", () => {
+  it("stay out of platform/ and of a module's domain/ and server/", () => {
+    probeRoot();
+    write("src/components/ui/button.tsx", "export const Button = 1;\n");
+    write("src/i18n/locale.ts", "export const locale = 1;\n");
+    write("src/styles/fonts.ts", "export const font = 1;\n");
+    write(
+      "src/platform/a.ts",
+      'export * from "../components/ui/button.tsx";\nexport * from "../i18n/locale.ts";\nexport * from "../styles/fonts.ts";\n',
+    );
+    write(
+      "src/modules/probe/server/a.ts",
+      'export * from "../../../components/ui/button.tsx";\nexport * from "../../../i18n/locale.ts";\n',
+    );
+    write(
+      "src/modules/probe/domain/a.ts",
+      'export * from "../../../components/ui/button.tsx";\n',
+    );
+    // A module's ui/ uses the design system.
+    write(
+      "src/modules/probe/ui/a.ts",
+      'export * from "../../../components/ui/button.tsx";\n',
+    );
+    expect(violations()).toEqual(
+      [
+        "src/platform/a.ts:platform-not-to-modules-or-app",
+        "src/platform/a.ts:platform-not-to-modules-or-app",
+        "src/platform/a.ts:platform-not-to-modules-or-app",
+        "src/modules/probe/server/a.ts:module-logic-not-to-components",
+        "src/modules/probe/server/a.ts:modules-not-to-app",
+        "src/modules/probe/domain/a.ts:domain-has-no-io",
+        "src/modules/probe/domain/a.ts:module-logic-not-to-components",
       ].sort(),
     );
   });

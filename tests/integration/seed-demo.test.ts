@@ -33,7 +33,7 @@ const theDemoCollege = [
   { name: demoCollege.name, short_name: demoCollege.shortName },
 ];
 
-it("gives db:seed's college the demo values, then a second run changes no row", async () => {
+it("gives db:seed's college the demo values and settings, then a second run changes no row", async () => {
   const { url, pool } = await freshDatabase();
   const base = await runScript("db/seed/base.ts", [], scriptEnv(url));
   expect(base.code, base.stderr).toBe(0);
@@ -51,6 +51,9 @@ it("gives db:seed's college the demo values, then a second run changes no row", 
     ]),
   );
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
+  expect(
+    (await pool.query("select key, value from settings order by key")).rows,
+  ).toEqual([{ key: "locale.language", value: "ar" }]);
 });
 
 it("builds the same rows from the same seed on two fresh databases", async () => {

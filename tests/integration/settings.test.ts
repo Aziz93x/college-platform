@@ -53,3 +53,20 @@ it("throws, naming the key, when the stored value fails the schema", async () =>
     "Invalid stored value for setting locale.timeZone",
   );
 });
+
+// "ar" is the only language with a catalog so far, so the stored value equals the default;
+// the refused value shows the row is read.
+const language = () =>
+  getSetting("locale.language", { collegeId }, database.db);
+
+it("returns the default language, then the stored one, and throws on a language the schema refuses", async () => {
+  await expect(language()).resolves.toBe("ar");
+
+  await store(collegeId, "locale.language", "ar");
+  await expect(language()).resolves.toBe("ar");
+
+  await store(collegeId, "locale.language", "xx");
+  await expect(language()).rejects.toThrow(
+    "Invalid stored value for setting locale.language",
+  );
+});

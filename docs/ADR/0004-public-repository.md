@@ -20,9 +20,10 @@ Licensed or non-public brand assets, such as font files and logos that are not p
 
 ## Consequences
 
-- Step 4 implements the fetch: the download in `identity:sync`, and the same fetch in CI and in the Docker build before `pnpm build`. The gitignore entries exist since Audit 1.
+- Step 4 implements the fetch. `pnpm identity:sync` downloads each file over HTTPS from raw.githubusercontent.com at the commit pinned in `scripts/identity/identity.lock.json` and refuses any file whose sha256 differs from the lock, so it needs no token while the identity repo is public. CI and the Docker build run it before `pnpm build`. The gitignore entries exist since Audit 1.
 - Demo data stays synthetic. Seeds, fixtures and screenshots hold no real staff names, employee numbers or college documents.
-- GitHub reports `Aziz93x/identity-design` itself as public. The owner should check whether it holds the font files. If it does, they are already published there, and the license question applies to that repository too.
+- The visual baselines that CI commits mask the brand element images (`e2e/design.visual.spec.ts`), so no fetched brand asset enters git through a screenshot.
+- `Aziz93x/identity-design` is public and holds the DIN Next LT Arabic files (`assets/identity/الخطوط -Fonts/`), as Step 4 found. They are already published there, so the license question (docs/PLAN.md, section 8) applies to that repository too; the owner raises it with the employer.
 - If the identity repo becomes private, CI and the Docker build need a read-only token for it, stored as a CI secret and passed to Docker as a build secret, never as a build argument.
 - Branch protection is free here, but it is not on yet. The owner adds the ruleset on `main` that Step 2 requires (Audit 1, major 1).
 - This ADR records the deviation from Step 1. docs/PLAN.md gets one note under Step 4 that points here, so a Step 4 session reads the rule.

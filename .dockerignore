@@ -8,3 +8,6 @@ playwright-report
 coverage
 *.tsbuildinfo
 docs
+public/brand
+src/styles/fonts
+.local
