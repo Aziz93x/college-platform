@@ -21,7 +21,6 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 ## For lead review A (audit 1-3, minors 1-5; details in docs/reviews/audit-03.md)
 
 - Record why `cacheComponents` and `partialPrefetching` are on (`next.config.ts`) in ADR-0001, or remove them and the `connection()` calls in `/healthz` and `/readyz`. Since Step 4 the root layout reads the locale settings from the database on every request, so no route gets a static shell: ADR-0007 (proposed) sets out that choice and the cached alternative for the owner.
-- Drop `SMTP_URL` from the environment schema, the env examples, compose, CI and the test harness, and Mailpit from `docker/compose.dev.yml`: SMTP waits for the hosting decision (ADR-0008).
 - Make `seed:demo` store `locale.timeZone` for the demo college, and leave `random` out of the seed context until a step reads it.
 - Delete the `fs.write` monkeypatch test in `tests/integration/worker.test.ts` and the pg-pool timeout test in `tests/integration/db-client.test.ts`.
 - Keep the PostgreSQL image tag in one exported test constant that a Renovate `customManagers` regex updates, instead of five copies.

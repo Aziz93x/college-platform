@@ -11,7 +11,6 @@ function stubEnv(overrides: Record<string, string> = {}) {
     APP_ENV: "production",
     APP_URL: "http://localhost:3000",
     DATABASE_URL: "postgres://user:password@localhost:5432/db",
-    SMTP_URL: "smtp://localhost:1025",
     AUTH_SECRET: "unit-tests-secret-for-cookies-only",
     ...overrides,
   };

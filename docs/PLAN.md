@@ -509,7 +509,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - GitHub Actions: install with cache, `check:all`, build, a Playwright smoke test with a PostgreSQL service; keep traces on failure. Add CodeQL, gitleaks and Renovate. Protect `main` with required checks and no required reviewers, since one person builds it.
 - A Dockerfile with two targets: `app` (Next standalone output, non-root user) and `worker` (adds Chromium and poppler-utils). Section K adds an arm64 build for the server, so every base image and tool must also exist for arm64.
-- `docker/compose.dev.yml` (PostgreSQL 18, Mailpit) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, backup), which runs the same way on your laptop (Step 41) and on the server (Section K).
+- `docker/compose.dev.yml` (PostgreSQL 18; Mailpit until lead review A dropped it with SMTP) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, backup), which runs the same way on your laptop (Step 41) and on the server (Section K).
 - `src/platform/config/env.ts`: one Zod schema for every environment variable; the app and the worker refuse to start on invalid values and say which one.
 
 **Done when**
@@ -833,7 +833,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from ADR-0008**
 
 - Build only the in-app channel: the bell, the notification center, preferences per kind (the channel stays a column whose only value is in-app), message templates and the Sunday digest.
-- The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A drops `SMTP_URL` and Mailpit for good.
+- The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A dropped `SMTP_URL` and Mailpit; the step that adds SMTP after the hosting decision brings them back.
 - Done when, replaced: the digest reaches the in-app channel for a fixture (snapshot test), and a kind the person muted is not delivered (test).
 
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.

@@ -4,7 +4,6 @@ import { parseEnv, parseSeedEnv } from "./env";
 const valid = {
   APP_URL: "http://localhost:3000",
   DATABASE_URL: "postgres://app:app@localhost:5432/app",
-  SMTP_URL: "smtp://localhost:1025",
   AUTH_SECRET: "a".repeat(32),
 };
 
@@ -19,8 +18,8 @@ describe("parseEnv", () => {
 
   it("names every missing or invalid variable", () => {
     expect(() =>
-      parseEnv({ ...valid, DATABASE_URL: "mysql://x", SMTP_URL: undefined }),
-    ).toThrow(/DATABASE_URL[\s\S]*SMTP_URL/);
+      parseEnv({ ...valid, DATABASE_URL: "mysql://x", AUTH_SECRET: undefined }),
+    ).toThrow(/DATABASE_URL[\s\S]*AUTH_SECRET/);
   });
 
   it("rejects an auth secret shorter than 32 characters", () => {

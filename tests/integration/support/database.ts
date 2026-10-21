@@ -70,7 +70,6 @@ export function scriptEnv(
     APP_ENV: "local",
     APP_URL: "http://localhost:3000",
     DATABASE_URL: url,
-    SMTP_URL: "smtp://localhost:1025",
     AUTH_SECRET: "integration-tests-secret-for-cookies-only",
     SEED_COLLEGE_NAME: "Test College",
     SEED_COLLEGE_SHORT_NAME: "TC",

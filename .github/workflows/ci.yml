@@ -32,7 +32,6 @@ jobs:
       APP_ENV: local
       APP_URL: http://localhost:3000
       DATABASE_URL: postgres://college:college@localhost:5432/college
-      SMTP_URL: smtp://localhost:1025
       AUTH_SECRET: ci-only-value-that-signs-cookies-in-tests
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -62,7 +61,6 @@ jobs:
         env:
           APP_URL: ""
           DATABASE_URL: ""
-          SMTP_URL: ""
           AUTH_SECRET: ""
       # The standalone server serves only the static files copied next to it, as in docker/Dockerfile.
       - run: cp -r .next/static .next/standalone/.next/static
@@ -98,7 +96,8 @@ jobs:
             playwright-report/
           retention-days: 14
       # A missing visual baseline makes Playwright write one and fail without a retry. Only those
-      # new files go up; the baselines job commits them to the pull request.
+      # new files go up, and they come from this runner's Chromium, never from a laptop: commit them
+      # by hand (gh run download <run> -n visual-baselines), after checking each one.
       - name: Collect new visual baselines
         if: failure()
         run: |
@@ -112,57 +111,6 @@ jobs:
           path: ${{ runner.temp }}/visual-baselines/
           if-no-files-found: ignore
           retention-days: 7
-
-  # Visual baselines come from this runner's Chromium, never from a laptop. This job adds the ones
-  # the checks job wrote and never replaces a committed one: to update a baseline, delete it and
-  # push. A push made with this token starts no workflow, so push again to test against them.
-  # It runs only for pull requests from this repository and is not a required check.
-  baselines:
-    name: Commit new visual baselines
-    needs: checks
-    if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ github.head_ref }}
-      # The checks job may have failed for another reason and uploaded no baseline.
-      - id: download
-        continue-on-error: true
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: visual-baselines
-          path: ${{ runner.temp }}/visual-baselines
-      - name: Commit the baselines that do not exist yet
-        if: steps.download.outcome == 'success'
-        env:
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          added=()
-          cd "$RUNNER_TEMP/visual-baselines"
-          while IFS= read -r -d '' file; do
-            file=${file#./}
-            case "$file" in
-              e2e/*-snapshots/*.png) ;;
-              *) echo "Skipped $file: not a visual baseline"; continue ;;
-            esac
-            if [ -e "$GITHUB_WORKSPACE/$file" ]; then
-              echo "Kept $file: it exists already"; continue
-            fi
-            mkdir -p "$GITHUB_WORKSPACE/$(dirname "$file")"
-            cp "$file" "$GITHUB_WORKSPACE/$file"
-            added+=("$file")
-          done < <(find . -type f -print0)
-          cd "$GITHUB_WORKSPACE"
-          if [ "${#added[@]}" -eq 0 ]; then echo "No new baseline."; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add -- "${added[@]}"
-          git commit -m "test: add visual baselines from CI" -m "$(printf '%s\n' "${added[@]}")"
-          git push origin "HEAD:$BRANCH"
 
   images:
     name: Docker images
