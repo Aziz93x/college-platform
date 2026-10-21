@@ -866,6 +866,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 9:** the grid writes `role.create`, `role.update` (names, or keys before and after), `membership.create` and `membership.delete` (person, role key and department); show them on a role's history panel with the keys' and the departments' names.
 
+**Note from Step 10:** the people pages add `account.disable`, `account.enable`, `person.update` (name and email before and after) and `person.linkEmployeeNumber`, and the import writes `account.create` and `membership.create` for each row it adds. A person's page is the first to take the history panel.
+
 **Note from Audit 3:** `needsPassword()` asks for the password again for the settings of the `security` group only (`src/modules/settings/domain/registry.ts`). The retention setting decides how long history is kept, so it asks too: give the registry a `reauth` flag beside `permission`, set it on the security settings and on retention, and extend the settings actions' test to it.
 
 #### Step 12. Notifications foundation (M)
