@@ -13,6 +13,7 @@ import {
   verifySignInCode,
 } from "@/modules/identity";
 import { getSetting } from "@/modules/settings";
+import { latinDigits } from "@/platform/validation/digits";
 import { checkboxField, formFields } from "@/platform/validation/form";
 
 // The forms on the sign-in pages post here, before their JavaScript has loaded as well as after.
@@ -42,7 +43,7 @@ export const verifyCodeAction = publicAction
   .inputSchema(
     formFields(
       z.object({
-        code: z.string().trim().min(1).max(32),
+        code: latinDigits(z.string().trim().min(1).max(32)),
         backup: checkboxField,
       }),
     ),
@@ -68,7 +69,11 @@ export const startTwoFactorSetupAction = signedInAction
 
 export const confirmTwoFactorSetupAction = signedInAction
   .metadata({ name: "confirmTwoFactorSetup" })
-  .inputSchema(formFields(z.object({ code: z.string().trim().min(1).max(16) })))
+  .inputSchema(
+    formFields(
+      z.object({ code: latinDigits(z.string().trim().min(1).max(16)) }),
+    ),
+  )
   .stateAction(async ({ parsedInput, ctx: { user } }) =>
     confirmTwoFactorSetup(parsedInput.code, user, await headers()),
   );
