@@ -1,9 +1,15 @@
 import { join } from "node:path";
 import { expect, type Page } from "@playwright/test";
+import { demoSecrets } from "../../db/seed/demo/accounts.ts";
 import messages from "../../messages/ar.json" with { type: "json" };
 import { totp } from "../../tests/support/totp.ts";
 
 const { signIn: signInText, twoFactor } = messages.auth;
+
+// The demo accounts' password and the admin's authenticator secret on the server under test: the
+// published ones on a laptop and in CI's first job, the stack's own in demo mode (e2e/stack.config.ts
+// reads them from docker/.env).
+export const demo = demoSecrets(process.env);
 
 // Where e2e/auth.setup.ts keeps each demo role's signed-in browser state (/.local is gitignored).
 export const STORAGE = {

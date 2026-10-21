@@ -1,9 +1,5 @@
-import {
-  DEMO_PASSWORD,
-  DEMO_TOTP_SECRET,
-  demoAccounts,
-} from "../db/seed/demo/accounts.ts";
-import { enterCode, STORAGE, signIn } from "./support/auth.ts";
+import { demoAccounts } from "../db/seed/demo/accounts.ts";
+import { demo, enterCode, STORAGE, signIn } from "./support/auth.ts";
 import { expect, test as setup } from "./support/test.ts";
 
 // Signs in the demo roles once per run; the specs that need a role start from its saved state.
@@ -13,7 +9,7 @@ setup("sign in the demo trainer", async ({ page }) => {
   await page.goto("/");
   await signIn(page, {
     identifier: demoAccounts.trainer.employeeNumber,
-    password: DEMO_PASSWORD,
+    password: demo.password,
   });
   await expect(page).toHaveURL("/today");
   await page.context().storageState({ path: STORAGE.trainer });
@@ -25,9 +21,9 @@ setup(
     await page.goto("/");
     await signIn(page, {
       identifier: demoAccounts.admin.email,
-      password: DEMO_PASSWORD,
+      password: demo.password,
     });
-    await enterCode(page, Buffer.from(DEMO_TOTP_SECRET));
+    await enterCode(page, Buffer.from(demo.totpSecret));
     await expect(page).toHaveURL("/today");
     await page.context().storageState({ path: STORAGE.admin });
   },

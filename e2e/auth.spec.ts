@@ -1,14 +1,10 @@
 import type { Page } from "@playwright/test";
-import {
-  DEMO_PASSWORD,
-  DEMO_TOTP_SECRET,
-  demoAccounts,
-} from "../db/seed/demo/accounts.ts";
+import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { base32Bytes, totp } from "../tests/support/totp.ts";
 import { expect, type TestAccount, test } from "./support/accounts.ts";
-import { enterCode, signIn } from "./support/auth.ts";
+import { demo, enterCode, signIn } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 
 const { platform } = messages;
@@ -20,7 +16,7 @@ const {
   account: accountMenu,
 } = messages.auth;
 const DAY_MS = 86_400_000;
-const demoKey = Buffer.from(DEMO_TOTP_SECRET);
+const demoKey = Buffer.from(demo.totpSecret);
 
 async function signOut(page: Page, person: { name: string }) {
   await page
@@ -55,7 +51,7 @@ test("the login page names the platform and the college under the pilot banner, 
 
   await signIn(page, {
     identifier: demoAccounts.trainer.employeeNumber,
-    password: DEMO_PASSWORD,
+    password: demo.password,
   });
   await expect(page).toHaveURL("/today");
 });
@@ -212,7 +208,7 @@ test("an admin signs in with the code from the authenticator app; a wrong code i
   await page.goto("/");
   await signIn(page, {
     identifier: demoAccounts.admin.employeeNumber,
-    password: DEMO_PASSWORD,
+    password: demo.password,
   });
   await expect(page).toHaveURL("/two-factor");
 
@@ -316,7 +312,7 @@ test.describe("axe", () => {
     await page.goto("/");
     await signIn(page, {
       identifier: demoAccounts.admin.email,
-      password: DEMO_PASSWORD,
+      password: demo.password,
     });
     await expect(page).toHaveURL("/two-factor");
     expect(await seriousViolations(page)).toEqual([]);

@@ -26,6 +26,27 @@ const migrateSchema = schema.extend({
   APP_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
 });
 
+// seed:demo's accounts sign in with a password and an authenticator secret that db/seed/demo/
+// accounts.ts publishes for APP_ENV=local. A demo elsewhere, which a tunnel can reach (pnpm local:up
+// --demo), brings its own (Audit 2, minor 10).
+const demoSchema = schema
+  .extend({
+    DEMO_PASSWORD: z.string().min(16).optional(),
+    DEMO_TOTP_SECRET: z.string().min(16).optional(),
+  })
+  .superRefine((env, context) => {
+    if (env.APP_ENV !== "staging") return;
+    for (const key of ["DEMO_PASSWORD", "DEMO_TOTP_SECRET"] as const) {
+      if (!env[key]) {
+        context.addIssue({
+          code: "custom",
+          path: [key],
+          message: "required when APP_ENV=staging",
+        });
+      }
+    }
+  });
+
 export type Env = z.infer<typeof schema>;
 
 function parseWith<T extends z.ZodType>(
@@ -52,4 +73,8 @@ export function parseSeedEnv(source: Record<string, string | undefined>) {
 
 export function parseMigrateEnv(source: Record<string, string | undefined>) {
   return parseWith(migrateSchema, source);
+}
+
+export function parseDemoEnv(source: Record<string, string | undefined>) {
+  return parseWith(demoSchema, source);
 }
