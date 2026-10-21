@@ -42,6 +42,7 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     language,
     keys,
     settings,
+    kinds,
     format,
   ] = await Promise.all([
     collegePeople(collegeId),
@@ -51,11 +52,13 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     getSetting("locale.language", { collegeId }),
     getTranslations("roles.permissions"),
     getTranslations("settings.fields"),
+    getTranslations("notifications.kinds"),
     getFormatter(),
   ]);
   const names = new Map(people.map(({ userId, name }) => [userId, name]));
   type KeyLabel = Parameters<typeof keys>[0];
   type SettingLabel = Parameters<typeof settings>[0];
+  type KindLabel = Parameters<typeof kinds>[0];
   return {
     person: (userId) => names.get(userId),
     department: (id) => departments.find((each) => each.id === id)?.name,
@@ -74,6 +77,10 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     setting: (key) =>
       settings.has(`${key}.label` as SettingLabel)
         ? settings(`${key}.label` as SettingLabel)
+        : undefined,
+    notificationKind: (kind) =>
+      kinds.has(`${kind}.label` as KindLabel)
+        ? kinds(`${kind}.label` as KindLabel)
         : undefined,
     college: college?.name ?? "",
     labels: (labels) => roleLabel(labels, language),

@@ -78,6 +78,13 @@
       "when": 1792607103186,
       "tag": "0010_audit_paging_and_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792614727465,
+      "tag": "0011_notifications",
+      "breakpoints": true
     }
   ]
 }

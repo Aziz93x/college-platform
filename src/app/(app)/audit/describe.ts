@@ -9,6 +9,8 @@ export type Lookups = {
   roleById: (id: string) => string | undefined;
   permission: (key: string) => string;
   setting: (key: string) => string | undefined;
+  // A kind of notification a person turned off or on (Step 12).
+  notificationKind: (kind: string) => string | undefined;
   college: string;
   // A role's labels in the college's language.
   labels: (labels: Record<string, string>) => string;
@@ -63,6 +65,8 @@ function format(
         return words.has(`twoFactor.${value}`)
           ? words(`twoFactor.${value}`)
           : value;
+      case "kind":
+        return lookups.notificationKind(value) ?? value;
       // The action an export was narrowed to.
       case "action":
         return words.has(`actions.${value}`)

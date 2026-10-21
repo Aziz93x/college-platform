@@ -16,10 +16,10 @@ function clock(instant: number, timeZone: string) {
   );
 }
 
-// The instant a calendar day (YYYY-MM-DD) starts in a time zone: its midnight there.
-export function startOfDay(day: string, timeZone: string) {
+// The instant a time zone's clock reads a calendar day (YYYY-MM-DD) at a whole hour.
+export function atHour(day: string, hour: number, timeZone: string) {
   const [year, month, date] = day.split("-").map(Number);
-  const midnightUtc = Date.UTC(year, month - 1, date);
+  const wallUtc = Date.UTC(year, month - 1, date, hour);
   // How far the zone's clock is ahead of UTC at an instant.
   const offset = (instant: number) => {
     const parts = clock(instant, timeZone);
@@ -34,17 +34,27 @@ export function startOfDay(day: string, timeZone: string) {
       ) - instant
     );
   };
-  // Twice, so a day that starts on the other side of a clock change lands right.
-  const guess = midnightUtc - offset(midnightUtc);
-  return new Date(midnightUtc - offset(guess));
+  // Twice, so an hour on the other side of a clock change lands right.
+  const guess = wallUtc - offset(wallUtc);
+  return new Date(wallUtc - offset(guess));
+}
+
+// The instant a calendar day (YYYY-MM-DD) starts in a time zone: its midnight there.
+export function startOfDay(day: string, timeZone: string) {
+  return atHour(day, 0, timeZone);
+}
+
+// A calendar day some days after another (before, for a negative count), both YYYY-MM-DD.
+export function addDays(day: string, days: number) {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date + days))
+    .toISOString()
+    .slice(0, 10);
 }
 
 // The calendar day after another, both YYYY-MM-DD.
 export function nextDay(day: string) {
-  const [year, month, date] = day.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, date + 1))
-    .toISOString()
-    .slice(0, 10);
+  return addDays(day, 1);
 }
 
 // An instant as a time zone's clock reads it, YYYY-MM-DD HH:mm:ss: a spreadsheet takes it for a

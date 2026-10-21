@@ -1,15 +1,18 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { AccountMenu } from "./account-menu.tsx";
 import { SearchButton } from "./command-menu.tsx";
 
-// The bar above every page: the college's short name on a phone, the search and the account menu.
-// Step 12 adds the bell and Step 13 the term switcher (docs/PLAN.md, notes under each).
+// The bar above every page: the college's short name on a phone, the search, the bell and the
+// account menu. Step 13 adds the term switcher (docs/PLAN.md, the note under it).
 export function Header({
   collegeName,
   account,
+  bell,
 }: {
   collegeName?: string;
   account: { name: string; email: string };
+  bell: ReactNode;
 }) {
   const t = useTranslations("shell");
   const accountLabels = useTranslations("auth.account");
@@ -25,6 +28,7 @@ export function Header({
             shortcuts={{ ctrl: t("shortcutCtrl"), meta: t("shortcutMeta") }}
           />
         </div>
+        <div className="lg:ms-auto">{bell}</div>
         <AccountMenu
           name={account.name}
           email={account.email}
@@ -35,7 +39,6 @@ export function Header({
             signOut: accountLabels("signOut"),
             close: accountLabels("close"),
           }}
-          className="lg:ms-auto"
         />
       </div>
       <div

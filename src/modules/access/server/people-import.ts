@@ -368,7 +368,8 @@ export async function importPeople(
             roleId: row.role.id,
             departmentId: row.department?.id ?? null,
           },
-          row.role.key,
+          row.role,
+          row.department?.name ?? null,
           change,
         );
       }

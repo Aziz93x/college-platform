@@ -33,6 +33,8 @@ const lookups: Lookups = {
   roleById: () => "رئيس القسم",
   permission: (key) => `[${key}]`,
   setting: (key) => (key === "review.weeklyCap" ? "الحد الأسبوعي" : undefined),
+  notificationKind: (kind) =>
+    kind === "weeklyDigest" ? "ملخص الأسبوع" : undefined,
   college: "الكلية التقنية",
   labels: (labels) => labels.ar,
   dateTime: (iso) => `at ${iso}`,
@@ -171,6 +173,32 @@ describe("describeEvent", () => {
         { field: "الأحداث المصدّرة", after: "12" },
       ],
     });
+  });
+
+  it("names the kind of notification a person turned off, and counts what they read", () => {
+    const own = { entityType: "user", entityId: HIND };
+    expect(
+      describeEvent(
+        entry({
+          ...own,
+          action: "notification.mute",
+          diff: { kind: "weeklyDigest" },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "إيقاف نوع من الإشعارات",
+      subject: "هند القحطاني",
+      changes: [{ field: "النوع", after: "ملخص الأسبوع" }],
+    });
+    expect(
+      describeEvent(
+        entry({ ...own, action: "notification.read", diff: { count: 3 } }),
+        lookups,
+        words,
+      ).changes,
+    ).toEqual([{ field: "العدد", after: "3" }]);
   });
 });
 
