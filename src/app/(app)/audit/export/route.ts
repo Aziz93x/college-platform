@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { authorize, requireViewer } from "@/modules/access";
 import { allAuditEvents, writeAudit } from "@/modules/audit";
@@ -17,6 +18,8 @@ const BATCH = 500;
 // its byte order mark first, times on the college's clock. It streams a batch at a time, and the
 // export is itself an event, written with how many rows left once the file ends or stops.
 export async function GET(request: Request) {
+  // The export reads the session and the database, which next build does not reach.
+  await connection();
   const viewer = await requireViewer();
   const { collegeId } = viewer;
   if (!authorize(viewer, "audit.view", { collegeId })) {
