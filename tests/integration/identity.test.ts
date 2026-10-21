@@ -2,14 +2,19 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
 import {
   changePassword,
+  confirmTwoFactorSetup,
   createAccount,
   getAuth,
   getSessionUser,
   resetPassword,
   type SignInInput,
   signIn,
+  signOut,
+  startTwoFactorSetup,
+  verifySignInCode,
 } from "../../src/modules/identity/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
+import { base32Bytes, totp } from "../support/totp.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
 
 // The request getSessionUser reads, and a cookie store for Better Auth's Next.js plugin, which
@@ -19,6 +24,19 @@ vi.mock("next/headers", () => ({
   headers: async () => request.headers,
   cookies: async () => ({ set: () => {} }),
 }));
+
+// Counts the passwords the platform hashes, around the real hash.
+const hashing = vi.hoisted(() => ({ count: 0 }));
+vi.mock("better-auth/crypto", async (importOriginal) => {
+  const original = await importOriginal<typeof import("better-auth/crypto")>();
+  return {
+    ...original,
+    hashPassword: async (password: string) => {
+      hashing.count++;
+      return original.hashPassword(password);
+    },
+  };
+});
 
 const PASSWORD = "correct-horse-battery";
 const MINUTE_MS = 60_000;
@@ -64,16 +82,20 @@ const attempt = (
   now?: Date,
 ) => signIn({ password: PASSWORD, remember: false, ...input }, from(ip), now);
 
+// The cookies an answer sets, as the browser sends them back.
+const cookieHeader = (headers: Headers) =>
+  headers
+    .getSetCookie()
+    .map((entry) => entry.split(";")[0])
+    .join("; ");
+
 // A signed-in device: the cookie Better Auth sets, as the browser sends it back.
 async function signedInDevice(email: string) {
   const { headers } = await getAuth().api.signInEmail({
     body: { email, password: PASSWORD, rememberMe: true },
     returnHeaders: true,
   });
-  const cookie = headers
-    .getSetCookie()
-    .map((entry) => entry.split(";")[0])
-    .join("; ");
+  const cookie = cookieHeader(headers);
   const [session] = await query(
     "select id from sessions where token = split_part(split_part($1, '=', 2), '.', 1)",
     [cookie],
@@ -124,9 +146,12 @@ describe("signIn", () => {
   it("answers alike for an unknown account and a wrong password", async () => {
     const { employeeNumber } = await person();
 
+    // As long as a wrong password, too: the typed password is hashed all the same.
+    hashing.count = 0;
     expect(await attempt({ identifier: "999999" }, "10.0.2.1")).toEqual({
       status: "invalid",
     });
+    expect(hashing.count).toBe(1);
     expect(
       await attempt(
         { identifier: employeeNumber, password: "wrong-password" },
@@ -522,5 +547,120 @@ describe("getSessionUser", () => {
     const before = await lastSeen();
     await getSessionUser();
     expect(await lastSeen()).toBe(before);
+  });
+});
+
+describe("two-factor", () => {
+  // Set up through the services, as the setup page does: the password again, then the first code.
+  async function withTwoFactor() {
+    const someone = await person();
+    const device = await signedInDevice(someone.email);
+    const user = { userId: someone.userId, collegeId };
+    const started = await startTwoFactorSetup(
+      { password: PASSWORD, issuer: "Test College" },
+      user,
+      device.headers,
+    );
+    if (started.status !== "started") throw new Error(started.status);
+    const key = base32Bytes(started.secret);
+    expect(
+      await confirmTwoFactorSetup(totp(key), user, device.headers),
+    ).toEqual({ status: "enabled" });
+    return { ...someone, key, backupCodes: started.backupCodes };
+  }
+
+  // The password step for an account with two-factor: the cookie that carries it to the code.
+  async function passwordStep(email: string, remember: boolean) {
+    const { headers } = await getAuth().api.signInEmail({
+      body: { email, password: PASSWORD, rememberMe: remember },
+      returnHeaders: true,
+    });
+    return new Headers({
+      cookie: cookieHeader(headers),
+      "user-agent": "integration-test",
+    });
+  }
+
+  const signInEvents = (userId: string) =>
+    query(
+      "select diff from audit_events where entity_id = $1 and action = 'session.signIn' order by created_at, id",
+      [userId],
+    );
+
+  it("is set up with the password and then the first code, and audits both", async () => {
+    const { userId } = await withTwoFactor();
+
+    expect(
+      await query("select two_factor_enabled from users where id = $1", [
+        userId,
+      ]),
+    ).toEqual([{ two_factor_enabled: true }]);
+    expect(
+      await query(
+        "select actor_id, action from audit_events where entity_id = $1 order by created_at, id",
+        [userId],
+      ),
+    ).toEqual([
+      { actor_id: userId, action: "account.startTwoFactorSetup" },
+      { actor_id: userId, action: "account.enableTwoFactor" },
+    ]);
+  });
+
+  it("signs in with the app's code, remembers the device only when the password step asked, and audits it", async () => {
+    const { userId, email, key } = await withTwoFactor();
+
+    for (const remember of [true, false]) {
+      expect(
+        await verifySignInCode(
+          { code: totp(key), backup: false },
+          await passwordStep(email, remember),
+        ),
+      ).toEqual({ status: "signedIn" });
+    }
+
+    expect(
+      await query(
+        "select remembered from sessions where user_id = $1 order by created_at desc, id desc limit 2",
+        [userId],
+      ),
+    ).toEqual([{ remembered: false }, { remembered: true }]);
+    expect(await signInEvents(userId)).toEqual([
+      { diff: { twoFactor: "totp" } },
+      { diff: { twoFactor: "totp" } },
+    ]);
+  });
+
+  it("signs in once with each backup code, and audits it", async () => {
+    const { userId, email, backupCodes } = await withTwoFactor();
+    const useBackup = async () =>
+      verifySignInCode(
+        { code: backupCodes[0], backup: true },
+        await passwordStep(email, false),
+      );
+
+    expect(await useBackup()).toEqual({ status: "signedIn" });
+    expect(await useBackup()).toEqual({ status: "invalid" });
+    expect(await signInEvents(userId)).toEqual([
+      { diff: { twoFactor: "backupCode" } },
+    ]);
+  });
+});
+
+describe("signOut", () => {
+  it("ends this device's session and audits it", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+
+    await signOut({ userId, collegeId }, device.headers);
+
+    expect(
+      await query("select id from sessions where id = $1", [device.sessionId]),
+    ).toEqual([]);
+    expect(
+      await query(
+        "select actor_id, action from audit_events where entity_id = $1",
+        [userId],
+      ),
+    ).toEqual([{ actor_id: userId, action: "session.signOut" }]);
   });
 });

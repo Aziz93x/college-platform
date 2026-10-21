@@ -6,8 +6,9 @@ import {
 } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
 import messages from "../messages/ar.json" with { type: "json" };
+import { base32Bytes, totp } from "../tests/support/totp.ts";
 import { expect, type TestAccount, test } from "./support/accounts.ts";
-import { base32Bytes, enterCode, signIn, totp } from "./support/auth.ts";
+import { enterCode, signIn } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 
 const { platform } = messages;
