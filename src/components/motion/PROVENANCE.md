@@ -55,6 +55,10 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `date-range-picker/use-date-range-picker.ts` | `components/motion/date-range-picker/use-date-range-picker.ts` |
 | `collapsible.tsx` | `components/motion/collapsible.tsx` |
 | `animated-sidebar.tsx` | `components/motion/animated-sidebar.tsx` |
+| `notification-stack.tsx` | `components/motion/notification-stack.tsx` |
+| `lib/use-dismiss.ts` | `lib/hooks/use-dismiss.ts` |
+| `lib/use-hover-gesture.ts` | `lib/hooks/use-hover-gesture.ts` |
+| `lib/use-tap-gesture.ts` | `lib/hooks/use-tap-gesture.ts` |
 
 ## Local changes
 
@@ -197,3 +201,21 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `overflow-actions.tsx`: no branch on reduced motion while rendering, which drew a reduced-motion
   client's first render unlike the server's HTML; `MotionProvider`'s `reducedMotion="user"` drops
   the movement instead.
+
+## Local changes from Step 12 (notifications)
+
+- `notification-stack.tsx`: every word comes from props (`labels`, with the stack's name while closed
+  and once open, and the count in the page's digits); the stack is in flow, so it opens downward and
+  the bell's panel grows with it, rather than rising over what comes before it; the controlled
+  `expanded`, `defaultExpanded`, `onExpandedChange` and the class-name slots are gone; Escape closes an
+  open stack before the panel around it; the count takes the primary color, the cards the small radius
+  scale and `text-start`; the empty state is an `output`, so its words are announced when the last card
+  is read, in the foreground color for contrast; the footer swaps its words with the action swap's blur
+  and its arrow turns with the reading direction. Only the movement's timing follows reduced motion.
+- `action-swap.tsx` exports `ActionSwapText`, for the stack's footer and the bell's count.
+- `lib/use-hover-gesture.ts` takes `isHoveringPointer` in itself from `lib/touch.ts`;
+  `lib/use-dismiss.ts` and `lib/use-tap-gesture.ts` are copied as is, but for the types no one else
+  reads, which are no longer exported.
+- `date-range-picker`: a `today` prop gives the day on the college's clock, which the calendar marks
+  and opens on; a browser on another clock, such as a test runner's in UTC after midnight in Riyadh,
+  marked its own day (found by this step's end-to-end run).

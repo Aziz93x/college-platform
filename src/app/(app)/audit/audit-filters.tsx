@@ -116,6 +116,7 @@ export function AuditFilters({
           locale={locale}
           weekStartsOn={firstDayOfWeek(locale)}
           max={today}
+          today={today}
           className="w-full"
         />
       </div>

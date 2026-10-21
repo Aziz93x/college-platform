@@ -65,7 +65,8 @@ export function Bell({
   const close = useCallback(() => {
     setOpen(false);
     // Focus left inside the closing panel goes back to the bell.
-    if (panel.current?.contains(document.activeElement)) button.current?.focus();
+    if (panel.current?.contains(document.activeElement))
+      button.current?.focus();
   }, []);
   // A press on the bell itself toggles it; anywhere else, or Escape, closes the panel.
   const ignore = useCallback(

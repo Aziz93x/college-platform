@@ -203,7 +203,7 @@ test("the command palette filters as you type and runs the chosen row", async ({
   await expect(trigger).toBeFocused();
 });
 
-test("the toast shows in the notifications region", async ({ page }) => {
+test("the toast shows in the status messages region", async ({ page }) => {
   await button(design.toast.trigger)(page).click();
   await expect(
     page

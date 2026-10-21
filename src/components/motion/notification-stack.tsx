@@ -120,9 +120,9 @@ export function NotificationStack({
 
   if (!primaryItem) {
     return (
-      // A status: the words that replace the stack once its last card is read are announced.
-      <div
-        role="status"
+      // An output, whose role is status: the words that replace the stack once its last card is
+      // read are announced.
+      <output
         className={cn(
           "flex w-full items-center justify-center gap-2 rounded-xl bg-muted/70 px-5 py-8 font-medium text-foreground text-sm",
           className,
@@ -130,7 +130,7 @@ export function NotificationStack({
       >
         <BellOff className="size-4 text-muted-foreground" aria-hidden />
         {labels.empty}
-      </div>
+      </output>
     );
   }
 

@@ -1,10 +1,5 @@
+export { describeNotification, type Words } from "./domain/describe.ts";
 export {
-  describeNotification,
-  type NotificationText,
-  type Words,
-} from "./domain/describe.ts";
-export {
-  type DigestMoment,
   digestKey,
   digestOf,
   isDigestDue,
@@ -26,8 +21,7 @@ export { notify } from "./server/notify.ts";
 export {
   latestUnread,
   listNotifications,
-  type NotificationCursor,
   type NotificationEntry,
   unreadCount,
 } from "./server/read.ts";
-export { notificationPrefs, notifications } from "./server/schema.ts";
+export { notifications } from "./server/schema.ts";

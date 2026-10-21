@@ -69,12 +69,8 @@
           "name": "memberships_user_id_users_id_fk",
           "tableFrom": "memberships",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -82,12 +78,8 @@
           "name": "memberships_role_id_roles_id_fk",
           "tableFrom": "memberships",
           "tableTo": "roles",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -95,12 +87,8 @@
           "name": "memberships_college_id_colleges_id_fk",
           "tableFrom": "memberships",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -108,14 +96,8 @@
           "name": "memberships_department_fk",
           "tableFrom": "memberships",
           "tableTo": "departments",
-          "columnsFrom": [
-            "college_id",
-            "department_id"
-          ],
-          "columnsTo": [
-            "college_id",
-            "id"
-          ],
+          "columnsFrom": ["college_id", "department_id"],
+          "columnsTo": ["college_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -125,11 +107,7 @@
         "memberships_scope_unique": {
           "name": "memberships_scope_unique",
           "nullsNotDistinct": true,
-          "columns": [
-            "user_id",
-            "role_id",
-            "department_id"
-          ]
+          "columns": ["user_id", "role_id", "department_id"]
         }
       },
       "policies": {},
@@ -159,12 +137,8 @@
           "name": "role_permissions_role_id_roles_id_fk",
           "tableFrom": "role_permissions",
           "tableTo": "roles",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -172,10 +146,7 @@
       "compositePrimaryKeys": {
         "role_permissions_role_id_permission_pk": {
           "name": "role_permissions_role_id_permission_pk",
-          "columns": [
-            "role_id",
-            "permission"
-          ]
+          "columns": ["role_id", "permission"]
         }
       },
       "uniqueConstraints": {},
@@ -240,12 +211,8 @@
           "name": "roles_college_id_colleges_id_fk",
           "tableFrom": "roles",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -255,10 +222,7 @@
         "roles_college_id_key_unique": {
           "name": "roles_college_id_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "college_id",
-            "key"
-          ]
+          "columns": ["college_id", "key"]
         }
       },
       "policies": {},
@@ -438,12 +402,8 @@
           "name": "audit_events_college_id_colleges_id_fk",
           "tableFrom": "audit_events",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -562,12 +522,8 @@
           "name": "accounts_user_id_users_id_fk",
           "tableFrom": "accounts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -628,12 +584,8 @@
           "name": "people_college_id_colleges_id_fk",
           "tableFrom": "people",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -641,12 +593,8 @@
           "name": "people_user_id_users_id_fk",
           "tableFrom": "people",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -656,17 +604,12 @@
         "people_user_id_unique": {
           "name": "people_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         },
         "people_college_id_employee_number_unique": {
           "name": "people_college_id_employee_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "college_id",
-            "employee_number"
-          ]
+          "columns": ["college_id", "employee_number"]
         }
       },
       "policies": {},
@@ -772,12 +715,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -787,9 +726,7 @@
         "sessions_token_unique": {
           "name": "sessions_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -962,12 +899,8 @@
           "name": "two_factors_user_id_users_id_fk",
           "tableFrom": "two_factors",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1056,9 +989,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -1182,12 +1113,8 @@
           "name": "notification_prefs_college_id_colleges_id_fk",
           "tableFrom": "notification_prefs",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1195,12 +1122,8 @@
           "name": "notification_prefs_user_id_users_id_fk",
           "tableFrom": "notification_prefs",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1208,11 +1131,7 @@
       "compositePrimaryKeys": {
         "notification_prefs_user_id_kind_channel_pk": {
           "name": "notification_prefs_user_id_kind_channel_pk",
-          "columns": [
-            "user_id",
-            "kind",
-            "channel"
-          ]
+          "columns": ["user_id", "kind", "channel"]
         }
       },
       "uniqueConstraints": {},
@@ -1357,12 +1276,8 @@
           "name": "notifications_college_id_colleges_id_fk",
           "tableFrom": "notifications",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1370,12 +1285,8 @@
           "name": "notifications_user_id_users_id_fk",
           "tableFrom": "notifications",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1477,12 +1388,8 @@
           "name": "department_rayat_values_college_id_colleges_id_fk",
           "tableFrom": "department_rayat_values",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1490,14 +1397,8 @@
           "name": "department_rayat_values_department_fk",
           "tableFrom": "department_rayat_values",
           "tableTo": "departments",
-          "columnsFrom": [
-            "college_id",
-            "department_id"
-          ],
-          "columnsTo": [
-            "college_id",
-            "id"
-          ],
+          "columnsFrom": ["college_id", "department_id"],
+          "columnsTo": ["college_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1505,10 +1406,7 @@
       "compositePrimaryKeys": {
         "department_rayat_values_pkey": {
           "name": "department_rayat_values_pkey",
-          "columns": [
-            "college_id",
-            "value"
-          ]
+          "columns": ["college_id", "value"]
         }
       },
       "uniqueConstraints": {},
@@ -1573,12 +1471,8 @@
           "name": "departments_college_id_colleges_id_fk",
           "tableFrom": "departments",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1588,26 +1482,17 @@
         "departments_college_id_id_unique": {
           "name": "departments_college_id_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "college_id",
-            "id"
-          ]
+          "columns": ["college_id", "id"]
         },
         "departments_name_unique": {
           "name": "departments_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "college_id",
-            "name"
-          ]
+          "columns": ["college_id", "name"]
         },
         "departments_short_name_unique": {
           "name": "departments_short_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "college_id",
-            "short_name"
-          ]
+          "columns": ["college_id", "short_name"]
         }
       },
       "policies": {},
@@ -1657,12 +1542,8 @@
           "name": "settings_college_id_colleges_id_fk",
           "tableFrom": "settings",
           "tableTo": "colleges",
-          "columnsFrom": [
-            "college_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1670,10 +1551,7 @@
       "compositePrimaryKeys": {
         "settings_college_id_key_pk": {
           "name": "settings_college_id_key_pk",
-          "columns": [
-            "college_id",
-            "key"
-          ]
+          "columns": ["college_id", "key"]
         }
       },
       "uniqueConstraints": {},

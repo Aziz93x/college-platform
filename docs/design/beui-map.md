@@ -110,6 +110,18 @@ keyset, so no row needs virtualizing; the table's selection, sticky header and v
 for sections (Step 17). The sidebar's sub-menus and its phone sheet stay out: no page has sub-pages
 yet, and a phone keeps the tab bar and its "More" sheet, which the admin's sixth page now opens.
 
+## Adopted in Step 12 (notifications)
+
+| Component | Real use |
+| --- | --- |
+| Blocks: notification stack | The bell's panel: the newest unread notifications stacked behind the newest, which spring apart into a list on hover, focus or the first tap; the next activation opens the notification center. Its code loads when the bell is first reached for |
+| Motion: action swap | The unread count on the bell, which swaps to the next number as the count changes, and the stack's footer, from "unread" to "view all" |
+| Motion: switch | Each kind of notification on or off in the preferences |
+
+The bell's panel hangs from the header as a disclosure, not from the morph popover: the popover would
+add 9 KiB of script to every page (ADR-0010), and a phone gets the panel at the screen's width. The
+stack opens downward inside the panel, which grows with it, rather than over what comes before it.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
@@ -135,7 +147,7 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 | 10 | Motion: animated badge | An account's state; then readiness (22) and task (26) states |
 | 10 | Blocks: overflow actions | A person's row: reset the password, lock, disable |
 | 11 | Motion: date range picker | The audit log's period filter; then holidays and exam weeks (13) |
-| 12 | Blocks: notification stack | The bell's notification center |
+| 12 | Blocks: notification stack | The bell's panel (adopted, above) |
 | 13 | Motion: adaptive stepper | The number of weeks in a term |
 | 13 | Motion: select (morph) | The header's term switcher |
 | 17 | Motion: combobox | The trainer of a section |

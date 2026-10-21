@@ -20,12 +20,6 @@ export function isNotificationKind(value: string): value is NotificationKind {
   return Object.hasOwn(notificationKinds, value);
 }
 
-// Where a notification reaches a person. In the platform only, until the hosting decision brings
-// email and web push with their adapters (ADR-0008).
-export const notificationChannels = ["inApp"] as const;
-
-export type NotificationChannel = (typeof notificationChannels)[number];
-
 // A role and where it is held, named as they were when the message was sent.
 type Held = { role: string } & (
   | { scope: "college" }

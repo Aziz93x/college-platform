@@ -251,8 +251,9 @@ test.describe("the demo trainer", () => {
     await page.goto("/notifications");
     await expect(page.locator("main ol > li").first()).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
+    // The stack loads with the panel; axe reads it once it has drawn its words.
     await bell(page).click();
-    await expect(panel(page)).toBeVisible();
+    await expect(panel(page)).toContainText(text.stack.empty);
     expect(await seriousViolations(page)).toEqual([]);
   });
 
@@ -274,6 +275,7 @@ test.describe("the demo trainer", () => {
       // The header with the bell, then the bell's panel.
       expect(await smallTargets(page.getByRole("banner"))).toEqual([]);
       await bell(page).click();
+      await expect(panel(page)).toContainText(text.stack.empty);
       expect(await smallTargets(panel(page))).toEqual([]);
     });
   });

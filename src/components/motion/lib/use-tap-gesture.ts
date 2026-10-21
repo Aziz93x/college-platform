@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 
 /** What a pointerdown recorded, read back by the click that ends its gesture. */
-export interface TapRecord<S> {
+interface TapRecord<S> {
   /** Which input started the gesture. */
   pointerType: string;
   /** What the surface was showing when it started. */

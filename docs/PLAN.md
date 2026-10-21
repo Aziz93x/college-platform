@@ -929,6 +929,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 41:** `pnpm local:up --demo` passes `--seed` to `seed:demo`; give `scripts/local.ts` the `--week` option too, since the GA demonstration starts the stack with `--week 9`.
 
+**Note from Step 12:** the header holds the search, the bell and the account menu (`src/app/(app)/_shell/header.tsx`); the term switcher takes its place before the bell. The bell's panel hangs from the header, not from a popover, so the morph popover stays off every page's script (ADR-0010); a morph select in the header adds its own cost to every page, to measure here.
+
 **Note from Step 7:** the first day of the week (`locale.weekStart`) and the digits (`locale.digits`) travel in next-intl's locale (`ar-u-fw-sun-nu-latn`, `src/i18n/locale.ts`): `firstDayOfWeek()` in `src/platform/i18n/language.ts` reads the first, and the calendar already takes both. Hijri display is the setting `locale.hijri`; Today shows the Umm al-Qura date with `Intl.DateTimeFormat` and `calendar: "islamic-umalqura"` (next-intl's formatter does not take that calendar). Week utilities show it the same way.
 
 **Notes from Step 9**
@@ -1070,6 +1072,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - BeUI here: expandable control (the quick-request button), multi select (chosen people) and animated badge (readiness).
 
+**Note from Step 12:** a request that tells its targets uses `notify()` with a kind of its own: the kind and its page in `src/modules/notifications/domain/kinds.ts`, its params' type there, and its words under `notifications.kinds.<kind>` in `messages/ar.json` (a label and a hint for the preferences, a title and a description filled with the params). The preferences list it on their own, and a person who turned it off is not told.
+
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
 ### Section E. The trainer's work loop (steps 23 to 28)
@@ -1162,6 +1166,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Notes from ADR-0008**
 
 - "I have a problem" notifies the head or the admin in-app only.
+- With Step 12's `notify()` and a kind of its own (the note under Step 22 says how). A kind about one record (this task) opens that record's page: the kind's page, a fixed path today, becomes a function of its params.
 - The head's note on returned work moves to Step 29, which records it.
 - **You (added to Done when):** with Step 41's stack in demo mode, open a demo task on a real iPhone and on an Android phone, add camera evidence and mark it done. Do it once through `pnpm local:share` on cellular, and once on the college Wi-Fi with the exported root trusted. Claude Code records what emulation missed in `docs/ops/ios.md`, which Step 39 completes, and fixes it in this step's pull request.
 
@@ -1176,6 +1181,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from ADR-0008:** every rule is an in-app item: the digest, the due-tomorrow reminder, and "nothing uploaded this week" with the head's one-tap reminder (moved from Step 23). Step 29 sends the instant notification on returned work, since it builds the return action. On option A, people see these items only when they open the app on the college Wi-Fi, so the week-2 return metric reads differently under each hosting option.
 
 **Note from Step 7:** the rules are settings already: `reminders.dueTomorrow` and `reminders.nothingUploaded` (both on), with the digest's day and hour from Step 12.
+
+**Note from Step 12:** the worker's `notification-digest` job looks every quarter of an hour and calls `sendWeeklyDigests()` (`src/modules/notifications/server/digest.ts`) within a day of each college's digest moment. Today a digest counts the week's unread notifications and names the newest three (`digestOf()`, words `notifications.kinds.weeklyDigest`); the work loop's parts join its params and its words here, and the snapshot test (`tests/integration/notification-digest.test.ts`) grows with them. A reminder that must reach a person once, such as due-tomorrow per task and day, passes a once key as the digest does per week, so a rerun sends nothing twice. The message count over a demo week can read the `notifications` table.
 
 > **Checkpoint: Audit 9.** Run `/audit 25-27`.
 
@@ -1209,6 +1216,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - BeUI here: expandable action bar (the review card) and multi select (kinds that require approval).
 
 **Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
+
+**Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
 
 #### Step 31. Portfolio builder (M)
 
@@ -1390,6 +1399,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 41:** the worker starts Chromium with `--no-sandbox` (`worker/print-check.ts`, then Step 32's renderer). Keep it, since Chromium prints only the platform's own pages from disk with no route out, or give the worker a seccomp profile that lets the sandbox run, and record the choice in `docs/ops/asvs.md`.
 
+**Note from Step 12:** measured with Moto G4 emulation as the demo trainer, Today loaded 274,901 bytes of script in all before Step 12 and 279,435 after it, the bell's share; the stack loads when the bell is first reached for. Both are above the 250 KiB of ADR-0010's option B, before and after the load event together; Motion's feature bundle lands on either side of it.
+
 **Note from Step 6:** the Content Security Policy keeps `style-src 'unsafe-inline'` because Motion and the image component set style attributes; verify that nothing else needs it. Better Auth accepts a TOTP code again within its window, and the sign-in limits trust the first `X-Forwarded-For` entry, which only Caddy in front makes the client's own (docs/BACKLOG.md).
 
 **Notes from Audit 2**
@@ -1416,6 +1427,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 > **Checkpoint: Lead review I.** Run `/lead-review I`, then tag `v0.9-I`.
 
 ### Section J. Demo data and full testing (steps 43 to 46)
+
+**Note from Step 12:** the admin's notices of a new error, an error rate above its setting and a failed backup are notification kinds (the note under Step 22 says how), sent with `notify()` to each holder of the key that reads the system-health screen; a once key per error fingerprint and day keeps a repeated error to one notice.
 
 #### Step 43. Demo data completed (L)
 

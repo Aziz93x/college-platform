@@ -11,7 +11,7 @@ import { type RefObject, useEffect } from "react";
  * be costly to trigger by accident — the dismissal then swallows the
  * activation too, so the gesture only closes.
  */
-export type DismissBehavior = "pass-through" | "consume";
+type DismissBehavior = "pass-through" | "consume";
 
 export interface DismissOptions {
   /** Default `"pass-through"`. */

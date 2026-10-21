@@ -44,6 +44,8 @@ export interface DateRangePickerProps {
   weekStartsOn: number;
   min?: string;
   max?: string;
+  /** The day it is on the clock that counts, the college's (YYYY-MM-DD); the browser's own day when absent. */
+  today?: string;
   disabled?: boolean;
   /** Move focus to the active date on mount, for use inside a popover. */
   autoFocus?: boolean;

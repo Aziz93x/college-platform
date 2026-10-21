@@ -256,7 +256,7 @@ const checked: {
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others
-// act on the caller's own account (ADR-0009 #6, Audit 2).
+// act on the caller's own account (ADR-0009 #6, Audit 2) or their own notifications (Step 12).
 const open = [
   "(auth)/actions.ts#signInAction",
   "(auth)/actions.ts#verifyCodeAction",
@@ -264,6 +264,8 @@ const open = [
   "(auth)/actions.ts#confirmTwoFactorSetupAction",
   "(auth)/actions.ts#changePasswordAction",
   "(auth)/actions.ts#signOutAction",
+  "(app)/notifications/actions.ts#markReadAction",
+  "(app)/notifications/actions.ts#chooseNotificationAction",
 ];
 
 // Each seeded role, and a role with no key; each held across the college or in one department.
