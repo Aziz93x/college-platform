@@ -127,7 +127,7 @@ test("the sample rate's slider moves with the arrow keys the way the page reads"
   await expect(slider).toHaveAttribute("aria-valuenow", "19");
   await expect(slider).toHaveAttribute("aria-valuetext", /19/);
   // Never saved: discarding brings back the stored rate.
-  await setting.getByRole("button", { name: text.discard }).click();
+  await setting.getByRole("button", { name: messages.ui.discard }).click();
   await expect(slider).toHaveAttribute("aria-valuenow", "20");
 });
 

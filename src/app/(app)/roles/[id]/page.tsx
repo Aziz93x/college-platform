@@ -71,17 +71,18 @@ export default async function RolePage({
   if (!allowed) forbidden();
   if (!role) notFound();
 
-  const [t, ui, nav, messages, departments, people, orders] = await Promise.all(
-    [
+  const scope = { collegeId: viewer.collegeId };
+  const [t, ui, nav, messages, departments, people, orders, twoFactor] =
+    await Promise.all([
       getTranslations("roles"),
       getTranslations("ui"),
       getTranslations("nav"),
       getMessages(),
       listDepartments(viewer.collegeId),
       listPeople(viewer.collegeId),
-      getSetting("navigation.order", { collegeId: viewer.collegeId }),
-    ],
-  );
+      getSetting("navigation.order", scope),
+      getSetting("auth.requireTwoFactor", scope),
+    ]);
   const label = roleLabel(role.labels, language);
   const pages = visibleNavigation(
     navigation,
@@ -104,6 +105,7 @@ export default async function RolePage({
       />
       <NextIntlClientProvider
         messages={{
+          ui: messages.ui,
           actions: messages.actions,
           reauth: messages.reauth,
           roles: messages.roles,
@@ -119,6 +121,7 @@ export default async function RolePage({
               permissions: role.permissions,
             }}
             areas={areas}
+            twoFactorRequired={twoFactor}
           />
           <Members
             role={{ id: role.id, system: role.system, members: role.members }}

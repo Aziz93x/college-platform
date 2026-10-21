@@ -48,7 +48,7 @@ export default async function DepartmentPage({
   if (!allowed) forbidden();
   if (!department) notFound();
 
-  const [t, ui, { actions, departments }] = await Promise.all([
+  const [t, ui, { ui: uiWords, actions, departments }] = await Promise.all([
     getTranslations("departments"),
     getTranslations("ui"),
     getMessages(),
@@ -67,7 +67,11 @@ export default async function DepartmentPage({
         }
       />
       <NextIntlClientProvider
-        messages={{ actions, departments: { form: departments.form } }}
+        messages={{
+          ui: uiWords,
+          actions,
+          departments: { form: departments.form },
+        }}
       >
         <DepartmentForm department={department} />
       </NextIntlClientProvider>

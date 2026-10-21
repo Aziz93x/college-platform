@@ -64,13 +64,13 @@ export default async function PersonPage({
   if (!allowed) forbidden();
   if (!person) notFound();
 
-  const [t, ui, { actions, people, reauth }] = await Promise.all([
+  const [t, ui, { ui: uiWords, actions, people, reauth }] = await Promise.all([
     getTranslations("people"),
     getTranslations("ui"),
     getMessages(),
   ]);
   return (
-    <NextIntlClientProvider messages={{ actions, people, reauth }}>
+    <NextIntlClientProvider messages={{ ui: uiWords, actions, people, reauth }}>
       <PageHeader
         title={person.name}
         description={t("person.details")}

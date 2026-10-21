@@ -1,15 +1,16 @@
 "use client";
 
-import { Check, LoaderCircle, Plus, Save } from "lucide-react";
+import { LoaderCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ListField } from "@/components/list-field";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Input } from "@/components/motion/input";
 import { Switch } from "@/components/motion/switch";
+import { SaveActions, useSaveState } from "@/components/save-actions";
 import { Button } from "@/components/ui/button";
 import type { Department } from "@/modules/org";
 import { oneLine } from "@/platform/validation/text";
@@ -27,6 +28,7 @@ const sameValues = (a: string[], b: string[]) =>
 // goes back to the list; with one it saves it in place, and can set it aside.
 export function DepartmentForm({ department }: { department?: Department }) {
   const t = useTranslations("departments.form");
+  const ui = useTranslations("ui");
   const refusals = useTranslations("actions");
   const router = useRouter();
   const id = useId();
@@ -35,7 +37,7 @@ export function DepartmentForm({ department }: { department?: Department }) {
   const [typed, setTyped] = useState("");
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [refusal, setRefusal] = useState<string>();
-  const [state, setState] = useState<"idle" | "running" | "done">("idle");
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
 
   const dirty =
@@ -45,13 +47,6 @@ export function DepartmentForm({ department }: { department?: Department }) {
     oneLine(draft.shortName) !== department.shortName ||
     !sameValues(draft.rayatValues, department.rayatValues) ||
     draft.active !== department.active;
-
-  // "Saved" shows for a moment.
-  useEffect(() => {
-    if (state !== "done") return;
-    const timer = setTimeout(() => setState("idle"), 2000);
-    return () => clearTimeout(timer);
-  }, [state]);
 
   const change = (patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -94,7 +89,7 @@ export function DepartmentForm({ department }: { department?: Department }) {
     if (Object.keys(missing).length > 0) return;
     const input = { ...draft, rayatValues };
     startTransition(async () => {
-      setState("running");
+      setState("saving");
       const result = department
         ? await updateDepartmentAction({ ...input, id: department.id })
         : await createDepartmentAction(input);
@@ -108,7 +103,7 @@ export function DepartmentForm({ department }: { department?: Department }) {
           return;
         case "saved":
         case "unchanged":
-          setState("done");
+          setState("saved");
           toast.success(t("toast.saved", { name }));
           return;
         case "nameTaken":
@@ -212,49 +207,47 @@ export function DepartmentForm({ department }: { department?: Department }) {
           />
         </div>
       ) : null}
-      <div className="flex flex-col gap-3 px-5 py-4 sm:px-6">
-        {refusal ? (
-          <p role="alert" className="text-alert text-sm">
-            {refusal}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button asChild variant="ghost">
-            <Link href="/departments">{t("back")}</Link>
-          </Button>
-          <ActionSwapButton
-            type="submit"
-            disabled={state === "running" || (!dirty && state === "idle")}
-            value={
-              department
-                ? { idle: "save", running: "saving", done: "saved" }[state]
-                : state === "idle"
-                  ? "create"
-                  : "creating"
-            }
-            items={
-              department
-                ? [
-                    { id: "save", label: t("save"), icon: <Save /> },
-                    {
-                      id: "saving",
-                      label: t("saving"),
-                      icon: <LoaderCircle className="animate-spin" />,
-                    },
-                    { id: "saved", label: t("saved"), icon: <Check /> },
-                  ]
-                : [
-                    { id: "create", label: t("create"), icon: <Plus /> },
-                    {
-                      id: "creating",
-                      label: t("creating"),
-                      icon: <LoaderCircle className="animate-spin" />,
-                    },
-                  ]
-            }
-          />
+      {department && !dirty && state === "idle" && !refusal ? null : (
+        <div className="flex flex-col gap-3 px-5 py-4 sm:px-6">
+          {refusal ? (
+            <p role="alert" className="text-alert text-sm">
+              {refusal}
+            </p>
+          ) : null}
+          {department ? (
+            <SaveActions
+              dirty={dirty}
+              state={state}
+              onDiscard={() => {
+                setDraft(department);
+                setTyped("");
+                setErrors({});
+                setRefusal(undefined);
+              }}
+              words={{ save: t("save"), saving: t("saving") }}
+            />
+          ) : (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button asChild variant="ghost">
+                <Link href="/departments">{ui("cancel")}</Link>
+              </Button>
+              <ActionSwapButton
+                type="submit"
+                disabled={state === "saving"}
+                value={state === "saving" ? "creating" : "create"}
+                items={[
+                  { id: "create", label: t("create"), icon: <Plus /> },
+                  {
+                    id: "creating",
+                    label: t("creating"),
+                    icon: <LoaderCircle className="animate-spin" />,
+                  },
+                ]}
+              />
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </form>
   );
 }
