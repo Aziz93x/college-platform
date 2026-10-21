@@ -2,8 +2,10 @@ import { randomInt } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
+import { demoDepartments } from "../db/seed/demo/departments.ts";
 import { demoSettings } from "../db/seed/demo/settings.ts";
 import messages from "../messages/ar.json" with { type: "json" };
+import { createDb } from "../src/platform/db/client.ts";
 import { base32Bytes, totp } from "../tests/support/totp.ts";
 import { expect, type TestAccount, test } from "./support/accounts.ts";
 import { demo, enterCode, signIn, signOut } from "./support/auth.ts";
@@ -15,10 +17,12 @@ const {
   twoFactorSetup,
   changePassword,
 } = messages.auth;
+const { profile, reauth } = messages;
 const DAY_MS = 86_400_000;
 // Tests that make their own accounts in the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 const demoKey = Buffer.from(demo.totpSecret);
+const [, electrical] = demoDepartments.map(({ name }) => name);
 
 const signInAs = async (page: Page, person: TestAccount, password?: string) => {
   await page.goto("/");
@@ -244,39 +248,127 @@ test("an admin signs in with the code from the authenticator app; a wrong code i
   await expect(page).toHaveURL("/today");
 });
 
+// Whether the college requires two-factor of the keys that need it (ADR-0014), stored as the
+// settings page stores it. Off is the default, which seed:demo keeps.
+async function requireTwoFactor(on: boolean) {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
+  const { pool } = createDb(url);
+  try {
+    await (on
+      ? pool.query(
+          `insert into settings (college_id, key, value)
+           select id, 'auth.requireTwoFactor', 'true' from colleges
+           on conflict (college_id, key) do update set value = excluded.value`,
+        )
+      : pool.query("delete from settings where key = 'auth.requireTwoFactor'"));
+  } finally {
+    await pool.end();
+  }
+}
+
+// Sets up two-factor on the setup page, and returns the key the app was given and the backup codes.
+async function setUpTwoFactor(page: Page, password: string) {
+  await page.getByLabel(twoFactorSetup.password).fill(password);
+  await page.getByRole("button", { name: twoFactorSetup.start }).click();
+  await expect(
+    page.getByRole("img", { name: twoFactorSetup.qr }),
+  ).toBeVisible();
+  const key = (await page.locator("code").textContent()) ?? "";
+  const backupCodes = await page.getByRole("listitem").allTextContents();
+  await page.getByLabel(twoFactorSetup.code).fill(totp(base32Bytes(key)));
+  await page.getByRole("button", { name: twoFactorSetup.confirm }).click();
+  return { key, backupCodes };
+}
+
+// Two-factor is each person's choice while the college does not require it (ADR-0014): a trainer,
+// whom the setting never decides for, turns it on and off.
 test(
-  "an admin without two-factor sets it up before anything else, then can sign in with a backup code",
+  "anyone turns two-factor on from their profile, and off again with the password, which then signs them in alone",
   DATABASE,
   async ({ page, account }) => {
-    const admin = await account({ admin: true });
-    await signInAs(page, admin);
-    await expect(page).toHaveURL("/two-factor/setup");
-    await page.goto("/today");
-    await expect(page).toHaveURL("/two-factor/setup");
+    const person = await account({ trainerIn: electrical });
+    await signInAs(page, person);
+    await expect(page).toHaveURL("/today");
 
-    await page.getByLabel(twoFactorSetup.password).fill(admin.password);
-    await page.getByRole("button", { name: twoFactorSetup.start }).click();
+    await page.goto("/profile");
+    await expect(page.getByText(profile.twoFactorOff)).toBeVisible();
+    await page.getByRole("link", { name: profile.twoFactorTurnOn }).click();
+    await expect(page).toHaveURL("/two-factor/setup");
     await expect(
-      page.getByRole("img", { name: twoFactorSetup.qr }),
+      page.getByText(twoFactorSetup.descriptionOptional),
     ).toBeVisible();
-    const key = (await page.locator("code").textContent()) ?? "";
-    const backupCodes = await page.getByRole("listitem").allTextContents();
-    expect(backupCodes).toHaveLength(10);
+    await setUpTwoFactor(page, person.password);
+    await expect(page).toHaveURL("/profile");
+    await expect(page.getByText(profile.twoFactorOn)).toBeVisible();
 
-    await page.getByLabel(twoFactorSetup.code).fill(totp(base32Bytes(key)));
-    await page.getByRole("button", { name: twoFactorSetup.confirm }).click();
-    await expect(page).toHaveURL("/today");
-    await signOut(page, admin);
+    await page
+      .getByRole("button", { name: profile.twoFactorTurnOff.open })
+      .click();
+    const sheet = page.getByRole("dialog");
+    const turnOff = async (password: string) => {
+      await sheet.getByLabel(reauth.password).fill(password);
+      await sheet
+        .getByRole("button", { name: profile.twoFactorTurnOff.confirm })
+        .click();
+    };
+    await turnOff("a-wrong-password");
+    await expect(sheet.getByText(reauth.wrong)).toBeVisible();
+    await turnOff(person.password);
+    await expect(page.getByText(profile.twoFactorTurnOff.done)).toBeVisible();
+    await expect(page.getByText(profile.twoFactorOff)).toBeVisible();
 
+    await signOut(page, person);
     await signIn(page, {
-      identifier: admin.employeeNumber,
-      password: admin.password,
+      identifier: person.employeeNumber,
+      password: person.password,
     });
-    await expect(page).toHaveURL("/two-factor");
-    await page.getByRole("button", { name: twoFactor.useBackup }).click();
-    await page.getByLabel(twoFactor.backupCode).fill(backupCodes[0]);
-    await page.getByRole("button", { name: twoFactor.submit }).click();
     await expect(page).toHaveURL("/today");
+  },
+);
+
+test(
+  "while the college requires it, an admin without two-factor sets it up before anything else, cannot turn it off, and can sign in with a backup code",
+  DATABASE,
+  async ({ page, account }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "one college, whose setting one project turns on at a time",
+    );
+    const admin = await account({ admin: true });
+    await requireTwoFactor(true);
+    try {
+      await signInAs(page, admin);
+      await expect(page).toHaveURL("/two-factor/setup");
+      await page.goto("/today");
+      await expect(page).toHaveURL("/two-factor/setup");
+      await expect(page.getByText(twoFactorSetup.description)).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: twoFactorSetup.back }),
+      ).toHaveCount(0);
+
+      const { backupCodes } = await setUpTwoFactor(page, admin.password);
+      expect(backupCodes).toHaveLength(10);
+      await expect(page).toHaveURL("/today");
+      await page.goto("/profile");
+      await expect(page.getByText(profile.twoFactorRequired)).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: profile.twoFactorTurnOff.open }),
+      ).toHaveCount(0);
+      await signOut(page, admin);
+
+      await signIn(page, {
+        identifier: admin.employeeNumber,
+        password: admin.password,
+      });
+      await expect(page).toHaveURL("/two-factor");
+      await page.getByRole("button", { name: twoFactor.useBackup }).click();
+      await page.getByLabel(twoFactor.backupCode).fill(backupCodes[0]);
+      await page.getByRole("button", { name: twoFactor.submit }).click();
+      await expect(page).toHaveURL("/today");
+    } finally {
+      await requireTwoFactor(false);
+    }
   },
 );
 

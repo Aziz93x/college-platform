@@ -32,6 +32,8 @@ vi.mock("next/headers", () => ({
   }),
 }));
 vi.mock("next/cache", () => ({ refresh: () => {} }));
+// Where an action sends the person next; Next.js would answer with that page.
+vi.mock("next/navigation", () => ({ redirect: () => {} }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
@@ -80,12 +82,18 @@ const writes: Record<string, string[]> = {
   "(app)/people/actions.ts#updatePersonAction": ["person.update"],
   "(app)/people/actions.ts#disableAccountAction": ["account.disable"],
   "(app)/people/actions.ts#resetPasswordAction": ["account.resetPassword"],
+  "(app)/people/actions.ts#turnOffTwoFactorAction": [
+    "account.disableTwoFactor",
+  ],
   "(app)/people/actions.ts#linkEmployeeNumberAction": [
     "person.linkEmployeeNumber",
   ],
   "(app)/notifications/actions.ts#markReadAction": ["notification.read"],
   "(app)/notifications/actions.ts#chooseNotificationAction": [
     "notification.mute",
+  ],
+  "(app)/profile/actions.ts#turnOffOwnTwoFactorAction": [
+    "account.disableTwoFactor",
   ],
 };
 
@@ -339,6 +347,13 @@ describe("every server action writes its event", () => {
       userId: trainer.userId,
       employeeNumber: "6002",
     });
+    // The trainer's two-factor, on as if they had set it up, turned off for them.
+    await query("update users set two_factor_enabled = true where id = $1", [
+      trainer.userId,
+    ]);
+    await expectWrites("(app)/people/actions.ts#turnOffTwoFactorAction", {
+      userId: trainer.userId,
+    });
 
     // The admin's own notifications: one to read, then the digest turned off and on again.
     await notify({
@@ -357,6 +372,33 @@ describe("every server action writes its event", () => {
       { kind: "weeklyDigest", enabled: true },
     );
     expect(unmuted.written).toEqual(["notification.unmute"]);
+  });
+
+  it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {
+    const owner = await person("A Head");
+    browser.cookies.clear();
+    await run(
+      "(auth)/actions.ts#signInAction",
+      {},
+      { identifier: owner.email, password: PASSWORD },
+    );
+    const started = await run(
+      "(auth)/actions.ts#startTwoFactorSetupAction",
+      {},
+      { password: PASSWORD },
+    );
+    const key = base32Bytes(started.data.secret as string);
+    await run(
+      "(auth)/actions.ts#confirmTwoFactorSetupAction",
+      {},
+      { code: totp(key, Date.now()) },
+    );
+
+    const turnOff = "(app)/profile/actions.ts#turnOffOwnTwoFactorAction";
+    const turned = await run(turnOff, { password: PASSWORD });
+    expect(turned.data).toEqual({ status: "off" });
+    expect(turned.written).toEqual(writes[turnOff]);
+    expect(turned.actors).toEqual([owner.userId]);
   });
 
   it("ten wrong codes in a row, over two sign-ins, write the lock of the account's codes", async () => {

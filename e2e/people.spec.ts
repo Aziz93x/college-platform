@@ -315,6 +315,53 @@ test(
 );
 
 test(
+  "an admin turns off the two-factor of someone who lost their phone, who then signs in with the password alone (ADR-0014)",
+  DATABASE,
+  async ({ page, browser, account }) => {
+    const person = await account({ trainerIn: electrical });
+    // As if they had set it up: signing in would ask them for a code.
+    await database().query(
+      "update users set two_factor_enabled = true where id = $1",
+      [person.userId],
+    );
+
+    await open(page, `/people/${person.userId}`);
+    await act(page, person, text.account.turnOffTwoFactor);
+    await confirm(page, text.turnOffTwoFactor.confirm);
+    await confirmIfAsked(
+      page,
+      page.getByText(text.turnOffTwoFactor.done.replace("{name}", person.name)),
+      demo.adminPassword,
+    );
+    // Nothing is left to turn off.
+    await page
+      .getByRole("button", {
+        name: text.account.more.replace("{name}", person.name),
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: text.account.turnOffTwoFactor,
+        exact: true,
+      }),
+    ).toHaveCount(0);
+
+    const trainer = await (
+      await browser.newContext({ storageState: undefined })
+    ).newPage();
+    await trainer.goto("/");
+    await signIn(trainer, {
+      identifier: person.employeeNumber,
+      password: person.password,
+    });
+    await expect(trainer).toHaveURL("/today");
+    expect(await audited(person.userId)).toContainEqual({
+      action: "account.disableTwoFactor",
+    });
+  },
+);
+
+test(
   "a disabled account cannot sign in until it is enabled again, and both changes are recorded",
   DATABASE,
   async ({ page, browser, account }) => {

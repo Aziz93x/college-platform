@@ -7,6 +7,8 @@ export const auditActions = [
   "account.changePassword",
   "account.startTwoFactorSetup",
   "account.enableTwoFactor",
+  // Two-factor turned off, by its owner or by an admin for them (ADR-0014).
+  "account.disableTwoFactor",
   "account.lock",
   // Written by the database when Better Auth locks two-factor (migration 0010).
   "account.lockTwoFactor",

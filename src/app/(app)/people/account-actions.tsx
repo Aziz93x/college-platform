@@ -1,8 +1,14 @@
 "use client";
 
-import { KeyRound, LoaderCircle, UserCheck, UserX } from "lucide-react";
+import {
+  KeyRound,
+  LoaderCircle,
+  ShieldOff,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { BottomSheet } from "@/components/motion/bottom-sheet";
@@ -11,15 +17,26 @@ import {
   OverflowActions,
 } from "@/components/motion/overflow-actions";
 import { usePasswordStep } from "@/components/password-step";
-import { disableAccountAction, resetPasswordAction } from "./actions.ts";
+import {
+  disableAccountAction,
+  resetPasswordAction,
+  turnOffTwoFactorAction,
+} from "./actions.ts";
 import { TemporaryPassword } from "./temporary-password.tsx";
 import type { PersonView } from "./view.ts";
 
-type Action = "reset" | "disable" | "enable";
+type Action = "reset" | "turnOffTwoFactor" | "disable" | "enable";
+
+const icons: Record<Action, ReactNode> = {
+  reset: <KeyRound />,
+  turnOffTwoFactor: <ShieldOff />,
+  disable: <UserX />,
+  enable: <UserCheck />,
+};
 
 // What the viewer may do to someone's account, behind a person's row and on their page: a temporary
-// password, and disabling or enabling the account. Each opens a sheet that confirms it, asks for the
-// password again when it is due, and shows the outcome.
+// password, turning their two-factor off, and disabling or enabling the account. Each opens a sheet
+// that confirms it, asks for the password again when it is due, and shows the outcome.
 export function AccountActions({ person }: { person: PersonView }) {
   const t = useTranslations("people.account");
   const [open, setOpen] = useState<Action | null>(null);
@@ -30,6 +47,14 @@ export function AccountActions({ person }: { person: PersonView }) {
       label: t("reset"),
       icon: <KeyRound />,
       onClick: () => setOpen("reset"),
+    });
+  }
+  if (person.can.turnOffTwoFactor) {
+    items.push({
+      id: "turnOffTwoFactor",
+      label: t("turnOffTwoFactor"),
+      icon: icons.turnOffTwoFactor,
+      onClick: () => setOpen("turnOffTwoFactor"),
     });
   }
   if (person.can.disable) {
@@ -93,17 +118,24 @@ function AccountSheet({
       const result =
         action === "reset"
           ? await resetPasswordAction({ userId: person.userId, password })
-          : await disableAccountAction({
-              userId: person.userId,
-              disabled: action === "disable",
-              password,
-            });
+          : action === "turnOffTwoFactor"
+            ? await turnOffTwoFactorAction({ userId: person.userId, password })
+            : await disableAccountAction({
+                userId: person.userId,
+                disabled: action === "disable",
+                password,
+              });
       setRunning(false);
       const outcome = result?.data;
       if (step.handled(outcome, run)) return;
       switch (outcome?.status) {
         case "reset":
           setTemporary(outcome.temporaryPassword);
+          return;
+        case "off":
+        case "notOn":
+          toast.success(t("turnOffTwoFactor.done", { name }));
+          onClose();
           return;
         case "saved":
         case "unchanged":
@@ -113,7 +145,7 @@ function AccountSheet({
           onClose();
           return;
         case "self":
-          setError(t(`${action === "reset" ? "reset" : "disable"}.self`));
+          setError(t(`${action === "enable" ? "disable" : action}.self`));
           return;
         case "lastAdmin":
           setError(t("disable.lastAdmin"));
@@ -166,18 +198,7 @@ function AccountSheet({
               className="self-start"
               value={running ? "running" : step.asking ? "confirm" : "idle"}
               items={[
-                {
-                  id: "idle",
-                  label: words.confirm,
-                  icon:
-                    action === "reset" ? (
-                      <KeyRound />
-                    ) : action === "disable" ? (
-                      <UserX />
-                    ) : (
-                      <UserCheck />
-                    ),
-                },
+                { id: "idle", label: words.confirm, icon: icons[action] },
                 {
                   id: "running",
                   label: step.asking ? step.words.confirming : words.confirming,

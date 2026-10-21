@@ -1,9 +1,10 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
-import { publicAction, signedInAction } from "@/modules/access";
+import { getViewer, publicAction, signedInAction } from "@/modules/access";
 import {
   changePassword,
   confirmTwoFactorSetup,
@@ -23,7 +24,8 @@ import {
 // Signing in and its second step are open to anyone; the rest needs a session, even one that still
 // has a password to replace or two-factor to set up. Each service writes its own audit event. The
 // forms load the next page from scratch themselves (useLeaveTo), so nothing typed or shown here
-// stays in the browser's memory.
+// stays in the browser's memory; the last step of two-factor's setup sends the person on itself
+// (below).
 
 // Better Auth's longest password; a longer field is refused before it is hashed. Its digits are read
 // as Latin, as in every field, so a password set on an Arabic keyboard works on a Latin one.
@@ -78,9 +80,19 @@ export const confirmTwoFactorSetupAction = signedInAction
       z.object({ code: latinDigits(z.string().trim().min(1).max(16)) }),
     ),
   )
-  .stateAction(async ({ parsedInput, ctx: { user } }) =>
-    confirmTwoFactorSetup(parsedInput.code, user, await headers()),
-  );
+  .stateAction(async ({ parsedInput, ctx: { user } }) => {
+    // Whoever the college required it of goes on to Today; whoever chose it, back to the profile.
+    const required = (await getViewer())?.needsTwoFactorSetup ?? false;
+    const result = await confirmTwoFactorSetup(
+      parsedInput.code,
+      user,
+      await headers(),
+    );
+    // Turning it on gives the session a new cookie, which the setup page drawn again in this
+    // answer would not carry: it would send the person to sign in. The next page carries it.
+    if (result.status === "enabled") redirect(required ? "/today" : "/profile");
+    return result;
+  });
 
 export const changePasswordAction = signedInAction
   .metadata({ name: "changePassword" })

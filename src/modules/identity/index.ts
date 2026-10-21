@@ -28,5 +28,7 @@ export { signOut } from "./server/sign-out.ts";
 export {
   confirmTwoFactorSetup,
   startTwoFactorSetup,
+  turnOffOwnTwoFactor,
+  turnOffTwoFactor,
   verifySignInCode,
 } from "./server/two-factor.ts";

@@ -31,6 +31,8 @@ export type PersonEntry = {
   email: string;
   employeeNumber: string;
   state: AccountState;
+  // Signing in asks them for a code from their authenticator app.
+  twoFactor: boolean;
   memberships: {
     id: string;
     roleId: string;
@@ -74,6 +76,7 @@ export async function listDirectory(
       employeeNumber: people.employeeNumber,
       mustChangePassword: users.mustChangePassword,
       disabledAt: users.disabledAt,
+      twoFactor: users.twoFactorEnabled,
     })
     .from(people)
     .innerJoin(users, eq(users.id, people.userId))

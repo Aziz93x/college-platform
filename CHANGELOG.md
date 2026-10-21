@@ -4,6 +4,15 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0014: two-factor is the college's choice
+
+- Two-factor is optional, as the owner asked. A new security setting, "Require two-factor for admin keys" (`auth.requireTwoFactor`, off by default, confirmed with the password), decides whether holding a key that requires two-factor sends its holder to set it up before anything else, as ADR-0009 did for every admin; accounts that have two-factor keep it either way.
+- Anyone turns two-factor on from their profile, through the setup page, which brings them back to the profile, and off again there with their password typed again (it counts toward the lockout, as at sign-in). While the setting holds them to it, the profile says so and offers no way to turn it off. Turning it off removes the app's secret and the backup codes.
+- An admin turns off someone's two-factor from their page or row, after a lost phone, with the temporary password's key and reach, so a head helps their own trainers only. Both ways write `account.disableTwoFactor`, with the person or the admin as actor; the person page's account sheet confirms it, and the history shows it.
+- The setup's last step sends the person on itself: to Today when the college required it, back to the profile when they chose it. Turning two-factor on gives the session a new cookie, and the setup page drawn again in the action's answer used to send the person to sign in and on through `/`.
+- `seed:demo`'s history has a head who lost their phone: the admin turns off their two-factor, and they set it up again on the new one.
+- Tests: unit tests for the viewer with the setting on and off, the profile action's refusal while required, the setup's destinations, the person view's new action and both actions in the permission matrix; integration tests for turning it off as an admin (the secret gone, the password alone signing in) and as its owner (the lockout counting), and both actions' events; end-to-end tests where a trainer turns two-factor on from the profile and off with the password, an admin without it is held to the setup while the setting is on and cannot turn it off, and an admin turns off a trainer's two-factor, who then signs in with the password alone. The stack's first-run test reaches Today after the password change and sets two-factor up from the profile.
+
 ### Step 12: notifications foundation
 
 - The platform tells people what concerns them, in the platform only (ADR-0008). Migration `0011` adds `notifications` (a person's notification: its kind, the values its message is filled with, when it came and when it was read, and a once key for what a person gets once only) and `notification_prefs` (whether a kind reaches a person on a channel, whose only value is in-app until the hosting decision). Kinds are code (`src/modules/notifications/domain/kinds.ts`); their words are data, `notifications.kinds.<kind>` in `messages/ar.json`, ICU messages filled with each notification's values in the reader's catalog.

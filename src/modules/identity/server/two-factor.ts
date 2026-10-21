@@ -1,11 +1,11 @@
 import { isAPIError } from "better-auth/api";
-import { eq, sql } from "drizzle-orm";
-import { getDb } from "../../../platform/db/client.ts";
+import { and, eq, sql } from "drizzle-orm";
+import { type Db, getDb } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { getAuth } from "./auth.ts";
 import { requestMeta } from "./request.ts";
-import { checkRetypedPassword } from "./retype.ts";
-import { people, sessions } from "./schema.ts";
+import { checkRetypedPassword, passwordCheck } from "./retype.ts";
+import { people, sessions, twoFactors, users } from "./schema.ts";
 
 function errorCode(error: unknown) {
   return isAPIError(error)
@@ -157,4 +157,73 @@ export async function confirmTwoFactorSetup(
     ...requestMeta(requestHeaders),
   });
   return { status: "enabled" };
+}
+
+// Who turns two-factor off, for the audit event: its owner, or an admin the caller has authorized
+// for this person.
+type Change = {
+  collegeId: string;
+  actorId: string;
+  ip?: string | null;
+  userAgent?: string | null;
+};
+
+// Turns a person's two-factor off (ADR-0014): signing in asks for the password alone, and the app's
+// secret and backup codes are gone, so turning it on again starts from a new one. Their sessions
+// stay. Records account.disableTwoFactor.
+export async function turnOffTwoFactor(
+  userId: string,
+  change: Change,
+  db: Db = getDb(),
+): Promise<"off" | "notOn"> {
+  return db.transaction(async (tx) => {
+    const turned = await tx
+      .update(users)
+      .set({ twoFactorEnabled: false, updatedAt: new Date() })
+      .where(and(eq(users.id, userId), eq(users.twoFactorEnabled, true)))
+      .returning({ id: users.id });
+    if (turned.length === 0) return "notOn";
+    await tx.delete(twoFactors).where(eq(twoFactors.userId, userId));
+    await writeAudit(
+      {
+        collegeId: change.collegeId,
+        actorId: change.actorId,
+        action: "account.disableTwoFactor",
+        entityType: "user",
+        entityId: userId,
+        ip: change.ip,
+        userAgent: change.userAgent,
+      },
+      tx,
+    );
+    return "off";
+  });
+}
+
+type TurnOffOwn =
+  | { status: "off" | "notOn" }
+  | { status: "wrongPassword" }
+  | { status: "locked"; minutes: number };
+
+// The signed-in person turns their own two-factor off, after their password again, which counts
+// toward the lockout as at sign-in (retype.ts). Whether the college lets them is the caller's.
+export async function turnOffOwnTwoFactor(
+  password: string,
+  user: { userId: string; collegeId: string },
+  requestHeaders: Headers,
+): Promise<TurnOffOwn> {
+  const meta = requestMeta(requestHeaders);
+  const retyped = await checkRetypedPassword(
+    user,
+    passwordCheck(password, requestHeaders),
+    meta,
+  );
+  if (retyped.status === "wrong") return { status: "wrongPassword" };
+  if (retyped.status === "locked") return retyped;
+  const status = await turnOffTwoFactor(user.userId, {
+    collegeId: user.collegeId,
+    actorId: user.userId,
+    ...meta,
+  });
+  return { status };
 }
