@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { type Db, getDb } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { createAccount, type NewAccount } from "../../identity/index.ts";
+import { joinRole } from "./roles.ts";
 import { memberships, roles } from "./schema.ts";
 
 export type FirstAdminResult =
@@ -34,9 +35,10 @@ export async function createFirstAdmin(
     if (member) return { status: "adminExists" };
 
     const { userId, password } = await createAccount(account, tx);
-    await tx
-      .insert(memberships)
-      .values({ userId, roleId: role.id, collegeId: account.collegeId });
+    await joinRole(
+      { userId, collegeId: account.collegeId, role: { system: true } },
+      tx,
+    );
     await writeAudit(
       {
         collegeId: account.collegeId,

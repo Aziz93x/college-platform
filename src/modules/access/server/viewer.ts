@@ -1,11 +1,16 @@
 import { cache } from "react";
 import { getSessionUser, type SessionUser } from "../../identity/index.ts";
 import type { Actor } from "../domain/authorize.ts";
-import { requiresTwoFactor } from "../domain/permissions.ts";
+import {
+  type PermissionKey,
+  requiresTwoFactor,
+} from "../domain/permissions.ts";
 import { loadAccess } from "./load-access.ts";
 
 type Viewer = SessionUser &
   Actor & {
+    // Every key the viewer holds, in any scope: what the navigation offers.
+    permissions: ReadonlySet<PermissionKey>;
     roleKeys: string[];
     // Holds a permission that requires two-factor, and has not set it up yet.
     needsTwoFactorSetup: boolean;
@@ -15,12 +20,13 @@ type Viewer = SessionUser &
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const user = await getSessionUser();
   if (!user) return null;
-  const { permissions, roleKeys } = await loadAccess(
+  const { grants, permissions, roleKeys } = await loadAccess(
     user.userId,
     user.collegeId,
   );
   return {
     ...user,
+    grants,
     permissions,
     roleKeys,
     needsTwoFactorSetup:

@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { type Db, getDb } from "../../../platform/db/client.ts";
+import type { Grant } from "../domain/authorize.ts";
 import {
   isPermissionKey,
   type PermissionKey,
@@ -7,8 +8,10 @@ import {
 } from "../domain/permissions.ts";
 import { memberships, rolePermissions, roles } from "./schema.ts";
 
-// The roles a person holds in a college and the permissions those roles give them. The system
-// role gives every key in code; stored keys the code no longer knows give nothing.
+// The roles a person holds in a college and what they give: each key in its membership's scope
+// (the grants that authorize() checks), and every key held anywhere (for the navigation and the
+// two-factor rule). The system role gives every key in code; stored keys the code no longer knows
+// give nothing.
 export async function loadAccess(
   userId: string,
   collegeId: string,
@@ -18,6 +21,7 @@ export async function loadAccess(
     .select({
       roleKey: roles.key,
       system: roles.system,
+      departmentId: memberships.departmentId,
       permission: rolePermissions.permission,
     })
     .from(memberships)
@@ -26,12 +30,25 @@ export async function loadAccess(
     .where(
       and(eq(memberships.userId, userId), eq(memberships.collegeId, collegeId)),
     );
-  const permissions = new Set<PermissionKey>(
-    rows.some((row) => row.system) ? permissionKeys : [],
-  );
-  for (const { permission } of rows) {
-    if (permission && isPermissionKey(permission)) permissions.add(permission);
+  const grants: Grant[] = [];
+  for (const { system, departmentId, permission } of rows) {
+    const keys: PermissionKey[] = system
+      ? permissionKeys
+      : permission && isPermissionKey(permission)
+        ? [permission]
+        : [];
+    for (const key of keys) {
+      if (
+        !grants.some(
+          (grant) =>
+            grant.permission === key && grant.departmentId === departmentId,
+        )
+      ) {
+        grants.push({ permission: key, departmentId });
+      }
+    }
   }
+  const permissions = new Set(grants.map((grant) => grant.permission));
   const roleKeys = [...new Set(rows.map((row) => row.roleKey))];
-  return { permissions, roleKeys };
+  return { grants, permissions, roleKeys };
 }

@@ -86,18 +86,19 @@ it("gives db:seed's college the demo values, settings and departments, then a se
   );
 });
 
-it("adds the demo accounts: an admin with the system role and two-factor, a trainer and an invited trainer", async () => {
+it("adds the demo accounts: an admin with the system role and two-factor, and a trainer and an invited trainer, each in their department", async () => {
   const { url, pool } = await freshDatabase();
   await seedDemoOk(url);
 
   const { rows } = await pool.query(`
     select u.email, p.employee_number, u.must_change_password, u.two_factor_enabled,
-      a.password, r.key as role
+      a.password, r.key as role, d.name as department
     from users u
     join people p on p.user_id = u.id
     join accounts a on a.user_id = u.id and a.provider_id = 'credential'
     left join memberships m on m.user_id = u.id
     left join roles r on r.id = m.role_id
+    left join departments d on d.id = m.department_id
     order by p.employee_number`);
   expect(rows.map(({ password: _hash, ...row }) => row)).toEqual([
     {
@@ -106,20 +107,23 @@ it("adds the demo accounts: an admin with the system role and two-factor, a trai
       must_change_password: false,
       two_factor_enabled: true,
       role: "system-admin",
+      department: null,
     },
     {
       email: demoAccounts.trainer.email,
       employee_number: demoAccounts.trainer.employeeNumber,
       must_change_password: false,
       two_factor_enabled: false,
-      role: null,
+      role: "trainer",
+      department: demoAccounts.trainer.role.department,
     },
     {
       email: demoAccounts.invitedTrainer.email,
       employee_number: demoAccounts.invitedTrainer.employeeNumber,
       must_change_password: true,
       two_factor_enabled: false,
-      role: null,
+      role: "trainer",
+      department: demoAccounts.invitedTrainer.role.department,
     },
   ]);
   for (const { password } of rows) {

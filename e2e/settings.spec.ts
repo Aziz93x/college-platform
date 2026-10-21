@@ -7,7 +7,7 @@ import { seriousViolations } from "./support/axe.ts";
 import { expect, test } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
-const { settings: text, nav, pages, today } = messages;
+const { settings: text, nav, pages, reauth, today } = messages;
 // Tests that change the demo admin's session in the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 
@@ -190,15 +190,15 @@ test(
       await expect(setting).toContainText("20");
       await setting.getByRole("button", { name: text.save }).click();
 
-      const password = setting.getByLabel(text.reauth.password, {
+      const password = setting.getByLabel(reauth.password, {
         exact: true,
       });
       await expect(password).toBeFocused();
       await password.fill("not-the-password");
-      await setting.getByRole("button", { name: text.reauth.submit }).click();
-      await expect(setting.getByText(text.reauth.wrong)).toBeVisible();
+      await setting.getByRole("button", { name: reauth.submit }).click();
+      await expect(setting.getByText(reauth.wrong)).toBeVisible();
       await password.fill(demo.password);
-      await setting.getByRole("button", { name: text.reauth.submit }).click();
+      await setting.getByRole("button", { name: reauth.submit }).click();
       await expect(
         page.getByText(text.toast.saved.replace("{label}", label)),
       ).toBeVisible();

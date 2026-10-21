@@ -19,7 +19,14 @@ vi.mock("../../identity/index.ts", () => ({
   }),
 }));
 vi.mock("./load-access.ts", () => ({
-  loadAccess: async () => ({ permissions: request.permissions, roleKeys: [] }),
+  loadAccess: async () => ({
+    grants: [...request.permissions].map((permission) => ({
+      permission,
+      departmentId: null,
+    })),
+    permissions: request.permissions,
+    roleKeys: [],
+  }),
 }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {

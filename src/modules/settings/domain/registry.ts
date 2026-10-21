@@ -101,11 +101,11 @@ export const settingsRegistry = {
   },
   // The order of the shell's pages per role: role key to page ids. A role without an order, and
   // the pages an order leaves out, follow the order the code lists them in. A map has no control
-  // on the settings screen; Step 9 seeds each role's order.
+  // on the settings screen: each role's order is edited on the role's page, with the grid's key.
   "navigation.order": {
     scope: "college",
     group: "platform",
-    permission: MANAGE,
+    permission: "roles.manage",
     schema: z.record(z.string(), z.array(z.string())),
     default: {},
   },

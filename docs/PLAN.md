@@ -824,6 +824,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 8:** an import row's department matches a department's name, short name or Rayat values (`listDepartments()`), each tidied as `oneLine()` tidies them (`src/platform/validation/text.ts`); a department that matches none is a row error, never a new department.
 
+**Notes from Step 9**
+
+- A person's roles are memberships: a role across the college or in one department (`addMembership()`, `removeMembership()` in `src/modules/access`, each audited). The import's role column becomes memberships through `addMembership()`; `joinRole()` is for the seeds and the tests only. A person's department is the department of their department-scoped memberships.
+- A head's help for their own trainers checks the key in the trainer's department: `ctx.requirePermission("accounts.resetPassword", { departmentId })`, which a head's department-scoped membership passes and nothing outside it does. Give the head role that key on the grid's default (`db/seed/base.ts`) with this step.
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
 > **From Step 41:** once in about forty loads of the production login page, the page held two identifier inputs for a moment, one with a server id (`_R_…`) and one from a render on the client (`_r_…`), and a strict locator failed. Find the client render behind it.
@@ -833,6 +838,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 > **From Step 7:** the settings screen shows each description under its label rather than in BeUI's popover, saves one setting at a time with its own button, and asks for the password in the row; review those choices, the search's Arabic matching, and whether `ui/switch`, `ui/select` and `ui/tabs` leave the catalog now that their BeUI counterparts are in use.
 >
 > **From Step 8:** on a phone the departments list leaves out how Rayat writes each department, and the college's names sit in a card under the list; the department form saves all its fields with one button, where the settings save one at a time. Two details seen while capturing the screens: the stepper's value has a dashed outline on a desktop that looks rough, and content scrolled under the sticky header shows through its translucent fill.
+>
+> **From Step 9:** the roles screens: the grid as one column of switches per role on its own page (a matrix of every role at once does not fit a phone), the members' combobox and scope, the password asked in the card that makes the change, and the page order moved with up and down buttons rather than by dragging.
 
 #### Step 11. Audit log and history (S)
 
@@ -853,6 +860,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 6:** the events so far are `session.signIn`, `session.signOut`, `account.lock` (no actor: the system locked it), `account.create`, `account.resetPassword`, `account.changePassword`, `account.startTwoFactorSetup` and `account.enableTwoFactor`. A failed sign-in writes an event only when it locks the account, so the test that every server action writes an event treats the sign-in and code actions by their outcome.
 
 **Note from Audit 2:** Better Auth locks two-factor for 15 minutes after ten wrong codes in a row (five per challenge), a library default rather than a setting, and writes no event. Add one with the others here, written once per lock: `verifySignInCode()` returns `locked` (`src/modules/identity/server/two-factor.ts`).
+
+**Note from Step 9:** the grid writes `role.create`, `role.update` (names, or keys before and after), `membership.create` and `membership.delete` (person, role key and department); show them on a role's history panel with the keys' and the departments' names.
 
 #### Step 12. Notifications foundation (M)
 
@@ -912,6 +921,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 41:** `pnpm local:up --demo` passes `--seed` to `seed:demo`; give `scripts/local.ts` the `--week` option too, since the GA demonstration starts the stack with `--week 9`.
 
 **Note from Step 7:** the first day of the week (`locale.weekStart`) and the digits (`locale.digits`) travel in next-intl's locale (`ar-u-fw-sun-nu-latn`, `src/i18n/locale.ts`): `firstDayOfWeek()` in `src/platform/i18n/language.ts` reads the first, and the calendar already takes both. Hijri display is the setting `locale.hijri`; Today shows the Umm al-Qura date with `Intl.DateTimeFormat` and `calendar: "islamic-umalqura"` (next-intl's formatter does not take that calendar). Week utilities show it the same way.
+
+**Notes from Step 9**
+
+- The membership's optional term is a nullable `term_id` on `memberships`; add it to `memberships_scope_unique`, so a person can hold a role in one term and not the next.
+- The keys of the steps ahead exist already (`src/modules/access/domain/permissions.ts`), each with its first step, and the default grid gives them to the vice-dean, the head, the trainer and the dean. A department's records check the key in their department: `ctx.requirePermission(key, { departmentId })`; a list keeps to `ctx.departmentsFor(key)` ("college" or the departments); a record of one's own adds `ownerId`. A new action gets its row in `tests/unit/permission-matrix.test.ts`, which fails until it has one, and a department-scoped action adds department rows there.
 
 #### Step 14. Portfolio axes catalog (S)
 

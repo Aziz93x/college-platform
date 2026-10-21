@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { PermissionKey } from "@/modules/access";
+import type { Grant } from "@/modules/access";
 import { isDesignCatalogEnabled } from "./gate.ts";
 import DesignPage from "./page.tsx";
 
@@ -12,9 +12,11 @@ vi.mock("next-intl/server", () => ({
 
 // The signed-in viewer, with the permissions each test gives them.
 const viewer = vi.hoisted(() => ({
+  userId: "user-a",
   collegeId: "college-a",
-  permissions: new Set<string>(),
+  grants: [] as Grant[],
 }));
+const designView: Grant = { permission: "design.view", departmentId: null };
 vi.mock("@/modules/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/access")>()),
   requireViewer: async () => viewer,
@@ -29,7 +31,7 @@ function stubEnv(appEnv: string) {
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  viewer.permissions.clear();
+  viewer.grants = [];
 });
 
 it("serves the design catalog on a laptop", () => {
@@ -48,7 +50,7 @@ it.each([
   "production",
 ])("the /design page renders not found on %s, even for an admin", async (appEnv) => {
   stubEnv(appEnv);
-  viewer.permissions.add("design.view" satisfies PermissionKey);
+  viewer.grants = [designView];
   await expect(DesignPage()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
 });
 
@@ -59,6 +61,6 @@ it("on a laptop, the /design page renders not found for a viewer without design.
 
 it("on a laptop, the /design page renders the catalog for a viewer with design.view", async () => {
   stubEnv("local");
-  viewer.permissions.add("design.view" satisfies PermissionKey);
+  viewer.grants = [designView];
   await expect(DesignPage()).resolves.toBeTruthy();
 });

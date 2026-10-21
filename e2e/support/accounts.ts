@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
-import { memberships, roles } from "../../src/modules/access/index.ts";
+import { inArray } from "drizzle-orm";
+import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount, users } from "../../src/modules/identity/index.ts";
 import { findCollegeId } from "../../src/modules/org/index.ts";
 import { createDb } from "../../src/platform/db/client.ts";
@@ -49,13 +49,10 @@ export const test = base.extend<{
           temporary ? undefined : `e2e-${randomUUID()}`,
         );
         if (admin) {
-          const [systemRole] = await tx
-            .select({ id: roles.id })
-            .from(roles)
-            .where(and(eq(roles.collegeId, collegeId), eq(roles.system, true)));
-          await tx
-            .insert(memberships)
-            .values({ userId: made.userId, roleId: systemRole.id, collegeId });
+          await joinRole(
+            { userId: made.userId, collegeId, role: { system: true } },
+            tx,
+          );
         }
         return made;
       });

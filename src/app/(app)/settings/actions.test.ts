@@ -12,6 +12,10 @@ vi.mock("../../../modules/access/server/viewer.ts", () => ({
     sessionId: "session-a",
     collegeId: "college-a",
     permissions: request.permissions,
+    grants: [...request.permissions].map((permission) => ({
+      permission,
+      departmentId: null,
+    })),
     mustChangePassword: false,
     needsTwoFactorSetup: false,
   }),

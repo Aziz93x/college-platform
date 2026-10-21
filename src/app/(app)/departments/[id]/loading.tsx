@@ -1,1 +1,1 @@
-export { FormLoading as default } from "../form-loading.tsx";
+export { FormLoading as default } from "@/components/form-loading";
