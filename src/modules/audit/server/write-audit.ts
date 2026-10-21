@@ -1,7 +1,7 @@
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { auditEvents } from "./schema.ts";
 
-export type AuditEvent = {
+type AuditEvent = {
   collegeId: string;
   // Null when the system acted rather than a person.
   actorId: string | null;

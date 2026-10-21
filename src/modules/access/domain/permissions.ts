@@ -1,7 +1,7 @@
 // Every permission key the code checks: capabilities live in code, and roles (data) hold them.
 // A key that lets someone act on other people's accounts or on the platform itself requires its
 // holder to sign in with two-factor (docs/PLAN.md, Step 6).
-export const permissions = {
+const permissions = {
   // The token and component catalog at /design.
   "design.view": { requiresTwoFactor: false },
   // Issue a temporary password for someone's account.

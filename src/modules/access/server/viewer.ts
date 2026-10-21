@@ -4,7 +4,7 @@ import type { Actor } from "../domain/authorize.ts";
 import { requiresTwoFactor } from "../domain/permissions.ts";
 import { loadAccess } from "./load-access.ts";
 
-export type Viewer = SessionUser &
+type Viewer = SessionUser &
   Actor & {
     roleKeys: string[];
     // Holds a permission that requires two-factor, and has not set it up yet.

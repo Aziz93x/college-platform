@@ -73,7 +73,7 @@ function createAuth() {
   });
 }
 
-export type Auth = ReturnType<typeof createAuth>;
+type Auth = ReturnType<typeof createAuth>;
 
 // Created on first use, never at import: next build runs without the environment.
 let shared: Auth | undefined;

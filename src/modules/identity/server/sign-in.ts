@@ -16,7 +16,7 @@ export type SignInInput = {
   remember: boolean;
 };
 
-export type SignInResult =
+type SignInResult =
   | { status: "signedIn" }
   | { status: "twoFactor" }
   | { status: "invalid" }

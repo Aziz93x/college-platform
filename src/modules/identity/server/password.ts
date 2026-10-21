@@ -17,7 +17,7 @@ const CREDENTIAL_PROVIDER = "credential";
 const randomBytes = (length: number) =>
   crypto.getRandomValues(new Uint8Array(length));
 
-export type ChangePasswordResult =
+type ChangePasswordResult =
   | { status: "changed" }
   | { status: "wrongPassword" }
   | { status: "tooShort"; minLength: number }
@@ -167,9 +167,4 @@ export async function createAccount(
     employeeNumber: account.employeeNumber,
   });
   return { userId: user.id, password: initial };
-}
-
-// Ends the session this request carries.
-export async function signOut(requestHeaders: Headers) {
-  await getAuth().api.signOut({ headers: requestHeaders });
 }

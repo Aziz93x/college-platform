@@ -20,7 +20,7 @@ async function collegeOf(userId: string) {
   return person?.collegeId;
 }
 
-export type SignInCodeResult =
+type SignInCodeResult =
   | { status: "signedIn" }
   | { status: "invalid" }
   // Too many wrong codes: the account takes no codes for a while.
@@ -73,7 +73,7 @@ export async function verifySignInCode(
   return { status: "signedIn" };
 }
 
-export type TwoFactorSetup =
+type TwoFactorSetup =
   | {
       status: "started";
       uri: string;
@@ -83,30 +83,42 @@ export type TwoFactorSetup =
   | { status: "wrongPassword" };
 
 // Starts setting up two-factor for the signed-in person, after their password again: returns what
-// the authenticator app scans, the secret to type instead, and the backup codes to keep.
+// the authenticator app scans, the secret to type instead, and the backup codes to keep. Nothing
+// changes at sign-in until the first code confirms it.
 export async function startTwoFactorSetup(
   input: { password: string; issuer: string },
+  user: { userId: string; collegeId: string },
   requestHeaders: Headers,
 ): Promise<TwoFactorSetup> {
+  let result: Awaited<
+    ReturnType<ReturnType<typeof getAuth>["api"]["enableTwoFactor"]>
+  >;
   try {
-    const result = await getAuth().api.enableTwoFactor({
+    result = await getAuth().api.enableTwoFactor({
       body: { password: input.password, issuer: input.issuer, method: "totp" },
       headers: requestHeaders,
     });
-    if (result.method !== "totp")
-      throw new Error("two-factor setup did not return TOTP");
-    const secret = new URL(result.totpURI).searchParams.get("secret") ?? "";
-    return {
-      status: "started",
-      uri: result.totpURI,
-      secret,
-      backupCodes: result.backupCodes,
-    };
   } catch (error) {
     if (errorCode(error) === "INVALID_PASSWORD")
       return { status: "wrongPassword" };
     throw error;
   }
+  if (result.method !== "totp")
+    throw new Error("two-factor setup did not return TOTP");
+  await writeAudit({
+    collegeId: user.collegeId,
+    actorId: user.userId,
+    action: "account.startTwoFactorSetup",
+    entityType: "user",
+    entityId: user.userId,
+    ...requestMeta(requestHeaders),
+  });
+  return {
+    status: "started",
+    uri: result.totpURI,
+    secret: new URL(result.totpURI).searchParams.get("secret") ?? "",
+    backupCodes: result.backupCodes,
+  };
 }
 
 // Finishes the setup with the first code from the app; from then on, signing in asks for a code.

@@ -7,7 +7,7 @@ import { type PermissionKey, permissionKeys } from "../domain/permissions.ts";
 import { getViewer } from "./viewer.ts";
 
 // Why an action was refused, as a message key under "actions" in messages/*.json.
-export type Refusal = "signedOut" | "forbidden" | "unexpected";
+type Refusal = "signedOut" | "forbidden" | "unexpected";
 
 class RefusedError extends Error {
   readonly refusal: Refusal;
