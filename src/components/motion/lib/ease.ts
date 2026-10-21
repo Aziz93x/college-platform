@@ -19,3 +19,11 @@ export const SPRING_LAYOUT = {
   damping: 32,
   mass: 0.6,
 } as const;
+
+/** Press feedback on buttons and other tappable surfaces. */
+export const SPRING_PRESS = {
+  type: "spring",
+  stiffness: 500,
+  damping: 30,
+  mass: 0.6,
+} as const;

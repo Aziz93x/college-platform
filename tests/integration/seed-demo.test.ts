@@ -1,5 +1,11 @@
+import { symmetricDecrypt, verifyPassword } from "better-auth/crypto";
 import type { Pool } from "pg";
 import { afterAll, expect, it } from "vitest";
+import {
+  DEMO_PASSWORD,
+  DEMO_TOTP_SECRET,
+  demoAccounts,
+} from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import {
   createTestDatabase,
@@ -48,6 +54,7 @@ it("gives db:seed's college the demo values and settings, then a second run chan
       "public.audit_events",
       "public.colleges",
       "public.settings",
+      "public.users",
     ]),
   );
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
@@ -56,12 +63,78 @@ it("gives db:seed's college the demo values and settings, then a second run chan
   ).toEqual([{ key: "locale.language", value: "ar" }]);
 });
 
+it("adds the demo accounts: an admin with the system role and two-factor, a trainer and an invited trainer", async () => {
+  const { url, pool } = await freshDatabase();
+  await seedDemoOk(url);
+
+  const { rows } = await pool.query(`
+    select u.email, p.employee_number, u.must_change_password, u.two_factor_enabled,
+      a.password, r.key as role
+    from users u
+    join people p on p.user_id = u.id
+    join accounts a on a.user_id = u.id and a.provider_id = 'credential'
+    left join memberships m on m.user_id = u.id
+    left join roles r on r.id = m.role_id
+    order by p.employee_number`);
+  expect(rows.map(({ password: _hash, ...row }) => row)).toEqual([
+    {
+      email: demoAccounts.admin.email,
+      employee_number: demoAccounts.admin.employeeNumber,
+      must_change_password: false,
+      two_factor_enabled: true,
+      role: "system-admin",
+    },
+    {
+      email: demoAccounts.trainer.email,
+      employee_number: demoAccounts.trainer.employeeNumber,
+      must_change_password: false,
+      two_factor_enabled: false,
+      role: null,
+    },
+    {
+      email: demoAccounts.invitedTrainer.email,
+      employee_number: demoAccounts.invitedTrainer.employeeNumber,
+      must_change_password: true,
+      two_factor_enabled: false,
+      role: null,
+    },
+  ]);
+  for (const { password } of rows) {
+    expect(
+      await verifyPassword({ hash: password, password: DEMO_PASSWORD }),
+    ).toBe(true);
+  }
+  const { rows: secrets } = await pool.query("select secret from two_factors");
+  expect(
+    await Promise.all(
+      secrets.map(({ secret }) =>
+        symmetricDecrypt({
+          key: scriptEnv(url).AUTH_SECRET ?? "",
+          data: secret,
+        }),
+      ),
+    ),
+  ).toEqual([DEMO_TOTP_SECRET]);
+});
+
 it("builds the same rows from the same seed on two fresh databases", async () => {
   const [one, two] = await Promise.all([freshDatabase(), freshDatabase()]);
   await seedDemoOk(one.url);
   await seedDemoOk(two.url);
 
-  const generated = ["id", "college_id", "created_at", "updated_at"];
+  // Ids and timestamps, and what is salted or encrypted with a random nonce, differ by design.
+  const generated = [
+    "id",
+    "college_id",
+    "user_id",
+    "role_id",
+    "account_id",
+    "created_at",
+    "updated_at",
+    "password",
+    "secret",
+    "backup_codes",
+  ];
   expect(await tableRows(two.pool, generated)).toEqual(
     await tableRows(one.pool, generated),
   );

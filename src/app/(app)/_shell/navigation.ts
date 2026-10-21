@@ -1,13 +1,15 @@
 import { CalendarCheck, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type { PermissionKey } from "@/modules/access";
 
 // A page of the app shell. Its label is the message nav.<id>. Its permission is a permission key;
-// an item without one is open to everyone who reaches the shell. Step 6 types the keys.
-export type NavigationItem = {
+// an item without one is open to everyone who reaches the shell. The registry below takes only the
+// keys in code; the functions work on any keys, so their tests can use their own.
+export type NavigationItem<Key extends string = PermissionKey> = {
   id: string;
   href: string;
   icon: LucideIcon;
-  permission?: string;
+  permission?: Key;
 };
 
 // An item as the shell draws it: its label translated and its icon rendered on the server.
@@ -26,7 +28,7 @@ export const navigation = [
 // The items a viewer may open: those whose permission the viewer holds, in the given order of ids.
 // Items the order leaves out follow in the registry's order, and ids it names that are not
 // visible are ignored.
-export function visibleNavigation<T extends NavigationItem>(
+export function visibleNavigation<T extends NavigationItem<string>>(
   items: readonly T[],
   permissions: ReadonlySet<string>,
   order: readonly string[] = [],

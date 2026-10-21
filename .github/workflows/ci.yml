@@ -33,6 +33,7 @@ jobs:
       APP_URL: http://localhost:3000
       DATABASE_URL: postgres://college:college@localhost:5432/college
       SMTP_URL: smtp://localhost:1025
+      AUTH_SECRET: ci-only-value-that-signs-cookies-in-tests
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -62,6 +63,7 @@ jobs:
           APP_URL: ""
           DATABASE_URL: ""
           SMTP_URL: ""
+          AUTH_SECRET: ""
       # The standalone server serves only the static files copied next to it, as in docker/Dockerfile.
       - run: cp -r .next/static .next/standalone/.next/static
       - run: cp -r public .next/standalone/public

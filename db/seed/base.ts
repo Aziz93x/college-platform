@@ -1,10 +1,18 @@
 import { sql } from "drizzle-orm";
+import { roles } from "../../src/modules/access/index.ts";
 import { colleges } from "../../src/modules/org/index.ts";
 import { parseSeedEnv } from "../../src/platform/config/env.ts";
 import { createDb, type Db } from "../../src/platform/db/client.ts";
 
-// Idempotent: inserts the one college only while none exists and never updates it,
-// so a re-run changes nothing. Returns the id of the first college, the one db:seed made.
+// The role that holds every permission. pnpm admin:create makes its first member.
+export const systemRole = {
+  key: "system-admin",
+  labels: { ar: "مدير النظام" },
+};
+
+// Idempotent: inserts the one college only while none exists and never updates it, and its system
+// role only while it has none, so a re-run changes nothing. Returns the id of the first college,
+// the one db:seed made.
 export async function seedBase(
   db: Db,
   college: { name: string; shortName: string },
@@ -21,6 +29,10 @@ export async function seedBase(
       .from(colleges)
       .orderBy(colleges.createdAt, colleges.id)
       .limit(1);
+    await tx
+      .insert(roles)
+      .values({ collegeId: row.id, ...systemRole, system: true })
+      .onConflictDoNothing();
     return row.id;
   });
 }

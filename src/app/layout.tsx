@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { Direction } from "radix-ui";
+import { MotionProvider } from "@/components/motion/motion-provider";
+import { PilotBanner } from "@/components/pilot-banner";
 import { Toaster } from "@/components/ui/sonner";
 import { documentLocale } from "@/platform/i18n/language";
 import { identityFont } from "@/styles/fonts";
@@ -28,7 +30,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider messages={{ ui }}>
           <Direction.Provider dir={dir}>
-            {children}
+            <MotionProvider>
+              <PilotBanner />
+              {children}
+            </MotionProvider>
             <Toaster dir={dir} containerAriaLabel={t("region")} />
           </Direction.Provider>
         </NextIntlClientProvider>

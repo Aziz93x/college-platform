@@ -43,6 +43,16 @@
      drifts a few pixels. Both stop under reduced motion (the rule at the end of this file). */
   --animate-shimmer: shimmer 1.8s ease-in-out infinite;
   --animate-drift: drift 8s ease-in-out infinite;
+  /* A word rising out of a blur into place (src/components/motion/text-reveal.tsx), on BeUI's
+     easing. Its delay comes from the element. */
+  --animate-reveal: reveal 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      translate: 0 40%;
+      filter: blur(8px);
+    }
+  }
   @keyframes shimmer {
     from {
       background-position: 150% 0;

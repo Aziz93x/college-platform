@@ -16,6 +16,8 @@ export function createDb(url: string) {
 }
 
 export type Db = ReturnType<typeof createDb>["db"];
+// A transaction runs the same queries as the database it belongs to.
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 // Created on first use, never at import: next build runs without DATABASE_URL.
 let shared: ReturnType<typeof createDb> | undefined;

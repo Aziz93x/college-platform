@@ -32,10 +32,10 @@ describe("screensOptions", () => {
   it("takes the output folder and roles from the environment", () => {
     const options = screensOptions({
       SCREENS_OUT: "docs/reviews/ux-10",
-      SCREENS_ROLES: "anonymous",
+      SCREENS_ROLES: "anonymous, trainer,admin",
     });
     expect(options.out).toBe("docs/reviews/ux-10");
-    expect(options.roles).toEqual(["anonymous"]);
+    expect(options.roles).toEqual(["anonymous", "trainer", "admin"]);
   });
 
   it("refuses two routes that would be saved under the same file name", () => {

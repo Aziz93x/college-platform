@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { Client } from "pg";
-import { inject } from "vitest";
-import { createDb } from "../../../src/platform/db/client.ts";
+import { inject, vi } from "vitest";
+import { createDb, getPool } from "../../../src/platform/db/client.ts";
 import { databaseUrl, TEMPLATE_DATABASE } from "./urls.ts";
 
 async function admin(statement: string) {
@@ -37,6 +37,24 @@ export function createTestDatabase() {
   return openDatabase(TEMPLATE_DATABASE);
 }
 
+/**
+ * A clone of the migrated template that the app's shared connection also uses, for code that
+ * reaches the database through getDb() alone, such as Better Auth.
+ */
+export async function createSharedTestDatabase() {
+  const database = await createTestDatabase();
+  for (const [key, value] of Object.entries(scriptEnv(database.url))) {
+    vi.stubEnv(key, value);
+  }
+  return {
+    ...database,
+    drop: async () => {
+      await getPool().end();
+      await database.drop();
+    },
+  };
+}
+
 /** An empty database, for tests that run the migrations themselves. */
 export function createBlankDatabase() {
   return openDatabase("template1");
@@ -53,6 +71,7 @@ export function scriptEnv(
     APP_URL: "http://localhost:3000",
     DATABASE_URL: url,
     SMTP_URL: "smtp://localhost:1025",
+    AUTH_SECRET: "integration-tests-secret-for-cookies-only",
     SEED_COLLEGE_NAME: "Test College",
     SEED_COLLEGE_SHORT_NAME: "TC",
     ...overrides,

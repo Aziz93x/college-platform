@@ -30,7 +30,7 @@ const registry = [
     icon: CalendarCheck,
     permission: "settings.edit",
   },
-] satisfies NavigationItem[];
+] satisfies NavigationItem<string>[];
 
 const ids = (items: readonly { id: string }[]) => items.map(({ id }) => id);
 

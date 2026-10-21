@@ -28,6 +28,24 @@ it("returns the first college once others exist", async () => {
   expect(await seedBase(db, college)).toBe(first);
 });
 
+it("gives the college one system role, also after a second run", async () => {
+  const { db, pool } = await freshDatabase();
+  const collegeId = await seedBase(db, college);
+  await seedBase(db, college);
+
+  expect(
+    (await pool.query("select college_id, key, labels, system from roles"))
+      .rows,
+  ).toEqual([
+    {
+      college_id: collegeId,
+      key: "system-admin",
+      labels: { ar: "مدير النظام" },
+      system: true,
+    },
+  ]);
+});
+
 it("creates one college when several runs start at once", async () => {
   const { db, pool } = await freshDatabase();
   // Open the connections first, so the runs reach the database together.
