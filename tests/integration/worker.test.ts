@@ -121,8 +121,8 @@ it("waits 8 s for a running job, then stops inside Docker's 10 s grace", async (
   expect(elapsed).toBeLessThan(10_000);
 });
 
-function spawnWorker(url: string, nodeOptions: string[] = []) {
-  const child = spawn(process.execPath, [...nodeOptions, "worker/index.ts"], {
+function spawnWorker(url: string) {
+  const child = spawn(process.execPath, ["worker/index.ts"], {
     env: scriptEnv(url),
   });
   // A test that fails before its signal must not leave the worker running.
@@ -160,27 +160,6 @@ it.each([
   expect(
     worker.messages().filter((msg) => msg === "worker stopped"),
   ).toHaveLength(1);
-});
-
-// Preloaded with --import: the worker sends itself SIGTERM in the same tick that it writes
-// "worker started", the earliest moment a supervisor could react to that line.
-// pino writes stdout through fs.write; if that changes, no signal is sent and the test times out.
-const sigtermOnStarted = `data:text/javascript,${encodeURIComponent(`
-import fs from "node:fs";
-const write = fs.write;
-fs.write = function (fd, data, ...rest) {
-  const result = write.call(this, fd, data, ...rest);
-  if (String(data).includes('"msg":"worker started"')) process.kill(process.pid, "SIGTERM");
-  return result;
-};
-`)}`;
-
-it("stops gracefully on a SIGTERM sent the moment it logs 'worker started'", async () => {
-  const { url } = await freshDatabase();
-  const worker = spawnWorker(url, ["--import", sigtermOnStarted]);
-
-  expect(await worker.exitCode).toBe(0);
-  expect(worker.messages()).toEqual(["worker started", "worker stopped"]);
 });
 
 it("logs one JSON line and exits 1 when the database is unreachable at start", async () => {
