@@ -11,27 +11,31 @@ import type { Db } from "../../../src/platform/db/client.ts";
 import { demoDepartments } from "./departments.ts";
 
 // Synthetic accounts for demonstrations and the end-to-end tests. With APP_ENV=local their password
-// and the admin's authenticator secret are the ones published here on purpose: seed:demo refuses
+// and the admin's second factor are the ones published here on purpose: seed:demo refuses
 // production, and no real person signs in with them. A demo in staging, which a tunnel can reach,
-// brings its own through DEMO_PASSWORD and DEMO_TOTP_SECRET (src/platform/config/env.ts).
+// brings its own through DEMO_PASSWORD, DEMO_ADMIN_PASSWORD, DEMO_TOTP_SECRET and DEMO_BACKUP_CODES
+// (src/platform/config/env.ts): there the admin has a password of its own, so a trainer's, which
+// testers are given, never opens the admin's account (Audit 3).
 export const DEMO_PASSWORD = "oasis-demo-password";
 
 // The admin's authenticator secret as Better Auth keeps it before encrypting it; the setup page
 // shows it base32-encoded. The end-to-end tests compute the admin's codes from it.
 export const DEMO_TOTP_SECRET = "OasisDemoAdminAuthenticator2026x"; // gitleaks:allow
 
-/** The demo accounts' password and the admin's authenticator secret where this runs. */
-export function demoSecrets(env: Record<string, string | undefined>) {
-  return {
-    password: env.DEMO_PASSWORD ?? DEMO_PASSWORD,
-    totpSecret: env.DEMO_TOTP_SECRET ?? DEMO_TOTP_SECRET,
-  };
-}
-
 const DEMO_BACKUP_CODES = Array.from(
   { length: 10 },
   (_, index) => `demo${index}-oasis`,
 );
+
+/** The demo accounts' passwords and the admin's second factor where this runs. */
+export function demoSecrets(env: Record<string, string | undefined>) {
+  return {
+    password: env.DEMO_PASSWORD ?? DEMO_PASSWORD,
+    adminPassword: env.DEMO_ADMIN_PASSWORD ?? DEMO_PASSWORD,
+    totpSecret: env.DEMO_TOTP_SECRET ?? DEMO_TOTP_SECRET,
+    backupCodes: env.DEMO_BACKUP_CODES?.split(",") ?? DEMO_BACKUP_CODES,
+  };
+}
 
 type DemoAccount = {
   name: string;
@@ -117,7 +121,7 @@ export async function seedDemoAccounts(
           employeeNumber: account.employeeNumber,
         },
         tx,
-        secrets.password,
+        account.admin ? secrets.adminPassword : secrets.password,
       );
       if (account.invited) {
         await tx
@@ -135,7 +139,7 @@ export async function seedDemoAccounts(
         }),
         backupCodes: await symmetricEncrypt({
           key: authSecret,
-          data: JSON.stringify(DEMO_BACKUP_CODES),
+          data: JSON.stringify(secrets.backupCodes),
         }),
       });
       await tx

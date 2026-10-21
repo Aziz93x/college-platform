@@ -40,10 +40,10 @@ const STACK_SCRIPTS: Record<string, string> = {
   "seed:demo": "db/seed/demo.ts",
 };
 
-// Typed on a phone in a demo: four groups of four from letters and digits that do not look alike.
+// Typed on a phone in a demo: groups of four from letters and digits that do not look alike.
 const READABLE = "abcdefghjkmnpqrstuvwxyz23456789";
-const readablePassword = () =>
-  Array.from({ length: 4 }, () =>
+const readable = (groups: number) =>
+  Array.from({ length: groups }, () =>
     Array.from({ length: 4 }, () => READABLE[randomInt(READABLE.length)]).join(
       "",
     ),
@@ -51,7 +51,10 @@ const readablePassword = () =>
 
 // Every other empty value: 32 random bytes, URL-safe, since the passwords go into database URLs.
 const generators: Record<string, () => string> = {
-  DEMO_PASSWORD: readablePassword,
+  DEMO_PASSWORD: () => readable(4),
+  DEMO_ADMIN_PASSWORD: () => readable(4),
+  DEMO_BACKUP_CODES: () =>
+    Array.from({ length: 10 }, () => readable(2)).join(","),
 };
 const randomSecret = () => randomBytes(32).toString("base64url");
 
@@ -83,22 +86,68 @@ export function fillEnv(example: string, current = "") {
   return { text: [...lines, ...extra].join("\n"), filled };
 }
 
-/** The laptop's address on its local network, which a phone on the same Wi-Fi opens. */
+// Virtual adapters carry private addresses too, but no phone reaches them: Docker's bridges, the
+// adapters of Hyper-V and WSL (vEthernet), VirtualBox, VMware and libvirt, and a Mac's bridges for its
+// virtual machines. Windows names them for people, in any case.
+const VIRTUAL_ADAPTER =
+  /^(docker|br-|veth|virbr|vboxnet|vmnet|bridge\d)|vethernet|virtualbox|vmware|hyper-v|\bwsl\b/i;
+
+/** The laptop's address on its local network, which a phone on the same Wi-Fi opens, and its adapter. */
 export function lanAddress(interfaces = networkInterfaces()) {
-  for (const [name, entries] of Object.entries(interfaces)) {
-    // Docker's own bridges carry private addresses too, but no phone reaches them.
-    if (/^(docker|br-|veth)/.test(name)) continue;
+  for (const [adapter, entries] of Object.entries(interfaces)) {
+    if (VIRTUAL_ADAPTER.test(adapter)) continue;
     for (const entry of entries ?? []) {
       if (
         entry.family === "IPv4" &&
         !entry.internal &&
         /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(entry.address)
       ) {
-        return entry.address;
+        return { address: entry.address, adapter };
       }
     }
   }
   return undefined;
+}
+
+/**
+ * The address Caddy answers on besides localhost, from LAN_ADDRESS in docker/.env: an address as
+ * written, "none" for localhost only, or "auto" for the one lanAddress() finds, with a line saying
+ * which, so the owner can compare it with the laptop's Wi-Fi address. Under WSL 2, Node sees only
+ * the virtual machine's adapter, so "auto" finds nothing there and says to write the address.
+ */
+export function siteAddress(
+  configured: string | undefined,
+  { wsl, find }: { wsl: boolean; find: () => ReturnType<typeof lanAddress> },
+): { lan?: string; note: string } {
+  if (configured === "none")
+    return { note: "LAN_ADDRESS=none: localhost only." };
+  if (configured && configured !== "auto") {
+    return {
+      lan: configured,
+      note: `LAN address from docker/.env: ${configured}.`,
+    };
+  }
+  if (wsl) {
+    return {
+      note: "Under WSL 2 the laptop's Wi-Fi address cannot be found: write it in LAN_ADDRESS in docker/.env (ipconfig on Windows) for a phone to open the platform.",
+    };
+  }
+  const found = find();
+  return found
+    ? {
+        lan: found.address,
+        note: `LAN address ${found.address}, from the adapter "${found.adapter}". If it is not the laptop's Wi-Fi address, write that in LAN_ADDRESS in docker/.env.`,
+      }
+    : { note: "No local network found: localhost only." };
+}
+
+// WSL names Microsoft in its kernel's version.
+function isWsl() {
+  try {
+    return /microsoft/i.test(readFileSync("/proc/version", "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 function sha256(file: string) {
@@ -200,9 +249,14 @@ function runningMode() {
 
 // Caddy answers on the LAN address too, with a certificate from its own root.
 function siteEnv() {
-  const lan = lanAddress();
+  const configured = /^LAN_ADDRESS=(.*)$/m.exec(readEnvFile())?.[1]?.trim();
+  const { lan, note } = siteAddress(configured, {
+    wsl: isWsl(),
+    find: lanAddress,
+  });
   return {
     lan,
+    note,
     env: {
       SITE_ADDRESS: lan ? `localhost, ${lan}` : "localhost",
       DEFAULT_SNI: lan ?? "localhost",
@@ -237,7 +291,8 @@ async function up(args: string[]) {
     console.log(`docker/.env: new values for ${filled.join(", ")}, not shown.`);
   }
 
-  const { lan, env } = siteEnv();
+  const { lan, note, env } = siteEnv();
+  console.log(note);
   const start = ["up", "--detach", "--wait"];
   if (values.images) {
     for (const archive of await verifyArchives(values.images)) {
@@ -270,7 +325,7 @@ async function up(args: string[]) {
   );
   console.log(
     mode === "demo"
-      ? "Demo accounts sign in with DEMO_PASSWORD from docker/.env (docs/ops/local.md)."
+      ? "Demo trainers sign in with DEMO_PASSWORD from docker/.env, and the demo admin with DEMO_ADMIN_PASSWORD and one of DEMO_BACKUP_CODES (docs/ops/local.md)."
       : `On the first start, create the first admin:\n  ${USAGE.split("\n").at(-1)?.trim()}`,
   );
 }

@@ -197,7 +197,7 @@ test(
       await password.fill("not-the-password");
       await setting.getByRole("button", { name: reauth.submit }).click();
       await expect(setting.getByText(reauth.wrong)).toBeVisible();
-      await password.fill(demo.password);
+      await password.fill(demo.adminPassword);
       await setting.getByRole("button", { name: reauth.submit }).click();
       await expect(
         page.getByText(text.toast.saved.replace("{label}", label)),

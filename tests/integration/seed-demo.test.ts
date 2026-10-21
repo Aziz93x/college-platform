@@ -192,34 +192,59 @@ it("in staging, signs the accounts in with the environment's own demo secrets, a
 
   const refused = await seedDemo([], staging);
   expect(refused.code).toBe(1);
-  expect(refused.stderr).toContain(
-    "DEMO_PASSWORD: required when APP_ENV=staging",
-  );
-  expect(refused.stderr).toContain(
-    "DEMO_TOTP_SECRET: required when APP_ENV=staging",
-  );
+  for (const key of [
+    "DEMO_PASSWORD",
+    "DEMO_ADMIN_PASSWORD",
+    "DEMO_TOTP_SECRET",
+    "DEMO_BACKUP_CODES",
+  ]) {
+    expect(refused.stderr).toContain(`${key}: required when APP_ENV=staging`);
+  }
   expect(await collegeNames(pool)).toEqual([]);
 
+  const backupCodes = Array.from({ length: 10 }, () =>
+    randomBytes(6).toString("hex"),
+  );
   const secrets = {
     DEMO_PASSWORD: randomBytes(12).toString("base64url"),
+    DEMO_ADMIN_PASSWORD: randomBytes(12).toString("base64url"),
     DEMO_TOTP_SECRET: randomBytes(24).toString("base64url"),
+    DEMO_BACKUP_CODES: backupCodes.join(","),
   };
   const seeded = await seedDemo([], { ...staging, ...secrets });
   expect(seeded.code, seeded.stderr).toBe(0);
-  const { rows } = await pool.query(
-    "select password from accounts where provider_id = 'credential'",
+  const { rows } = await pool.query(`
+    select a.password, p.employee_number from accounts a
+    join people p on p.user_id = a.user_id
+    where a.provider_id = 'credential' order by p.employee_number`);
+  expect(rows.map(({ employee_number }) => employee_number)).toEqual(
+    Object.values(demoAccounts).map(({ employeeNumber }) => employeeNumber),
   );
-  expect(rows).toHaveLength(3);
-  for (const { password } of rows) {
-    expect(
-      await verifyPassword({ hash: password, password: secrets.DEMO_PASSWORD }),
-    ).toBe(true);
-  }
-  const [{ secret }] = (await pool.query("select secret from two_factors"))
-    .rows;
+  // The admin's password is its own.
   expect(
-    await symmetricDecrypt({ key: staging.AUTH_SECRET ?? "", data: secret }),
-  ).toBe(secrets.DEMO_TOTP_SECRET);
+    await Promise.all(
+      rows.map(({ password }, index) =>
+        verifyPassword({
+          hash: password,
+          password:
+            index === 0 ? secrets.DEMO_ADMIN_PASSWORD : secrets.DEMO_PASSWORD,
+        }),
+      ),
+    ),
+  ).toEqual([true, true, true]);
+  expect(
+    await verifyPassword({
+      hash: rows[0].password,
+      password: secrets.DEMO_PASSWORD,
+    }),
+  ).toBe(false);
+  const [stored] = (
+    await pool.query("select secret, backup_codes from two_factors")
+  ).rows;
+  const decrypt = (data: string) =>
+    symmetricDecrypt({ key: staging.AUTH_SECRET ?? "", data });
+  expect(await decrypt(stored.secret)).toBe(secrets.DEMO_TOTP_SECRET);
+  expect(JSON.parse(await decrypt(stored.backup_codes))).toEqual(backupCodes);
 });
 
 it("exits 1 when --seed is not a whole number from 0 to 2^32 - 1", async () => {

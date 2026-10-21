@@ -6,9 +6,9 @@ import { totp } from "../../tests/support/totp.ts";
 
 const { signIn: signInText, twoFactor, account: accountMenu } = messages.auth;
 
-// The demo accounts' password and the admin's authenticator secret on the server under test: the
+// The demo accounts' passwords and the admin's second factor on the server under test: the
 // published ones on a laptop and in CI's first job, the stack's own in demo mode (e2e/stack.config.ts
-// reads them from docker/.env).
+// reads them from docker/.env), where the admin's password is not the trainers'.
 export const demo = demoSecrets(process.env);
 
 // Where e2e/auth.setup.ts keeps each demo role's signed-in browser state (/.local is gitignored).

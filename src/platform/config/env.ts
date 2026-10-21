@@ -26,17 +26,29 @@ const migrateSchema = schema.extend({
   APP_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
 });
 
-// seed:demo's accounts sign in with a password and an authenticator secret that db/seed/demo/
-// accounts.ts publishes for APP_ENV=local. A demo elsewhere, which a tunnel can reach (pnpm local:up
-// --demo), brings its own (Audit 2, minor 10).
+// seed:demo's accounts sign in with passwords and a second factor that db/seed/demo/accounts.ts
+// publishes for APP_ENV=local. A demo elsewhere, which a tunnel can reach (pnpm local:up --demo),
+// brings its own (Audit 2, minor 10; Audit 3, minor 1).
+const DEMO_KEYS = [
+  "DEMO_PASSWORD",
+  "DEMO_ADMIN_PASSWORD",
+  "DEMO_TOTP_SECRET",
+  "DEMO_BACKUP_CODES",
+] as const;
 const demoSchema = schema
   .extend({
     DEMO_PASSWORD: z.string().min(16).optional(),
+    DEMO_ADMIN_PASSWORD: z.string().min(16).optional(),
     DEMO_TOTP_SECRET: z.string().min(16).optional(),
+    // The admin's ten backup codes, separated by commas.
+    DEMO_BACKUP_CODES: z
+      .string()
+      .regex(/^[a-z0-9-]{8,32}(,[a-z0-9-]{8,32}){9}$/, "ten codes, with commas")
+      .optional(),
   })
   .superRefine((env, context) => {
     if (env.APP_ENV !== "staging") return;
-    for (const key of ["DEMO_PASSWORD", "DEMO_TOTP_SECRET"] as const) {
+    for (const key of DEMO_KEYS) {
       if (!env[key]) {
         context.addIssue({
           code: "custom",
