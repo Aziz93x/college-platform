@@ -1,12 +1,14 @@
 import { symmetricEncrypt } from "better-auth/crypto";
 import { and, eq } from "drizzle-orm";
-import { memberships, roles } from "../../../src/modules/access/index.ts";
+import { joinRole } from "../../../src/modules/access/index.ts";
 import {
   createAccount,
   twoFactors,
   users,
 } from "../../../src/modules/identity/index.ts";
+import { departments } from "../../../src/modules/org/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
+import { demoDepartments } from "./departments.ts";
 
 // Synthetic accounts for demonstrations and the end-to-end tests. With APP_ENV=local their password
 // and the admin's authenticator secret are the ones published here on purpose: seed:demo refuses
@@ -37,11 +39,13 @@ type DemoAccount = {
   employeeNumber: string;
   // Holds the system role, with two-factor on.
   admin?: boolean;
+  // Holds this default role in this demo department.
+  role?: { key: string; department: string };
   // Invited: replaces the password at the first sign-in.
   invited?: boolean;
 };
 
-// Trainers hold no role until Step 9 adds the roles; signed in, they reach the shell.
+// The admin, and two trainers of two demo departments.
 export const demoAccounts = {
   admin: {
     name: "هند القحطاني",
@@ -53,16 +57,19 @@ export const demoAccounts = {
     name: "فهد الزهراني",
     email: "f.alzahrani@oasis.example",
     employeeNumber: "200001",
+    role: { key: "trainer", department: demoDepartments[1].name },
   },
   invitedTrainer: {
     name: "ريم الشهري",
     email: "r.alshehri@oasis.example",
     employeeNumber: "200002",
+    role: { key: "trainer", department: demoDepartments[2].name },
     invited: true,
   },
 } satisfies Record<string, DemoAccount>;
 
-// An account already present, found by its email, is left as it is, so a re-run changes nothing.
+// An account already present, found by its email, is left as it is, and a role it holds already is
+// not given again, so a re-run changes nothing.
 export async function seedDemoAccounts(
   { db }: { db: Db },
   collegeId: string,
@@ -74,8 +81,34 @@ export async function seedDemoAccounts(
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, account.email));
-    if (existing) continue;
-    await db.transaction(async (tx) => {
+    const userId = existing?.id ?? (await createDemoAccount(account));
+    if (account.admin) {
+      await joinRole({ userId, collegeId, role: { system: true } }, db);
+    }
+    if (account.role) {
+      const [department] = await db
+        .select({ id: departments.id })
+        .from(departments)
+        .where(
+          and(
+            eq(departments.collegeId, collegeId),
+            eq(departments.name, account.role.department),
+          ),
+        );
+      await joinRole(
+        {
+          userId,
+          collegeId,
+          role: { key: account.role.key },
+          departmentId: department.id,
+        },
+        db,
+      );
+    }
+  }
+
+  async function createDemoAccount(account: DemoAccount) {
+    return db.transaction(async (tx) => {
       const { userId } = await createAccount(
         {
           collegeId,
@@ -92,14 +125,7 @@ export async function seedDemoAccounts(
           .set({ mustChangePassword: true })
           .where(eq(users.id, userId));
       }
-      if (!account.admin) return;
-      const [systemRole] = await tx
-        .select({ id: roles.id })
-        .from(roles)
-        .where(and(eq(roles.collegeId, collegeId), eq(roles.system, true)));
-      await tx
-        .insert(memberships)
-        .values({ userId, roleId: systemRole.id, collegeId });
+      if (!account.admin) return userId;
       // As Better Auth's two-factor plugin stores them: encrypted with AUTH_SECRET.
       await tx.insert(twoFactors).values({
         userId,
@@ -116,6 +142,7 @@ export async function seedDemoAccounts(
         .update(users)
         .set({ twoFactorEnabled: true })
         .where(eq(users.id, userId));
+      return userId;
     });
   }
 }

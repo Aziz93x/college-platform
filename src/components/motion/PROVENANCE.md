@@ -35,6 +35,12 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `table/types.ts` | `components/motion/table/types.ts` |
 | `table/use-column-sort.ts` | `components/motion/table/use-column-sort.ts` |
 | `table/utils.ts` | `components/motion/table/utils.ts` |
+| `combobox/context.tsx` | `components/motion/combobox/context.tsx` |
+| `combobox/content.tsx` | `components/motion/combobox/content.tsx` |
+| `combobox/list.tsx` | `components/motion/combobox/list.tsx` |
+| `combobox/trigger.tsx` | `components/motion/combobox/trigger.tsx` |
+| `combobox/use-active-option.ts` | `components/motion/combobox/use-active-option.ts` |
+| `lib/popover-position.ts` | `components/motion/popover-position.ts` |
 | `range-slider.tsx` | `components/motion/range-slider.tsx` |
 | `action-swap.tsx` | `components/motion/action-swap.tsx` |
 | `lib/use-listbox.ts` | `lib/hooks/use-listbox.ts` |
@@ -128,3 +134,15 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   page's language (`Intl.Collator`); `align` takes `start`, `center` and `end`; a column takes
   classes of its own, to hide it on a phone; the header's labels take the foreground color, since
   the muted one is too light on its fill; a narrow screen scrolls the table inside its frame.
+
+## Local changes from Step 9 (roles and permissions)
+
+- `combobox/`: controlled only, with the chosen value held by the page; the filter is the command
+  palette's Arabic search (with or without the article, across spellings), and digits typed on an
+  Arabic keyboard match Latin ones; the field looks like the text fields (44 px, `rounded-lg`, the
+  input border drawn over it so the input fills all 44 px, the focus ring); its visible name is
+  `ComboboxLabel`, tied to the input; the list's name and the empty message come from the catalog,
+  with no English defaults; options are 44 px on a touch screen and read `text-start`; the panel is
+  as wide as the field and portalled with `m` elements; groups, labels inside the list,
+  separators, the value view and the side and alignment options are gone. `use-active-option.ts`
+  is copied as is; `lib/popover-position.ts` takes refs that may hold nothing.

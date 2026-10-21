@@ -54,16 +54,14 @@ export default async function SettingsPage({
   );
   const asked = (await searchParams).group;
   const initialGroup = groups.find((group) => group === asked) ?? groups[0];
-  const [t, { ui, actions, platform, settings: words }] = await Promise.all([
-    getTranslations("settings"),
-    getMessages(),
-  ]);
+  const [t, { ui, actions, platform, reauth, settings: words }] =
+    await Promise.all([getTranslations("settings"), getMessages()]);
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
       {/* The screen's words, and the catalog's own a setting left empty stands for. */}
       <NextIntlClientProvider
-        messages={{ ui, actions, platform, settings: words }}
+        messages={{ ui, actions, platform, reauth, settings: words }}
       >
         <SettingsScreen
           settings={settings}

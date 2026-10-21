@@ -50,6 +50,13 @@
       "when": 1792589065412,
       "tag": "0006_departments",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792592530261,
+      "tag": "0007_membership_scopes",
+      "breakpoints": true
     }
   ]
 }

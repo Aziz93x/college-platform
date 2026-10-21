@@ -29,7 +29,7 @@ const query = async (text: string, values: unknown[] = []) =>
   (await database.pool.query(text, values)).rows;
 
 describe("loadAccess", () => {
-  it("gives the permissions of the person's roles in that college, ignoring keys the code does not know", async () => {
+  it("gives the permissions of the person's roles in that college, each in its membership's scope, ignoring keys the code does not know", async () => {
     const [{ id: userId }] = await query(
       "insert into users (name, email) values ('Holder', 'holder@college.example') returning id",
     );
@@ -45,15 +45,45 @@ describe("loadAccess", () => {
       "insert into memberships (user_id, role_id, college_id) values ($1, $2, $3)",
       [userId, roleId, collegeId],
     );
+    const [{ id: departmentId }] = await query(
+      "insert into departments (college_id, name, short_name) values ($1, 'Electrical', 'Elec') returning id",
+      [collegeId],
+    );
+    await query(
+      `insert into memberships (user_id, role_id, college_id, department_id)
+       select $1, id, $2, $3 from roles where key = 'head' and college_id = $2`,
+      [userId, collegeId, departmentId],
+    );
     const [{ id: otherCollegeId }] = await query(
       "insert into colleges (name, short_name) values ('Other College', 'OC') returning id",
     );
 
-    expect(await loadAccess(userId, collegeId)).toEqual({
-      permissions: new Set(["design.view"]),
-      roleKeys: ["viewer"],
-    });
+    const access = await loadAccess(userId, collegeId);
+    // The viewer role across the college, the head's keys in the department.
+    expect(access.grants).toHaveLength(6);
+    expect(access.grants).toEqual(
+      expect.arrayContaining([
+        { permission: "design.view", departmentId: null },
+        { permission: "plan.edit", departmentId },
+        { permission: "plan.publish", departmentId },
+        { permission: "assignment.manage", departmentId },
+        { permission: "review.decide", departmentId },
+        { permission: "portfolio.approve", departmentId },
+      ]),
+    );
+    expect(access.permissions).toEqual(
+      new Set([
+        "design.view",
+        "plan.edit",
+        "plan.publish",
+        "assignment.manage",
+        "review.decide",
+        "portfolio.approve",
+      ]),
+    );
+    expect(access.roleKeys.sort()).toEqual(["head", "viewer"]);
     expect(await loadAccess(userId, otherCollegeId)).toEqual({
+      grants: [],
       permissions: new Set(),
       roleKeys: [],
     });

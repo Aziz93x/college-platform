@@ -22,6 +22,7 @@ export default defineConfig({
     "auth.spec.ts",
     "departments.spec.ts",
     "health.spec.ts",
+    "roles.spec.ts",
     "security.spec.ts",
     "settings.spec.ts",
     "shell.spec.ts",

@@ -69,6 +69,17 @@ joins with a later screen that has a real use for it.
 The table's selection, sticky header and virtualized rows join with the long lists that need them
 (people, sections, the audit log).
 
+## Adopted in Step 9 (roles and permissions)
+
+| Component | Real use |
+| --- | --- |
+| Motion: combobox | Choosing the person for a membership, by name or employee number, typed in Arabic or Latin digits |
+| Motion: table | The roles list: each role, how many hold it and how many keys it gives |
+| Motion: switch, select, action swap | The grid's keys, the membership's scope, and "Save" turning into "Confirm" when the password is asked for |
+
+The page order moves a page up or down with two buttons rather than by dragging: a short list, and
+buttons work the same with a finger, a mouse and the keyboard.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
@@ -89,7 +100,6 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 
 | Step | Component | Real use |
 | --- | --- | --- |
-| 9 | Motion: combobox | Choosing the person for a membership; later the trainer of a section (17) |
 | 10 | Motion: table | People, then sections (17) and the audit log (11): selection, a sticky header, virtualized rows |
 | 10 | Motion: animated badge | An account's state; then readiness (22) and task (26) states |
 | 10 | Blocks: overflow actions | A person's row: reset the password, lock, disable |
@@ -99,6 +109,7 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 | 12 | Blocks: notification stack | The bell's notification center |
 | 13 | Motion: adaptive stepper | The number of weeks in a term |
 | 13 | Motion: select (morph) | The header's term switcher |
+| 17 | Motion: combobox | The trainer of a section |
 | 21 | Motion: multi select | An assignment's trainers; then a quick request's chosen people (22) and the kinds that require approval (29) |
 | 22 | Motion: expandable control | The quick-request button, which opens into its label; then the head's one-tap reminder on Today (23) |
 | 23 | Motion: pull to refresh | Today on a phone, for trainers and heads |

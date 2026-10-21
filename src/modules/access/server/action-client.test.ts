@@ -26,9 +26,11 @@ beforeEach(() => {
 const viewer = (
   permissions: PermissionKey[],
   pending: { mustChangePassword?: boolean; needsTwoFactorSetup?: boolean } = {},
+  departmentId: string | null = null,
 ) => ({
   userId: "user-a",
   collegeId: "college-a",
+  grants: permissions.map((permission) => ({ permission, departmentId })),
   permissions: new Set(permissions),
   mustChangePassword: false,
   needsTwoFactorSetup: false,
@@ -72,6 +74,26 @@ describe("viewerAction", () => {
     expect(await choose()).toEqual({ serverError: "forbidden" });
     request.viewer = viewer(["accounts.resetPassword"]);
     expect(await choose()).toEqual({ data: "done" });
+  });
+
+  it("keeps a key held in one department to that department, for a check and for a list", async () => {
+    const plan = viewerAction
+      .metadata({ name: "plan" })
+      .action(async ({ ctx }) => {
+        ctx.requirePermission("plan.edit", { departmentId: "electrical" });
+        return ctx.departmentsFor("plan.edit");
+      });
+    request.viewer = viewer(["plan.edit"], {}, "electrical");
+    expect(await plan()).toEqual({ data: ["electrical"] });
+    request.viewer = viewer(["plan.edit"], {}, "mechanical");
+    expect(await plan()).toEqual({ serverError: "forbidden" });
+    request.viewer = viewer(["plan.edit"]);
+    expect(await plan()).toEqual({ data: "college" });
+  });
+
+  it("refuses an action named with a permission to a viewer who holds it in one department only", async () => {
+    request.viewer = viewer(["design.view"], {}, "electrical");
+    expect(await viewCatalog()).toEqual({ serverError: "forbidden" });
   });
 
   it("answers an unexpected failure with its message key, and logs it", async () => {

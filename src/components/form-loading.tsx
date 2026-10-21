@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Shaped like a department's page: its trail and header, then the form's sections. It holds no
-// text: a loading boundary renders without the college's messages.
+// Shaped like a page under a list (a department, a role): its trail and header, then a form's
+// sections. It holds no text: a loading boundary renders without the college's messages.
 export function FormLoading() {
   return (
     <div aria-busy className="flex flex-col gap-6">

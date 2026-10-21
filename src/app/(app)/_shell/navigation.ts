@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   type LucideIcon,
   Settings,
+  UsersRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PermissionKey } from "@/modules/access";
@@ -33,6 +34,12 @@ export const navigation = [
     href: "/departments",
     icon: Building2,
     permission: "departments.manage",
+  },
+  {
+    id: "roles",
+    href: "/roles",
+    icon: UsersRound,
+    permission: "roles.manage",
   },
   {
     id: "settings",

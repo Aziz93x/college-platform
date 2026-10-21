@@ -79,6 +79,7 @@ export function SettingRow({
   const words = useSettingWords();
   const { t } = words;
   const refusals = useTranslations("actions");
+  const reauth = useTranslations("reauth");
   const id = useId();
   const ids = { label: `${id}-label`, description: `${id}-description` };
   const label = words.label(setting);
@@ -143,11 +144,11 @@ export function SettingRow({
           return;
         case "wrongPassword":
           setPassword("");
-          setPasswordError(t("reauth.wrong"));
+          setPasswordError(reauth("wrong"));
           return;
         case "locked":
           setAsking(null);
-          setRefusal(t("reauth.locked", { minutes: outcome.minutes }));
+          setRefusal(reauth("locked", { minutes: outcome.minutes }));
           return;
         case "invalid":
           setRefusal(t("errors.invalid"));
@@ -167,7 +168,7 @@ export function SettingRow({
 
   const submit = () => {
     if (asking) {
-      if (!password) setPasswordError(t("reauth.required"));
+      if (!password) setPasswordError(reauth("required"));
       else run(asking);
     } else if (dirty && read.error === undefined) {
       run("save");
@@ -230,7 +231,7 @@ export function SettingRow({
         {asking ? (
           <Input
             type="password"
-            label={t("reauth.password")}
+            label={reauth("password")}
             autoComplete="current-password"
             autoFocus
             value={password}
@@ -292,13 +293,13 @@ export function SettingRow({
                   { id: "save", label: t("save"), icon: <Save /> },
                   {
                     id: "saving",
-                    label: asking ? t("reauth.confirming") : t("saving"),
+                    label: asking ? reauth("confirming") : t("saving"),
                     icon: <LoaderCircle className="animate-spin" />,
                   },
                   { id: "saved", label: t("saved"), icon: <Check /> },
                   {
                     id: "confirm",
-                    label: t("reauth.submit"),
+                    label: reauth("submit"),
                     icon: <ShieldCheck />,
                   },
                 ]}

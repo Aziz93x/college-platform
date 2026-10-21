@@ -1,7 +1,11 @@
 import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { getSessionUser } from "../../identity/index.ts";
-import { authorize } from "../domain/authorize.ts";
+import {
+  authorize,
+  permittedDepartments,
+  type Scope,
+} from "../domain/authorize.ts";
 import { type PermissionKey, permissionKeys } from "../domain/permissions.ts";
 import { getViewer } from "./viewer.ts";
 
@@ -52,19 +56,28 @@ export const signedInAction = actionClient.use(async ({ next }) => {
   return next({ ctx: { user } });
 });
 
-// Everything else: a viewer with nothing pending, holding the action's permission in their college.
-// An action whose permission depends on its input, such as the setting it changes, names none in
-// its metadata and calls ctx.requirePermission, which refuses it the same way.
+// Everything else: a viewer with nothing pending, holding the action's permission across their
+// college. An action whose permission or scope depends on its input, such as the setting it
+// changes or the department it touches, names none in its metadata and calls
+// ctx.requirePermission with the scope, which refuses it the same way; a list keeps to
+// ctx.departmentsFor.
 export const viewerAction = actionClient.use(async ({ next, metadata }) => {
   const viewer = await getViewer();
   if (!viewer || viewer.mustChangePassword || viewer.needsTwoFactorSetup) {
     throw new RefusedError("signedOut");
   }
-  const requirePermission = (permission: PermissionKey) => {
-    if (!authorize(viewer, permission, { collegeId: viewer.collegeId })) {
+  const requirePermission = (
+    permission: PermissionKey,
+    scope: Omit<Scope, "collegeId"> = {},
+  ) => {
+    if (
+      !authorize(viewer, permission, { ...scope, collegeId: viewer.collegeId })
+    ) {
       throw new RefusedError("forbidden");
     }
   };
+  const departmentsFor = (permission: PermissionKey) =>
+    permittedDepartments(viewer, permission);
   if (metadata.permission) requirePermission(metadata.permission);
-  return next({ ctx: { viewer, requirePermission } });
+  return next({ ctx: { viewer, requirePermission, departmentsFor } });
 });

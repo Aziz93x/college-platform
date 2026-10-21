@@ -1,40 +1,114 @@
 import { describe, expect, it } from "vitest";
-import { authorize } from "./authorize.ts";
+import { authorize, type Grant, permittedDepartments } from "./authorize.ts";
 import {
   isPermissionKey,
   type PermissionKey,
+  permissionArea,
   permissionKeys,
   requiresTwoFactor,
 } from "./permissions.ts";
 
-const actor = (...permissions: PermissionKey[]) => ({
+const actor = (...grants: Grant[]) => ({
+  userId: "user-a",
   collegeId: "college-a",
-  permissions: new Set(permissions),
+  grants,
+});
+const college = (permission: PermissionKey): Grant => ({
+  permission,
+  departmentId: null,
+});
+const department = (
+  permission: PermissionKey,
+  departmentId: string,
+): Grant => ({
+  permission,
+  departmentId,
 });
 
 describe("authorize", () => {
-  it("allows a permission the actor holds in the scope's college", () => {
+  it("allows a key held across the college, in the college and in each of its departments", () => {
+    const admin = actor(college("plan.edit"));
+    expect(authorize(admin, "plan.edit", { collegeId: "college-a" })).toBe(
+      true,
+    );
     expect(
-      authorize(actor("design.view"), "design.view", {
+      authorize(admin, "plan.edit", {
         collegeId: "college-a",
+        departmentId: "electrical",
       }),
     ).toBe(true);
   });
 
-  it("refuses a permission the actor does not hold", () => {
+  it("keeps a key held in one department to that department", () => {
+    const head = actor(department("plan.edit", "electrical"));
     expect(
-      authorize(actor("design.view"), "accounts.resetPassword", {
+      authorize(head, "plan.edit", {
         collegeId: "college-a",
+        departmentId: "electrical",
+      }),
+    ).toBe(true);
+    expect(
+      authorize(head, "plan.edit", {
+        collegeId: "college-a",
+        departmentId: "mechanical",
+      }),
+    ).toBe(false);
+    expect(authorize(head, "plan.edit", { collegeId: "college-a" })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a key the actor does not hold, and another college whatever the actor holds", () => {
+    expect(
+      authorize(actor(college("design.view")), "accounts.resetPassword", {
+        collegeId: "college-a",
+      }),
+    ).toBe(false);
+    expect(
+      authorize(actor(...permissionKeys.map(college)), "design.view", {
+        collegeId: "college-b",
       }),
     ).toBe(false);
   });
 
-  it("refuses another college, whatever the actor holds", () => {
+  it("allows a record of one's own only to its owner", () => {
+    const trainer = actor(department("task.complete", "electrical"));
+    const task = { collegeId: "college-a", departmentId: "electrical" };
     expect(
-      authorize(actor(...permissionKeys), "design.view", {
-        collegeId: "college-b",
-      }),
+      authorize(trainer, "task.complete", { ...task, ownerId: "user-a" }),
+    ).toBe(true);
+    expect(
+      authorize(trainer, "task.complete", { ...task, ownerId: "user-b" }),
     ).toBe(false);
+    // Owning the record gives nothing without the key.
+    expect(
+      authorize(actor(), "task.complete", { ...task, ownerId: "user-a" }),
+    ).toBe(false);
+  });
+});
+
+describe("permittedDepartments", () => {
+  it("names the whole college when the key is held across it", () => {
+    expect(
+      permittedDepartments(
+        actor(department("plan.edit", "electrical"), college("plan.edit")),
+        "plan.edit",
+      ),
+    ).toBe("college");
+  });
+
+  it("lists each department the key is held in, once, and none without the key", () => {
+    const head = actor(
+      department("plan.edit", "electrical"),
+      department("plan.edit", "mechanical"),
+      department("plan.edit", "electrical"),
+      department("review.decide", "general"),
+    );
+    expect(permittedDepartments(head, "plan.edit")).toEqual([
+      "electrical",
+      "mechanical",
+    ]);
+    expect(permittedDepartments(head, "plan.publish")).toEqual([]);
   });
 });
 
@@ -49,6 +123,16 @@ describe("requiresTwoFactor", () => {
     expect(requiresTwoFactor(["design.view"])).toBe(false);
     expect(requiresTwoFactor([])).toBe(false);
   });
+
+  it("is required by every key that changes access, accounts, settings or the organization", () => {
+    expect(permissionKeys.filter((key) => requiresTwoFactor([key]))).toEqual([
+      "settings.manage",
+      "college.manage",
+      "departments.manage",
+      "roles.manage",
+      "accounts.resetPassword",
+    ]);
+  });
 });
 
 describe("isPermissionKey", () => {
@@ -56,5 +140,12 @@ describe("isPermissionKey", () => {
     expect(isPermissionKey("design.view")).toBe(true);
     expect(isPermissionKey("design.edit")).toBe(false);
     expect(isPermissionKey("constructor")).toBe(false);
+  });
+});
+
+describe("permissionArea", () => {
+  it("groups the grid's keys", () => {
+    expect(permissionArea("roles.manage")).toBe("organization");
+    expect(permissionArea("task.complete")).toBe("work");
   });
 });
