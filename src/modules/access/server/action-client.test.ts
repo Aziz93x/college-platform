@@ -61,6 +61,19 @@ describe("viewerAction", () => {
     }
   });
 
+  it("refuses, through ctx.requirePermission, an action whose permission depends on its input", async () => {
+    const choose = viewerAction
+      .metadata({ name: "choose" })
+      .action(async ({ ctx }) => {
+        ctx.requirePermission("accounts.resetPassword");
+        return "done";
+      });
+    request.viewer = viewer(["design.view"]);
+    expect(await choose()).toEqual({ serverError: "forbidden" });
+    request.viewer = viewer(["accounts.resetPassword"]);
+    expect(await choose()).toEqual({ data: "done" });
+  });
+
   it("answers an unexpected failure with its message key, and logs it", async () => {
     request.viewer = viewer([]);
     const failing = viewerAction

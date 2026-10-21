@@ -1,13 +1,13 @@
 import type { Page } from "@playwright/test";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
+import { demoSettings } from "../db/seed/demo/settings.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { base32Bytes, totp } from "../tests/support/totp.ts";
 import { expect, type TestAccount, test } from "./support/accounts.ts";
 import { demo, enterCode, signIn, signOut } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 
-const { platform } = messages;
 const {
   signIn: signInText,
   twoFactor,
@@ -27,18 +27,23 @@ const signInAs = async (page: Page, person: TestAccount, password?: string) => {
   });
 };
 
+// The demo college's own names and banner, which seed:demo stores as settings.
 test("the login page names the platform and the college under the pilot banner, and signs in by employee number", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("status").filter({ hasText: platform.pilot }),
+    page
+      .getByRole("status")
+      .filter({ hasText: demoSettings["pilot.bannerText"] }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    platform.name,
+    demoSettings["platform.name"],
   );
   await expect(page.getByText(demoCollege.name)).toBeVisible();
-  await expect(page).toHaveTitle(signInText.title);
+  await expect(page).toHaveTitle(
+    `${signInText.title} · ${demoSettings["platform.name"]}`,
+  );
 
   await signIn(page, {
     identifier: demoAccounts.trainer.employeeNumber,

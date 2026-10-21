@@ -2,7 +2,6 @@ export { type SettingControl, settingControl } from "./domain/controls.ts";
 export {
   isSettingKey,
   needsPassword,
-  numberingSystems,
   REMEMBERED_DEVICE_DAYS_MAX,
   type SettingGroup,
   type SettingKey,
@@ -10,7 +9,6 @@ export {
   type SettingValue,
   settingGroups,
   settingsRegistry,
-  weekdays,
 } from "./domain/registry.ts";
 export {
   getSetting,

@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { demoSettings } from "../db/seed/demo/settings.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
@@ -22,7 +23,10 @@ test("the address opens the shell on today's page for someone signed in, right t
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(today.title);
-  await expect(page).toHaveTitle(today.title);
+  // The page's name, then the platform's: the demo college's own, from seed:demo.
+  await expect(page).toHaveTitle(
+    `${today.title} · ${demoSettings["platform.name"]}`,
+  );
   await expect(
     page.getByRole("heading", { name: today.empty.title }),
   ).toBeVisible();

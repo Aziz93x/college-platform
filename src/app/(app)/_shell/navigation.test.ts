@@ -68,8 +68,11 @@ describe("visibleNavigation", () => {
     ).toEqual(["today"]);
   });
 
-  it("opens today's page to everyone in the real registry", () => {
+  it("opens today's page to everyone in the real registry, and the settings to whoever may change them", () => {
     expect(ids(visibleNavigation(navigation, new Set()))).toEqual(["today"]);
+    expect(
+      ids(visibleNavigation(navigation, new Set(["settings.manage"]))),
+    ).toEqual(["today", "settings"]);
   });
 });
 

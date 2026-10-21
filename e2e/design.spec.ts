@@ -5,6 +5,7 @@ import { settled } from "./screens/settled";
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 import { expect, test } from "./support/test.ts";
+import { smallTargets } from "./support/touch.ts";
 
 // The catalog is open to whoever holds design.view: the demo admin (e2e/auth.setup.ts).
 test.use({ storageState: STORAGE.admin });
@@ -377,6 +378,14 @@ test("the overlays follow the document's direction and language", async ({
   await expect(previous.locator("svg")).toHaveCSS("rotate", "180deg");
   await expect(next.locator("svg")).toHaveCSS("rotate", "180deg");
 
+  // The week starts on the college's first day (locale.weekStart, Sunday by default), not on the
+  // Saturday of react-day-picker's Arabic locale.
+  // DayPicker hides the row of day names from assistive technology, so it is found by its tag.
+  await expect(calendar.locator("thead th").first()).toHaveAttribute(
+    "aria-label",
+    "الأحد",
+  );
+
   await calendar.locator('[data-selected-single="true"]').focus();
   await page.keyboard.press("ArrowLeft");
   await expect(calendar.locator("button:focus")).toHaveText("23");
@@ -389,67 +398,6 @@ test("a progress bar exposes its value", async ({ page }) => {
     }),
   ).toHaveAttribute("aria-valuenow", "40");
 });
-
-// The controls in `scope` whose hit area is smaller than 44 by 44 px (docs/PLAN.md section 4):
-// the center and the points 21 px above, below and to either side of it (1 px inside the edge, for
-// subpixel layout) must reach the control, something inside it, or its label, and not a
-// neighbour's hit area. Disabled controls are left out.
-function smallTargets(scope: Locator) {
-  return scope.evaluate((root) => {
-    const half = 44 / 2 - 1;
-    const points = [
-      [0, 0],
-      [-half, 0],
-      [half, 0],
-      [0, -half],
-      [0, half],
-    ];
-    const controls = root.querySelectorAll<HTMLElement>(
-      [
-        "a[href]",
-        "button",
-        "input",
-        "select",
-        "textarea",
-        '[role="checkbox"]',
-        '[role="radio"]',
-        '[role="switch"]',
-        '[role="tab"]',
-        '[role="combobox"]',
-        '[role="menuitem"]',
-        '[role="menuitemcheckbox"]',
-        '[role="option"]',
-      ].join(", "),
-    );
-    const small: string[] = [];
-    for (const control of controls) {
-      if (
-        control.matches(":disabled, [aria-disabled='true'], [data-disabled]") ||
-        control.closest("[aria-hidden='true'], .sr-only") ||
-        control.getClientRects().length === 0
-      ) {
-        continue;
-      }
-      control.scrollIntoView({ block: "center", inline: "center" });
-      const box = control.getBoundingClientRect();
-      const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
-      const labels = [...((control as HTMLInputElement).labels ?? [])];
-      const reaches = (hit: Element | null) =>
-        hit !== null &&
-        (control.contains(hit) || labels.some((label) => label.contains(hit)));
-      const covered = points.every(([dx, dy]) =>
-        reaches(document.elementFromPoint(x + dx, y + dy)),
-      );
-      if (!covered) {
-        const name =
-          control.getAttribute("aria-label") ??
-          (labels[0] ?? control).textContent?.trim();
-        small.push(`${control.tagName.toLowerCase()} "${name}"`);
-      }
-    }
-    return small;
-  });
-}
 
 // Where an overlay's controls are, when its role above names only part of it.
 const TOUCH_SCOPES: Record<string, (page: Page) => Locator> = {

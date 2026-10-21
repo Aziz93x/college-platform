@@ -18,7 +18,7 @@ function isTimeZoneName(value: string) {
 export const REMEMBERED_DEVICE_DAYS_MAX = 90;
 
 // The days of the week, numbered from Sunday as JavaScript dates and react-day-picker count them.
-export const weekdays = [
+const weekdays = [
   "sunday",
   "monday",
   "tuesday",
@@ -30,7 +30,7 @@ export const weekdays = [
 
 // The digits dates and numbers are written in: Latin or Arabic-Indic. They become the locale's
 // numbering system (src/i18n/locale.ts).
-export const numberingSystems = ["latn", "arab"] as const;
+const numberingSystems = ["latn", "arab"] as const;
 
 // The settings screen's tabs, in this order; each setting belongs to one.
 export const settingGroups = [
