@@ -391,8 +391,9 @@ export async function seedDemoHistory(
   }
 
   // A head lost their phone: the admin turned off their two-factor, and they signed in with the
-  // password alone and set it up on the new phone (ADR-0014).
-  const phoneLost = pick(heads);
+  // password alone and set it up on the new phone (ADR-0014). The last head by name, not a draw, so
+  // the notifications that follow keep theirs.
+  const phoneLost = heads[heads.length - 1];
   let lostDay = 10;
   while (!workday(lostDay)) lostDay -= 1;
   const lostAt = at(lostDay, 12, 15);
