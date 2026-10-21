@@ -60,7 +60,7 @@ function createAuth() {
     },
     // The issuer shown in authenticator apps is the platform's name, passed when two-factor is set up.
     plugins: [twoFactor(), nextCookies()],
-    // The sign-in limits are per account and address (sign-in.ts); Better Auth's are per address.
+    // The sign-in limits are per identifier and address (sign-in.ts); Better Auth's are per address.
     rateLimit: { enabled: false },
     // The platform may run on an isolated network: nothing is sent out.
     telemetry: { enabled: false },

@@ -1,38 +1,33 @@
-import { eq, lte, sql } from "drizzle-orm";
+import { inArray, lte, sql } from "drizzle-orm";
 import type { Db, Tx } from "../../../platform/db/client.ts";
+import type { Identifier } from "../domain/identifier.ts";
 import { signInLockouts } from "./schema.ts";
 
 const MINUTE_MS = 60_000;
 
 type LockoutLimits = { lockoutThreshold: number; lockoutMinutes: number };
 
-// Wrong passwords count against an account, or against what was typed when no account matches.
-// Both follow this one path, so the answers never tell whether an account exists (ADR-0009).
-export const accountSubject = (userId: string) => `user:${userId}`;
+// Attempts count against what was typed, an email or an employee number, whether or not an account
+// has it. An account's two identifiers count apart, exactly as two that no account has, so no
+// answer tells whether an account exists or which identifiers belong together (ADR-0009).
+export const subjectOf = (identifier: Identifier) =>
+  `typed:${identifier.kind === "email" ? identifier.email : identifier.employeeNumber}`;
 
-const lockEnds = (startedAt: Date, limits: LockoutLimits) =>
-  new Date(startedAt.getTime() + limits.lockoutMinutes * MINUTE_MS);
+// Both of an account's identifiers, as sign-in counts them.
+export const accountSubjects = (account: {
+  email: string;
+  employeeNumber: string;
+}) => [
+  subjectOf({ kind: "email", email: account.email }),
+  subjectOf({ kind: "employeeNumber", employeeNumber: account.employeeNumber }),
+];
 
-// When the subject's lock ends, while it is locked.
-export async function lockEnd(
-  db: Db,
-  subject: string,
-  limits: LockoutLimits,
-  now: Date,
-) {
-  const [row] = await db
-    .select()
-    .from(signInLockouts)
-    .where(eq(signInLockouts.subject, subject));
-  if (!row || row.failures < limits.lockoutThreshold) return null;
-  const end = lockEnds(row.startedAt, limits);
-  return end > now ? end : null;
-}
-
-// A wrong password. A count lasts the lockout's minutes from its first failure; when it reaches the
-// threshold, the subject locks for that long from the failure that reached it. One statement, so
-// attempts that race each other are all counted. Returns the lock's end.
-export async function countFailure(
+// Counts an attempt before its password is checked, so attempts that race each other cannot get
+// past the threshold. A count lasts the lockout's minutes from its first attempt. The attempt that
+// reaches the threshold starts the lock, which lasts as long from then, and every attempt after it
+// is refused unchecked. One statement, so racing attempts each get their own place. Returns the
+// attempt's place in the count and when the count, or the lock, ends.
+export async function beginAttempt(
   db: Db,
   subject: string,
   limits: LockoutLimits,
@@ -47,24 +42,26 @@ export async function countFailure(
         new Date(now.getTime() - limits.lockoutMinutes * MINUTE_MS),
       ),
     );
-  const reached = sql`${signInLockouts.failures} + 1 >= ${limits.lockoutThreshold}`;
   const [row] = await db
     .insert(signInLockouts)
-    .values({ subject, failures: 1, startedAt: now })
+    .values({ subject, attempts: 1, startedAt: now })
     .onConflictDoUpdate({
       target: signInLockouts.subject,
       set: {
-        failures: sql`${signInLockouts.failures} + 1`,
-        startedAt: sql`case when ${reached} then ${now} else ${signInLockouts.startedAt} end`,
+        attempts: sql`${signInLockouts.attempts} + 1`,
+        startedAt: sql`case when ${signInLockouts.attempts} + 1 = ${limits.lockoutThreshold} then ${now} else ${signInLockouts.startedAt} end`,
       },
     })
     .returning();
-  return row.failures >= limits.lockoutThreshold
-    ? lockEnds(row.startedAt, limits)
-    : null;
+  return {
+    place: row.attempts,
+    ends: new Date(row.startedAt.getTime() + limits.lockoutMinutes * MINUTE_MS),
+  };
 }
 
-// A sign-in clears the account's count, and an admin's reset lifts its lock.
-export async function clearLockout(db: Db | Tx, subject: string) {
-  await db.delete(signInLockouts).where(eq(signInLockouts.subject, subject));
+// A sign-in clears its account's counts, and an admin's reset lifts its locks.
+export async function clearLockouts(db: Db | Tx, subjects: string[]) {
+  await db
+    .delete(signInLockouts)
+    .where(inArray(signInLockouts.subject, subjects));
 }

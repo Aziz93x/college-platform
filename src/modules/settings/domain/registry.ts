@@ -62,8 +62,8 @@ export const settingsRegistry = {
     schema: z.int().min(8).max(64),
     default: 10,
   },
-  // Wrong passwords within lockoutMinutes, from any address, that lock an account (or what was
-  // typed when no account matches), and for how long (identity's lockout.ts).
+  // Attempts within lockoutMinutes of the first, from any address, that lock what was typed (an
+  // email or an employee number, with or without an account), and for how long (lockout.ts).
   "auth.lockoutThreshold": {
     scope: "college",
     schema: z.int().min(3).max(20),
@@ -74,7 +74,7 @@ export const settingsRegistry = {
     schema: z.int().min(1).max(1440),
     default: 15,
   },
-  // Sign-in attempts allowed per account and address in each window, so one address shared by a
+  // Sign-in attempts allowed per identifier and address in each window, so one address shared by a
   // whole workshop never blocks the others (ADR-0008).
   "auth.signInAttempts": {
     scope: "college",

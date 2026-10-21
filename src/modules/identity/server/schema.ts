@@ -136,7 +136,7 @@ export const people = pgTable(
   (table) => [unique().on(table.collegeId, table.employeeNumber)],
 );
 
-// Sign-in attempts per account and address, in windows set by the sign-in settings.
+// Sign-in attempts per identifier and address, in windows set by the sign-in settings.
 export const signInAttempts = pgTable("sign_in_attempts", {
   key: text().primaryKey(),
   attempts: integer().notNull(),
@@ -145,10 +145,11 @@ export const signInAttempts = pgTable("sign_in_attempts", {
   }).notNull(),
 });
 
-// Wrong passwords per account, or per identifier typed when no account matches, which lock alike
-// (lockout.ts). startedAt is the count's first failure, then the lock's start once it locks.
+// Sign-in attempts per identifier as typed, with or without an account (lockout.ts). Each attempt
+// is counted before its password is checked and a sign-in clears the count, so at rest it holds
+// the wrong ones. startedAt is the count's first attempt, then the lock's start once it locks.
 export const signInLockouts = pgTable("sign_in_lockouts", {
   subject: text().primaryKey(),
-  failures: integer().notNull(),
+  attempts: integer().notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
 });

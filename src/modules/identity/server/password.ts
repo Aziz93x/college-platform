@@ -9,7 +9,7 @@ import {
   temporaryPassword,
 } from "../domain/password-policy.ts";
 import { getAuth } from "./auth.ts";
-import { accountSubject, clearLockout } from "./lockout.ts";
+import { accountSubjects, clearLockouts } from "./lockout.ts";
 import { requestMeta } from "./request.ts";
 import { accounts, people, sessions, users } from "./schema.ts";
 
@@ -121,7 +121,12 @@ export async function resetPassword(
       .update(users)
       .set({ mustChangePassword: true })
       .where(eq(users.id, target.userId));
-    await clearLockout(tx, accountSubject(target.userId));
+    const [identity] = await tx
+      .select({ email: users.email, employeeNumber: people.employeeNumber })
+      .from(users)
+      .innerJoin(people, eq(people.userId, users.id))
+      .where(eq(users.id, target.userId));
+    if (identity) await clearLockouts(tx, accountSubjects(identity));
     await tx.delete(sessions).where(eq(sessions.userId, target.userId));
     await writeAudit(
       {

@@ -8,10 +8,10 @@ import { getSetting } from "../../settings/index.ts";
 import { type Identifier, parseIdentifier } from "../domain/identifier.ts";
 import { getAuth } from "./auth.ts";
 import {
-  accountSubject,
-  clearLockout,
-  countFailure,
-  lockEnd,
+  accountSubjects,
+  beginAttempt,
+  clearLockouts,
+  subjectOf,
 } from "./lockout.ts";
 import { requestMeta } from "./request.ts";
 import { people, sessions, signInAttempts, users } from "./schema.ts";
@@ -51,7 +51,11 @@ async function findAccount(db: Db, collegeId: string, identifier: Identifier) {
           eq(people.employeeNumber, identifier.employeeNumber),
         );
   const [account] = await db
-    .select({ userId: users.id, email: users.email })
+    .select({
+      userId: users.id,
+      email: users.email,
+      employeeNumber: people.employeeNumber,
+    })
     .from(users)
     .innerJoin(people, eq(people.userId, users.id))
     .where(match);
@@ -92,10 +96,10 @@ const minutesUntil = (end: Date, now: Date) =>
   Math.max(1, Math.ceil((end.getTime() - now.getTime()) / MINUTE_MS));
 
 // Signs a person in with their employee number or email and their password. The answer never
-// tells a wrong identifier from a wrong password. Limits apply per account and address, so a
-// workshop behind one address does not block itself (ADR-0008). The threshold of wrong passwords
-// within the lockout's minutes, from any address, locks the account, or what was typed when no
-// account matches (lockout.ts). Better Auth works on the shared database, so this does too.
+// tells a wrong identifier from a wrong password. Limits apply per identifier and address, so a
+// workshop behind one address does not block itself (ADR-0008). The threshold of attempts within
+// the lockout's minutes of the first, from any address, locks what was typed, with or without an
+// account (lockout.ts). Better Auth works on the shared database, so this does too.
 export async function signIn(
   input: SignInInput,
   requestHeaders: Headers,
@@ -109,22 +113,22 @@ export async function signIn(
   const identifier = parseIdentifier(input.identifier);
   const account = await findAccount(db, collegeId, identifier);
 
-  // The account, or what was typed when there is none, together with the address.
-  const subject = account
-    ? accountSubject(account.userId)
-    : `typed:${identifier.kind === "email" ? identifier.email : identifier.employeeNumber}`;
+  // What was typed, together with the address.
+  const subject = subjectOf(identifier);
   const attemptKey = `${subject}|${meta.ip ?? "unknown"}`;
   const blockedUntil = await countAttempt(db, attemptKey, limits, now);
   if (blockedUntil) {
     return { status: "throttled", minutes: minutesUntil(blockedUntil, now) };
   }
-  const locked = await lockEnd(db, subject, limits, now);
-  if (locked) return { status: "locked", minutes: minutesUntil(locked, now) };
+  const lockout = await beginAttempt(db, subject, limits, now);
+  if (lockout.place > limits.lockoutThreshold) {
+    return { status: "locked", minutes: minutesUntil(lockout.ends, now) };
+  }
 
   // A wrong password, or no account: the same count, lock and answer.
   const failed = async (): Promise<SignInResult> => {
-    const lockedUntil = await countFailure(db, subject, limits, now);
-    if (!lockedUntil) return { status: "invalid" };
+    if (lockout.place < limits.lockoutThreshold) return { status: "invalid" };
+    // This attempt reached the threshold, so its lock starts now.
     if (account) {
       await writeAudit(
         {
@@ -133,13 +137,13 @@ export async function signIn(
           action: "account.lock",
           entityType: "user",
           entityId: account.userId,
-          diff: { lockedUntil: lockedUntil.toISOString() },
+          diff: { lockedUntil: lockout.ends.toISOString() },
           ...meta,
         },
         db,
       );
     }
-    return { status: "locked", minutes: minutesUntil(lockedUntil, now) };
+    return { status: "locked", minutes: minutesUntil(lockout.ends, now) };
   };
 
   if (!account) {
@@ -165,7 +169,7 @@ export async function signIn(
     return failed();
   }
 
-  await clearLockout(db, subject);
+  await clearLockouts(db, accountSubjects(account));
   await db.delete(signInAttempts).where(eq(signInAttempts.key, attemptKey));
   if ("twoFactorRedirect" in result) return { status: "twoFactor" };
   await db

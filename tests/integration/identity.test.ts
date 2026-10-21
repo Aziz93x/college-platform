@@ -174,7 +174,7 @@ describe("signIn", () => {
     ).toEqual([{ remembered: true }, { remembered: false }]);
   });
 
-  it("locks the account after the threshold of wrong passwords in a row, from any address, and audits the lock", async () => {
+  it("locks the account after the threshold of wrong passwords, from any address, and audits the lock once", async () => {
     const { userId, employeeNumber } = await person();
     const now = new Date();
     const wrong = (ip: string) =>
@@ -231,6 +231,79 @@ describe("signIn", () => {
     expect(await answers("777777")).toEqual([...expected, invalid]);
   });
 
+  it("counts an account's email and employee number apart, as two identifiers with no account, and a sign-in clears both", async () => {
+    const { email, employeeNumber } = await person();
+    const now = new Date();
+    // Five wrong passwords on one identifier, then one on the other.
+    const answers = async (first: string, second: string) => {
+      const results = [];
+      for (let index = 1; index <= 5; index++) {
+        results.push(
+          await attempt(
+            { identifier: first, password: "wrong-password" },
+            `10.0.12.${index}`,
+            now,
+          ),
+        );
+      }
+      results.push(
+        await attempt(
+          { identifier: second, password: "wrong-password" },
+          "10.0.12.9",
+          now,
+        ),
+      );
+      return results;
+    };
+
+    const invalid = { status: "invalid" };
+    const expected = [invalid, invalid, invalid, invalid];
+    expect(await answers(email, employeeNumber)).toEqual([
+      ...expected,
+      { status: "locked", minutes: 15 },
+      invalid,
+    ]);
+    expect(await answers("nobody@college.example", "444444")).toEqual([
+      ...expected,
+      { status: "locked", minutes: 15 },
+      invalid,
+    ]);
+
+    // Signing in with the other identifier lifts the email's lock too.
+    expect(
+      await attempt({ identifier: employeeNumber }, "10.0.12.9", now),
+    ).toEqual({ status: "signedIn" });
+    expect(await attempt({ identifier: email }, "10.0.12.9", now)).toEqual({
+      status: "signedIn",
+    });
+  });
+
+  it("counts attempts that race each other before checking them, so they lock once", async () => {
+    const { userId, employeeNumber } = await person();
+    const now = new Date();
+
+    const answers = await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        attempt(
+          { identifier: employeeNumber, password: "wrong-password" },
+          `10.0.13.${index}`,
+          now,
+        ),
+      ),
+    );
+
+    expect(answers.filter(({ status }) => status === "invalid")).toHaveLength(
+      4,
+    );
+    expect(answers.filter(({ status }) => status === "locked")).toHaveLength(8);
+    expect(
+      await query(
+        "select action from audit_events where entity_id = $1 and action = 'account.lock'",
+        [userId],
+      ),
+    ).toEqual([{ action: "account.lock" }]);
+  });
+
   it("starts the lockout's count again after a sign-in", async () => {
     const { employeeNumber } = await person();
     const wrong = () =>
@@ -264,7 +337,7 @@ describe("signIn", () => {
     }
   });
 
-  describe("with five attempts per account and address", () => {
+  describe("with five attempts per identifier and address", () => {
     beforeAll(async () => {
       await store("auth.signInAttempts", 5);
       // High enough that the attempts run out before the account locks.

@@ -120,7 +120,7 @@ test("signs out from the account menu; the shell then sends back to the login pa
   await expect(page).toHaveURL("/");
 });
 
-test("one answer for any wrong sign-in, and a lock after five wrong passwords in a row", async ({
+test("one answer for any wrong sign-in, and a lock after five wrong passwords", async ({
   page,
   account,
 }) => {

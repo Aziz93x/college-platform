@@ -788,7 +788,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from Step 6**
 
 - `createAccount()` makes a person with a credential account and, without a password, a temporary one to show once; `resetPassword()` (`src/modules/identity/server/password.ts`) gives a temporary password, ends every session, lifts a lockout, forces a change at the next sign-in and writes `account.resetPassword` without the password. The screens call them through `viewerAction` with `accounts.resetPassword` and the re-authentication step from Step 7.
-- "Locked" in the account states is the account's row in `sign_in_lockouts` (subject `user:<id>`) while `lockEnd()` in `src/modules/identity/server/lockout.ts` returns a time; the lockout sets it, and a reset lifts it (Audit 2). Today the only way back for an admin who has lost both the password and the authenticator is another admin (docs/BACKLOG.md).
+- "Locked" in the account states means that one of the account's two rows in `sign_in_lockouts` (`typed:` and its email, or its employee number) reached `auth.lockoutThreshold` attempts less than `auth.lockoutMinutes` ago (`src/modules/identity/server/lockout.ts`). A reset lifts both (Audit 2). Today the only way back for an admin who has lost both the password and the authenticator is another admin (docs/BACKLOG.md).
 
 **Note from Audit 2:** `createAccount()` writes no audit event itself; only `createFirstAdmin()` adds `account.create`. This step's import and invite actions write it too.
 
