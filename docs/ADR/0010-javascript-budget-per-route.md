@@ -18,11 +18,11 @@ Lighthouse's transfer sizes for the login page break down as follows:
 | tailwind-merge | 9 KiB |
 | The platform's own code | the rest, about 29 KiB |
 
-React and Next.js alone leave 25 KiB of the 170 for everything else, less than the message formatter and tailwind-merge together.
+React and Next.js alone leave 25 KiB of the 170 for everything else: the message formatter and tailwind-merge take 22 of them, and the platform's own code is about 29 KiB.
 
 ## Options
 
-- **A. Hold 170 KB.** Take Motion and the BeUI pieces built on it off every route, and move message formatting and class merging off the client. This undoes the owner's direction for motion (docs/design/beui-map.md), and still leaves about 3 KiB for the platform's own code.
+- **A. Hold 170 KB.** Take Motion and the BeUI pieces built on it off every route, and move message formatting and class merging off the client. This undoes the owner's direction for motion (docs/design/beui-map.md), and the 25 KiB left after React and Next.js is still less than the platform's own code today (about 29 KiB).
 - **B. A measured budget (recommended).** 250 KiB of script per route on the wire (256,000 bytes), which Lighthouse CI asserts as an error from Step 40. Every step that adds client code keeps the routes under it, and Step 40 tries to keep Motion's feature bundle off the routes that do not animate.
 - **C. Budget the platform's own code only.** 170 KB for everything but React and Next.js. This needs a bundle analysis per route that Lighthouse does not give, so it adds a script to maintain.
 

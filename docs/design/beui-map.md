@@ -50,7 +50,7 @@ Where a BeUI piece serves a job, it is the component for that job everywhere; th
 | Checkbox | Motion: checkbox | `ui/checkbox` |
 | Command palette | Blocks: command palette | `ui/command`, and cmdk |
 | Sheet and drawer | Motion: bottom sheet | `ui/sheet`, `ui/drawer`, and vaul |
-| The account menu, a row's actions | Blocks: bloom menu (5), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
+| The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
 | Yes or no, a choice, groups, a description | Motion: switch, select, tabs, popover (Step 7) | `ui/switch`, `ui/select`, `ui/tabs`, `ui/popover`, once Step 7 adopts them |
 
 The toast stays Sonner until the same review decides on BeUI's animated toast stack (docs/BACKLOG.md).

@@ -231,3 +231,92 @@ Fix: record the limits in ADR-0009. Write one audit event per lock the first tim
 3. **Store the Step 6 login settings in `seed:demo`.** Step 4 stores `locale.language` so that "the app and its tests read stored values" (db/seed/demo/settings.ts:9). Add the demo college's own `pilot.bannerText` and a `platform.name`.
    - Benefit: demonstrations and the end-to-end smoke exercise the stored-value path of the login page and the pilot banner, and Step 7's settings screen opens on real values.
    - Cost: 15 min, plus the expected rows in tests/integration/seed-demo.test.ts.
+
+## Resolution (review/audit-06)
+
+- Branch `review/audit-06` from `main` at `7e4184d`, 2026-10-21. The `/audit` command asks for three things: fix every blocker and major, apply the enhancements that stay in the plan and take under an hour, and backlog the larger ones. Each minor finding gets a disposition here. The cheap ones that make a "Done when" claim or a CLAUDE.md rule hold were fixed. The others go where a later session reads them: a note under the affected step in `docs/PLAN.md`, or `docs/BACKLOG.md` for lead review A.
+- One more finding came from outside the audit. While capturing the Step 6 screens for the progress page, a long email ran under the identifier's icon.
+- A second pass reviewed the first round of fixes. "Second pass" below lists what it found; the table shows the final state.
+- Commits are named by title. The squash-merge to `main` is titled `audit: steps 4-6`. Some intermediate commits fail tests on their own (the second pass ran them), so only the squashed tree counts.
+- `seed:demo` is unchanged: its demo accounts work with the new lockout as they are.
+
+| Finding | Disposition | Commit |
+| --- | --- | --- |
+| Major 1: the script budget | **Partly fixed; the budget itself is the owner's.** Sonner's toaster mounts only on `/design`, where toasts show, so every other page loads about 10.6 KiB less: `/` 246.6 KiB, `/today` 248.0 KiB. `lighthouserc.json` warns above 170 KiB (`resource-summary:script:size`). ADR-0010 (proposed) recommends a measured budget of 250 KiB per route, asserted as an error from Step 40, and section 4's line points to it. A note under Step 40 also asks Step 40 to keep Motion off the routes that do not animate. The shell's end-to-end test now checks that `/today` has no toast region. | `perf: mount the toaster only on the design catalog, and warn on script size`; `test(e2e): the shell carries no toaster until a screen shows toasts`; `docs: hand the deferred audit 2 items …` |
+| Major 2: the lockout tells which accounts exist | **Fixed, more widely than proposed.** The proposed fix, counting unknown identifiers for a while, still told the two apart: an account's count never lapsed, so four wrong passwords, a wait and one more locked only real accounts. The first round put accounts and typed identifiers on one code path in `sign_in_lockouts`. The second pass then found that keying an account's lock on the account linked its two identifiers (second-pass major 1). Attempts now count against what was typed, for everyone. Each attempt is counted before its password is checked, and the attempt that reaches the threshold starts the lock. Five attempts within 15 minutes of the first lock that identifier for 15 minutes, from any address. Migration `0003` drops `users.failed_sign_ins` and `users.locked_until`. A sign-in or a reset clears both of an account's identifiers. ADR-0009 #3 and the Step 10 note follow. | `fix(identity): lock what was typed with no account as an account locks`; `fix(identity): count sign-in attempts per typed identifier, before checking them` |
+| Major 3: two-factor codes in Arabic-Indic digits | **Fixed.** Both code fields go through `latinDigits()`; `src/app/(auth)/actions.test.ts` fails without it. | `fix(auth): read two-factor codes typed in Arabic-Indic digits` |
+| Extra: typed text ran under a field's icons | **Fixed.** `dir="auto"` turned a field's own direction to left to right once an email or a Latin password was typed, so its logical padding swapped sides. The motion input now takes no `dir`: its padding and icons follow the page, and its text takes its direction from what is typed (`unicode-bidi: plaintext`, which the HTML rendering rules use for `dir=auto` text fields). The end-to-end test measures each field's text box against its icons and the show-password button. It fails without the fix on desktop and iPhone. | `fix(ui): keep typed text clear of a field's icons`; `test(e2e): axe waits for every boundary to hydrate; …` |
+| Minor 1: the Lighthouse gate takes the best of three | **Note under Step 40.** Assert the median after a warm-up run, or record the choice in ADR-0001. | `docs: hand the deferred audit 2 items …` |
+| Minor 2: axe ran before hydration | **Fixed.** The helper waits until React owns every element of `main`, which covers the Suspense boundaries React hydrates in a later pass, and fails if Arabic text comes back. Without any wait, two axe tests fail that check. | `test(e2e): run axe on the hydrated page, …`; `test(e2e): axe waits for every boundary to hydrate; …` |
+| Minor 3: untested Step 6 behaviors | **Fixed.** Integration tests cover two-factor setup and its two events, a code sign-in (remembering the device only when asked) and a backup code with their events, sign-out and its event, and the hash for an unknown identifier. `viewer.test.ts` covers the admins' two-factor rule. The RFC 6238 helpers moved to `tests/support/totp.ts`. | `test(auth): cover two-factor sign-in and setup, sign-out and the admin rule` |
+| Minor 4: `/design` answers 200 | **ADR-0009 #11 corrected** to say what a laptop gets. | `docs: hand the deferred audit 2 items …` |
+| Minor 5: findings left in PR bodies; ADR-0007 overdue | **The budget is now ADR-0010 with a Step 40 note, and PR #6's 390 px question is in `docs/BACKLOG.md`. ADR-0007 goes to the owner** (checklist below). | `docs: hand the deferred audit 2 items …` |
+| Minor 6: `e2e:screens` captures | **`docs/BACKLOG.md`**, before `/ux-review 1-10`. | `docs: hand the deferred audit 2 items …` |
+| Minor 7: two component sets | **`docs/design/beui-map.md` names one component per job**, and the backlog item now covers every pair for the UX review of Steps 1 to 10. | `docs: hand the deferred audit 2 items …` |
+| Minor 8: the baselines job | **`docs/BACKLOG.md`; the CodeQL alert stays with the owner.** | `docs: hand the deferred audit 2 items …` |
+| Minor 9: no loading state on the sign-in pages | **Fixed.** `src/app/(auth)/loading.tsx` is shaped like the form. `tests/unit/loading-states.test.ts` fails when a page under `src/app` has no `loading.tsx` above it; without the new file it lists the four sign-in pages. Lighthouse afterwards: `/` LCP 1.72-1.73 s, CLS 0.002. | `feat(auth): a loading state for the sign-in pages` |
+| Minor 10: the demo secrets behind Step 41's tunnel | **Note under Step 41.** | `docs: hand the deferred audit 2 items …` |
+| Minor 11: the two-factor lock | **ADR-0009 consequences name its limits; a note under Step 11 adds its event.** | `docs: hand the deferred audit 2 items …` |
+| Enhancement 1: WOFF2 | **`docs/BACKLOG.md`**, once the font licence allows converting the files (ADR-0004). | `docs: hand the deferred audit 2 items …` |
+| Enhancement 2: settings once per request | **Note under Step 7**, whose per-request `getSetting` cache this is. | `docs: hand the deferred audit 2 items …` |
+| Enhancement 3: the demo college's login settings | **Note under Step 7**, with its seeded defaults. The `/design` baselines show the pilot banner, so they change with its text. | `docs: hand the deferred audit 2 items …` |
+| Plan rules: the auth actions in Step 9's matrix; `account.create` in Step 10 | **Notes under Steps 9 and 10.** | `docs: hand the deferred audit 2 items …` |
+
+### Second pass
+
+A review of the first round of fixes (at `b6de258`) found the following. It ran its probes outside the repository.
+
+| Finding | Fix |
+| --- | --- |
+| Major: the lock was keyed on the account, so locking a person's email also locked their employee number. One request per candidate number then told which number belonged to a guessable email | Attempts count against what was typed, for everyone, and the per-address limit follows the same key. An account's two identifiers count apart, as two identifiers with no account do; a sign-in or a reset clears both. The cost: someone guessing a password gets twice the attempts per window (ten every 15 minutes by default; ADR-0009 consequences). New test: "counts an account's email and employee number apart, …", which fails on `b6de258` |
+| Minor: attempts checked the lock, then the password, then counted, so attempts that raced each other were all checked past the threshold (16 at once wrote 12 lock events). Not a regression | Each attempt is counted in one statement before its password is checked. The attempt that reaches the threshold starts the lock and writes the one event; later attempts are refused unchecked. New test: 12 racing attempts give 4 `invalid`, 8 `locked` and one `account.lock` (8 on `b6de258`) |
+| Minor: the unknown path takes about 2.5 ms less (Better Auth's lookups and log line) | Not equalized. The lockout leaves five timed attempts per identifier in each window, too few to tell a few milliseconds apart through a network. ADR-0009 #3 says "about as long" and why |
+| Minor: the axe wait covered the router root, not the Suspense boundaries under `loading.tsx` | The helper waits until React owns every element of `main`, except the hidden fields of a server-action form |
+| Minor: the icon test measured the show-password button's icon, not the button | It measures the button; with `dir="auto"` back on the password field alone, it fails |
+| Docs: ADR-0010's arithmetic, "in a row", the window "within N minutes of the first", the bloom menu's step, the changelog's claims | Corrected. The changelog's axe line now matches the helper |
+
+### Re-run results (local, on the final tree)
+
+| Command | Result |
+| --- | --- |
+| `pnpm check:all` | exit 0 · `Checked 257 files … No fixes applied.` · `Test Files  54 passed (54)` · `Tests  296 passed (296)` · `check:hardcode passed.` · `✔ no dependency violations found (236 modules, 709 dependencies cruised)` |
+| `pnpm check:unused` · `pnpm db:generate` | knip exit 0 · `No schema changes, nothing to migrate` |
+| `pnpm exec playwright test --config playwright.local.config.ts --project setup --project desktop --project iphone` (dev server; the local config only points at the container's Chromium) | `138 passed (3.8m)` · `12 skipped`, all by design |
+| `pnpm lighthouse` on the standalone build (after the toaster move and the loading state) | `/`: performance 0.97, 0.96, 0.98 · LCP 1729, 1728, 1716 ms · CLS 0.002. `/today`: 0.98, 0.99, 0.99 · LCP 1499, 1553, 1573 ms. Accessibility and best practices 1 everywhere. Script transfer: 252,550 and 253,988 bytes, a warning above 174,080 |
+| The new lockout tests on the previous head (`b6de258`, in a scratch worktree) | `Tests  2 failed \| 20 passed (22)`: the two identifiers answered `locked` for the account's number, and the race wrote 8 `account.lock` events |
+
+**Mutation checks.** I backed up each file, applied the mutation, ran only the named tests, then restored the file and checked its sha256.
+
+| Mutation | Result |
+| --- | --- |
+| Unknown identifiers answer `invalid` without counting | "answers what was typed with no account exactly as an account, …" fails |
+| Counts never lapse (no delete of ended rows) | three lockout tests fail, among them "counts wrong passwords for the lockout's minutes, …" |
+| A sign-in clears only what was typed | "… and a sign-in clears both" fails |
+| A reset leaves the locks | the resetPassword test fails |
+| Attempts past the threshold are checked | three tests fail, among them "counts attempts that race each other …" |
+| The two code fields without `latinDigits()` | actions.test.ts fails (first round) |
+| `requireViewer` never sends an admin to set up two-factor | viewer.test.ts fails |
+| A code sign-in never marks the device remembered | "signs in with the app's code, remembers the device only when …" fails |
+| Setup start or sign-out writes another action | their tests fail |
+| An unknown identifier is not hashed | "answers alike for an unknown account and a wrong password" fails |
+| `dir="auto"` back on the sign-in fields | the icon test fails on desktop and iPhone; on the password field alone it fails too |
+| No hydration wait in the axe helper | two axe tests fail: "Arabic text … came back" |
+| No `(auth)/loading.tsx` | loading-states.test.ts lists the four sign-in pages |
+
+### Known limits
+
+- Someone guessing a password gets ten attempts per account in each 15 minutes: five through the email and five through the employee number. Counting them together would link the two identifiers again.
+- An unknown identifier takes a few milliseconds less than a wrong password (ADR-0009 #3).
+- `lighthouserc.json` only warns on the script budget until the owner accepts ADR-0010 and Step 40 makes it an error.
+
+### Hand-off
+
+- **docs/PLAN.md:** notes from Audit 2 under Steps 7, 9, 10, 11, 40 and 41, and section 4's budget line points to ADR-0010.
+- **docs/BACKLOG.md:** one component per job, the `e2e:screens` captures, the baselines job, WOFF2 after the licence, and digits in passwords. The last four are listed for lead review A.
+
+### You: owner checklist
+
+- [ ] ADR-0010: accept the measured script budget (250 KiB per route), or choose option A or C, before Step 40.
+- [ ] ADR-0007 is still "proposed": accept the per-request locale read, or choose the cached alternative, before Step 7 builds `setSetting`.
+- [ ] The CodeQL alert on the `baselines` job: dismiss it with a written reason, or ask for the job to be dropped (docs/BACKLOG.md).
+- [ ] Still open from Audit 1: protect `main` (the ruleset checklist in docs/reviews/audit-03.md) and install Renovate.
