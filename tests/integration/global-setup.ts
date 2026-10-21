@@ -2,6 +2,7 @@ import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { Client } from "pg";
 import type { TestProject } from "vitest/node";
 import { migrateDatabase } from "../../db/migrate.ts";
+import { POSTGRES_IMAGE } from "../support/postgres.ts";
 import { databaseUrl, TEMPLATE_DATABASE } from "./support/urls.ts";
 
 declare module "vitest" {
@@ -12,9 +13,7 @@ declare module "vitest" {
 
 // One PostgreSQL container per run, with a migrated template that each test file clones.
 export default async function setup(project: TestProject) {
-  const container = await new PostgreSqlContainer(
-    "postgres:18.6-alpine",
-  ).start();
+  const container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
   const adminUrl = container.getConnectionUri();
   try {
     const client = new Client({ connectionString: adminUrl });

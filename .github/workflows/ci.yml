@@ -139,3 +139,61 @@ jobs:
               echo "$image did not refuse an invalid environment (exit $status)"; exit 1
             fi
           done
+
+  # The production images on a network with no route out (ADR-0008, Step 41): built, saved with
+  # their checksums and removed, then started from those archives with no registry pull, as approved
+  # media would bring them to a server inside the college. A request the page makes outside the app's
+  # origin fails its test, because this runner's browser still reaches the internet.
+  stack:
+    name: Production stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the images, save them with their checksums and remove them
+        run: |
+          compose="docker compose -f docker/compose.yml --env-file docker/.env.example"
+          $compose build
+          $compose pull caddy postgres
+          mkdir -p "$RUNNER_TEMP/images"
+          images=$($compose config --images | sort -u)
+          docker save -o "$RUNNER_TEMP/images/images.tar" $images
+          (cd "$RUNNER_TEMP/images" && sha256sum images.tar > SHA256SUMS)
+          docker image rm $images
+      - name: Start the demo stack from the archives
+        run: pnpm local:up --demo --images "$RUNNER_TEMP/images"
+      - name: Only Caddy publishes ports, and the stack has no route out
+        run: |
+          published=$(docker ps --filter label=com.docker.compose.project=college-demo --format '{{.Names}} {{.Ports}}' | grep -- '->')
+          echo "$published"
+          test "$(wc -l <<< "$published")" -eq 1 && grep -q caddy <<< "$published"
+          docker compose -p college-demo -f docker/compose.yml --env-file docker/.env exec -T worker \
+            node -e "fetch('https://github.com', { signal: AbortSignal.timeout(5000) }).then(() => process.exit(1), () => console.log('no route out'))"
+      - name: The worker's Chromium prints an Arabic page to PDF on that network
+        run: docker compose -p college-demo -f docker/compose.yml --env-file docker/.env exec -T worker node worker/print-check.ts
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: The end-to-end smoke against Caddy
+        run: pnpm exec playwright test --config e2e/stack.config.ts
+      - name: The stack comes back by itself after Docker restarts
+        run: |
+          sudo systemctl restart docker
+          for attempt in $(seq 1 60); do
+            curl -sfk -o /dev/null https://localhost/readyz && echo "ready after restart" && exit 0
+            sleep 2
+          done
+          docker ps -a
+          exit 1
+      - if: failure()
+        run: docker compose -p college-demo -f docker/compose.yml --env-file docker/.env logs --no-color --tail 200
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stack-traces
+          path: test-results/stack/
+          retention-days: 14

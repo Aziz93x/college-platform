@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { symmetricDecrypt, verifyPassword } from "better-auth/crypto";
 import type { Pool } from "pg";
 import { afterAll, expect, it } from "vitest";
@@ -156,6 +157,42 @@ it("refuses to run when APP_ENV is production or unset, and writes nothing", asy
     );
   }
   expect(await collegeNames(pool)).toEqual([]);
+});
+
+it("in staging, signs the accounts in with the environment's own demo secrets, and needs them", async () => {
+  const { url, pool } = await freshDatabase();
+  const staging = scriptEnv(url, { APP_ENV: "staging" });
+
+  const refused = await seedDemo([], staging);
+  expect(refused.code).toBe(1);
+  expect(refused.stderr).toContain(
+    "DEMO_PASSWORD: required when APP_ENV=staging",
+  );
+  expect(refused.stderr).toContain(
+    "DEMO_TOTP_SECRET: required when APP_ENV=staging",
+  );
+  expect(await collegeNames(pool)).toEqual([]);
+
+  const secrets = {
+    DEMO_PASSWORD: randomBytes(12).toString("base64url"),
+    DEMO_TOTP_SECRET: randomBytes(24).toString("base64url"),
+  };
+  const seeded = await seedDemo([], { ...staging, ...secrets });
+  expect(seeded.code, seeded.stderr).toBe(0);
+  const { rows } = await pool.query(
+    "select password from accounts where provider_id = 'credential'",
+  );
+  expect(rows).toHaveLength(3);
+  for (const { password } of rows) {
+    expect(
+      await verifyPassword({ hash: password, password: secrets.DEMO_PASSWORD }),
+    ).toBe(true);
+  }
+  const [{ secret }] = (await pool.query("select secret from two_factors"))
+    .rows;
+  expect(
+    await symmetricDecrypt({ key: staging.AUTH_SECRET ?? "", data: secret }),
+  ).toBe(secrets.DEMO_TOTP_SECRET);
 });
 
 it("exits 1 when --seed is not a whole number from 0 to 2^32 - 1", async () => {

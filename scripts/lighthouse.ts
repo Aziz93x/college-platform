@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { DEMO_PASSWORD, demoAccounts } from "../db/seed/demo/accounts.ts";
+import { demoAccounts, demoSecrets } from "../db/seed/demo/accounts.ts";
 import { getAuth } from "../src/modules/identity/index.ts";
+import { parseDemoEnv } from "../src/platform/config/env.ts";
 import { getPool } from "../src/platform/db/client.ts";
 
 // pnpm lighthouse: section 4's targets on phone emulation (lighthouserc.json) for the login page,
@@ -18,7 +19,7 @@ const lhci = (args: string[]) =>
 const { headers } = await getAuth().api.signInEmail({
   body: {
     email: demoAccounts.trainer.email,
-    password: DEMO_PASSWORD,
+    password: demoSecrets(parseDemoEnv(process.env)).password,
     rememberMe: false,
   },
   returnHeaders: true,

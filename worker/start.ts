@@ -15,7 +15,13 @@ export async function startWorker({
   /** Tests pass a pg-boss TestClock to run the schedule without waiting. */
   clock?: Clock;
 }) {
-  const boss = new PgBoss({ connectionString: databaseUrl, clock });
+  // pnpm db:migrate installs and upgrades pg-boss's schema as the tables' owner; the worker's role
+  // only reads and writes its rows.
+  const boss = new PgBoss({
+    connectionString: databaseUrl,
+    clock,
+    migrate: false,
+  });
   // pg-boss re-emits lost connections and job failures; with no listener, the first one crashes the worker.
   boss.on("error", (error) =>
     logger.error({ reason: error.message }, "pg-boss error"),

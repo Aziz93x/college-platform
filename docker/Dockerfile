@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-# Two targets: app (Next standalone) and worker (jobs, with Chromium and poppler).
+# Two targets: app (Next standalone) and worker (jobs, with Chromium and poppler). The worker image
+# also runs the stack's one-shot jobs: migrations, the base seed, admin:create and seed:demo.
 # Every base image and package here exists for amd64 and arm64 (Section K builds arm64).
 ARG NODE_IMAGE=node:24.22.0-alpine3.24
 ARG ALPINE_IMAGE=alpine:3.24.2
@@ -39,11 +40,17 @@ CMD ["node", "server.js"]
 
 FROM ${NODE_IMAGE} AS worker
 RUN apk add --no-cache chromium poppler-utils
+# PDFs use the identity font, which ships in the image like every asset (ADR-0008).
+COPY --from=build /repo/src/styles/fonts/ /usr/share/fonts/identity/
+RUN fc-cache -f
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=prod-deps --chown=node:node /repo/node_modules ./node_modules
 COPY --chown=node:node package.json ./
 COPY --chown=node:node worker ./worker
-COPY --chown=node:node src/platform ./src/platform
+COPY --chown=node:node src ./src
+COPY --chown=node:node db ./db
+COPY --chown=node:node messages ./messages
+COPY --chown=node:node scripts/admin-create.ts ./scripts/
 USER node
 CMD ["node", "worker/index.ts"]

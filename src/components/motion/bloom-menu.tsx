@@ -139,6 +139,10 @@ export function BloomMenu({
             <m.div
               key="panel"
               layoutId={layoutId}
+              // Measured only when the menu opens or closes: a render while it opens (focus moving to
+              // the pressed item) would move the items under a finger mid-press, and the press would
+              // land outside them.
+              layoutDependency={open}
               transition={morph}
               // Focus leaving the open menu closes it, as a press outside does.
               onBlur={(event) => {
@@ -153,6 +157,7 @@ export function BloomMenu({
               <m.div
                 // Undoes the box's morph scaling, so the content stays crisp while it grows.
                 layout
+                layoutDependency={open}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: reduce ? 0 : 0.12, duration: 0.2 }}

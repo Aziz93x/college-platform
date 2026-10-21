@@ -26,6 +26,20 @@
     {
       "matchPackageNames": ["node"],
       "allowedVersions": "<25"
+    },
+    {
+      "description": "Every copy of the PostgreSQL image: compose, CI and tests/support/postgres.ts",
+      "matchDepNames": ["postgres"],
+      "groupName": "PostgreSQL image"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The PostgreSQL image the test containers run",
+      "managerFilePatterns": ["/^tests/support/postgres\\.ts$/"],
+      "matchStrings": ["\"(?<depName>postgres):(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "docker"
     }
   ]
 }

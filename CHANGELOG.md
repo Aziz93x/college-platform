@@ -4,6 +4,18 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 41: production-like run on the laptop
+
+- `pnpm local:up` runs the platform on the production images: Caddy on `https://localhost` and on the laptop's LAN address, with its own certificate authority, in front of the app, the worker and PostgreSQL, which sit on a network with no route out. Only Caddy publishes ports, and the stack comes back by itself when Docker restarts. `pnpm local:down` stops it. `docs/ops/local.md` explains the run, trusting Caddy's root on a laptop or a phone, and what to do after a restart.
+- Secrets go into `docker/.env`, written from `docker/.env.example` without printing them, and kept across runs.
+- Migrations run once per start as the tables' owner, in a one-shot `migrate` service. The app and the worker connect as a role that owns no table and is no superuser, so the audit log's triggers bind them.
+- `pnpm local:run admin:create` creates the first admin inside the stack, since the database publishes no port, and then refuses to run again.
+- Demo mode (`pnpm local:up --demo`) is a separate stack with its own data and its own generated demo password and authenticator secret. `pnpm local:share` opens a temporary HTTPS tunnel to it alone.
+- `pnpm local:up --images` starts images from `docker save` archives after checking them against their checksums, with no registry pull, as option A's updates would arrive.
+- A new CI job, Production stack, builds the images, saves and loads them back, and runs the end-to-end smoke against Caddy on the demo accounts. It also prints an Arabic page to PDF with the worker's Chromium on the isolated network, and restarts Docker to see the stack come back. Every end-to-end test now fails when the page asks for anything outside the platform's origin.
+- A press on the account menu while it opens reaches its item; before, a quick press on "sign out" could do nothing.
+- The PostgreSQL image tag lives in one test constant, and Renovate updates every copy in one pull request.
+
 ### Lead review A: section A (Steps 1 to 6)
 
 - Session tokens stay out of the logs. A failed query's values, which can hold a session token, used to reach both Better Auth's console line and the platform's "server action failed" line. One error serializer, for the app and the worker, keeps the query and drops its values. Better Auth logs through the platform's logger as JSON lines, and action failures carry the request's id.

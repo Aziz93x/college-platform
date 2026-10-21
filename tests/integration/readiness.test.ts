@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { migrateDatabase } from "../../db/migrate.ts";
 import { createDb } from "../../src/platform/db/client.ts";
 import { checkReadiness } from "../../src/platform/health/readiness.ts";
+import { POSTGRES_IMAGE } from "../support/postgres.ts";
 
 // A container of its own, because the last test stops it.
 let container: StartedPostgreSqlContainer;
@@ -14,7 +15,7 @@ let pool: Pool;
 let stopped = false;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("postgres:18.6-alpine").start();
+  container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
   ({ pool } = createDb(container.getConnectionUri()));
 });
 

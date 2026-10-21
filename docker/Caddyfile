@@ -1,4 +1,17 @@
-{$SITE_ADDRESS} {
+{
+	# A phone that opens the laptop's LAN address sends no server name: give it that address's
+	# certificate. Caddy's own root stays in its volume; docs/ops/local.md exports it.
+	default_sni {$DEFAULT_SNI:localhost}
+	skip_install_trust
+}
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# pnpm local:share's tunnel comes in here: plain HTTP on the Docker network, never published.
+:8080 {
 	encode zstd gzip
 	reverse_proxy app:3000
 }

@@ -1,5 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["scripts/*.mjs", "e2e/auth.setup.ts"],
-  "ignoreBinaries": ["gitleaks"]
+  "entry": ["scripts/*.mjs", "worker/print-check.ts"],
+  "ignoreBinaries": ["gitleaks", "chromium-browser", "pdffonts", "pdftotext"],
+  "playwright": {
+    "config": ["playwright.config.ts", "e2e/stack.config.ts"]
+  }
 }
