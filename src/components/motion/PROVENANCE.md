@@ -6,10 +6,16 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 
 | Here | Upstream |
 | --- | --- |
+| `alert.tsx` | `components/motion/alert.tsx` |
+| `bloom-menu.tsx` | `components/motion/bloom-menu.tsx` |
 | `bottom-sheet.tsx` | `components/motion/bottom-sheet.tsx` |
+| `checkbox.tsx` | `components/motion/checkbox.tsx` |
 | `command-palette.tsx` | `components/motion/command-palette.tsx` |
 | `dock.tsx` | `components/motion/dock.tsx` |
+| `input.tsx` | `components/motion/input.tsx` |
+| `loader.tsx` | `components/motion/loader.tsx` |
 | `shared-layout-bg.tsx` | `components/motion/shared-layout-bg.tsx` |
+| `text-reveal.tsx` | `components/motion/text-reveal.tsx` |
 | `lib/ease.ts` | `lib/ease.ts` |
 | `lib/presence-gate.tsx` | `lib/presence-gate.tsx` |
 | `lib/use-focus-trap.ts` | `lib/hooks/use-focus-trap.ts` |
@@ -46,3 +52,13 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   `MotionProvider` (`motion-provider.tsx`, local), which loads Motion's features after the page
   has painted.
 - Imports point at this folder and at `@/components/ui/cn`.
+
+## Local changes from Step 6 (sign-in)
+
+- `input.tsx`: the label is required, and a field without a `value` stays uncontrolled, so a form action's reset empties it. The success state and its check mark are gone, `leftIcon` and `rightIcon` became `startIcon` and `endSlot` on logical sides, an optional `hint` shares the message line, and the error shake runs through the Web Animations API instead of Motion's `animate`. The field takes `rounded-lg`, the input border and the `alert` color for errors; `ref` is a prop (React 19).
+- `checkbox.tsx`: controlled and labelled only, without the indeterminate state; `name` adds a hidden field while it is checked, so it posts with its form as a native checkbox does. The label row is 44 px on a touch screen, and the check mark's English `<title>` is gone (the mark is hidden from assistive technology).
+- `alert.tsx`: two variants on the tokens, `info` (announced politely, `role="status"`) and `alert` (at once, `role="alert"`), each with its icon; `AlertTitle` and `AlertDescription` remain, and the close, action, context and `useAlert` parts, unused here, are gone.
+- `loader.tsx`: the spinner only, its turn a CSS animation (`animate-spin`), so it needs no client JavaScript and stops under reduced motion; it is announced only when given a label.
+- `text-reveal.tsx`: rewritten as a server component with the same look, word by word with a 90 ms stagger, rising out of a blur on BeUI's easing, as the CSS animation `--animate-reveal` in `src/styles/theme.css`, so the words paint with the page's HTML. The blur is 8 px, and under reduced motion the words are simply there.
+- `bloom-menu.tsx`: the trigger and the items come from props (`trigger`, `triggerLabel`, `heading`, `items` with links or actions and a busy state), and the panel opens from the trigger's top corner at the end instead of its center, as an account menu in a header does. Arrow keys follow the reading direction, the grid takes as many columns as items up to three, and the close button's label comes from the catalog.
+
