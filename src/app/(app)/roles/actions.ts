@@ -147,12 +147,11 @@ export const savePageOrderAction = viewerAction
   .action(async ({ parsedInput, ctx: { viewer } }) => {
     const role = await findRole(viewer.collegeId, parsedInput.roleId);
     if (!role) return { status: "notFound" as const };
-    const orders = await getSetting("navigation.order", {
-      collegeId: viewer.collegeId,
-    });
+    // Merged into the orders in force when it is saved, so another role's order saved at the same
+    // time stays.
     const result = await setSetting(
       "navigation.order",
-      { ...orders, [role.key]: parsedInput.order },
+      (orders) => ({ ...orders, [role.key]: parsedInput.order }),
       changeBy(viewer, await headers()),
     );
     if (result.status === "saved") refresh();

@@ -205,4 +205,89 @@ describe("setSetting and resetSetting", () => {
       ["setting.reset", { from: 8, to: 12 }],
     ]);
   });
+
+  // Two changes at once (Audit 3). The first is held after it writes its value, before its audit
+  // event, until the second waits on the database too; then both go on. Without one lock per key,
+  // the second would read the value from before the first.
+  async function atOnce(
+    first: () => Promise<unknown>,
+    second: () => Promise<unknown>,
+  ) {
+    const waiting = (count: number) =>
+      expect
+        .poll(
+          async () =>
+            (
+              await database.pool.query(
+                "select count(*)::int as count from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'",
+              )
+            ).rows[0].count,
+          { timeout: 5_000 },
+        )
+        .toBe(count);
+    const blocker = await database.pool.connect();
+    try {
+      await blocker.query("begin");
+      await blocker.query("lock table audit_events in exclusive mode");
+      const one = first();
+      await waiting(1);
+      const two = second();
+      await waiting(2);
+      await blocker.query("commit");
+      await Promise.all([one, two]);
+    } finally {
+      await blocker.query("rollback");
+      blocker.release();
+    }
+  }
+
+  it("runs two saves at once one after the other, so each records the value it changed", async () => {
+    await atOnce(
+      () => setSetting("auth.lockoutThreshold", 8, change(), database.db),
+      () => setSetting("auth.lockoutThreshold", 9, change(), database.db),
+    );
+    expect(
+      (await events("auth.lockoutThreshold")).map(({ diff }) => diff),
+    ).toEqual([
+      { from: 5, to: 8 },
+      { from: 8, to: 9 },
+    ]);
+  });
+
+  it("builds a value from the one in force when given a function, so two roles' page orders saved at once both stay", async () => {
+    await atOnce(
+      () =>
+        setSetting(
+          "navigation.order",
+          (orders) => ({ ...orders, head: ["today", "roles"] }),
+          change(),
+          database.db,
+        ),
+      () =>
+        setSetting(
+          "navigation.order",
+          (orders) => ({ ...orders, trainer: ["settings", "today"] }),
+          change(),
+          database.db,
+        ),
+    );
+    expect((await row("navigation.order")).value).toEqual({
+      head: ["today", "roles"],
+      trainer: ["settings", "today"],
+    });
+  });
+
+  it("runs a reset at the same time as a save after it, so the default is in force", async () => {
+    await atOnce(
+      () => setSetting("auth.reauthMinutes", 20, change(), database.db),
+      () => resetSetting("auth.reauthMinutes", change(), database.db),
+    );
+    expect(await row("auth.reauthMinutes")).toBeUndefined();
+    expect(
+      (await events("auth.reauthMinutes")).map((e) => [e.action, e.diff]),
+    ).toEqual([
+      ["setting.update", { from: 15, to: 20 }],
+      ["setting.reset", { from: 20, to: 15 }],
+    ]);
+  });
 });
