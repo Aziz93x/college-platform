@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import {
+  chmodSync,
   createReadStream,
-  existsSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
@@ -135,6 +135,16 @@ export async function verifyArchives(folder: string) {
   return archives;
 }
 
+// docker/.env as it stands, or nothing before the first start.
+function readEnvFile() {
+  try {
+    return readFileSync(ENV_FILE, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
+    throw error;
+  }
+}
+
 function run(
   command: string,
   args: string[],
@@ -216,12 +226,13 @@ async function up(args: string[]) {
       `the ${MODES[other].label} stack is running: stop it first with pnpm local:down`,
     );
   }
-  const current = existsSync(ENV_FILE) ? readFileSync(ENV_FILE, "utf8") : "";
   const { text, filled } = fillEnv(
     readFileSync(join(DOCKER, ".env.example"), "utf8"),
-    current,
+    readEnvFile(),
   );
   writeFileSync(ENV_FILE, text, { mode: 0o600 });
+  // A file copied from the example by hand keeps its mode: only this person reads the secrets.
+  chmodSync(ENV_FILE, 0o600);
   if (filled.length > 0) {
     console.log(`docker/.env: new values for ${filled.join(", ")}, not shown.`);
   }
