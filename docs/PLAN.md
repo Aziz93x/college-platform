@@ -680,6 +680,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Note from lead review A:** the PostgreSQL image tag (`postgres:18.6-alpine`) is written in six places. This step touches compose: keep the tag in one exported test constant with a Renovate `customManagers` regex, so Renovate updates every copy at once.
 
+**Note from lead review A, on the font:** in the phone test above, also open the login page in a private tab. The text shows in the phone's Arabic font until the identity font arrives, and the page must not move when it does. With Android's Noto Naskh Arabic, tried in Chromium, the pages held still, and `src/styles/fonts.css` sizes Linux's DejaVu Sans. Apple and Windows devices draw Arabic in Arial, which next/font sizes on Latin letters only, or in a system font. Neither was measured, so an iPhone is the one to watch. If its page moves, size its Arabic font as `src/styles/fonts.css` describes, measured on that device.
+
 **Note from Audit 2:** the demo password and the demo admin's authenticator secret are published in `db/seed/demo/accounts.ts`, and `pnpm local:share` puts demo mode behind a public tunnel. In demo mode, generate both into the local `.env` and let `seed:demo` and the smoke test read them from there; keep the published values for CI and `APP_ENV=local` only (docs/reviews/audit-06.md, minor 10).
 
 #### Step 7. Settings screen, defaults and audit (M)

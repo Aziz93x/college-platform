@@ -1,0 +1,35 @@
+/* The identity font's fallback for Arabic letters on Linux (src/styles/fonts.ts). next/font sizes
+   its Arial fallback on Latin letters only, so where Arial has no Arabic, the system's Arabic font
+   draws the text until the identity font arrives. On Linux, CI's browser among them, that font is
+   DejaVu Sans, about 12% wider than the identity font on the platform's sentences: lines broke
+   elsewhere, and the page moved up a line when the identity font arrived (lead review A). This face
+   sizes DejaVu Sans to the identity font. size-adjust is the identity font's width over DejaVu's
+   for the Arabic words of messages/ar.json in Chromium, per weight, since Medium is wider than
+   Regular. The overrides give it the identity font's ascent (1.2 em), descent (0.27 em) and line
+   gap (0), divided by size-adjust. It covers Arabic letters only: spaces, digits and Latin letters
+   keep the fallbacks around it. Android's Noto Naskh Arabic stays as it is: about 5% narrower than
+   the identity font, it already keeps the pages still, and sized to the average it made the pilot
+   banner wrap on a 393 px screen. */
+@font-face {
+  font-family: "identityFont DejaVu Fallback";
+  src: local("DejaVu Sans"), local("DejaVuSans");
+  font-weight: 400;
+  size-adjust: 90.74%;
+  ascent-override: 132.25%;
+  descent-override: 29.76%;
+  line-gap-override: 0%;
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: "identityFont DejaVu Fallback";
+  src: local("DejaVu Sans"), local("DejaVuSans");
+  font-weight: 500;
+  size-adjust: 94.22%;
+  ascent-override: 127.36%;
+  descent-override: 28.66%;
+  line-gap-override: 0%;
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}

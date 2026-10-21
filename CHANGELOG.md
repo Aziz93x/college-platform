@@ -12,6 +12,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - A password's Arabic-Indic digits are read as Latin, when it is set and when it is checked.
 - The account menu hydrates for viewers who asked for reduced motion, and every end-to-end test now fails on a hydration warning or error (`e2e/support/test.ts`).
 - `SMTP_URL` and Mailpit are gone until SMTP returns after the hosting decision. So is the CI job that committed visual baselines: a missing baseline is still uploaded as the `visual-baselines` artifact, and is committed by hand after a look.
+- On Linux, CI's browser among them, the page no longer moves when the identity font arrives. Until it does, Arabic shows in DejaVu Sans, about 12% wider than the identity font, which next/font left as it was: it sizes Arial, on Latin letters only. `src/styles/fonts.css` now sizes DejaVu Sans. Android's Noto Naskh Arabic is close enough that its pages already held still.
 - The end-to-end setup project waits up to 60 seconds per expectation, so a fresh `pnpm dev` compiles its first pages in time. The worker test that patched `fs.write` is deleted. Migration `0004` indexes the columns the sign-in purge deletes by.
 - docs/reviews/lead-A.md holds the review and its resolution. Its proposals that change the plan wait for the owner in docs/BACKLOG.md, and notes from it sit under Steps 7, 9, 10 and 41 and at UX review 1.
 
