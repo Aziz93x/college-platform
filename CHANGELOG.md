@@ -222,6 +222,9 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - The platform's name joins the college's in the sidebar and every page title. `seed:demo` stores the demo college's platform name, banner text and time zone, and the login test reads them from the seed.
 - BeUI here: switch, select, tabs, adaptive stepper, range slider and action swap. The motion input now draws its border over the field, so all 44 px of it take a tap.
 - Tests: integration tests for saving, refusing, resetting and auditing settings and for re-authentication; unit tests for the controls drawn from schemas, the catalog's words for every setting, the actions, the locale and Arabic search; end-to-end tests for the screen on the desktop and the phone, with axe and 44 px targets.
+- Fixed: the sign-in form could exist twice for a moment, which failed sign-in tests at random. React reveals streamed content up to 300 ms after it arrives; the motion features arriving in that time changed a context above it, and React drew the form again on the client while the server's copy still waited in the page. The features now take effect once no part waits for its reveal (`e2e/streaming.spec.ts`).
+- Fixed: the sign-out helper pressed the account menu's item while the menu was still growing out of its button, so the press could start on the item and end on the heading, and nothing signed out. It now waits for the menu to open, as a person does.
+- The design catalog's visual baselines were taken again by CI, with the demo banner text, and their job runs on Ubuntu 24.04 rather than `ubuntu-latest`, which is moving to Ubuntu 26: another release's fonts draw text differently and would fail them.
 
 ### Step 41: production-like run on the laptop
 
