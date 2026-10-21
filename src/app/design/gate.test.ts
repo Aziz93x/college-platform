@@ -5,6 +5,7 @@ import DesignPage from "./page.tsx";
 
 vi.mock("next/server", () => ({ connection: async () => {} }));
 vi.mock("next-intl/server", () => ({
+  getLocale: async () => "ar",
   getMessages: async () => ({ ui: {}, design: {} }),
   getTranslations: async () => (key: string) => key,
 }));
