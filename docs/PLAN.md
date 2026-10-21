@@ -841,6 +841,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 > **From Step 8:** on a phone the departments list leaves out how Rayat writes each department, and the college's names sit in a card under the list; the department form saves all its fields with one button, where the settings save one at a time. Two details seen while capturing the screens: the stepper's value has a dashed outline on a desktop that looks rough, and content scrolled under the sticky header shows through its translucent fill.
 >
 > **From Step 9:** the roles screens: the grid as one column of switches per role on its own page (a matrix of every role at once does not fit a phone), the members' combobox and scope, the password asked in the card that makes the change, and the page order moved with up and down buttons rather than by dragging.
+>
+> **From Step 10:** the people screens: a "…" in each row that rests quietly and opens into the account's actions, each confirmed in a bottom sheet; the import's three stages on one page (the file, the preview, the result with the passwords shown once); the person's page with two forms (name and email, employee number); and the profile. A phone leaves out the email and the roles, which the person's page shows.
 
 #### Step 11. Audit log and history (S)
 
@@ -975,6 +977,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 8:** match the department column against `department_rayat_values` after `oneLine()`, the tidying a value gets before it is stored, and through `foldCase()` (both in `src/platform/validation/text.ts`), the folding the departments' own check uses (Audit 3). A value belongs to one department of the college, in any case of its Latin letters, so a match is never ambiguous; a value that matches none is a row error that points to the departments screen, where an admin adds it to its department.
 
+**Note from Step 10:** `readTable()` (`src/platform/files/table.ts`) reads an XLSX or CSV file into rows of text with read-excel-file and Papa Parse, and reads a CSV that is not UTF-8 as Windows-1256, which Arabic Excel saves. The people import is this step's shape on a small scale: a header row matched through `foldCase()`, a plan per row that writes nothing (the preview and the dry run in one), and one transaction under the college's lock that plans again before it writes.
+
 #### Step 17. Courses, sections, enrollments and transfers (M)
 
 **Goal:** every section has its trainer, schedule and numbers.
@@ -1036,6 +1040,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - A template may grant a role. By default only the secretary template does, granting the secretary's permissions in that department.
 
 **Done when:** assigning the secretary template grants the secretary permissions, revoking it removes them, and the template's tasks exist for the assignee (tests).
+
+**Note from Step 10:** `seed:demo` makes the first generated trainer of each department its secretary through a membership (`db/seed/demo/people.ts`). This step's seed gives them the secretary assignment instead, which grants the role, and drops that membership.
 
 **Notes from Step 5**
 
@@ -1144,6 +1150,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Notes from Step 5**
 
 - BeUI here: animated badge (status), action swap ("Done") and overflow actions (the card's other actions).
+
+**Note from Step 10:** the overflow actions (`src/components/motion/overflow-actions.tsx`) take overflow items only; BeUI's primary actions beside the toggle come back here if the card shows one outside the group.
 
 **Notes from ADR-0008**
 
@@ -1427,6 +1435,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 **Done when:** the seed finishes in under 2 minutes, a second run creates no duplicates, every screen shows meaningful data at weeks 1, 9 and 18, and the `alt` profile loads.
 
 **Note from ADR-0008:** `--week` exists since Step 13; this step completes the data it drives. Demo data stays synthetic.
+
+**Note from Step 10:** the people exist since Step 10: `demoAccounts` names the ones the tests and guides use, and `demoCast()` draws the rest from the seed (`db/seed/demo/people.ts`). Whoever holds a key that requires two-factor gets it seeded, with the admin's authenticator secret and backup codes of their own (`DEMO_HEAD_BACKUP_CODES` in demo mode). Each account's password is hashed once per run, about 5 s of the seed's 2 minutes.
 
 #### Step 44. Every role's journey, end to end (L)
 

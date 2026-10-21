@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
-import type { Browser, Locator, Page } from "@playwright/test";
 import { defaultRoles } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { createDb } from "../src/platform/db/client.ts";
 import { test } from "./support/accounts.ts";
-import { demo, enterCode, STORAGE, signIn } from "./support/auth.ts";
+import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { confirmIfAsked, open, owned, signedIn } from "./support/pages.ts";
 import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
-const { roles: text, nav, pages, reauth, design } = messages;
+const { roles: text, nav, pages, design } = messages;
 // The trainer role as the seed names it, never a literal: Step 43's profile seeds its roles from data.
 const trainerRole =
   defaultRoles.find(({ key }) => key === "trainer")?.labels.ar ?? "";
@@ -20,50 +20,6 @@ const DATABASE = { tag: "@database" };
 
 // The roles belong to whoever holds roles.manage: the demo admin (e2e/auth.setup.ts).
 test.use({ storageState: STORAGE.admin });
-
-// Waits until React owns the page's table or form: a press before that is lost.
-async function owned(page: Page) {
-  await page.waitForFunction(() => {
-    const element = document.querySelector("main table, main form");
-    return (
-      element !== null &&
-      Object.keys(element).some((key) => key.startsWith("__reactFiber$"))
-    );
-  });
-}
-
-async function open(page: Page, path: string) {
-  await page.goto(path);
-  await owned(page);
-}
-
-// A page signed in on its own session, so its password and its changes leave the shared demo
-// sessions alone.
-async function signedIn(
-  browser: Browser,
-  person: { identifier: string; password: string },
-  key?: Buffer,
-) {
-  const context = await browser.newContext({ storageState: undefined });
-  const page = await context.newPage();
-  await page.goto("/");
-  await signIn(page, person);
-  if (key) await enterCode(page, key);
-  await expect(page).toHaveURL("/today");
-  return page;
-}
-
-// A change to someone's access asks for the password again once it was typed too long ago, which
-// another test may have made it on purpose: type it when asked, then wait for the change's toast.
-async function confirmIfAsked(page: Page, toast: Locator) {
-  const password = page.getByLabel(reauth.password, { exact: true });
-  await expect(toast.or(password).first()).toBeVisible();
-  if (await password.isVisible()) {
-    await password.fill(demo.adminPassword);
-    await page.getByRole("button", { name: reauth.submit }).click();
-  }
-  await expect(toast).toBeVisible();
-}
 
 test(
   "a key given on the grid opens its page to the role's member at their next request, and taking it back closes it",
@@ -113,6 +69,7 @@ test(
         admin.getByText(
           text.members.toast.added.replace("{name}", person.name),
         ),
+        demo.adminPassword,
       );
       await expect(
         admin.getByRole("list", { name: text.members.list }),
@@ -125,7 +82,7 @@ test(
       const saved = admin.getByText(text.grid.toast.replace("{name}", name));
       await key.click();
       await admin.getByRole("button", { name: text.grid.save }).click();
-      await confirmIfAsked(admin, saved);
+      await confirmIfAsked(admin, saved, demo.adminPassword);
       await member.goto("/design");
       await expect(
         member.getByRole("heading", { level: 1, name: design.title }),
@@ -135,7 +92,7 @@ test(
       await expect(saved).toBeHidden();
       await key.click();
       await admin.getByRole("button", { name: text.grid.save }).click();
-      await confirmIfAsked(admin, saved);
+      await confirmIfAsked(admin, saved, demo.adminPassword);
       await member.goto("/design");
       await expect(
         member.getByRole("heading", { name: pages.notFound.title }),

@@ -13,6 +13,7 @@ export type PersonView = {
   state: AccountState;
   roles: { id: string; label: string; place: string | null }[];
   can: {
+    // A temporary password: never for one's own account, which ends one's own session.
     reset: boolean;
     link: boolean;
     edit: boolean;
@@ -49,7 +50,9 @@ export function personView(
           : (departmentName(membership.departmentId) ?? null),
     })),
     can: {
-      reset: reachesAccount(viewer, "accounts.resetPassword", person),
+      reset:
+        person.userId !== viewer.userId &&
+        reachesAccount(viewer, "accounts.resetPassword", person),
       link: reachesAccount(viewer, "accounts.linkEmployeeNumber", person),
       edit: manages,
       disable: manages && person.userId !== viewer.userId,

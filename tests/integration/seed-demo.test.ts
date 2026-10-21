@@ -6,6 +6,7 @@ import {
   DEMO_PASSWORD,
   DEMO_TOTP_SECRET,
   demoAccounts,
+  demoSecrets,
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
@@ -33,6 +34,16 @@ const seedDemo = (args: string[], env: NodeJS.ProcessEnv) =>
 async function seedDemoOk(url: string) {
   const result = await seedDemo(["--seed", "42"], scriptEnv(url));
   expect(result.code, result.stderr).toBe(0);
+}
+
+// A database the demo seed filled once, for the tests that only read it.
+let seeded: ReturnType<typeof freshDatabase> | undefined;
+function seededDatabase() {
+  seeded ??= freshDatabase().then(async (database) => {
+    await seedDemoOk(database.url);
+    return database;
+  });
+  return seeded;
 }
 
 const collegeNames = async (pool: Pool) =>
@@ -86,68 +97,128 @@ it("gives db:seed's college the demo values, settings and departments, then a se
   );
 });
 
-it("adds the demo accounts: an admin with the system role and two-factor, and a trainer and an invited trainer, each in their department", async () => {
-  const { url, pool } = await freshDatabase();
-  await seedDemoOk(url);
+// Each demo person, by employee number, with their roles as "key" or "key:department".
+const demoPeople = async (pool: Pool) =>
+  (
+    await pool.query(`
+      select p.employee_number, u.name, u.email, a.password, u.must_change_password,
+        u.disabled_at is not null as disabled, u.two_factor_enabled,
+        array_agg(r.key || coalesce(':' || d.name, '') order by r.key) as roles
+      from users u
+      join people p on p.user_id = u.id
+      join accounts a on a.user_id = u.id and a.provider_id = 'credential'
+      join memberships m on m.user_id = u.id
+      join roles r on r.id = m.role_id
+      left join departments d on d.id = m.department_id
+      group by p.employee_number, u.id, a.password
+      order by p.employee_number`)
+  ).rows;
 
-  const { rows } = await pool.query(`
-    select u.email, p.employee_number, u.must_change_password, u.two_factor_enabled,
-      a.password, r.key as role, d.name as department
-    from users u
-    join people p on p.user_id = u.id
-    join accounts a on a.user_id = u.id and a.provider_id = 'credential'
-    left join memberships m on m.user_id = u.id
-    left join roles r on r.id = m.role_id
-    left join departments d on d.id = m.department_id
-    order by p.employee_number`);
-  expect(rows.map(({ password: _hash, ...row }) => row)).toEqual([
-    {
-      email: demoAccounts.admin.email,
-      employee_number: demoAccounts.admin.employeeNumber,
-      must_change_password: false,
-      two_factor_enabled: true,
-      role: "system-admin",
-      department: null,
-    },
-    {
-      email: demoAccounts.trainer.email,
-      employee_number: demoAccounts.trainer.employeeNumber,
-      must_change_password: false,
-      two_factor_enabled: false,
-      role: "trainer",
-      department: demoAccounts.trainer.role.department,
-    },
-    {
-      email: demoAccounts.invitedTrainer.email,
-      employee_number: demoAccounts.invitedTrainer.employeeNumber,
-      must_change_password: true,
-      two_factor_enabled: false,
-      role: "trainer",
-      department: demoAccounts.invitedTrainer.role.department,
-    },
-  ]);
-  for (const { password } of rows) {
+const decrypt = (url: string, data: string) =>
+  symmetricDecrypt({ key: scriptEnv(url).AUTH_SECRET ?? "", data });
+
+it("adds Step 43's people: the admin, the dean, the vice-dean, a quality reviewer, a head per department and forty trainers, three of them secretaries", async () => {
+  const { pool } = await seededDatabase();
+  const people = await demoPeople(pool);
+
+  expect(people).toHaveLength(47);
+  for (const account of Object.values(demoAccounts)) {
+    expect(
+      people.find(
+        ({ employee_number }) => employee_number === account.employeeNumber,
+      ),
+    ).toMatchObject({
+      name: account.name,
+      email: account.email,
+      must_change_password: "invited" in account,
+      disabled: "disabled" in account,
+      roles: account.roles.map((role) =>
+        "system" in role
+          ? "system-admin"
+          : [role.key, ...("department" in role ? [role.department] : [])].join(
+              ":",
+            ),
+      ),
+    });
+  }
+  const holding = (role: string) =>
+    people.filter(({ roles }) => roles.includes(role)).length;
+  for (const role of [
+    "system-admin",
+    "dean",
+    "vice-dean",
+    "quality-reviewer",
+  ]) {
+    expect(holding(role), role).toBe(1);
+  }
+  for (const { name } of demoDepartments) {
+    expect(holding(`head:${name}`), name).toBe(1);
+    // The secretary is one of the department's trainers.
+    expect(
+      people.filter(
+        ({ roles }) =>
+          roles.includes(`secretary:${name}`) &&
+          roles.includes(`trainer:${name}`),
+      ),
+      name,
+    ).toHaveLength(1);
+  }
+  expect(
+    people.filter(({ roles }) =>
+      roles.some((role: string) => role.startsWith("trainer:")),
+    ),
+  ).toHaveLength(40);
+
+  // Synthetic Arabic names, none twice, and an email each.
+  for (const { name } of people) {
+    expect(name).toMatch(/^\p{Script=Arabic}+( \p{Script=Arabic}+)+$/u);
+  }
+  expect(new Set(people.map(({ name }) => name)).size).toBe(47);
+  expect(new Set(people.map(({ email }) => email)).size).toBe(47);
+  for (const { password } of people) {
     expect(
       await verifyPassword({ hash: password, password: DEMO_PASSWORD }),
     ).toBe(true);
   }
-  const { rows: secrets } = await pool.query("select secret from two_factors");
+});
+
+it("sets up two-factor for the holders of a key that requires it, the admin and the heads, each with their own backup codes", async () => {
+  const { url, pool } = await seededDatabase();
+  const people = await demoPeople(pool);
+
   expect(
-    await Promise.all(
-      secrets.map(({ secret }) =>
-        symmetricDecrypt({
-          key: scriptEnv(url).AUTH_SECRET ?? "",
-          data: secret,
-        }),
-      ),
+    people
+      .filter(({ two_factor_enabled }) => two_factor_enabled)
+      .map(({ roles }) => roles[0].split(":")[0]),
+  ).toEqual(["system-admin", "head", "head", "head"]);
+  const { rows } = await pool.query(`
+    select u.email, t.secret, t.backup_codes from two_factors t
+    join users u on u.id = t.user_id`);
+  const secrets = demoSecrets({});
+  expect(rows).toHaveLength(4);
+  for (const { email, secret, backup_codes } of rows) {
+    expect(await decrypt(url, secret)).toBe(DEMO_TOTP_SECRET);
+    expect(JSON.parse(await decrypt(url, backup_codes))).toEqual(
+      email === demoAccounts.admin.email
+        ? secrets.backupCodes
+        : secrets.headBackupCodes,
+    );
+  }
+  expect(
+    secrets.headBackupCodes.filter((code) =>
+      secrets.backupCodes.includes(code),
     ),
-  ).toEqual([DEMO_TOTP_SECRET]);
+  ).toEqual([]);
 });
 
 it("builds the same rows from the same seed on two fresh databases", async () => {
-  const [one, two] = await Promise.all([freshDatabase(), freshDatabase()]);
-  await seedDemoOk(one.url);
-  await seedDemoOk(two.url);
+  const [one, two] = await Promise.all([
+    seededDatabase(),
+    freshDatabase().then(async (database) => {
+      await seedDemoOk(database.url);
+      return database;
+    }),
+  ]);
 
   // Ids and timestamps, and what is salted or encrypted with a random nonce, differ by design.
   const generated = [
@@ -162,6 +233,7 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "password",
     "secret",
     "backup_codes",
+    "disabled_at",
   ];
   expect(await tableRows(two.pool, generated)).toEqual(
     await tableRows(one.pool, generated),
@@ -197,54 +269,54 @@ it("in staging, signs the accounts in with the environment's own demo secrets, a
     "DEMO_ADMIN_PASSWORD",
     "DEMO_TOTP_SECRET",
     "DEMO_BACKUP_CODES",
+    "DEMO_HEAD_BACKUP_CODES",
   ]) {
     expect(refused.stderr).toContain(`${key}: required when APP_ENV=staging`);
   }
   expect(await collegeNames(pool)).toEqual([]);
 
-  const backupCodes = Array.from({ length: 10 }, () =>
-    randomBytes(6).toString("hex"),
-  );
+  const codes = () =>
+    Array.from({ length: 10 }, () => randomBytes(6).toString("hex"));
+  const backupCodes = codes();
+  const headBackupCodes = codes();
   const secrets = {
     DEMO_PASSWORD: randomBytes(12).toString("base64url"),
     DEMO_ADMIN_PASSWORD: randomBytes(12).toString("base64url"),
     DEMO_TOTP_SECRET: randomBytes(24).toString("base64url"),
     DEMO_BACKUP_CODES: backupCodes.join(","),
+    DEMO_HEAD_BACKUP_CODES: headBackupCodes.join(","),
   };
   const seeded = await seedDemo([], { ...staging, ...secrets });
   expect(seeded.code, seeded.stderr).toBe(0);
-  const { rows } = await pool.query(`
-    select a.password, p.employee_number from accounts a
-    join people p on p.user_id = a.user_id
-    where a.provider_id = 'credential' order by p.employee_number`);
-  expect(rows.map(({ employee_number }) => employee_number)).toEqual(
-    Object.values(demoAccounts).map(({ employeeNumber }) => employeeNumber),
-  );
+  const people = await demoPeople(pool);
+  const password = (account: { employeeNumber: string }) =>
+    people.find(
+      ({ employee_number }) => employee_number === account.employeeNumber,
+    )?.password;
+
   // The admin's password is its own.
-  expect(
-    await Promise.all(
-      rows.map(({ password }, index) =>
-        verifyPassword({
-          hash: password,
-          password:
-            index === 0 ? secrets.DEMO_ADMIN_PASSWORD : secrets.DEMO_PASSWORD,
-        }),
-      ),
-    ),
-  ).toEqual([true, true, true]);
-  expect(
-    await verifyPassword({
-      hash: rows[0].password,
-      password: secrets.DEMO_PASSWORD,
-    }),
-  ).toBe(false);
-  const [stored] = (
-    await pool.query("select secret, backup_codes from two_factors")
-  ).rows;
-  const decrypt = (data: string) =>
-    symmetricDecrypt({ key: staging.AUTH_SECRET ?? "", data });
-  expect(await decrypt(stored.secret)).toBe(secrets.DEMO_TOTP_SECRET);
-  expect(JSON.parse(await decrypt(stored.backup_codes))).toEqual(backupCodes);
+  const checks = [
+    [demoAccounts.admin, secrets.DEMO_ADMIN_PASSWORD, true],
+    [demoAccounts.admin, secrets.DEMO_PASSWORD, false],
+    [demoAccounts.head, secrets.DEMO_PASSWORD, true],
+    [demoAccounts.trainer, secrets.DEMO_PASSWORD, true],
+  ] as const;
+  for (const [account, typed, matches] of checks) {
+    expect(
+      await verifyPassword({ hash: password(account) ?? "", password: typed }),
+      `${account.employeeNumber} ${matches}`,
+    ).toBe(matches);
+  }
+  const { rows } = await pool.query(`
+    select u.email, t.secret, t.backup_codes from two_factors t
+    join users u on u.id = t.user_id`);
+  expect(rows).toHaveLength(4);
+  for (const { email, secret, backup_codes } of rows) {
+    expect(await decrypt(url, secret)).toBe(secrets.DEMO_TOTP_SECRET);
+    expect(JSON.parse(await decrypt(url, backup_codes))).toEqual(
+      email === demoAccounts.admin.email ? backupCodes : headBackupCodes,
+    );
+  }
 });
 
 it("exits 1 when --seed is not a whole number from 0 to 2^32 - 1", async () => {

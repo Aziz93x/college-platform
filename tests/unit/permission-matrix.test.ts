@@ -370,6 +370,17 @@ describe("the permission matrix", () => {
     ).toEqual([]);
   });
 
+  // Not a key's matter: the account's own holder changes their password on its own page.
+  it("gives no one a temporary password for their own account", async () => {
+    request.viewer = { ...viewerFor(roles[0], null), userId: ID };
+    const result = await modules["(app)/people/actions.ts"].resetPasswordAction(
+      {
+        userId: ID,
+      },
+    );
+    expect(result?.data).toEqual({ status: "self" });
+  });
+
   it("would catch an action whose check was removed", async () => {
     const unchecked = viewerAction
       .metadata({ name: "unchecked" })

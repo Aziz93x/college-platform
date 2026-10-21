@@ -129,7 +129,8 @@ export const importPeopleAction = viewerAction
     return { status: "imported" as const, ...result };
   });
 
-// A temporary password for someone the viewer's key reaches, shown once.
+// A temporary password for someone the viewer's key reaches, shown once; one's own password is
+// changed on its own page.
 export const resetPasswordAction = viewerAction
   .metadata({ name: "resetPassword" })
   .inputSchema(z.object({ userId: z.uuid(), password }))
@@ -137,6 +138,7 @@ export const resetPasswordAction = viewerAction
     const person = await holder(viewer, parsedInput.userId);
     if (!person) return { status: "notFound" as const };
     requireReach("accounts.resetPassword", person);
+    if (person.userId === viewer.userId) return { status: "self" as const };
     const requestHeaders = await headers();
     const refused = await confirmPassword(
       parsedInput.password,

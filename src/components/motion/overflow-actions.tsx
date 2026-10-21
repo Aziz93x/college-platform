@@ -102,7 +102,10 @@ export function OverflowActions({
       <m.div
         layout
         transition={transition}
-        className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border border-border bg-card p-1.5 text-sm"
+        className={cn(
+          "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border p-1.5 text-sm transition-colors",
+          isExpanded ? "border-border bg-card shadow-sm" : "border-transparent",
+        )}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {isExpanded ? (
@@ -142,8 +145,11 @@ export function OverflowActions({
           whileHover={reduce || !canHover ? undefined : { scale: 1.03 }}
           transition={transition}
           className={cn(
-            "relative inline-grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground outline-none",
+            "relative inline-grid size-11 shrink-0 place-items-center rounded-full outline-none transition-colors",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            isExpanded
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <AnimatePresence mode="popLayout" initial={false}>

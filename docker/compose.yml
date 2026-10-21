@@ -60,6 +60,7 @@ services:
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
       DEMO_TOTP_SECRET: ${DEMO_TOTP_SECRET:-}
       DEMO_BACKUP_CODES: ${DEMO_BACKUP_CODES:-}
+      DEMO_HEAD_BACKUP_CODES: ${DEMO_HEAD_BACKUP_CODES:-}
     command: ["sh", "-c", "node db/migrate.ts && node db/seed/base.ts"]
     networks: [internal]
     depends_on:

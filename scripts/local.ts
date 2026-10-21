@@ -55,6 +55,8 @@ const generators: Record<string, () => string> = {
   DEMO_ADMIN_PASSWORD: () => readable(4),
   DEMO_BACKUP_CODES: () =>
     Array.from({ length: 10 }, () => readable(2)).join(","),
+  DEMO_HEAD_BACKUP_CODES: () =>
+    Array.from({ length: 10 }, () => readable(2)).join(","),
 };
 const randomSecret = () => randomBytes(32).toString("base64url");
 
@@ -325,7 +327,7 @@ async function up(args: string[]) {
   );
   console.log(
     mode === "demo"
-      ? "Demo trainers sign in with DEMO_PASSWORD from docker/.env, and the demo admin with DEMO_ADMIN_PASSWORD and one of DEMO_BACKUP_CODES (docs/ops/local.md)."
+      ? "Demo people sign in with DEMO_PASSWORD from docker/.env, the heads with one of DEMO_HEAD_BACKUP_CODES too, and the demo admin with DEMO_ADMIN_PASSWORD and one of DEMO_BACKUP_CODES (docs/ops/local.md)."
       : `On the first start, create the first admin:\n  ${USAGE.split("\n").at(-1)?.trim()}`,
   );
 }

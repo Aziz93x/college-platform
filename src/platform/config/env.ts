@@ -34,17 +34,21 @@ const DEMO_KEYS = [
   "DEMO_ADMIN_PASSWORD",
   "DEMO_TOTP_SECRET",
   "DEMO_BACKUP_CODES",
+  "DEMO_HEAD_BACKUP_CODES",
 ] as const;
+// Ten backup codes, separated by commas.
+const backupCodes = z
+  .string()
+  .regex(/^[a-z0-9-]{8,32}(,[a-z0-9-]{8,32}){9}$/, "ten codes, with commas")
+  .optional();
 const demoSchema = schema
   .extend({
     DEMO_PASSWORD: z.string().min(16).optional(),
     DEMO_ADMIN_PASSWORD: z.string().min(16).optional(),
     DEMO_TOTP_SECRET: z.string().min(16).optional(),
-    // The admin's ten backup codes, separated by commas.
-    DEMO_BACKUP_CODES: z
-      .string()
-      .regex(/^[a-z0-9-]{8,32}(,[a-z0-9-]{8,32}){9}$/, "ten codes, with commas")
-      .optional(),
+    // The admin's backup codes, and the heads', which testers are given.
+    DEMO_BACKUP_CODES: backupCodes,
+    DEMO_HEAD_BACKUP_CODES: backupCodes,
   })
   .superRefine((env, context) => {
     if (env.APP_ENV !== "staging") return;

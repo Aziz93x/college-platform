@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/page-header";
-import { authorize, requireViewer } from "@/modules/access";
+import { authorize, peopleColumns, requireViewer } from "@/modules/access";
 import { ImportFlow } from "./import-flow.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -35,7 +35,9 @@ export default async function ImportPeoplePage() {
         breadcrumbsLabel={ui("trail")}
       />
       <NextIntlClientProvider messages={{ actions, people, reauth }}>
-        <ImportFlow />
+        <ImportFlow
+          columns={peopleColumns.map((column) => t(`import.columns.${column}`))}
+        />
       </NextIntlClientProvider>
     </>
   );

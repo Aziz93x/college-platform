@@ -1,6 +1,13 @@
 "use client";
 
-import { Copy, Download, FileUp, LoaderCircle, Upload } from "lucide-react";
+import {
+  Copy,
+  Download,
+  FileSpreadsheet,
+  FileUp,
+  LoaderCircle,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
@@ -10,12 +17,7 @@ import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { Table, type TableColumn } from "@/components/motion/table";
 import { usePasswordStep } from "@/components/password-step";
 import { Button } from "@/components/ui/button";
-import {
-  type ImportResult,
-  type PeopleRow,
-  type PlannedRow,
-  peopleColumns,
-} from "@/modules/access";
+import type { ImportResult, PeopleRow, PlannedRow } from "@/modules/access";
 import { importPeopleAction, previewPeopleAction } from "../actions.ts";
 
 // Next.js takes a server action's body up to 1 MB (its default bodySizeLimit): a bigger file is
@@ -34,10 +36,10 @@ type Stage =
   | { name: "planned"; rows: PeopleRow[]; plan: PlannedRow[] }
   | { name: "done"; result: ImportResult };
 
-// A people file, in three stages: choosing it (with a template of its columns), the preview of
-// what each row would do, which writes nothing, and the import with each new account's temporary
-// password, shown once.
-export function ImportFlow() {
+// A people file, in three stages: choosing it (with a template: a file of the columns' names), the
+// preview of what each row would do, which writes nothing, and the import with each new account's
+// temporary password, shown once.
+export function ImportFlow({ columns }: { columns: string[] }) {
   const t = useTranslations("people.import");
   const people = useTranslations("people");
   const refusals = useTranslations("actions");
@@ -108,8 +110,7 @@ export function ImportFlow() {
 
   // The columns' names as a file's header row, for Excel to open as UTF-8.
   const template = () => {
-    const header = peopleColumns.map((column) => t(`columns.${column}`));
-    const blob = new Blob([`\uFEFF${header.join(",")}\r\n`], {
+    const blob = new Blob([`\uFEFF${columns.join(",")}\r\n`], {
       type: "text/csv;charset=utf-8",
     });
     const link = document.createElement("a");
@@ -212,23 +213,31 @@ export function ImportFlow() {
         <label htmlFor={`${id}-file`} className="px-1 font-medium text-sm">
           {t("file")}
         </label>
-        <input
-          id={`${id}-file`}
-          type="file"
-          accept=".xlsx,.csv"
-          aria-describedby={`${id}-hint`}
-          onChange={(event) => {
-            setFile(event.target.files?.[0]);
-            setProblem(undefined);
-          }}
-          className="min-h-11 w-full rounded-lg border border-dashed bg-background p-2 text-sm file:me-3 file:h-9 file:rounded-md file:border-0 file:bg-primary file:px-3 file:font-medium file:text-primary-foreground"
-        />
-        <p
-          id={`${id}-hint`}
-          className="px-1 text-pretty text-muted-foreground text-xs"
-        >
-          {t("fileHint")}
-        </p>
+        {/* The browser's own chooser speaks the browser's language: it lies invisible over a zone
+            in the page's, where a click opens it and a dropped file lands in it. */}
+        <div className="relative flex min-h-28 flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-background px-4 py-5 text-center transition-colors hover:border-primary has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background">
+          <input
+            id={`${id}-file`}
+            type="file"
+            accept=".xlsx,.csv"
+            aria-describedby={`${id}-hint`}
+            onChange={(event) => {
+              setFile(event.target.files?.[0]);
+              setProblem(undefined);
+            }}
+            className="absolute inset-0 size-full cursor-pointer opacity-0"
+          />
+          <FileSpreadsheet aria-hidden className="mb-1 size-6 text-primary" />
+          <span className="font-medium text-sm">
+            {file ? <bdi>{file.name}</bdi> : t("choose")}
+          </span>
+          <span
+            id={`${id}-hint`}
+            className="text-pretty text-muted-foreground text-xs"
+          >
+            {file ? t("change") : t("fileHint")}
+          </span>
+        </div>
       </div>
       {alert}
       <div className="flex flex-wrap items-center justify-between gap-2">

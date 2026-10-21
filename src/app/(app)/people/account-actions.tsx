@@ -113,7 +113,7 @@ function AccountSheet({
           onClose();
           return;
         case "self":
-          setError(t("disable.self"));
+          setError(t(`${action === "reset" ? "reset" : "disable"}.self`));
           return;
         case "lastAdmin":
           setError(t("disable.lastAdmin"));
