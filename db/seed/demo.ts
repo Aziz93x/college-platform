@@ -3,6 +3,7 @@ import { z } from "zod";
 import { parseEnv } from "../../src/platform/config/env.ts";
 import { createDb } from "../../src/platform/db/client.ts";
 import { seedBase } from "./base.ts";
+import { seedDemoAccounts } from "./demo/accounts.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
@@ -43,6 +44,7 @@ try {
     const collegeId = await seedBase(db, demoCollege);
     await seedDemoCollege(ctx, collegeId);
     await seedDemoSettings(ctx, collegeId);
+    await seedDemoAccounts(ctx, collegeId, env.AUTH_SECRET);
     console.log(
       `seed:demo finished with --seed ${seed}: college ${collegeId}.`,
     );
