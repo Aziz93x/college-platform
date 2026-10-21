@@ -1,7 +1,8 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import messages from "../messages/ar.json" with { type: "json" };
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { expect, test } from "./support/test.ts";
 
 const { shell, nav, today, pages } = messages;
 

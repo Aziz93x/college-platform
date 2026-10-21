@@ -1,6 +1,7 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { settled } from "./screens/settled";
 import { STORAGE } from "./support/auth.ts";
+import { expect, test } from "./support/test.ts";
 
 // The catalog is open to the demo admin (e2e/auth.setup.ts), who also reaches the shell.
 test.use({ storageState: STORAGE.admin });
