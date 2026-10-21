@@ -56,6 +56,20 @@ export default defineConfig({
       grepInvert: /@visual/,
       dependencies: ["setup"],
     },
+    // Safari's engine, which iPhones run, on the spec that opens the platform in each engine
+    // (e2e/browsers.spec.ts). It needs HTTPS: WebKit keeps no Secure cookie over plain http, and the
+    // session cookie is Secure everywhere. So CI's production-stack job, behind Caddy, installs
+    // WebKit and sets E2E_WEBKIT; on a laptop, pnpm exec playwright install webkit, then set it with
+    // the stack running (pnpm local:up --demo).
+    ...(process.env.E2E_WEBKIT
+      ? [
+          {
+            name: "safari",
+            use: { ...devices["iPhone 15"] },
+            testMatch: /browsers\.spec\.ts/,
+          },
+        ]
+      : []),
   ],
   webServer,
 });
