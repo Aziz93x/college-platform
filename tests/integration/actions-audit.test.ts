@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase, systemRole } from "../../db/seed/base.ts";
 import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
+import { notify } from "../../src/modules/notifications/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
 import { base32Bytes, totp } from "../support/totp.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
@@ -81,6 +82,10 @@ const writes: Record<string, string[]> = {
   "(app)/people/actions.ts#resetPasswordAction": ["account.resetPassword"],
   "(app)/people/actions.ts#linkEmployeeNumberAction": [
     "person.linkEmployeeNumber",
+  ],
+  "(app)/notifications/actions.ts#markReadAction": ["notification.read"],
+  "(app)/notifications/actions.ts#chooseNotificationAction": [
+    "notification.mute",
   ],
 };
 
@@ -334,6 +339,24 @@ describe("every server action writes its event", () => {
       userId: trainer.userId,
       employeeNumber: "6002",
     });
+
+    // The admin's own notifications: one to read, then the digest turned off and on again.
+    await notify({
+      collegeId,
+      userId: admin.userId,
+      kind: "membershipAdded",
+      params: { role: "Coordinators", scope: "college" },
+    });
+    await expectWrites("(app)/notifications/actions.ts#markReadAction", {});
+    await expectWrites(
+      "(app)/notifications/actions.ts#chooseNotificationAction",
+      { kind: "weeklyDigest", enabled: false },
+    );
+    const unmuted = await run(
+      "(app)/notifications/actions.ts#chooseNotificationAction",
+      { kind: "weeklyDigest", enabled: true },
+    );
+    expect(unmuted.written).toEqual(["notification.unmute"]);
   });
 
   it("ten wrong codes in a row, over two sign-ins, write the lock of the account's codes", async () => {

@@ -1,4 +1,4 @@
-import { KeyRound } from "lucide-react";
+import { BellRing, KeyRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -16,7 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // The signed-in person's own account: their name, email and employee number, their roles and
-// where, whether two-factor guards it, and the way to change the password. A trainer's
+// where, whether two-factor guards it, the way to change the password, and to their notification
+// preferences. A trainer's
 // professional profile joins it in Step 28.
 export default async function ProfilePage() {
   await connection();
@@ -101,6 +102,21 @@ export default async function ProfilePage() {
             <Link href="/change-password">
               <KeyRound aria-hidden />
               {t("changePassword")}
+            </Link>
+          </Button>
+        </section>
+        <section
+          aria-labelledby="profile-notifications"
+          className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-5 shadow-xs sm:px-6"
+        >
+          <h2 id="profile-notifications" className="font-medium text-base">
+            {t("notifications")}
+          </h2>
+          <p className="text-sm">{t("notificationsHint")}</p>
+          <Button asChild variant="outline" className="h-11 self-start">
+            <Link href="/notifications/preferences">
+              <BellRing aria-hidden />
+              {t("notificationPreferences")}
             </Link>
           </Button>
         </section>

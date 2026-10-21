@@ -234,6 +234,7 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "secret",
     "backup_codes",
     "disabled_at",
+    "read_at",
   ];
   // The log names its records by their ids, in its columns and in what changed, so each id reads
   // the same there.
@@ -302,6 +303,49 @@ it("writes three weeks of the college's history, every event in the past and by 
       person.employee_number !== demoAccounts.invitedTrainer.employeeNumber,
     );
   }
+});
+
+it("tells each role's holder when the log shows it given, and sends each week's digest of what it left unread, on Sunday at 7:00 in Riyadh", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select n.kind, n.user_id::text, n.params, n.once_key, n.created_at, n.read_at
+    from notifications n order by n.created_at`);
+  const { rows: given } = await pool.query(`
+    select diff->'to'->>'userId' as user_id, created_at from audit_events
+    where action = 'membership.create'`);
+  const told = (list: { user_id: string; created_at: Date }[]) =>
+    list
+      .map(
+        ({ user_id, created_at }) => `${user_id} ${created_at.toISOString()}`,
+      )
+      .sort();
+  expect(told(rows.filter(({ kind }) => kind === "membershipAdded"))).toEqual(
+    told(given),
+  );
+
+  const digests = rows.filter(({ kind }) => kind === "weeklyDigest");
+  expect(digests.length).toBeGreaterThan(0);
+  for (const digest of digests) {
+    // Sunday at 7:00 in Riyadh is 4:00 UTC the same day.
+    expect(digest.created_at.getUTCDay()).toBe(0);
+    expect(digest.created_at.toISOString()).toMatch(/T04:00:00\.000Z$/);
+    expect(digest.once_key).toBe(
+      `weeklyDigest:${digest.created_at.toISOString().slice(0, 10)}`,
+    );
+    expect(digest.params.count).toBeGreaterThan(0);
+    expect(digest.params.latest.length).toBeLessThanOrEqual(3);
+  }
+  // A notification is read after it came, and the invited trainer, who never signed in, read none.
+  for (const row of rows) {
+    if (row.read_at) expect(row.read_at > row.created_at).toBe(true);
+  }
+  const { rows: invited } = await pool.query(
+    `select count(*) filter (where n.read_at is not null) as read, count(*) as told
+     from notifications n join people p on p.user_id = n.user_id where p.employee_number = $1`,
+    [demoAccounts.invitedTrainer.employeeNumber],
+  );
+  expect(Number(invited[0].told)).toBeGreaterThan(0);
+  expect(Number(invited[0].read)).toBe(0);
 });
 
 it("refuses to run when APP_ENV is production or unset, and writes nothing", async () => {

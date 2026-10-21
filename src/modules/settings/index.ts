@@ -9,6 +9,7 @@ export {
   type SettingValue,
   settingGroups,
   settingsRegistry,
+  weekdays,
 } from "./domain/registry.ts";
 export {
   getSetting,

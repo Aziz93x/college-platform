@@ -3,6 +3,7 @@ import type { Logger } from "pino";
 import { createDb } from "../src/platform/db/client.ts";
 import { auditRetention } from "./jobs/audit-retention.ts";
 import { heartbeat } from "./jobs/heartbeat.ts";
+import { notificationDigest } from "./jobs/notification-digest.ts";
 
 // Docker kills a container 10 s after SIGTERM, so active jobs get 8 s to finish.
 const STOP_TIMEOUT_MS = 8000;
@@ -38,6 +39,10 @@ export async function startWorker({
   await boss.createQueue("audit-retention");
   await boss.schedule("audit-retention", "17 0 * * *");
   await boss.work("audit-retention", auditRetention(logger, db));
+  // Each college's weekly digest, on its own day and hour: the job looks every quarter of an hour.
+  await boss.createQueue("notification-digest");
+  await boss.schedule("notification-digest", "*/15 * * * *");
+  await boss.work("notification-digest", notificationDigest(logger, db));
   return {
     boss,
     stop: async () => {

@@ -3,12 +3,15 @@ import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { people, users } from "../../identity/index.ts";
+import { notify } from "../../notifications/index.ts";
 import { colleges, departments } from "../../org/index.ts";
+import { getSetting } from "../../settings/index.ts";
 import type {
   MembershipInput,
   RoleInput,
   RolePermissionsInput,
 } from "../domain/inputs.ts";
+import { roleLabel } from "../domain/labels.ts";
 import {
   isPermissionKey,
   type PermissionKey,
@@ -316,7 +319,7 @@ export async function addMembership(
 > {
   return db.transaction(async (tx) => {
     const [role] = await tx
-      .select({ key: roles.key, system: roles.system })
+      .select({ key: roles.key, labels: roles.labels, system: roles.system })
       .from(roles)
       .where(
         and(eq(roles.collegeId, change.collegeId), eq(roles.id, input.roleId)),
@@ -333,7 +336,7 @@ export async function addMembership(
       );
     const [department] = input.departmentId
       ? await tx
-          .select({ active: departments.active })
+          .select({ name: departments.name, active: departments.active })
           .from(departments)
           .where(
             and(
@@ -341,22 +344,43 @@ export async function addMembership(
               eq(departments.id, input.departmentId),
             ),
           )
-      : [{ active: true }];
+      : [{ name: null, active: true }];
     if (!role || !person || !department) return { status: "notFound" };
     if (role.system && input.departmentId) return { status: "collegeOnly" };
     // A department set aside keeps what was recorded for it, and takes no new member.
     if (!department.active) return { status: "inactive" };
-    const id = await insertMembership(tx, input, role.key, change);
+    const language = await getSetting(
+      "locale.language",
+      { collegeId: change.collegeId },
+      db,
+    );
+    const id = await insertMembership(
+      tx,
+      input,
+      { key: role.key, label: roleLabel(role.labels, language) },
+      department.name,
+      change,
+    );
     return id ? { status: "added", id } : { status: "exists" };
   });
 }
 
-// A membership its caller has checked, with its membership.create event, inside the caller's
-// transaction. Holding the role in that scope already adds nothing: undefined.
+// A role and where it is held, as the notification to its holder names them.
+function held(role: string, department: string | null) {
+  return department === null
+    ? { role, scope: "college" as const }
+    : { role, scope: "department" as const, department };
+}
+
+// A membership its caller has checked, with its membership.create event and the notification to its
+// holder, inside the caller's transaction. The role comes with its name in the college's language,
+// and the department, if any, by its name. Holding the role in that scope already adds nothing:
+// undefined.
 export async function insertMembership(
   tx: Tx,
   input: MembershipInput,
-  roleKey: string,
+  role: { key: string; label: string },
+  department: string | null,
   change: Change,
 ) {
   const [row] = await tx
@@ -375,12 +399,21 @@ export async function insertMembership(
       diff: {
         to: {
           userId: input.userId,
-          role: roleKey,
+          role: role.key,
           departmentId: input.departmentId,
         },
       },
       ip: change.ip,
       userAgent: change.userAgent,
+    },
+    tx,
+  );
+  await notify(
+    {
+      collegeId: change.collegeId,
+      userId: input.userId,
+      kind: "membershipAdded",
+      params: held(role.label, department),
     },
     tx,
   );
@@ -411,7 +444,7 @@ export async function removeMembership(
     if (!membership) return { status: "notFound" };
     // Locks the role, so two removals at once cannot both leave the other one as the last member.
     const [role] = await tx
-      .select({ key: roles.key, system: roles.system })
+      .select({ key: roles.key, labels: roles.labels, system: roles.system })
       .from(roles)
       .where(eq(roles.id, membership.roleId))
       .for("update");
@@ -443,6 +476,26 @@ export async function removeMembership(
         },
         ip: change.ip,
         userAgent: change.userAgent,
+      },
+      tx,
+    );
+    const [department] = membership.departmentId
+      ? await tx
+          .select({ name: departments.name })
+          .from(departments)
+          .where(eq(departments.id, membership.departmentId))
+      : [{ name: null }];
+    const language = await getSetting(
+      "locale.language",
+      { collegeId: change.collegeId },
+      db,
+    );
+    await notify(
+      {
+        collegeId: change.collegeId,
+        userId: membership.userId,
+        kind: "membershipRemoved",
+        params: held(roleLabel(role.labels, language), department.name),
       },
       tx,
     );

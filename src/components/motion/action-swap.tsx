@@ -56,7 +56,7 @@ const VARIANT_CLASS = {
   ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
 } as const;
 
-function ActionSwapText({
+export function ActionSwapText({
   value,
   children,
 }: {

@@ -27,6 +27,10 @@ export const auditActions = [
   "setting.reset",
   "audit.export",
   "audit.purge",
+  // A person reading their notifications, and turning a kind off or on (Step 12).
+  "notification.read",
+  "notification.mute",
+  "notification.unmute",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

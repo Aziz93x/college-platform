@@ -18,7 +18,7 @@ function isTimeZoneName(value: string) {
 export const REMEMBERED_DEVICE_DAYS_MAX = 90;
 
 // The days of the week, numbered from Sunday as JavaScript dates and react-day-picker count them.
-const weekdays = [
+export const weekdays = [
   "sunday",
   "monday",
   "tuesday",

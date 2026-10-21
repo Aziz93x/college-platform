@@ -7,6 +7,7 @@ import { demoSecrets, seedDemoAccounts } from "./demo/accounts.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
 import { seedDemoDepartments } from "./demo/departments.ts";
 import { seedDemoHistory } from "./demo/history.ts";
+import { seedDemoNotifications } from "./demo/notifications.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
 
@@ -49,6 +50,7 @@ try {
     await seedDemoSettings(ctx, collegeId);
     await seedDemoAccounts(ctx, collegeId, env.AUTH_SECRET, demoSecrets(env));
     await seedDemoHistory(ctx, collegeId);
+    await seedDemoNotifications(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed}: college ${collegeId}.`,
     );

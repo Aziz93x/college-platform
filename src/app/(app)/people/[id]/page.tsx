@@ -132,8 +132,9 @@ export default async function PersonPage({
           { entityType: "user", entityId: person.userId },
           { membershipsOf: "userId", value: person.userId },
         ]}
-        // Their daily sign-ins would bury what changed; the log keeps them.
-        except={["session.signIn", "session.signOut"]}
+        // Their daily sign-ins and the notifications they read would bury what changed; the log
+        // keeps them.
+        except={["session.signIn", "session.signOut", "notification.read"]}
         logHref={auditHref("/audit", { q: person.employeeNumber })}
         after={parseCursor((await searchParams).history)}
         href={`/people/${person.userId}`}
