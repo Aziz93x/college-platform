@@ -1,18 +1,19 @@
 # ADR-0013: Personal data protection
 
 - Status: proposed
-- Date: 2026-10-21
+- Date: 2026-10-21, revised the same day for Steps 10 and 11 as merged (#21 and #22)
 - Source: the owner's review. The plan never named the PDPL, SDAIA, the NCA or the NDMO, and it had no privacy notice, no retention periods and no breach procedure. The record that answers it is `docs/privacy/data-protection.md`.
 - Builds on:
   - ADR-0004: the public repository.
   - ADR-0005: errors tracked in the platform, and kept inside the Kingdom.
   - ADR-0009: sign-in and sessions.
-  - docs/PLAN.md: principle 4 (history is append-only), Step 11 (the audit retention purge, run as the table owner), and sections 7 and 8 (the data stays in the Kingdom).
+  - docs/PLAN.md: principle 4 (history is append-only), and sections 7 and 8 (the data stays in the Kingdom).
+  - Step 11 as merged: `purge_audit_events()` (migration 0010), the one way past the append-only triggers, run as the table owner, and the `audit.retentionMonths` setting.
 
 ## Context
 
 The platform keeps personal data in stages:
-- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail.
+- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge.
 - **Step 16:** Rayat's data under trainee numbers. That includes absence and "barred for absence".
 - **Step 25:** evidence photos, which may show a trainee's face, name or grade.
 - **Step 36:** a per-person log of events with their durations, for the pilot measurement.
@@ -25,7 +26,8 @@ The college belongs to a government entity. So three sets of rules apply:
 The plan named none of them. Some gaps are already in the code:
 - **Sessions:** one never seen again keeps its IP address and user agent forever.
 - **Sign-in counts:** they hold the identifier exactly as typed, until their window ends.
-- **Audit events:** they keep the IP address and user agent forever. The append-only triggers (migration 0001) refuse every change, and the app's database user cannot pass them.
+- **Audit events:** they keep the IP address and user agent as long as the event. Step 11's daily purge deletes whole events after `audit.retentionMonths`, 60 months by default. It is the only way past the append-only triggers, and it clears nothing earlier.
+- **Leavers:** disabling an account (Step 10) ends its sessions, but keeps its password hash and two-factor secrets.
 - **Failed sign-ins:** one leaves a durable record only when it locks an existing account (`account.lock`).
 
 Better Auth already deletes expired verification values whenever anyone checks a two-factor code. The rules and the full inventory are in `docs/privacy/data-protection.md`.
@@ -47,19 +49,20 @@ Better Auth already deletes expired verification values whenever anyone checks a
    - **Effect:** the platform stores no trainee number from Rayat. A count of one can still point to one trainee, so the counts stay inside the section's scope. Item 3 of the request to the General Administration shrinks to staff data, these counts and evidence photos.
 3. **Sign-in counts keep keyed hashes.**
    - **What changes:** `sign_in_attempts.key` and `sign_in_lockouts.subject` hold an HMAC-SHA-256 of what they hold today: the identifier as typed, with the address for the attempts. The key is derived from `AUTH_SECRET` with its own label.
-   - **What stays the same:** lookups compute the same hash, so the lockout, the limits and Step 10's "locked" state behave as before.
+   - **What stays the same:** lookups compute the same hash, so the lockout, the limits, Step 10's "locked" state and the reset that lifts a lockout behave as before.
    - **Cost:** rotating `AUTH_SECRET` resets the counts, which is acceptable.
 4. **Retention is enforced on two paths.**
    - **A daily worker job,** as the app's database user, which already deletes these rows elsewhere:
      - sessions past the college's limits (the same rule `getSessionUser()` applies when a session is seen), and sessions past `expires_at`;
      - expired verification values, as a backstop to Better Auth's own cleanup;
      - sign-in counts past their window or lock (the same rule the next attempt applies).
-   - **Step 11's audit retention purge,** which runs as the table owner:
+   - **A second owner function, next to Step 11's `purge_audit_events()`:**
      - it clears the IP address and user agent of audit events older than `privacy.auditNetworkMonths`, and keeps the events;
      - the default is 12, and the schema refuses less, which is the ECC-2:2024 floor (2-12-3-5);
-     - it deletes no whole event until the controller gives the records schedule.
+     - the trigger lets an update through only while that function runs, and only one that sets those two columns to null.
 
      This amends principle 4 for those two columns only. The triggers still refuse every other change, and they still bind the app.
+   - **Step 11's whole-event purge stays as merged,** under `audit.retentionMonths` (60 months by default). The controller sets it from its records schedule.
 
    Each path logs how many rows each rule touched, and an integration test proves each rule.
 
@@ -74,8 +77,8 @@ Better Auth already deletes expired verification values whenever anyone checks a
      - the notice's date.
    - **Retention periods shown:** read from the settings that enforce them, so the page and the behavior never disagree. The backup period is deployment configuration, not a setting: the page reads it from that configuration, and a test checks that the two match.
 6. **Leavers, imports and photos.**
-   - **Leavers:** disabling an account (Step 10) deletes its sessions, its password hash and its two-factor secrets, in the same transaction. The person and their records stay.
-   - **People import files (Step 10):** discarded after the import, as Rayat files are.
+   - **Leavers:** disabling an account already deletes its sessions (Step 10). It also deletes the password hash and the two-factor secrets, in the same transaction. The person and their records stay. Enabling the account again then starts from Step 10's reset, and two-factor is set up again.
+   - **People files:** Step 10 already reads them in memory and stores nothing of them, as Steps 16 and 17 will do with Rayat files.
    - **Photos (Step 25):** the browser removes all metadata, not only the location, when it applies the orientation. The upload screen carries one line: photograph the work, not the people, and cover what the task does not need.
 7. **Security events wait for Steps 40 and 42.**
    - **Step 40 chooses:**
@@ -84,8 +87,8 @@ Better Auth already deletes expired verification values whenever anyone checks a
    - **Step 40 also:** splits the Docker networks so that Caddy reaches only the app (ECC-2:2024 2-15-3-2).
    - **Step 42:** rotates the container logs and keeps security events for 12 months.
 8. **Rights and access reviews.**
-   - **Access requests:** Steps 10 and 11 give admins a "this person's data" export of what exists then: the profile, memberships and the audit events about the person. Each later step that stores a person's records adds them to it, so requests are answered within the 30 days the Implementing Regulations allow.
-   - **Periodic access review (ECC-2:2024, 2-2-3-5):** Step 11 lists the memberships no admin has confirmed within a set period.
+   - **Access requests:** a "this person's data" export for admins: the profile, the memberships and the audit events about the person. It builds on Step 11's person filter and CSV export. Each later step that stores a person's records adds them to it, so requests are answered within the 30 days the Implementing Regulations allow.
+   - **Periodic access review (ECC-2:2024, 2-2-3-5):** a list of the memberships no admin has confirmed within a set period, next to the roles grid.
 9. **Breaches.**
    - **The runbook:** `docs/ops/breach-response.md`, rehearsed once as a table-top exercise before go-live.
    - **SDAIA:** proposed, notified within 72 hours of every incident that touches personal data, as the October 2026 draft would require, and not only when harm is likely. The DPO confirms.
@@ -111,19 +114,20 @@ Not decided here: these belong to the controller and its DPO, and the checklist 
 
 ## Consequences
 
-- **The work:** decisions 3 to 5 come to about a day and a half, on top of the step in progress:
+- **The work:** decisions 3 to 6 and 8 come to about two and a half days, on top of the step in progress:
   - the hashing;
   - the daily job;
-  - the audit purge's clearing of the two columns: Step 11's owner path, brought forward with its own migration;
+  - the second owner function, its trigger change and its migration;
+  - the credentials deleted on disabling;
   - the `privacy.*` settings with their defaults;
   - the page and its messages;
-  - their tests: a unit test for the hash, an integration test for each retention rule, and an end-to-end test that `/privacy` opens signed out.
+  - the person's data export and the access review list;
+  - their tests: a unit test for the hash, an integration test for each retention rule and for disabling, and an end-to-end test that `/privacy` opens signed out.
 
   They wait until the step in progress has merged, because they touch the same files.
 - **Decision 2:** it changes Steps 16 and 17 before they are built, so it costs nothing now. Section 3's `enrollments` become section counts. Step 16's test that no name, mobile or grade column exists extends to trainee numbers. Step 43's demo enrollments, "by trainee number only", become counts too.
 - **On acceptance, the plan gains notes for:**
-  - Step 10: disabling deletes the credentials; import files are discarded; the data export starts.
-  - Step 11: the purge's two-column rule and its 12-month floor; the access review.
+  - Steps 10 and 11: merged, so the PR that implements this ADR changes their code, and each gets a note of what changed.
   - Steps 16 and 17: counts.
   - Step 25: metadata; the upload line.
   - Steps 33, 36 and 38: their rows in the record.
@@ -136,4 +140,4 @@ Not decided here: these belong to the controller and its DPO, and the checklist 
   The request to the General Administration (`docs/ops/hosting-options.md`, item 3) drops the trainee rows.
 - **People see:** the privacy link. Nothing else changes for them.
 - **Risk:** the purges delete data. Their tests prove that they touch only the rows above and never a record of work.
-- **Until Step 10:** there is no screen or command to reset someone's password, so incident containment for a single account depends on Step 10. No real data arrives before it.
+- **Containment:** for a single account, `docs/ops/breach-response.md` uses Step 10's disabling and reset.

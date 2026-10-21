@@ -1,7 +1,7 @@
 # Data protection: the platform's record of personal data
 
 - Status: draft, for the controller and its data protection officer to confirm
-- Date: 2026-10-21
+- Date: 2026-10-21, updated the same day for Steps 10 and 11 as merged (#21 and #22)
 - Decisions: ADR-0013 (proposed)
 - Related: `docs/privacy/privacy-notice.md` (the notice, in Arabic), `docs/ops/breach-response.md` (the incident runbook, in Arabic), `docs/ops/hosting-options.md` (the request to the General Administration)
 
@@ -65,11 +65,11 @@ They bind government entities, so the college's systems. The controls that touch
 | Control | Asks | Platform today | Gap, and where it closes |
 | --- | --- | --- | --- |
 | 2-2-3-2 | Multi-factor authentication for remote access and privileged accounts, based on an assessment of the impact of authentication failure and bypass | TOTP is required before any key that needs it (the system role holds them all); ADR-0009 | Write the authentication impact assessment. Remote administration of the server waits for the hosting decision (Section K of the plan). |
-| 2-2-3-5 | Periodic review of identities and access rights | The roles grid and the audit of every membership change (Step 9) | No prompt to review yet: ADR-0013 proposes one for Step 11 |
+| 2-2-3-5 | Periodic review of identities and access rights | The roles grid; every membership change is audited (Step 9) and shows in Step 11's audit screen and each record's history | No prompt to review: ADR-0013 adds a list of the memberships no admin has confirmed within a set period |
 | 2-7-2 | Protect data by its classification | Department scopes; no trainee names stored; trainee data shown as counts only (Step 34); exam copies hidden until the exam date (Step 30) | The classification itself, for the data owner (below) |
 | 2-8-3-3 | Encrypt data in transit and at rest, by classification | HTTPS everywhere through Caddy, HSTS on the real host (Step 47); two-factor secrets encrypted with `AUTH_SECRET` | The database, files and the current dump are not encrypted at rest: disk encryption on the server (option A) or the provider's (option B); encrypted backups in Step 42 |
 | 2-9-3-3 | Test backup recovery periodically | Not yet | Step 42's timed restore drill, and a drill before each exam week (section 8 of the plan) |
-| 2-12-3-5 | Keep cybersecurity event logs at least 12 months | Audit events are append-only and never deleted | A failed sign-in leaves a durable record only when it locks an existing account (`account.lock`). Container logs are not rotated and are lost when a container is recreated, and Caddy writes no access log. (Steps 40 and 42; ADR-0013, decision 7) |
+| 2-12-3-5 | Keep cybersecurity event logs at least 12 months | Audit events are append-only. Step 11's daily job deletes a college's events older than `audit.retentionMonths` (60 months by default), and the database refuses to keep less than 12 (migration 0010) | A failed sign-in leaves a durable record only when it locks an existing account (`account.lock`). Container logs are not rotated and are lost when a container is recreated, and Caddy writes no access log. (Steps 40 and 42; ADR-0013, decision 7) |
 | 2-13-3-3 | Report cybersecurity incidents to the NCA | | `docs/ops/breach-response.md`, within the corporation's own procedure and deadline |
 | 2-15-3-1 | A web application firewall | None, and none is planned | Decide with the hosting: the provider's on option B, the college's network on option A |
 | 2-15-3-2 | A multi-tier architecture | Only Caddy publishes ports, and CI proves it. But Caddy, the app, the worker and PostgreSQL share one internal network, so the web tier can reach the database. | Split the networks so that Caddy reaches only the app (Step 40) |
@@ -88,20 +88,21 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 
 ## What the platform keeps
 
-### Today (Steps 1 to 9)
+### Today (Steps 1 to 11)
 
 | Data | About | Where | Why | Who sees it |
 | --- | --- | --- | --- | --- |
-| Name, email (lowercase), two-factor flag, "must change password" flag | Staff | `users` | The account | The person; admins |
+| Name, email (lowercase), two-factor flag, "must change password" flag, when the account was disabled (Step 10) | Staff | `users` | The account | The person; admins |
 | Employee number, college | Staff | `people` | Signing in by employee number; matching Rayat's sections to trainers (Step 17) | The person; admins; heads in their department |
-| Password hash | Staff | `accounts` | Checking the password | Nobody: one-way |
+| Password hash. A temporary password, for a new account or after a reset, is shown once to hand over and never kept in clear (Step 10). | Staff | `accounts` | Checking the password | Nobody: one-way |
 | TOTP secret and backup codes, encrypted with `AUTH_SECRET` | Admins, and from Step 10 heads (`accounts.resetPassword` requires two-factor) | `two_factors` | Two-factor sign-in | Nobody: encrypted |
 | Session token, IP address, user agent, remembered, last seen, when the password was last typed | Staff | `sessions` | Keeping someone signed in; idle timeout; re-authentication | Nobody in the interface |
 | Short-lived verification values | Staff | `verifications` | Better Auth's internals; it deletes expired ones the next time anyone checks a two-factor code | Nobody |
 | The identifier as typed, with the address, and a count | Anyone who tries to sign in, with or without an account | `sign_in_attempts` | Limits per identifier and address | Nobody |
 | The identifier as typed, and a count | Same | `sign_in_lockouts` | Lockout | Nobody |
 | Who holds which role, across the college or in a department | Staff | `memberships` | Authorization | Holders of `roles.manage` |
-| Who did what to which record, its changes, IP address and user agent | Staff | `audit_events` | Accountability and security investigation | Admins (Step 11 adds the screen) |
+| Who did what to which record, its changes, IP address and user agent | Staff | `audit_events` | Accountability and security investigation | Holders of `audit.view`, which requires two-factor: the system role by default. Step 11's audit screen shows the IP address and the device, and its CSV export writes them out; each export is itself audited (`audit.export`). The history under each record shows its events without them. |
+| A people file: employee number, name, email, department and role on each row | Staff | Not stored. Read in memory for the preview, then its rows are sent back for the import (Step 10). | Creating accounts and memberships | The admin who imports it |
 
 Colleges, departments, roles and settings hold no personal data. Their audit events name the admin who changed them.
 
@@ -111,7 +112,6 @@ Each step updates its row when it is built. The data is listed here now so the c
 
 | Data | About | Step | Notes |
 | --- | --- | --- | --- |
-| People import files: employee number, name, email, department, role | Staff | 10 | Discarded after the import, as Rayat files are (ADR-0013) |
 | Notifications | Staff | 12 | |
 | Trainee number, registration status and trainee status per section (SF01) | Trainees | 16, 17 | Names, mobile numbers and grades are dropped while parsing. ADR-0013 proposes per-section counts instead of trainee numbers. |
 | Trainee number, course status such as barred for absence, unexcused absence in percent and hours (SO01, optional) | Trainees | 16 | Same proposal: per-course counts and bands |
@@ -152,14 +152,14 @@ The schedule follows a few rules:
 | Sessions | Until their limit: 12 hours, 30 days on a remembered device, 60 minutes idle (the `auth.*` settings), 90 days at most | Deleted when next seen past it. A daily job deletes the ones never seen again. | Job: ADR-0013. Today they stay, with their IP address and user agent. |
 | Verification values | Until they expire | Better Auth deletes them at the next two-factor code check; the daily job is a backstop | Job: ADR-0013 |
 | Sign-in counts | 15 minutes by default (`auth.signInWindowMinutes`, `auth.lockoutMinutes`) | Pruned by the next attempt, and by the daily job | The typed identifier and the address become keyed hashes (ADR-0013) |
-| IP address and user agent in audit events | 12 months, the ECC-2:2024 minimum (2-12-3-5) | Step 11's retention purge clears both columns and keeps the event, as the table owner | Setting `privacy.auditNetworkMonths` (12, never less): ADR-0013 |
-| The rest of each audit event | As long as the record it describes | With that record | Records schedule, **to confirm** |
+| IP address and user agent in audit events | Proposed: 12 months, the ECC-2:2024 minimum (2-12-3-5). Today they stay as long as their event. | A second owner function, next to Step 11's `purge_audit_events()`, clears both columns and keeps the event | Setting `privacy.auditNetworkMonths` (12, never less): ADR-0013 |
+| The rest of each audit event | `audit.retentionMonths`: 60 months by default, from 12 to 120, changed by an admin after re-authentication | Step 11's daily job deletes them as the table owner (`purge_audit_events()`, migration 0010) | Step 11. **To confirm:** the records schedule may keep the events about training records longer. |
 | Error reports | 90 days | Step 42's job | Step 42 |
 | Logs | Security events 12 months, the rest 30 days | Rotation | Step 42 |
 | Backups | About 15 days today: a daily dump on the same server, and each day's run deletes the dumps more than 14 full days old | Rotation, which bounds every deletion above | Deployment configuration, not a setting. Step 42 replaces it with encrypted backups and states its periods here. |
-| Rayat files and people import files | Never stored | Discarded after parsing | Steps 10 and 16 |
+| Rayat files and people files | Never stored | Read in memory and discarded | People files: Step 10, as built. Rayat files: Step 16. |
 | Trainee rows from SF01 and SO01 | None, if counts replace them (ADR-0013). Otherwise until the term closes, plus one term. | | Step 16 |
-| A staff member who leaves | Sign-in ends the day they leave. The name and employee number stay with their records. | Step 10 disables the account. ADR-0013 adds that disabling deletes their sessions, password hash and two-factor secrets. | Step 10 |
+| A staff member who leaves | Sign-in ends the day they leave. The name and employee number stay with their records. | Step 10 disables the account and deletes its sessions. ADR-0013 adds the password hash and the two-factor secrets. | Step 10; ADR-0013 |
 | Evidence, reviews, approvals, portfolios, indicators and minutes | The college's records schedule for training records | | **To confirm** with the corporation's records office |
 
 ## People's rights
@@ -175,7 +175,7 @@ The schedule follows a few rules:
    - Staff details: an admin (Step 10).
    - Rayat data: corrected in Rayat, the system of record, then imported again.
 6. **Destruction:** done when no retention rule applies (PDPL Art. 18). Otherwise the answer says which rule keeps the data, and until when.
-7. **Missing:** a "this person's data" export for admins. ADR-0013 proposes that Steps 10 and 11 start it with what exists then, and that each later step adds its records.
+7. **Missing:** a "this person's data" export for admins. Today Step 11's audit screen filters the events by person and exports them as CSV. ADR-0013 adds the profile and memberships to that export, and each later step adds its records.
 
 ## Impact assessment
 
