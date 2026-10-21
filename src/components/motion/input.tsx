@@ -13,10 +13,12 @@ import {
 } from "react";
 import { cn } from "@/components/ui/cn";
 
+// No dir: the padding and the icons follow the page, and the text takes the direction of what is
+// typed (unicode-bidi: plaintext), so an email runs left to right without moving the padding.
 export interface InputProps
   extends Omit<
     InputHTMLAttributes<HTMLInputElement>,
-    "value" | "defaultValue" | "onChange"
+    "value" | "defaultValue" | "onChange" | "dir"
   > {
   label: string;
   value?: string;
@@ -112,7 +114,7 @@ export function Input({
             onBlur?.(event);
           }}
           className={cn(
-            "h-full w-full bg-transparent text-base text-foreground caret-foreground outline-none placeholder:text-muted-foreground/70",
+            "h-full w-full bg-transparent text-base text-foreground caret-foreground outline-none [unicode-bidi:plaintext] placeholder:text-muted-foreground/70",
             startIcon ? "ps-10" : "ps-3.5",
             endSlot ? "pe-11" : "pe-3.5",
             disabled && "cursor-not-allowed",

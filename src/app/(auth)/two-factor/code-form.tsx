@@ -53,7 +53,6 @@ export function CodeForm() {
         spellCheck={false}
         enterKeyHint="go"
         maxLength={backup ? 16 : 6}
-        dir="ltr"
         className="[&_input]:text-center [&_input]:text-lg [&_input]:tracking-[0.3em] [&_input]:tabular-nums"
         required
         autoFocus

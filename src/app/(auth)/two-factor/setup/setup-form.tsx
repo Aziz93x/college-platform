@@ -59,7 +59,6 @@ export function SetupForm() {
           }
           startIcon={<LockKeyhole />}
           autoComplete="current-password"
-          dir="auto"
           required
         />
         <SubmitButton
@@ -126,7 +125,6 @@ export function SetupForm() {
           autoComplete="one-time-code"
           enterKeyHint="go"
           maxLength={6}
-          dir="ltr"
           className="[&_input]:text-center [&_input]:text-lg [&_input]:tracking-[0.3em] [&_input]:tabular-nums"
           required
         />

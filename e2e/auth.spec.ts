@@ -59,6 +59,49 @@ test("the login page names the platform and the college under the pilot banner, 
   await expect(page).toHaveURL("/today");
 });
 
+test("typed text stays clear of each field's icons, whichever way it runs", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const identifier = page.getByLabel(signInText.identifier);
+  const password = page.getByLabel(signInText.password, { exact: true });
+  // A long email and a long passphrase, both left to right on a right-to-left page.
+  await identifier.fill("abdulrahman.alqahtani.training@oasis.example");
+  await password.fill("a long passphrase that fills the whole field");
+  await page.getByRole("button", { name: signInText.showPassword }).click();
+
+  for (const field of [identifier, password]) {
+    // Where the text shows: the field without its padding and border.
+    const text = await field.evaluate((input) => {
+      const box = input.getBoundingClientRect();
+      const style = getComputedStyle(input);
+      return {
+        left:
+          box.left +
+          Number.parseFloat(style.borderLeftWidth) +
+          Number.parseFloat(style.paddingLeft),
+        right:
+          box.right -
+          Number.parseFloat(style.borderRightWidth) -
+          Number.parseFloat(style.paddingRight),
+      };
+    });
+    const icons = await field
+      .locator("xpath=..")
+      .locator("svg")
+      .evaluateAll((svgs) =>
+        svgs.map((svg) => {
+          const box = svg.getBoundingClientRect();
+          return { left: box.left, right: box.right };
+        }),
+      );
+    expect(icons.length).toBeGreaterThan(0);
+    for (const icon of icons) {
+      expect(icon.right <= text.left || icon.left >= text.right).toBe(true);
+    }
+  }
+});
+
 test("signs out from the account menu; the shell then sends back to the login page", async ({
   page,
   account,

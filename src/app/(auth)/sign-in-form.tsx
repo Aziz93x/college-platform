@@ -61,7 +61,6 @@ export function SignInForm({ rememberDays }: { rememberDays: number }) {
         autoCapitalize="none"
         spellCheck={false}
         enterKeyHint="next"
-        dir="auto"
         required
       />
       <Input
@@ -84,7 +83,6 @@ export function SignInForm({ rememberDays }: { rememberDays: number }) {
         }
         autoComplete="current-password"
         enterKeyHint="go"
-        dir="auto"
         required
       />
       <Checkbox
