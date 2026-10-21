@@ -93,6 +93,23 @@ Locking is no action: an account locks itself after failed attempts and a tempor
 it. The table's selection, sticky header and virtualized rows still wait for a list that needs them:
 a college's people fit one page, and nothing acts on several people at once yet.
 
+## Adopted in Step 11 (the audit log)
+
+| Component | Real use |
+| --- | --- |
+| Motion: date range picker | The log's period: days up to today on the college's clock, from its first day of the week and in its digits, in a panel from a trigger that looks like the text fields |
+| Motion: popover (morph) | The date range picker's panel, which opens from the trigger's corner |
+| Motion: collapsible | Each event of the log and of a record's history: the row opens to what changed, before and after, and in the log to the address and device |
+| Motion: combobox | The log's action filter: the 23 actions, found by their names or their group's |
+| Motion: input | The log's person filter: a name, an employee number or an email |
+| Motion: animated sidebar | The desktop sidebar: the administration pages under their group's name, and the icon rail it folds to from its toggle, its inner edge or Ctrl (Cmd) + B, kept for the next page; the Step 5 list and its shared-layout pill moved into it |
+
+The log is a list of days rather than a table: a row opens to its changes, which a table's row cannot
+hold, and the list keeps its layout on a phone. A page holds 50 events and older ones follow by
+keyset, so no row needs virtualizing; the table's selection, sticky header and virtualized rows wait
+for sections (Step 17). The sidebar's sub-menus and its phone sheet stay out: no page has sub-pages
+yet, and a phone keeps the tab bar and its "More" sheet, which the admin's sixth page now opens.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
@@ -106,6 +123,7 @@ Where a BeUI piece serves a job, it is the component for that job everywhere; th
 | The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
 | Yes or no, a choice, groups | Motion: switch, select, tabs (Step 7) | `ui/switch`, `ui/select`, `ui/tabs` |
 | A count, a percentage | Motion: adaptive stepper, range slider (Step 7) | none |
+| A period of days | Motion: date range picker (Step 11) | `ui/calendar`, and react-day-picker, unless a step needs a single day |
 
 The toast stays Sonner until the same review decides on BeUI's animated toast stack (docs/BACKLOG.md).
 
@@ -113,12 +131,10 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 
 | Step | Component | Real use |
 | --- | --- | --- |
-| 10 | Motion: table | People, then sections (17) and the audit log (11): selection, a sticky header, virtualized rows |
+| 10 | Motion: table | People, then sections (17): selection, a sticky header, virtualized rows |
 | 10 | Motion: animated badge | An account's state; then readiness (22) and task (26) states |
 | 10 | Blocks: overflow actions | A person's row: reset the password, lock, disable |
 | 11 | Motion: date range picker | The audit log's period filter; then holidays and exam weeks (13) |
-| 11 | Motion: collapsible | An audit event's diff, and the history panel on entity pages |
-| 11 | Motion: animated sidebar | The desktop sidebar once it has its administration group (settings, departments, roles, people, audit log): nested groups and the icon rail; the Step 5 list and its shared-layout pill move into it |
 | 12 | Blocks: notification stack | The bell's notification center |
 | 13 | Motion: adaptive stepper | The number of weeks in a term |
 | 13 | Motion: select (morph) | The header's term switcher |

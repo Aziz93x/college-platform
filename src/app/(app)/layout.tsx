@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -11,13 +12,14 @@ import {
   navigation,
   orderFor,
   type ShellLink,
+  SIDEBAR_COOKIE,
   visibleNavigation,
 } from "./_shell/navigation.ts";
 import { Sidebar } from "./_shell/sidebar.tsx";
 import { TabBar } from "./_shell/tab-bar.tsx";
 
-// The shell around every page of a signed-in role: the sidebar on desktop, the tab bar on a phone,
-// the header and the command palette. Navigation is data: the pages the viewer's permissions open,
+// The shell around every page of a signed-in role: the sidebar on desktop, open or on its icon rail
+// as the viewer left it, the tab bar on a phone, the header and the command palette. Navigation is data: the pages the viewer's permissions open,
 // in the order the navigation.order setting gives the viewer's role. Signed out, or with a password
 // to replace or two-factor to set up, the viewer is sent there first.
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -25,9 +27,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   await connection();
   const viewer = await requireViewer();
   const college = await findCollege();
-  const [orders, name] = await Promise.all([
+  const [orders, name, cookieStore] = await Promise.all([
     college ? getSetting("navigation.order", { collegeId: college.id }) : {},
     platformName(),
+    cookies(),
   ]);
   const items = visibleNavigation(
     navigation,
@@ -36,11 +39,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   );
   const t = await getTranslations("shell");
   const nav = await getTranslations("nav");
-  const links: ShellLink[] = items.map(({ id, href, icon: Icon }) => ({
-    id,
-    href,
-    label: nav(id),
-    icon: <Icon />,
+  const links: ShellLink[] = items.map((item) => ({
+    id: item.id,
+    href: item.href,
+    label: nav(item.id),
+    icon: <item.icon />,
+    group: "group" in item ? item.group : undefined,
   }));
 
   return (
@@ -73,10 +77,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </a>
       <div className="flex min-h-dvh">
         <Sidebar
+          open={cookieStore.get(SIDEBAR_COOKIE)?.value !== "collapsed"}
           platformName={name}
           collegeName={college?.name}
           links={links}
-          label={t("navigation")}
+          groups={{ administration: nav("groups.administration") }}
+          labels={{
+            navigation: t("navigation"),
+            collapse: t("sidebar.collapse"),
+            expand: t("sidebar.expand"),
+          }}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header

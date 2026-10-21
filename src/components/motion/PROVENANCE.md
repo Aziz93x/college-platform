@@ -47,6 +47,14 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `lib/use-slider.ts` | `lib/hooks/use-slider.ts` |
 | `overflow-actions.tsx` | `components/motion/overflow-actions.tsx` |
 | `lib/use-hover-capable.ts` | `lib/hooks/use-hover-capable.ts` |
+| `popover-morph.tsx` | `components/motion/popover-morph.tsx` |
+| `date-range-picker/index.tsx` | `components/motion/date-range-picker.tsx` |
+| `date-range-picker/context.ts` | `components/motion/date-range-picker/context.ts` |
+| `date-range-picker/date-utils.ts` | `components/motion/date-range-picker/date-utils.ts` |
+| `date-range-picker/types.ts` | `components/motion/date-range-picker/types.ts` |
+| `date-range-picker/use-date-range-picker.ts` | `components/motion/date-range-picker/use-date-range-picker.ts` |
+| `collapsible.tsx` | `components/motion/collapsible.tsx` |
+| `animated-sidebar.tsx` | `components/motion/animated-sidebar.tsx` |
 
 ## Local changes
 
@@ -162,3 +170,30 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   the alert tint with its icon).
 - `bloom-menu.tsx`: a link item closes the menu as it opens its page, which the shell keeps, menu
   and all, when the page is one of its own.
+
+## Local changes from Step 11 (the audit log)
+
+- `date-range-picker/`: controlled only, with the range held by the page; every word it shows or
+  announces is one of `DateRangePickerWords`, from the catalog's `dateRange` messages, with no
+  English defaults; the college's locale names the months and weekdays and writes the digits, and
+  `weekStartsOn` its first column; the arrow keys follow the reading direction; the presets, the
+  uncontrolled value and open state, the default month and the per-day refusal are gone. The
+  trigger looks like the text fields (44 px, `rounded-lg`, the input border and the focus ring),
+  fills its row, and shows an unchosen period in the muted color, which keeps its contrast.
+- `popover-morph.tsx`: `align` is the trigger's start or end in its reading direction, so the panel
+  opens from the right corner of a right-to-left page; `m` elements; the position helper is the
+  combobox's `lib/popover-position.ts`.
+- `collapsible.tsx`: uncontrolled (`defaultOpen`), without the disabled state, the `useCollapsible`
+  hook or the trigger's `render`; the trigger is 44 px and reads `text-start`. The content is no
+  `region`: a log of fifty events would list fifty landmarks, and the trigger already names it.
+- `animated-sidebar.tsx`: the desktop part only. The provider is the sidebar itself, which takes
+  its first state (`defaultOpen`, from the shell's cookie) and reports each change
+  (`onOpenChange`); its width moves between `--sidebar-width` and `--sidebar-width-icon`, and its
+  `data-state` lets the server-rendered children fold with group variants. The trigger and the
+  rail name what a press does now from the catalog (`label`); the rail sits on the inner edge in
+  either direction and stays out of the tab order and the accessibility tree. The phone sheet, the
+  off-canvas and floating variants, the inset, the header, content and footer wrappers, the menu
+  buttons and the sub-menus are gone: the phone keeps its tab bar, and no page has sub-pages.
+- `overflow-actions.tsx`: no branch on reduced motion while rendering, which drew a reduced-motion
+  client's first render unlike the server's HTML; `MotionProvider`'s `reducedMotion="user"` drops
+  the movement instead.

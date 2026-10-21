@@ -235,10 +235,73 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "backup_codes",
     "disabled_at",
   ];
-  expect(await tableRows(two.pool, generated)).toEqual(
-    await tableRows(one.pool, generated),
-  );
+  // The log names its records by their ids, in its columns and in what changed, so each id reads
+  // the same there.
+  const sameIds = async (pool: Pool) =>
+    Object.fromEntries(
+      Object.entries(await tableRows(pool, generated)).map(([table, rows]) => [
+        table,
+        rows.map((row) => row.replaceAll(UUID, "<id>")).sort(),
+      ]),
+    );
+  expect(await sameIds(two.pool)).toEqual(await sameIds(one.pool));
   expect(await collegeNames(one.pool)).toEqual(theDemoCollege);
+});
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+it("writes three weeks of the college's history, every event in the past and by one of its people, and a re-run adds none", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select e.action, e.created_at, e.actor_id, e.entity_type, e.entity_id, e.ip, e.user_agent,
+      exists (select 1 from users u where u.id::text = e.actor_id) as actor_known
+    from audit_events e order by e.created_at`);
+  expect(rows.length).toBeGreaterThan(300);
+  const now = Date.now();
+  expect(rows[0].created_at.getTime()).toBeGreaterThan(now - 22 * 86_400_000);
+  expect(rows.at(-1).created_at.getTime()).toBeLessThan(now);
+  for (const row of rows) {
+    // Only the system locks an account; every other event is a person's, from their device.
+    expect(row.actor_known || row.action === "account.lock", row.action).toBe(
+      true,
+    );
+    expect(row.ip).toMatch(/^10\.(20|40)\./);
+    expect(row.user_agent).toMatch(/^Mozilla\/5\.0 /);
+  }
+  expect(new Set(rows.map(({ action }) => action))).toEqual(
+    new Set([
+      "setting.update",
+      "department.create",
+      "role.update",
+      "account.create",
+      "membership.create",
+      "session.signIn",
+      "session.signOut",
+      "account.changePassword",
+      "account.startTwoFactorSetup",
+      "account.enableTwoFactor",
+      "account.lock",
+      "account.resetPassword",
+      "person.linkEmployeeNumber",
+      "person.update",
+      "account.disable",
+      "audit.export",
+    ]),
+  );
+  // Every person was added, and the invited trainer has not signed in.
+  const { rows: people } = await pool.query(`
+    select p.employee_number,
+      count(*) filter (where e.action = 'account.create') as created,
+      count(*) filter (where e.action = 'session.signIn') as signed_in
+    from people p left join audit_events e on e.entity_id = p.user_id::text
+    group by p.employee_number`);
+  for (const person of people) {
+    if (person.employee_number === demoAccounts.admin.employeeNumber) continue;
+    expect(Number(person.created), person.employee_number).toBe(1);
+    expect(Number(person.signed_in) > 0, person.employee_number).toBe(
+      person.employee_number !== demoAccounts.invitedTrainer.employeeNumber,
+    );
+  }
 });
 
 it("refuses to run when APP_ENV is production or unset, and writes nothing", async () => {

@@ -35,3 +35,12 @@ function decode(bytes: Uint8Array) {
     return new TextDecoder("windows-1256").decode(bytes);
   }
 }
+
+// Rows as CSV lines, each ended by CRLF as Excel writes them. A cell a spreadsheet would read as a
+// formula (=, +, -, @, a tab or a return first) gets a ' before it, so it shows as the text people
+// typed.
+export function csvLines(rows: string[][]) {
+  return rows.length === 0
+    ? ""
+    : `${Papa.unparse(rows, { escapeFormulae: true, newline: "\r\n" })}\r\n`;
+}

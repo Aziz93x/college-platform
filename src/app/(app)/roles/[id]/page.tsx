@@ -19,6 +19,8 @@ import { listPeople } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 import { navigation, visibleNavigation } from "../../_shell/navigation.ts";
+import { HistoryPanel } from "../../audit/history-panel.tsx";
+import { parseCursor } from "../../audit/query.ts";
 import { RoleNameForm } from "../role-name-form.tsx";
 import { Members } from "./members.tsx";
 import { PageOrder } from "./page-order.tsx";
@@ -57,9 +59,13 @@ const areas: GridArea[] = [...new Set(permissionKeys.map(permissionArea))].map(
   }),
 );
 
-// One role: its name, its keys on the grid, who holds it and where, and the order of its pages.
-// Each change draws the page again, so the counts and the header follow it.
-export default async function RolePage({ params }: PageProps<"/roles/[id]">) {
+// One role: its name, its keys on the grid, who holds it and where, and the order of its pages,
+// then its history for whoever may read the log. Each change draws the page again, so the counts,
+// the header and the history follow it.
+export default async function RolePage({
+  params,
+  searchParams,
+}: PageProps<"/roles/[id]">) {
   await connection();
   const { viewer, allowed, role, language } = await roleFor((await params).id);
   if (!allowed) forbidden();
@@ -128,6 +134,14 @@ export default async function RolePage({ params }: PageProps<"/roles/[id]">) {
           ) : null}
         </div>
       </NextIntlClientProvider>
+      <HistoryPanel
+        subjects={[
+          { entityType: "role", entityId: role.id },
+          { membershipsOf: "role", value: role.key },
+        ]}
+        after={parseCursor((await searchParams).history)}
+        href={`/roles/${role.id}`}
+      />
     </>
   );
 }

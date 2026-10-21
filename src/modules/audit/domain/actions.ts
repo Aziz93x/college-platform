@@ -31,7 +31,7 @@ export const auditActions = [
 
 export type AuditAction = (typeof auditActions)[number];
 
-export const auditEntities = [
+const auditEntities = [
   "user",
   "college",
   "department",
@@ -41,7 +41,3 @@ export const auditEntities = [
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];
-
-export function isAuditAction(value: string): value is AuditAction {
-  return (auditActions as readonly string[]).includes(value);
-}

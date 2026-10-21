@@ -5,6 +5,7 @@ import {
   gte,
   inArray,
   lt,
+  notInArray,
   or,
   type SQL,
   sql,
@@ -122,11 +123,18 @@ export function listAuditEvents(
   );
 }
 
-/** A page of what happened to an entity, newest first: its own events and the memberships naming it. */
+/**
+ * A page of what happened to an entity, newest first: its own events and the memberships naming it,
+ * but for the actions it leaves out, such as an account's sign-ins.
+ */
 export function entityHistory(
   collegeId: string,
   subjects: readonly HistorySubject[],
-  options: { after?: AuditCursor; limit?: number } = {},
+  options: {
+    after?: AuditCursor;
+    limit?: number;
+    except?: readonly AuditAction[];
+  } = {},
   db: Db = getDb(),
 ) {
   const about = subjects.map((subject) =>
@@ -144,7 +152,14 @@ export function entityHistory(
         ),
   );
   return page(
-    [eq(auditEvents.collegeId, collegeId), or(...about), before(options.after)],
+    [
+      eq(auditEvents.collegeId, collegeId),
+      or(...about),
+      options.except?.length
+        ? notInArray(auditEvents.action, [...options.except])
+        : undefined,
+      before(options.after),
+    ],
     options.limit ?? 20,
     db,
   );

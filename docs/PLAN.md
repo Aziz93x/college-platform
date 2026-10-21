@@ -321,7 +321,7 @@ You are the lead software engineer. A section of docs/PLAN.md is finished; verif
    migrations reviewed and reversible.
 4. Data and speed: an index for every query the section added (EXPLAIN the slow ones); no N+1 queries;
    server p95 within the budget in section 4.
-5. Security: the permission matrix test covers every new action; inputs validated; files authorized.
+5. Security: the permission matrix and the audit test (actions-audit) cover every new action; inputs validated; files authorized.
 6. Better flow: for each journey in the section, count screens, taps and fields. Propose a simpler path
    that keeps every outcome the plan requires, with its cost.
 Write docs/reviews/lead-<section>.md: must-fix items first, then proposals ranked by benefit over cost.
@@ -892,6 +892,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A dropped `SMTP_URL` and Mailpit; the step that adds SMTP after the hosting decision brings them back.
 - Done when, replaced: the digest reaches the in-app channel for a fixture (snapshot test), and a kind the person muted is not delivered (test).
 
+**Note from Step 11:** each server action a step adds gets its line in `tests/integration/actions-audit.test.ts`, with the events it writes, which fails until it has one. A new action gets its name and its group's under `audit.actions` and `audit.groups` in `messages/ar.json` (`describe.test.ts` fails without them), and an event about a new kind of record names it in `src/app/(app)/audit/describe.ts`, as the log and the history panels show it. A record's page takes the history panel (`src/app/(app)/audit/history-panel.tsx`) with what names it.
+
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.
 >
 > **Checkpoint: Lead review B.** Run `/lead-review B`, then tag `v0.2-B`.
@@ -933,6 +935,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - The membership's optional term is a nullable `term_id` on `memberships`; add it to `memberships_scope_unique`, so a person can hold a role in one term and not the next.
 - The keys of the steps ahead exist already (`src/modules/access/domain/permissions.ts`), each with its first step, and the default grid gives them to the vice-dean, the head, the trainer and the dean. A department's records check the key in their department: `ctx.requirePermission(key, { departmentId })`; a list keeps to `ctx.departmentsFor(key)` ("college" or the departments); a record of one's own adds `ownerId`. A new action gets its row in `tests/unit/permission-matrix.test.ts`, which fails until it has one, and a department-scoped action adds department rows there.
+
+**Note from Step 11:** the date range picker is `src/components/motion/date-range-picker`, controlled, with its words from `dateRange` in `messages/ar.json`; the log's filters build them (`useDateRangeWords` in `src/app/(app)/audit/audit-filters.tsx`), so move that to a shared place when holidays and exam weeks use it. Its days are calendar dates (YYYY-MM-DD): `startOfDay()` and `wallClock()` in `src/platform/i18n/time-zone.ts` turn them into instants on the college's clock and back.
 
 #### Step 14. Portfolio axes catalog (S)
 

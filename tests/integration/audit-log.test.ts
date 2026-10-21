@@ -189,6 +189,21 @@ describe("entityHistory", () => {
     expect(
       await history([{ membershipsOf: "departmentId", value: department }]),
     ).toEqual(["membership.delete", "membership.create"]);
+
+    // An account's sign-ins, left out of its history, which keeps to what changed.
+    await event(collegeId, "2026-10-06 08:00:00+00", "session.signIn", {
+      type: "user",
+      id: person,
+    });
+    const { events } = await entityHistory(
+      collegeId,
+      [{ entityType: "user", entityId: person }],
+      { except: ["session.signIn", "session.signOut"] },
+      database.db,
+    );
+    expect(events.map(({ action }) => action)).toEqual([
+      "account.resetPassword",
+    ]);
   });
 });
 

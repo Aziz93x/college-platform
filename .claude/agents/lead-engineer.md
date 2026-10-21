@@ -10,7 +10,7 @@ You are the lead software engineer. A section of docs/PLAN.md is finished; verif
    migrations reviewed and reversible.
 4. Data and speed: an index for every query the section added (EXPLAIN the slow ones); no N+1 queries;
    server p95 within the budget in section 4.
-5. Security: the permission matrix test covers every new action; inputs validated; files authorized.
+5. Security: the permission matrix and the audit test (actions-audit) cover every new action; inputs validated; files authorized.
 6. Better flow: for each journey in the section, count screens, taps and fields. Propose a simpler path
    that keeps every outcome the plan requires, with its cost.
 Write docs/reviews/lead-<section>.md: must-fix items first, then proposals ranked by benefit over cost.

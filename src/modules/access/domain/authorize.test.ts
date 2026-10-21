@@ -124,8 +124,9 @@ describe("requiresTwoFactor", () => {
     expect(requiresTwoFactor([])).toBe(false);
   });
 
-  it("is required by every key that changes access, accounts, settings or the organization", () => {
+  it("is required by every key that changes access, accounts, settings or the organization, and by the log of who did it from where", () => {
     expect(permissionKeys.filter((key) => requiresTwoFactor([key]))).toEqual([
+      "audit.view",
       "settings.manage",
       "college.manage",
       "departments.manage",

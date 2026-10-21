@@ -128,11 +128,19 @@
     "people": "المنسوبون",
     "settings": "الإعدادات",
     "departments": "الأقسام",
-    "roles": "الأدوار"
+    "roles": "الأدوار",
+    "audit": "سجل التدقيق",
+    "groups": {
+      "administration": "الإدارة"
+    }
   },
   "shell": {
     "skipToContent": "انتقل إلى المحتوى",
     "navigation": "التنقل الرئيسي",
+    "sidebar": {
+      "collapse": "طي القائمة",
+      "expand": "توسيع القائمة"
+    },
     "more": "المزيد",
     "moreTitle": "صفحات أخرى",
     "close": "إغلاق",
@@ -872,6 +880,12 @@
             "description": "يرى مؤشرات الكلية في أقسامها كلها."
           }
         }
+      },
+      "audit": {
+        "view": {
+          "label": "سجل التدقيق",
+          "description": "يرى كل تغيير في المنصة، ومن أجراه، ومتى، ومن أي جهاز، ويصدّر السجل."
+        }
       }
     },
     "members": {
@@ -1110,5 +1124,171 @@
     "twoFactorOn": "التحقق بخطوتين مفعّل على حسابك.",
     "twoFactorOff": "التحقق بخطوتين غير مفعّل على حسابك.",
     "changePassword": "تغيير كلمة المرور"
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "description": "كل تغيير في المنصة: من أجراه، ومتى، ومن أين. لا يُعدَّل السجل ولا يُحذف منه شيء قبل انقضاء مدة الاحتفاظ.",
+    "filters": {
+      "label": "تصفية السجل",
+      "period": "الفترة",
+      "action": "الحدث",
+      "anyAction": "كل الأحداث",
+      "search": "الشخص",
+      "searchPlaceholder": "الاسم أو الرقم الوظيفي أو البريد",
+      "apply": "عرض",
+      "clear": "مسح التصفية",
+      "actions": "الأحداث",
+      "noAction": "لا حدث بهذا الاسم."
+    },
+    "pages": "صفحات السجل",
+    "columns": {
+      "time": "الوقت",
+      "actor": "من",
+      "action": "الحدث",
+      "subject": "على",
+      "changes": "التغييرات"
+    },
+    "change": "{field}: {before} ← {after}",
+    "note": "{field}: {value}",
+    "system": "النظام",
+    "unknownPerson": "شخص لم يعد في الكلية",
+    "empty": {
+      "title": "لا أحداث",
+      "description": "لا حدث في السجل يطابق هذه التصفية. وسّع الفترة أو امسح التصفية.",
+      "unfiltered": "لم يُسجَّل في السجل حدث بعد."
+    },
+    "newest": "الأحدث",
+    "older": "الأقدم",
+    "export": "تصدير CSV",
+    "exportFile": "سجل-التدقيق.csv",
+    "before": "قبل",
+    "after": "بعد",
+    "none": "—",
+    "yes": "نعم",
+    "no": "لا",
+    "device": "الجهاز",
+    "address": "العنوان",
+    "history": {
+      "title": "السجل",
+      "description": "ما جرى على هذا السجل، الأحدث أولًا.",
+      "empty": "لا أحداث بعد.",
+      "older": "أحداث أقدم",
+      "newest": "الأحدث",
+      "all": "أحداث الحساب كلها في سجل التدقيق"
+    },
+    "actions": {
+      "account": {
+        "create": "إنشاء حساب",
+        "resetPassword": "كلمة مرور مؤقتة",
+        "changePassword": "تغيير كلمة المرور",
+        "startTwoFactorSetup": "بدء إعداد التحقق بخطوتين",
+        "enableTwoFactor": "تفعيل التحقق بخطوتين",
+        "lock": "إيقاف الدخول مؤقتًا",
+        "lockTwoFactor": "إيقاف رموز التحقق مؤقتًا",
+        "disable": "تعطيل الحساب",
+        "enable": "إعادة الحساب"
+      },
+      "person": {
+        "update": "تعديل الاسم أو البريد",
+        "linkEmployeeNumber": "تصحيح الرقم الوظيفي"
+      },
+      "session": {
+        "signIn": "تسجيل الدخول",
+        "signOut": "تسجيل الخروج"
+      },
+      "college": {
+        "update": "تعديل اسم الكلية"
+      },
+      "department": {
+        "create": "إضافة قسم",
+        "update": "تعديل قسم"
+      },
+      "role": {
+        "create": "إضافة دور",
+        "update": "تعديل دور"
+      },
+      "membership": {
+        "create": "إعطاء دور",
+        "delete": "سحب دور"
+      },
+      "setting": {
+        "update": "تغيير إعداد",
+        "reset": "إعادة إعداد إلى قيمته الافتراضية"
+      },
+      "audit": {
+        "export": "تصدير السجل",
+        "purge": "حذف الأحداث الأقدم من مدة الاحتفاظ"
+      }
+    },
+    "groups": {
+      "account": "الحسابات",
+      "person": "المنسوبون",
+      "session": "الدخول والخروج",
+      "college": "الكلية",
+      "department": "الأقسام",
+      "role": "الأدوار",
+      "membership": "الأدوار",
+      "setting": "الإعدادات",
+      "audit": "سجل التدقيق"
+    },
+    "fields": {
+      "name": "الاسم",
+      "email": "البريد",
+      "employeeNumber": "الرقم الوظيفي",
+      "shortName": "الاسم المختصر",
+      "rayatValues": "صيغ رايات",
+      "active": "في الاستخدام",
+      "key": "المفتاح",
+      "labels": "الاسم",
+      "permissions": "الصلاحيات",
+      "userId": "الشخص",
+      "role": "الدور",
+      "departmentId": "المكان",
+      "lockedUntil": "حتى",
+      "twoFactor": "الخطوة الثانية",
+      "months": "مدة الاحتفاظ بالأشهر",
+      "removed": "الأحداث المحذوفة",
+      "rows": "الأحداث المصدّرة",
+      "value": "القيمة",
+      "start": "بداية الفترة",
+      "end": "نهاية الفترة",
+      "action": "الحدث",
+      "search": "البحث عن شخص"
+    },
+    "twoFactor": {
+      "totp": "رمز التطبيق",
+      "backupCode": "رمز احتياطي"
+    },
+    "college": "الكلية كلها"
+  },
+  "dateRange": {
+    "placeholder": "كل الأوقات",
+    "start": "من",
+    "end": "إلى",
+    "unchosen": "لم يُختر",
+    "chooseMonth": "اختيار الشهر",
+    "chooseYear": "اختيار السنة",
+    "monthsOf": "اختر شهرًا من سنة {year}",
+    "yearsFrom": "اختر سنة من {from} إلى {to}",
+    "previous": {
+      "month": "الشهر السابق",
+      "year": "السنة السابقة",
+      "years": "السنوات السابقة"
+    },
+    "next": {
+      "month": "الشهر التالي",
+      "year": "السنة التالية",
+      "years": "السنوات التالية"
+    },
+    "help": "تنقّل بين الأيام بالأسهم، وبين بداية الأسبوع ونهايته بـHome وEnd، وبين الأشهر بـPage Up وPage Down، وبين السنوات بإضافة Shift. يختار Enter أو المسافة اليوم. وفي اختيار الشهر أو السنة يعيدك Escape إلى الأيام.",
+    "startChosen": "بدأت الفترة في {date}. اختر يوم نهايتها.",
+    "rangeChosen": "الفترة من {from} إلى {to}.",
+    "unavailable": "في هذه الفترة أيام لا تُختار. اختر نهاية أخرى.",
+    "cleared": "مُسحت الفترة.",
+    "chooseStart": "اختر يوم البداية",
+    "chooseEnd": "اختر يوم النهاية",
+    "days": "{count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    "clear": "مسح",
+    "clearLabel": "مسح الفترة"
   }
 }
