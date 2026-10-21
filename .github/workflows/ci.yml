@@ -189,11 +189,29 @@ jobs:
           done
           docker ps -a
           exit 1
+      # The owner's first run (docs/ops/local.md): the production-like stack from the same archives,
+      # its first admin from admin:create, and that admin's temporary password through the change and
+      # the two-factor setup to Today. The password is masked before anything could print it.
+      - name: The first admin's first run on the production-like stack
+        run: |
+          pnpm local:down
+          pnpm local:up --images "$RUNNER_TEMP/images"
+          output=$(pnpm local:run admin:create --name "First Admin" --email first.admin@college.example --employee-number 100001)
+          password=$(sed -n 's/^Temporary password, shown only now: //p' <<< "$output")
+          test -n "$password"
+          echo "::add-mask::$password"
+          FIRST_ADMIN_PASSWORD="$password" FIRST_ADMIN_EMPLOYEE_NUMBER=100001 \
+            pnpm exec playwright test --config e2e/first-run.config.ts
       - if: failure()
-        run: docker compose -p college-demo -f docker/compose.yml --env-file docker/.env logs --no-color --tail 200
+        run: |
+          for project in college-demo college; do
+            docker compose -p "$project" -f docker/compose.yml --env-file docker/.env logs --no-color --tail 200
+          done
       - if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: stack-traces
-          path: test-results/stack/
+          path: |
+            test-results/stack/
+            test-results/first-run/
           retention-days: 14

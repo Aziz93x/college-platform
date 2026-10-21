@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Browser, Locator, Page } from "@playwright/test";
+import { defaultRoles } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { createDb } from "../src/platform/db/client.ts";
@@ -10,6 +11,9 @@ import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
 const { roles: text, nav, pages, reauth, design } = messages;
+// The trainer role as the seed names it, never a literal: Step 43's profile seeds its roles from data.
+const trainerRole =
+  defaultRoles.find(({ key }) => key === "trainer")?.labels.ar ?? "";
 // Tests that make accounts and roles in the database and remove them, which the stack's smoke
 // cannot reach.
 const DATABASE = { tag: "@database" };
@@ -55,7 +59,7 @@ async function confirmIfAsked(page: Page, toast: Locator) {
   const password = page.getByLabel(reauth.password, { exact: true });
   await expect(toast.or(password).first()).toBeVisible();
   if (await password.isVisible()) {
-    await password.fill(demo.password);
+    await password.fill(demo.adminPassword);
     await page.getByRole("button", { name: reauth.submit }).click();
   }
   await expect(toast).toBeVisible();
@@ -82,7 +86,7 @@ test(
 
       const admin = await signedIn(
         browser,
-        { identifier: demoAccounts.admin.email, password: demo.password },
+        { identifier: demoAccounts.admin.email, password: demo.adminPassword },
         Buffer.from(demo.totpSecret),
       );
       await open(admin, "/roles/new");
@@ -174,7 +178,7 @@ test("a new role needs a name, and one another role has is refused", async ({
   });
   await page.getByRole("button", { name: text.new.create }).click();
   await expect(page.getByText(text.name.required)).toBeVisible();
-  await field.fill("المدرب");
+  await field.fill(trainerRole);
   await page.getByRole("button", { name: text.new.create }).click();
   await expect(page.getByText(text.name.taken)).toBeVisible();
   await expect(page).toHaveURL("/roles/new");
@@ -197,7 +201,7 @@ test("the roles and a role's page have no serious accessibility issue", async ({
   await open(page, "/roles");
   // Read before the check, which rewrites the page's Arabic letters.
   const trainer = await page
-    .getByRole("link", { name: "المدرب" })
+    .getByRole("link", { name: trainerRole })
     .getAttribute("href");
   expect(await seriousViolations(page)).toEqual([]);
   await open(page, trainer ?? "");
@@ -217,9 +221,9 @@ test.describe("touch targets", () => {
       document.querySelector("nextjs-portal")?.remove(),
     );
     expect(await smallTargets(page.locator("main"))).toEqual([]);
-    await page.getByRole("link", { name: "المدرب" }).click();
+    await page.getByRole("link", { name: trainerRole }).click();
     await expect(
-      page.getByRole("heading", { level: 1, name: "المدرب" }),
+      page.getByRole("heading", { level: 1, name: trainerRole }),
     ).toBeVisible();
     await owned(page);
     expect(await smallTargets(page.locator("main"))).toEqual([]);

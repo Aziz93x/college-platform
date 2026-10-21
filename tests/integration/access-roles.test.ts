@@ -338,6 +338,36 @@ describe("addMembership and removeMembership", () => {
     expect(await count("memberships")).toBe(before);
   });
 
+  it("keeps a membership's department in the membership's college, even without the check", async () => {
+    await expect(
+      query(
+        "insert into memberships (user_id, role_id, college_id, department_id) values ($1, $2, $3, $4)",
+        [trainer, await roleId("head"), collegeId, otherDepartment],
+      ),
+    ).rejects.toThrow(/memberships_department_fk/);
+  });
+
+  // The form offers active departments only; a call made without it is refused too (Audit 3).
+  it("gives no role in a department that was set aside", async () => {
+    const [{ id: setAside }] = await query(
+      "insert into departments (college_id, name, short_name, active) values ($1, 'Set aside', 'Old', false) returning id",
+      [collegeId],
+    );
+    const before = await count("memberships");
+    await expect(
+      addMembership(
+        {
+          userId: trainer,
+          roleId: await roleId("head"),
+          departmentId: setAside,
+        },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "inactive" });
+    expect(await count("memberships")).toBe(before);
+  });
+
   it("takes a role away and records it, but never the system role's last member, not even from themselves", async () => {
     const [{ id: adminMembership }] = await query(
       "select m.id from memberships m join roles r on r.id = m.role_id where r.system and m.user_id = $1",

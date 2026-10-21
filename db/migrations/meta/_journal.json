@@ -57,6 +57,13 @@
       "when": 1792592530261,
       "tag": "0007_membership_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792598401581,
+      "tag": "0008_tenant_safe_departments",
+      "breakpoints": true
     }
   ]
 }

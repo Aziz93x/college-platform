@@ -3,3 +3,9 @@
 export function oneLine(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
+
+// Texts that differ only in the case of their Latin letters are one text when they name something,
+// such as a department in Rayat's exports, which do not keep one case.
+export function foldCase(value: string) {
+  return value.toLowerCase();
+}

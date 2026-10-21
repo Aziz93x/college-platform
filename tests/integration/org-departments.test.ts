@@ -113,14 +113,14 @@ it("refuses a name, a short name or a Rayat value another department of the coll
       change(),
       database.db,
     ),
-  ).resolves.toEqual({ status: "nameTaken" });
+  ).resolves.toEqual({ status: "nameTaken", department: "Electrical" });
   await expect(
     createDepartment(
       department("Electronics", ["Other"], { shortName: "Elec" }),
       change(),
       database.db,
     ),
-  ).resolves.toEqual({ status: "shortNameTaken" });
+  ).resolves.toEqual({ status: "shortNameTaken", department: "Electrical" });
   await expect(
     createDepartment(
       department("Mechanical", ["Mechanical", "Electrical Tech"]),
@@ -130,6 +130,48 @@ it("refuses a name, a short name or a Rayat value another department of the coll
   ).resolves.toEqual({
     status: "valueTaken",
     value: "Electrical Tech",
+    department: "Electrical",
+  });
+
+  expect([
+    await count("departments"),
+    await count("department_rayat_values"),
+    await count("audit_events"),
+  ]).toEqual(before);
+});
+
+// An import matches a department by its name, its short name or a Rayat value, in any case of its
+// Latin letters, so no text may name two departments (Audit 3).
+it("refuses a text another department has in any of the three, in any Latin case, and writes nothing", async () => {
+  const before = [
+    await count("departments"),
+    await count("department_rayat_values"),
+    await count("audit_events"),
+  ];
+
+  await expect(
+    createDepartment(
+      department("ELEC", ["Other"], { shortName: "Other" }),
+      change(),
+      database.db,
+    ),
+  ).resolves.toEqual({ status: "nameTaken", department: "Electrical" });
+  await expect(
+    createDepartment(
+      department("Electronics", ["Other"], { shortName: "electrical tech" }),
+      change(),
+      database.db,
+    ),
+  ).resolves.toEqual({ status: "shortNameTaken", department: "Electrical" });
+  await expect(
+    createDepartment(
+      department("Mechanical", ["Mechanical", "ELECTRICAL"]),
+      change(),
+      database.db,
+    ),
+  ).resolves.toEqual({
+    status: "valueTaken",
+    value: "ELECTRICAL",
     department: "Electrical",
   });
 
@@ -248,6 +290,17 @@ it("keeps one department per Rayat value in the college even without the check",
       [collegeId, general.id],
     ),
   ).rejects.toThrow(/department_rayat_values_pkey/);
+});
+
+it("refuses a value that names one college and another college's department, even without the check", async () => {
+  const [otherElectrical] = await listDepartments(otherCollegeId, database.db);
+
+  await expect(
+    database.pool.query(
+      "insert into department_rayat_values (college_id, department_id, value) values ($1, $2, 'Elsewhere')",
+      [collegeId, otherElectrical.id],
+    ),
+  ).rejects.toThrow(/department_rayat_values_department_fk/);
 });
 
 it("renames the college and records college.update with each changed name; the same names write nothing", async () => {

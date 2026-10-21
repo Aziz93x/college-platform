@@ -241,6 +241,20 @@ describe("the permission matrix", () => {
     expect(found.sort()).toEqual([...listed].sort());
   });
 
+  // The modules above are found by their name; an action in a file named otherwise, or under
+  // src/modules, would escape them (Audit 3).
+  it('reaches every server action: each file that says "use server" is an action module under src/app', () => {
+    const sources = import.meta.glob<string>("../../src/**/*.{ts,tsx}", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    });
+    const servers = Object.entries(sources)
+      .filter(([, source]) => /^\s*["']use server["']/m.test(source))
+      .map(([path]) => path.replace("../../src/app/", ""));
+    expect(servers.sort()).toEqual(Object.keys(modules).sort());
+  });
+
   it.each(
     checked.map((row) => ({
       ...row,

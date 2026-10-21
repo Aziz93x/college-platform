@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { type Db, getDb } from "../../../platform/db/client.ts";
+import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import {
   type SettingKey,
@@ -29,28 +29,50 @@ const same = (a: unknown, b: unknown) =>
 // Drizzle writes null as SQL NULL, which the column refuses; a nullable setting stores JSON null.
 const jsonb = (value: unknown) => (value === null ? sql`'null'::jsonb` : value);
 
+// Holds the college's key until the transaction ends, whether a row is stored yet or not, so two
+// changes at once run one after the other: each reads the value the other left (Audit 3).
+const lockKey = (tx: Tx, collegeId: string, key: SettingKey) =>
+  tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`setting:${collegeId}:${key}`}, 0))`,
+  );
+
 // Stores a new value for the college once it passes the key's schema, and records the change as
 // setting.update with the value before and after. A value equal to the one in force changes nothing.
+// Given a function, it builds the new value from the one in force, under the lock, so a change that
+// merges into the value, such as one role's page order, never drops another's made at the same time.
+export function setSetting<K extends SettingKey>(
+  key: K,
+  value: (current: SettingValue<K>) => unknown,
+  change: Change,
+  db?: Db,
+): Promise<SetResult<K>>;
+export function setSetting<K extends SettingKey>(
+  key: K,
+  value: unknown,
+  change: Change,
+  db?: Db,
+): Promise<SetResult<K>>;
 export async function setSetting<K extends SettingKey>(
   key: K,
   value: unknown,
   change: Change,
   db: Db = getDb(),
 ): Promise<SetResult<K>> {
-  const parsed = settingsRegistry[key].schema.safeParse(value);
-  if (!parsed.success) return { status: "invalid" };
-  const next = parsed.data as SettingValue<K>;
   return db.transaction(async (tx) => {
-    // The row is locked while it changes, so two saves at once record each change once.
+    await lockKey(tx, change.collegeId, key);
     const current = await tx
       .select({ value: settings.value })
       .from(settings)
       .where(
         and(eq(settings.collegeId, change.collegeId), eq(settings.key, key)),
-      )
-      .for("update");
+      );
     const stored = new Map(current.map((row) => [key as string, row.value]));
     const before = settingValue(key, stored, change.collegeId);
+    const parsed = settingsRegistry[key].schema.safeParse(
+      typeof value === "function" ? value(before) : value,
+    );
+    if (!parsed.success) return { status: "invalid" };
+    const next = parsed.data as SettingValue<K>;
     if (same(before, next)) return { status: "unchanged", value: before };
     await tx
       .insert(settings)
@@ -89,6 +111,7 @@ export async function resetSetting<K extends SettingKey>(
 ): Promise<{ status: "reset" | "unchanged"; value: SettingValue<K> }> {
   const value = settingsRegistry[key].default as SettingValue<K>;
   return db.transaction(async (tx) => {
+    await lockKey(tx, change.collegeId, key);
     const removed = await tx
       .delete(settings)
       .where(

@@ -21,7 +21,7 @@ setup(
     await page.goto("/");
     await signIn(page, {
       identifier: demoAccounts.admin.email,
-      password: demo.password,
+      password: demo.adminPassword,
     });
     await enterCode(page, Buffer.from(demo.totpSecret));
     await expect(page).toHaveURL("/today");

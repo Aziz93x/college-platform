@@ -65,6 +65,7 @@ export function Members({
     if (status === "exists") setError(t("exists"));
     else if (status === "lastAdmin") setError(t("lastAdmin"));
     else if (status === "collegeOnly") setError(t("collegeOnly"));
+    else if (status === "inactive") setError(t("inactive"));
     else if (status === "notFound") setError(t("gone"));
     else setError(refusals(serverError ?? "unexpected"));
   };

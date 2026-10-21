@@ -19,6 +19,7 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - One component per job (section 4): the Step 4 primitives and the BeUI pieces overlap on the text field, the checkbox, the command palette (cmdk), the sheet and drawer (vaul) and the menu, and Step 7 adds the switch, select, tabs and popover. docs/design/beui-map.md names the component for each job; in the UX review of Steps 1 to 10, remove the others from the catalog with their dependencies. The Radix sheet and the vaul drawer ease on `--duration-slow` and vaul's 0.5 s curve, and Sonner shows toasts: decide there too whether BeUI's `animated-toast-stack` replaces Sonner. From the Step 4 review, revised in Step 5 and Audit 2.
 
 - Serve the identity font as WOFF2 once its licence allows converting it: the two TTF files are about 150 KiB of the login page's transfer (Audit 2, enhancement 1). Licensed files stay unconverted until then (ADR-0004 and the font-licence item in section 8). Lead review A left it here.
+- Sign the image archives that updates bring on approved media: `SHA256SUMS` on the same medium proves the copy is whole, not that it came from the owner. A detached signature (minisign, or `cosign sign-blob` with a key the owner keeps), checked by `pnpm local:up --images`, gives an isolated server authenticity without a registry. About 1 h plus keeping the key; Step 40's dependency audit could own it (Audit 3, enhancement 2).
 
 ## Lead review A: proposals waiting for the owner (docs/reviews/lead-A.md)
 

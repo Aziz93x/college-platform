@@ -822,12 +822,13 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 7:** a reset of someone's password asks for the admin's own password again through `reauthenticate()`, as the settings screen does for security settings (`src/app/(app)/settings/actions.ts`).
 
-**Note from Step 8:** an import row's department matches a department's name, short name or Rayat values (`listDepartments()`), each tidied as `oneLine()` tidies them (`src/platform/validation/text.ts`); a department that matches none is a row error, never a new department.
+**Note from Step 8:** an import row's department matches a department's name, short name or Rayat values (`listDepartments()`), each tidied as `oneLine()` tidies them and compared through `foldCase()` (both in `src/platform/validation/text.ts`); a department that matches none is a row error, never a new department. Since Audit 3, no text names two departments of the college in any of the three, in any case of its Latin letters, so a match is never ambiguous.
 
 **Notes from Step 9**
 
 - A person's roles are memberships: a role across the college or in one department (`addMembership()`, `removeMembership()` in `src/modules/access`, each audited). The import's role column becomes memberships through `addMembership()`; `joinRole()` is for the seeds and the tests only. A person's department is the department of their department-scoped memberships.
 - A head's help for their own trainers checks the key in the trainer's department: `ctx.requirePermission("accounts.resetPassword", { departmentId })`, which a head's department-scoped membership passes and nothing outside it does. Give the head role that key on the grid's default (`db/seed/base.ts`) with this step.
+- **From Audit 3:** the base seed gives a default role its keys only when it creates the role, so a re-run never undoes the grid; a college that exists already, such as a running production-like stack, gets no new default key from it. Add each new default key in this step's migration too: `insert into role_permissions (role_id, permission) select id, 'accounts.resetPassword' from roles where key = 'head' on conflict do nothing`. The keys of Steps 33 and 37 arrive the same way.
 
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
@@ -862,6 +863,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Audit 2:** Better Auth locks two-factor for 15 minutes after ten wrong codes in a row (five per challenge), a library default rather than a setting, and writes no event. Add one with the others here, written once per lock: `verifySignInCode()` returns `locked` (`src/modules/identity/server/two-factor.ts`).
 
 **Note from Step 9:** the grid writes `role.create`, `role.update` (names, or keys before and after), `membership.create` and `membership.delete` (person, role key and department); show them on a role's history panel with the keys' and the departments' names.
+
+**Note from Audit 3:** `needsPassword()` asks for the password again for the settings of the `security` group only (`src/modules/settings/domain/registry.ts`). The retention setting decides how long history is kept, so it asks too: give the registry a `reauth` flag beside `permission`, set it on the security settings and on retention, and extend the settings actions' test to it.
 
 #### Step 12. Notifications foundation (M)
 
@@ -970,7 +973,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - A test asserts that no name, mobile or grade column exists in the schema or the data.
 - Rollback restores the previous version.
 
-**Note from Step 8:** match the department column against `department_rayat_values` after `oneLine()` (`src/platform/validation/text.ts`), the tidying a value gets before it is stored. A value belongs to one department of the college, so a match is never ambiguous; a value that matches none is a row error that points to the departments screen, where an admin adds it to its department.
+**Note from Step 8:** match the department column against `department_rayat_values` after `oneLine()`, the tidying a value gets before it is stored, and through `foldCase()` (both in `src/platform/validation/text.ts`), the folding the departments' own check uses (Audit 3). A value belongs to one department of the college, in any case of its Latin letters, so a match is never ambiguous; a value that matches none is a row error that points to the departments screen, where an admin adds it to its department.
 
 #### Step 17. Courses, sections, enrollments and transfers (M)
 
@@ -1083,6 +1086,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from ADR-0008:** on option A, Today and the bell are the only way trainers and heads learn about work, and the head's reminders are in-app. "Nothing uploaded this week" and its one-tap reminder move to Step 27, after evidence exists (Step 25).
 
 **Note from Step 7:** the settings screen draws its controls from the schemas and has no "token reference" control yet, since no setting names a token. If the ADR keeps the alert color a setting, its schema names the allowed tokens and the screen gets that control here.
+
+**Note from Audit 3:** Step 9 seeded no page order, so every role follows the order the code lists the pages in (`navigation.order` is `{}`). Where a role's home first needs its pages in another order, seed that role's order under its key, merged into the setting with `setSetting`'s updater, and give existing colleges the same order in the step's migration.
 
 #### Step 24. My work and my sections (M)
 
@@ -1256,6 +1261,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** meetings join the department portfolio in Step 37.
 
+**Note from Audit 3:** the secretary's and the quality reviewer's keys this step adds go to their default roles in `db/seed/base.ts` and, for colleges that exist already, in this step's migration (the note from Audit 3 under Step 10).
+
 > **Checkpoint: Audit 11.** Run `/audit 30,32,33`.
 >
 > **Checkpoint: Lead review F.** Run `/lead-review F`, then tag `v0.6-F`.
@@ -1319,6 +1326,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** an end-to-end test covers a meeting from scheduling to published minutes, including a recommendation that becomes a task.
 
 **Note from ADR-0008:** scheduling and reminders stay in-app, with no calendar invites: an isolated server sends no email, and Outlook and Teams wait for Microsoft 365.
+
+**Note from Audit 3:** the secretary's keys for meetings go to the default role in `db/seed/base.ts` and, for colleges that exist already, in this step's migration (the note from Audit 3 under Step 10).
 
 #### Step 38. Improvement plans, documents and directory (S)
 

@@ -225,7 +225,9 @@ test("a new department needs its names and a Rayat value, and one another depart
   await field(page, text.form.shortName).fill(`مختصر ${run}`);
   await rayatValue(page).fill(`صيغة ${run}`);
   await page.getByRole("button", { name: text.form.create }).click();
-  await expect(page.getByText(text.form.nameTaken)).toBeVisible();
+  await expect(
+    page.getByText(text.form.nameTaken.replace("{department}", general.name)),
+  ).toBeVisible();
 
   await field(page, text.form.name).fill(`قسم ${run}`);
   await rayatValue(page).fill(electrical.rayatValues[0]);

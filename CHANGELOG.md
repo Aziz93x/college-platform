@@ -4,6 +4,17 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 3: steps 41, 7-9
+
+- The production stack now runs the journeys it changes. The stack's smoke locks an employee number no account has after five attempts and checks the remembered device's cookie on the demo trainer, both through Caddy. CI's stack job then starts the production-like stack from the same archives, runs `pnpm local:run admin:create`, and takes the first admin from the temporary password through the change and the two-factor setup to Today (`e2e/first-run.config.ts`).
+- `pnpm local:up` skips the virtual adapters of Windows, WSL, Hyper-V, VirtualBox and VMware in any case of their names, prints the adapter it chose, and reads `LAN_ADDRESS` in `docker/.env`: `auto`, `none`, or an address written by hand, which WSL 2 needs. docs/ops/local.md compares the printed address with the laptop's Wi-Fi address before anything is concluded about the network.
+- In demo mode the admin has a password of its own and ten generated backup codes (`DEMO_ADMIN_PASSWORD`, `DEMO_BACKUP_CODES` in `docker/.env`), so the trainers' password, which testers are given, no longer opens it. An existing demo stack keeps its admin until its data is emptied (docs/ops/local.md).
+- Two changes to a setting at once run one after the other under a lock per college and key, so each records the value it changed. `setSetting` takes a function of the value in force, and the page order of one role merges into the others' under that lock.
+- A department's name, short name and Rayat values must each name only that department, against every other department's three, in any case of their Latin letters (`foldCase()`); a refusal names the other department. A membership is refused in a department that was set aside.
+- Rows that point at a department carry its college in the key: `department_rayat_values` and `memberships` reference `departments (college_id, id)` (migration `0008`).
+- `getSetting` shares the page's per-request read of the settings, so `/settings` reads them once; a unit test fails when either per-request reader leaves `cache()`. The permission matrix also fails when a file that says `"use server"` is not an action module under `src/app`, and Vitest no longer keeps transformed modules between runs, which kept an earlier run's file list in such a test.
+- Step 9 seeded no page order: every role follows the code's order until one needs its own (note under Step 23). Notes under Steps 10, 33 and 37 add new default keys to existing colleges in a migration; notes under Steps 10 and 16 match departments with `foldCase()`; a note under Step 11 gives the settings a re-authentication flag. Signing the image archives waits in docs/BACKLOG.md. docs/reviews/audit-09.md holds the report and its resolution.
+
 ### Step 09: roles, permissions and memberships
 
 - Who may do what is data. `db:seed` gives each college the dean, the vice-dean, the head, the secretary, the trainer and the quality reviewer beside the system admin, each with its keys from the brief: the vice-dean the term, the framework and Rayat imports; the head the plan, its publishing, assignments, review and portfolio approval; the trainer completing tasks; the dean the college's indicators. A re-run adds a missing role and never undoes the grid. New keys for the steps ahead, each with its area, and `roles.manage` for the grid (two-factor required).
