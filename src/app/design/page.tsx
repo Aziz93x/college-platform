@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { authorize, requireViewer } from "@/modules/access";
 import { parseEnv } from "@/platform/config/env";
 import { paletteTokens, roleTokens } from "@/styles/token-names";
 import { isDesignCatalogEnabled } from "./gate";
@@ -63,12 +64,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// The token and component catalog: on a laptop only, until Step 6 can restrict it to admins.
-// The catalog never renders where the gate refuses it; src/proxy.ts gives that refusal its 404
-// status, which a refusal from here, after loading.tsx has streamed, could not.
+// The token and component catalog: on a laptop, for whoever holds design.view. The catalog never
+// renders where the gate refuses it; src/proxy.ts gives that refusal its 404 status, which a
+// refusal from here, after loading.tsx has streamed, could not. Someone without the permission gets
+// the same answer as an address that does not exist.
 export default async function DesignPage() {
   await connection();
   if (!isDesignCatalogEnabled(parseEnv(process.env))) notFound();
+  const viewer = await requireViewer();
+  if (!authorize(viewer, "design.view", { collegeId: viewer.collegeId })) {
+    notFound();
+  }
   // The catalog's client components read the design messages; other routes never receive them.
   const { ui, design } = await getMessages();
   return (

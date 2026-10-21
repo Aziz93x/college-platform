@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { BottomSheet } from "@/components/motion/bottom-sheet";
 import { CommandPalette } from "@/components/motion/command-palette";
-import { MotionProvider } from "@/components/motion/motion-provider";
 import { Button } from "@/components/ui/button";
 import { Demo } from "./demo";
 
@@ -19,7 +18,7 @@ export function MotionDemos() {
   const [chosen, setChosen] = useState<string>();
 
   return (
-    <MotionProvider>
+    <>
       <Demo id="bottom-sheet" title={t("primitives.bottom-sheet")}>
         <Button variant="outline" onClick={() => setSheetOpen(true)}>
           {t("bottomSheet.trigger")}
@@ -74,6 +73,6 @@ export function MotionDemos() {
           {chosen ? t("commandPalette.chosen", { name: chosen }) : null}
         </output>
       </Demo>
-    </MotionProvider>
+    </>
   );
 }

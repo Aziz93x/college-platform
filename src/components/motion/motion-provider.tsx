@@ -8,8 +8,9 @@ import type { ReactNode } from "react";
 // sheets and palettes here need layout animations and drag, which domMax holds.
 const loadFeatures = () => import("./lib/features").then((mod) => mod.default);
 
-// Wraps every tree that animates with Motion. Its JavaScript animations follow the reduced-motion
-// preference, which the CSS rule in src/styles/theme.css cannot reach: movement stops, fades stay.
+// Wraps every page (src/app/layout.tsx), so any m component animates. Its JavaScript animations
+// follow the reduced-motion preference, which the CSS rule in src/styles/theme.css cannot reach:
+// movement stops, fades stay.
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (
     <LazyMotion features={loadFeatures} strict>
