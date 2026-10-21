@@ -112,13 +112,14 @@ const minutesUntil = (end: Date, now: Date) =>
 // Signs a person in with their employee number or email and their password. The answer never
 // tells a wrong identifier from a wrong password. Limits apply per account and address, so a
 // workshop behind one address does not block itself (ADR-0008), and an account locks after the
-// threshold of wrong passwords in a row, from any address.
+// threshold of wrong passwords in a row, from any address. Better Auth works on the shared
+// database, so this does too.
 export async function signIn(
   input: SignInInput,
   requestHeaders: Headers,
   now = new Date(),
-  db = getDb(),
 ): Promise<SignInResult> {
+  const db = getDb();
   const collegeId = await findCollegeId(db);
   if (!collegeId) return { status: "invalid" };
   const limits = await signInLimits(collegeId);

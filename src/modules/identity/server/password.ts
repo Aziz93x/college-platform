@@ -29,7 +29,6 @@ export async function changePassword(
   input: { currentPassword: string; newPassword: string },
   user: { userId: string; sessionId: string; collegeId: string },
   requestHeaders: Headers,
-  db: Db = getDb(),
 ): Promise<ChangePasswordResult> {
   const minLength = await getSetting("auth.passwordMinLength", {
     collegeId: user.collegeId,
@@ -55,7 +54,7 @@ export async function changePassword(
     }
     throw error;
   }
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     await tx
       .update(users)
       .set({ mustChangePassword: false })

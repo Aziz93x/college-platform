@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { Client } from "pg";
-import { inject } from "vitest";
-import { createDb } from "../../../src/platform/db/client.ts";
+import { inject, vi } from "vitest";
+import { createDb, getPool } from "../../../src/platform/db/client.ts";
 import { databaseUrl, TEMPLATE_DATABASE } from "./urls.ts";
 
 async function admin(statement: string) {
@@ -35,6 +35,24 @@ async function openDatabase(template: string) {
 /** A clone of the migrated template database. */
 export function createTestDatabase() {
   return openDatabase(TEMPLATE_DATABASE);
+}
+
+/**
+ * A clone of the migrated template that the app's shared connection also uses, for code that
+ * reaches the database through getDb() alone, such as Better Auth.
+ */
+export async function createSharedTestDatabase() {
+  const database = await createTestDatabase();
+  for (const [key, value] of Object.entries(scriptEnv(database.url))) {
+    vi.stubEnv(key, value);
+  }
+  return {
+    ...database,
+    drop: async () => {
+      await getPool().end();
+      await database.drop();
+    },
+  };
 }
 
 /** An empty database, for tests that run the migrations themselves. */
