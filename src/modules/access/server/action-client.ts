@@ -1,6 +1,5 @@
 import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
-import { logger } from "../../../platform/logging/logger.ts";
 import { getSessionUser } from "../../identity/index.ts";
 import { authorize } from "../domain/authorize.ts";
 import { type PermissionKey, permissionKeys } from "../domain/permissions.ts";
@@ -27,9 +26,14 @@ const actionClient = createSafeActionClient({
         .enum(permissionKeys as [PermissionKey, ...PermissionKey[]])
         .optional(),
     }),
-  handleServerError: (error, { metadata }): Refusal => {
+  handleServerError: async (error, { metadata }): Promise<Refusal> => {
     if (error instanceof RefusedError) return error.refusal;
-    logger.error(
+    // Imported on call: db/ scripts load this module with plain Node, which cannot resolve
+    // "next/headers". The request logger puts the request's id on the line.
+    const { getRequestLogger } = await import(
+      "../../../platform/logging/request-logger.ts"
+    );
+    (await getRequestLogger()).error(
       { err: error, action: metadata?.name },
       "server action failed",
     );

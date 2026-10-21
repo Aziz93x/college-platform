@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { parseEnv } from "../../../platform/config/env.ts";
 import { getDb } from "../../../platform/db/client.ts";
+import { logger } from "../../../platform/logging/logger.ts";
 import { REMEMBERED_DEVICE_DAYS_MAX } from "../../settings/index.ts";
 import {
   accounts,
@@ -64,6 +65,14 @@ function createAuth() {
     rateLimit: { enabled: false },
     // The platform may run on an isolated network: nothing is sent out.
     telemetry: { enabled: false },
+    // Its lines go through the platform's logger as JSON, which keeps a query's values out. Only the
+    // message and an error pass: other arguments can hold what someone typed, such as an email.
+    logger: {
+      log: (level, message, ...args) => {
+        const err = args.find((arg) => arg instanceof Error);
+        logger[level]({ source: "better-auth", ...(err && { err }) }, message);
+      },
+    },
     advanced: {
       cookiePrefix: "college",
       // Host-only, HttpOnly and SameSite=Lax by default; Secure everywhere, localhost included.
