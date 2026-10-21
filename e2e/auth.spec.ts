@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
@@ -25,6 +26,17 @@ const signInAs = async (page: Page, person: TestAccount, password?: string) => {
     identifier: person.employeeNumber,
     password: password ?? person.password,
   });
+};
+
+// One wrong attempt on the open login page, and the answer it gets. The form's alert; Next.js's
+// route announcer is an alert too. Each attempt ends when the form empties its password field; the
+// next one starts after that.
+const wrongAttempt = async (page: Page, identifier: string, title: string) => {
+  await signIn(page, { identifier, password: "a-wrong-password" });
+  await expect(
+    page.getByLabel(signInText.password, { exact: true }),
+  ).toHaveValue("");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(title);
 };
 
 // The demo college's own names and banner, which seed:demo stores as settings.
@@ -114,28 +126,33 @@ test(
   },
 );
 
+// What was typed is locked whether or not an account has it, so this half needs no account and runs
+// on the stack too, where the limits key on the address Caddy forwards.
+test("an employee number no account has gets the wrong-password answer, and the lock after five attempts", async ({
+  page,
+}) => {
+  // Each run types a new number, so its attempts never add up with an earlier run's.
+  const unknown = `8${Date.now()}${randomInt(10)}`;
+  await page.goto("/");
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    await wrongAttempt(page, unknown, signInText.invalid.title);
+  }
+  await wrongAttempt(page, unknown, signInText.locked.title);
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("15");
+});
+
 test(
-  "one answer for any wrong sign-in, and a lock after five wrong passwords",
+  "five wrong passwords lock the account, and the right one then gets the lock too",
   DATABASE,
   async ({ page, account }) => {
     const person = await account();
-    // The form's alert; Next.js's route announcer is an alert too.
     const alert = page.getByRole("main").getByRole("alert");
-    const password = page.getByLabel(signInText.password, { exact: true });
-    // Each attempt ends when the form empties its password field; the next one starts after that.
-    const wrongAttempt = async (identifier: string, title: string) => {
-      await signIn(page, { identifier, password: "a-wrong-password" });
-      await expect(password).toHaveValue("");
-      await expect(alert).toContainText(title);
-    };
     await page.goto("/");
 
-    // No account has this number; each run types a new one, so its attempts never add up.
-    await wrongAttempt(`8${Date.now()}`, signInText.invalid.title);
     for (let attempt = 1; attempt <= 4; attempt++) {
-      await wrongAttempt(person.employeeNumber, signInText.invalid.title);
+      await wrongAttempt(page, person.employeeNumber, signInText.invalid.title);
     }
-    await wrongAttempt(person.employeeNumber, signInText.locked.title);
+    await wrongAttempt(page, person.employeeNumber, signInText.locked.title);
     await expect(alert).toContainText("15");
 
     // The right password does not open a locked account.
@@ -148,59 +165,56 @@ test(
   },
 );
 
-test(
-  "remember this device keeps the person signed in after the browser closes; otherwise the session ends with it",
-  DATABASE,
-  async ({ browser, baseURL, account }) => {
-    const person = await account();
-    for (const remember of [true, false]) {
-      const context = await browser.newContext({ baseURL });
-      const page = await context.newPage();
-      await page.goto("/");
-      await signIn(page, {
-        identifier: person.email,
-        password: person.password,
-        remember,
-      });
-      await expect(page).toHaveURL("/today");
+// On the demo trainer, so that it runs on the stack too, where the cookie comes over Caddy's TLS.
+test("remember this device keeps the person signed in after the browser closes; otherwise the session ends with it", async ({
+  browser,
+  baseURL,
+}) => {
+  for (const remember of [true, false]) {
+    const context = await browser.newContext({ baseURL });
+    const page = await context.newPage();
+    await page.goto("/");
+    await signIn(page, {
+      identifier: demoAccounts.trainer.email,
+      password: demo.password,
+      remember,
+    });
+    await expect(page).toHaveURL("/today");
 
-      const cookies = await context.cookies();
-      const session = cookies.find(({ name }) =>
-        name.endsWith("session_token"),
+    const cookies = await context.cookies();
+    const session = cookies.find(({ name }) => name.endsWith("session_token"));
+    // Host-only (no Domain attribute), Secure, HttpOnly and SameSite=Lax.
+    expect(session).toMatchObject({
+      name: "__Secure-college.session_token",
+      domain: "localhost",
+      path: "/",
+      secure: true,
+      httpOnly: true,
+      sameSite: "Lax",
+    });
+    if (remember) {
+      expect((session?.expires ?? 0) * 1000).toBeGreaterThan(
+        Date.now() + 20 * DAY_MS,
       );
-      // Host-only (no Domain attribute), Secure, HttpOnly and SameSite=Lax.
-      expect(session).toMatchObject({
-        name: "__Secure-college.session_token",
-        domain: "localhost",
-        path: "/",
-        secure: true,
-        httpOnly: true,
-        sameSite: "Lax",
-      });
-      if (remember) {
-        expect((session?.expires ?? 0) * 1000).toBeGreaterThan(
-          Date.now() + 20 * DAY_MS,
-        );
-      } else {
-        expect(session?.expires).toBe(-1);
-      }
-      await context.close();
-
-      // A browser keeps only the cookies that have an expiry when it closes.
-      const reopened = await browser.newContext({
-        baseURL,
-        storageState: {
-          cookies: cookies.filter(({ expires }) => expires !== -1),
-          origins: [],
-        },
-      });
-      const again = await reopened.newPage();
-      await again.goto("/today");
-      await expect(again).toHaveURL(remember ? "/today" : "/");
-      await reopened.close();
+    } else {
+      expect(session?.expires).toBe(-1);
     }
-  },
-);
+    await context.close();
+
+    // A browser keeps only the cookies that have an expiry when it closes.
+    const reopened = await browser.newContext({
+      baseURL,
+      storageState: {
+        cookies: cookies.filter(({ expires }) => expires !== -1),
+        origins: [],
+      },
+    });
+    const again = await reopened.newPage();
+    await again.goto("/today");
+    await expect(again).toHaveURL(remember ? "/today" : "/");
+    await reopened.close();
+  }
+});
 
 test("an admin signs in with the code from the authenticator app; a wrong code is refused", async ({
   page,
@@ -208,7 +222,7 @@ test("an admin signs in with the code from the authenticator app; a wrong code i
   await page.goto("/");
   await signIn(page, {
     identifier: demoAccounts.admin.employeeNumber,
-    password: demo.password,
+    password: demo.adminPassword,
   });
   await expect(page).toHaveURL("/two-factor");
 
@@ -314,7 +328,7 @@ test.describe("axe", () => {
       await page.goto("/");
       await signIn(page, {
         identifier: demoAccounts.admin.email,
-        password: demo.password,
+        password: demo.adminPassword,
       });
       await expect(page).toHaveURL("/two-factor");
       expect(await seriousViolations(page)).toEqual([]);
