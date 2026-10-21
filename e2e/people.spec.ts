@@ -172,6 +172,85 @@ test(
 );
 
 test(
+  "the preview gives each row with errors its reasons, and the import leaves those rows out",
+  DATABASE,
+  async ({ page }) => {
+    const pool = database();
+    const first = randomInt(600_000_000, 699_000_000);
+    const numbers = [first, first + 1, first + 2].map(String);
+    const name = (index: number) => `منسوب بأخطاء ${numbers[index]}`;
+    try {
+      const columns = text.import.columns;
+      const file = await writeExcelFile([
+        [
+          columns.employeeNumber,
+          columns.name,
+          columns.email,
+          columns.department,
+          columns.role,
+        ],
+        [
+          numbers[0],
+          name(0),
+          `ok.${numbers[0]}@oasis.example`,
+          electrical,
+          trainerRole,
+        ],
+        [numbers[1], name(1), "not-an-email", electrical, trainerRole],
+        [
+          numbers[2],
+          name(2),
+          `dept.${numbers[2]}@oasis.example`,
+          "قسم لا تعرفه الكلية",
+          trainerRole,
+        ],
+      ]).toBuffer();
+
+      await open(page, "/people/import");
+      await page.getByLabel(text.import.file).setInputFiles({
+        name: "people.xlsx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer: file,
+      });
+      await page.getByRole("button", { name: text.import.preview }).click();
+      await expect(
+        page.getByText(`${text.import.outcomes.invalid}: 2`),
+      ).toBeVisible();
+      const row = (index: number) =>
+        page.getByRole("row").filter({ hasText: name(index) });
+      await expect(row(1)).toContainText(text.import.errors.email);
+      await expect(row(2)).toContainText(text.import.errors.department);
+      // An unknown department is no place, not the whole college.
+      await expect(row(2)).not.toContainText(text.college);
+
+      await page
+        .getByRole("button", { name: t("import.confirm", { count: 1 }) })
+        .click();
+      await confirmIfAsked(
+        page,
+        page.getByRole("heading", { name: text.import.result.title }),
+        demo.adminPassword,
+      );
+      await expect(
+        page.getByText(t("import.result.skipped", { count: 2 })),
+      ).toBeVisible();
+      const { rows } = await pool.query(
+        "select employee_number from people where employee_number = any($1)",
+        [numbers],
+      );
+      expect(rows).toEqual([{ employee_number: numbers[0] }]);
+    } finally {
+      await pool.query(
+        "delete from users where id in (select user_id from people where employee_number = any($1))",
+        [numbers],
+      );
+      await pool.end();
+    }
+  },
+);
+
+test(
   "a head helps the trainers of their own department: a temporary password for one of them, and no one of another department",
   DATABASE,
   async ({ browser, account }) => {

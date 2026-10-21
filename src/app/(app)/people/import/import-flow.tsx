@@ -297,12 +297,18 @@ function PlanTable({ plan }: { plan: PlannedRow[] }) {
       key: "role",
       header: t("import.table.role"),
       className: "max-md:hidden",
+      // A department the college lacks or set aside is no place: its error says why.
       cell: (row) =>
         row.role ? (
           <span className="text-sm">
             {row.role.label}
-            <span aria-hidden> · </span>
-            {row.department?.name ?? t("college")}
+            {row.errors.includes("department") ||
+            row.errors.includes("departmentInactive") ? null : (
+              <>
+                <span aria-hidden> · </span>
+                {row.department?.name ?? t("college")}
+              </>
+            )}
           </span>
         ) : null,
     },
