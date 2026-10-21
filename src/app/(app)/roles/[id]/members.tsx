@@ -22,9 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/motion/select";
+import { usePasswordStep } from "@/components/password-step";
 import type { Member } from "@/modules/access";
 import { addMembershipAction, removeMembershipAction } from "../actions.ts";
-import { usePasswordStep } from "./use-password-step.tsx";
 
 const COLLEGE = "college";
 

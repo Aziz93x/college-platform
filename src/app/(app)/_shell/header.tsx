@@ -30,6 +30,7 @@ export function Header({
           email={account.email}
           labels={{
             open: accountLabels("open", { name: account.name }),
+            profile: accountLabels("profile"),
             changePassword: accountLabels("changePassword"),
             signOut: accountLabels("signOut"),
             close: accountLabels("close"),

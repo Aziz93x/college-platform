@@ -64,6 +64,13 @@
       "when": 1792598401581,
       "tag": "0008_tenant_safe_departments",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792600365693,
+      "tag": "0009_people_and_accounts",
+      "breakpoints": true
     }
   ]
 }

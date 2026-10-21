@@ -22,6 +22,7 @@ const EXAMPLE = [
   "DEMO_ADMIN_PASSWORD=",
   "DEMO_TOTP_SECRET=",
   "DEMO_BACKUP_CODES=",
+  "DEMO_HEAD_BACKUP_CODES=",
 ].join("\n");
 
 const value = (text: string, key: string) =>
@@ -37,6 +38,7 @@ describe("fillEnv", () => {
       "DEMO_ADMIN_PASSWORD",
       "DEMO_TOTP_SECRET",
       "DEMO_BACKUP_CODES",
+      "DEMO_HEAD_BACKUP_CODES",
     ]);
     expect(value(text, "APP_URL")).toBe("https://localhost");
     expect(value(text, "SEED_COLLEGE_NAME")).toBe('"College name"');
@@ -54,10 +56,16 @@ describe("fillEnv", () => {
     expect(value(text, "DEMO_ADMIN_PASSWORD")).not.toBe(
       value(text, "DEMO_PASSWORD"),
     );
-    expect(value(text, "DEMO_BACKUP_CODES")?.split(",")).toEqual(
-      Array.from({ length: 10 }, () =>
-        expect.stringMatching(/^[a-hj-km-np-z2-9]{4}-[a-hj-km-np-z2-9]{4}$/),
-      ),
+    // The heads' backup codes apart from the admin's.
+    for (const key of ["DEMO_BACKUP_CODES", "DEMO_HEAD_BACKUP_CODES"]) {
+      expect(value(text, key)?.split(",")).toEqual(
+        Array.from({ length: 10 }, () =>
+          expect.stringMatching(/^[a-hj-km-np-z2-9]{4}-[a-hj-km-np-z2-9]{4}$/),
+        ),
+      );
+    }
+    expect(value(text, "DEMO_HEAD_BACKUP_CODES")).not.toBe(
+      value(text, "DEMO_BACKUP_CODES"),
     );
     expect(text).toContain("# A comment");
   });

@@ -40,6 +40,11 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     .where(eq(people.userId, user.id));
   // An account without a person is not part of any college, so it has nothing to open.
   if (!person) return null;
+  // Disabling ends the account's sessions; one made at the same moment ends here.
+  if (user.disabledAt) {
+    await db.delete(sessions).where(eq(sessions.id, session.id));
+    return null;
+  }
 
   const now = new Date();
   const lastSeenAt = session.lastSeenAt ?? session.createdAt;

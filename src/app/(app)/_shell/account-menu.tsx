@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, LogOut } from "lucide-react";
+import { KeyRound, LogOut, UserRound } from "lucide-react";
 import { useTransition } from "react";
 import { signOutAction } from "@/app/(auth)/actions";
 import { BloomMenu } from "@/components/motion/bloom-menu";
@@ -9,12 +9,14 @@ import { initials } from "./initials.ts";
 
 type Labels = {
   open: string;
+  profile: string;
   changePassword: string;
   signOut: string;
   close: string;
 };
 
-// The person's initials in the header, opening into their name, email and account actions.
+// The person's initials in the header, opening into their name, email, their profile and account
+// actions.
 export function AccountMenu({
   name,
   email,
@@ -49,6 +51,12 @@ export function AccountMenu({
         </>
       }
       items={[
+        {
+          id: "profile",
+          label: labels.profile,
+          icon: <UserRound />,
+          href: "/profile",
+        },
         {
           id: "change-password",
           label: labels.changePassword,

@@ -45,6 +45,8 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `action-swap.tsx` | `components/motion/action-swap.tsx` |
 | `lib/use-listbox.ts` | `lib/hooks/use-listbox.ts` |
 | `lib/use-slider.ts` | `lib/hooks/use-slider.ts` |
+| `overflow-actions.tsx` | `components/motion/overflow-actions.tsx` |
+| `lib/use-hover-capable.ts` | `lib/hooks/use-hover-capable.ts` |
 
 ## Local changes
 
@@ -146,3 +148,17 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   as wide as the field and portalled with `m` elements; groups, labels inside the list,
   separators, the value view and the side and alignment options are gone. `use-active-option.ts`
   is copied as is; `lib/popover-position.ts` takes refs that may hold nothing.
+
+## Local changes from Step 10 (people and accounts)
+
+- `overflow-actions.tsx`: the overflow items only (`actions`), each with a label, an icon and its
+  action; the primary actions, the controlled open state, the callbacks and the class slots are
+  gone until a step needs them, and a chosen action always closes the group. The toggle's names
+  while closed and open are required props from the catalog, it and the actions are 44 px, and the
+  toggle rests as a quiet icon button that turns into the bold one, inside its card, while the
+  actions show. `lib/use-hover-capable.ts` is copied as is.
+- `animated-badge.tsx`: two more states on the identity's tokens, `pending` (an invited account, a
+  role to be added: the primary tint with a clock) and `alert` (a locked account, a row with errors:
+  the alert tint with its icon).
+- `bloom-menu.tsx`: a link item closes the menu as it opens its page, which the shell keeps, menu
+  and all, when the page is one of its own.

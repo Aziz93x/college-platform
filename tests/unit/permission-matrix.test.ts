@@ -34,6 +34,34 @@ vi.mock("@/modules/settings", async (importOriginal) => ({
 }));
 vi.mock("@/modules/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/access")>()),
+  // The person an action on an account is about: a trainer in the matrix's department.
+  listDirectory: async () => [
+    {
+      userId: ID,
+      name: "A Trainer",
+      email: "trainer@college.example",
+      employeeNumber: "2001",
+      state: "active",
+      memberships: [
+        {
+          id: ID,
+          roleId: ID,
+          roleLabels: {},
+          system: false,
+          departmentId: DEPARTMENT,
+        },
+      ],
+      permissions: new Set(["task.complete"]),
+    },
+  ],
+  planPeopleImport: async () => [],
+  importPeople: async () => ({
+    created: [],
+    rolesAdded: 0,
+    unchanged: 0,
+    skipped: [],
+  }),
+  disableAccount: async () => ({ status: "saved" }),
   createRole: async () => ({ status: "created", id: ID }),
   renameRole: async () => ({ status: "saved" }),
   setRolePermissions: async () => ({ status: "saved" }),
@@ -43,8 +71,20 @@ vi.mock("@/modules/access", async (importOriginal) => ({
 }));
 vi.mock("@/modules/identity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/identity")>()),
+  resetPassword: async () => "a-temporary-one",
+  linkEmployeeNumber: async () => ({ status: "saved" }),
+  updatePerson: async () => ({ status: "saved" }),
   reauthenticate: async () => ({ status: "confirmed" }),
   requestMeta: () => ({ ip: "10.0.30.1", userAgent: "matrix" }),
+}));
+vi.mock("@/platform/files/table", () => ({
+  readTable: async () => [
+    ["employeeNumber", "name", "email"],
+    ["2001", "A Trainer", "trainer@college.example"],
+  ],
+}));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
 }));
 vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -66,12 +106,14 @@ const modules = Object.fromEntries(
 );
 
 // What each action needs across the college, with an input it accepts. Settings name their key per
-// setting, so the settings actions have a row per key a setting may name.
+// setting, so the settings actions have a row per key a setting may name. An action on someone's
+// account is about a trainer in the matrix's department, so its key held there allows it too.
 const checked: {
   module: string;
   action: string;
   permission: PermissionKey;
   input: unknown;
+  inDepartment?: true;
 }[] = [
   {
     module: "(app)/departments/actions.ts",
@@ -162,6 +204,55 @@ const checked: {
     permission: "roles.manage",
     input: { roleId: ID, order: ["today"] },
   },
+  {
+    module: "(app)/people/actions.ts",
+    action: "previewPeopleAction",
+    permission: "people.manage",
+    input: { file: new File(["employeeNumber"], "people.csv") },
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "importPeopleAction",
+    permission: "people.manage",
+    input: {
+      rows: [
+        {
+          line: 2,
+          employeeNumber: "2001",
+          name: "A Trainer",
+          email: "trainer@college.example",
+          department: "",
+          role: "",
+        },
+      ],
+    },
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "updatePersonAction",
+    permission: "people.manage",
+    input: { userId: ID, name: "A Trainer", email: "trainer@college.example" },
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "disableAccountAction",
+    permission: "people.manage",
+    input: { userId: ID, disabled: true },
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "resetPasswordAction",
+    permission: "accounts.resetPassword",
+    input: { userId: ID },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "linkEmployeeNumberAction",
+    permission: "accounts.linkEmployeeNumber",
+    input: { userId: ID, employeeNumber: "2002" },
+    inDepartment: true,
+  },
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others
@@ -203,6 +294,7 @@ async function mismatches(
   action: Action,
   input: unknown,
   permission: PermissionKey,
+  inDepartment = false,
 ) {
   const found: string[] = [];
   for (const role of roles) {
@@ -211,7 +303,8 @@ async function mismatches(
       const result = await action(input);
       const allowed = result?.serverError !== "forbidden";
       const expected =
-        departmentId === null && role.permissions.includes(permission);
+        (departmentId === null || inDepartment) &&
+        role.permissions.includes(permission);
       const scope = departmentId ? "in a department" : "across the college";
       if (allowed !== expected) {
         found.push(`${role.key} ${scope}: ${allowed ? "allowed" : "refused"}`);
@@ -260,15 +353,32 @@ describe("the permission matrix", () => {
       ...row,
       name: `${row.action}${row.permission === checked.find((each) => each.action === row.action)?.permission ? "" : ` (${JSON.stringify(row.input)})`}`,
     })),
-  )("$name runs for exactly the roles that hold $permission across the college", async ({
+  )("$name runs for exactly the roles that hold $permission across the college, or where its person is", async ({
     module,
     action,
     input,
     permission,
+    inDepartment,
   }) => {
     expect(
-      await mismatches(modules[module][action], input, permission),
+      await mismatches(
+        modules[module][action],
+        input,
+        permission,
+        inDepartment,
+      ),
     ).toEqual([]);
+  });
+
+  // Not a key's matter: the account's own holder changes their password on its own page.
+  it("gives no one a temporary password for their own account", async () => {
+    request.viewer = { ...viewerFor(roles[0], null), userId: ID };
+    const result = await modules["(app)/people/actions.ts"].resetPasswordAction(
+      {
+        userId: ID,
+      },
+    );
+    expect(result?.data).toEqual({ status: "self" });
   });
 
   it("would catch an action whose check was removed", async () => {

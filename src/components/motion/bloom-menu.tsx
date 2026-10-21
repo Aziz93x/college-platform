@@ -240,8 +240,14 @@ export function BloomMenu({
                       onFocus: () => setActive(index),
                       className: cellClass,
                     };
+                    // A page of the shell keeps the shell, and the menu with it: closed on the way.
                     return item.href ? (
-                      <Link key={item.id} href={item.href} {...common}>
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        {...common}
+                        onClick={() => close(false)}
+                      >
                         {content}
                       </Link>
                     ) : (

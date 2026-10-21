@@ -6,6 +6,7 @@ import messages from "../messages/ar.json" with { type: "json" };
 import { createDb } from "../src/platform/db/client.ts";
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { open } from "./support/pages.ts";
 import { expect, test } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -16,22 +17,6 @@ const DATABASE = { tag: "@database" };
 // The departments belong to whoever holds departments.manage and college.manage: the demo admin
 // (e2e/auth.setup.ts).
 test.use({ storageState: STORAGE.admin });
-
-// Waits until React owns the page's table or form: a press before that is lost.
-async function owned(page: Page) {
-  await page.waitForFunction(() => {
-    const element = document.querySelector("main table, main form");
-    return (
-      element !== null &&
-      Object.keys(element).some((key) => key.startsWith("__reactFiber$"))
-    );
-  });
-}
-
-async function open(page: Page, path: string) {
-  await page.goto(path);
-  await owned(page);
-}
 
 function database() {
   const url = process.env.DATABASE_URL;

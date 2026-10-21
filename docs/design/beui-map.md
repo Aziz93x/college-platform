@@ -80,6 +80,19 @@ The table's selection, sticky header and virtualized rows join with the long lis
 The page order moves a page up or down with two buttons rather than by dragging: a short list, and
 buttons work the same with a finger, a mouse and the keyboard.
 
+## Adopted in Step 10 (people and accounts)
+
+| Component | Real use |
+| --- | --- |
+| Motion: table | The people list: each person's name and employee number, email (hidden on a phone), roles and where (hidden on a phone) and the account's state, sorted from a header; the import's preview, a row per line of the file with what it would do |
+| Motion: animated badge | An account's state: active, invited (pending), locked (alert) or disabled; each row's outcome in the import's preview |
+| Blocks: overflow actions | A person's row and page: a temporary password, disabling or enabling the account. The "…" rests quietly in each row and opens into the actions, bold while open |
+| Motion: input, select, action swap, bottom sheet | Adding a person, correcting a person's name, email and employee number, and the sheet that confirms an account action and shows a temporary password once |
+
+Locking is no action: an account locks itself after failed attempts and a temporary password lifts
+it. The table's selection, sticky header and virtualized rows still wait for a list that needs them:
+a college's people fit one page, and nothing acts on several people at once yet.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).

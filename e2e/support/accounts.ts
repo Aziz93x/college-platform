@@ -1,8 +1,8 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount, users } from "../../src/modules/identity/index.ts";
-import { findCollegeId } from "../../src/modules/org/index.ts";
+import { departments, findCollegeId } from "../../src/modules/org/index.ts";
 import { createDb } from "../../src/platform/db/client.ts";
 import { test as base } from "./test.ts";
 
@@ -19,6 +19,8 @@ type NewTestAccount = {
   admin?: boolean;
   /** Has a temporary password to replace at the first sign-in. */
   temporary?: boolean;
+  /** A trainer in the department of this name. */
+  trainerIn?: string;
 };
 
 // Accounts made for one test and removed after it, in the database the server under test uses,
@@ -32,7 +34,7 @@ export const test = base.extend<{
     if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
     const { db, pool } = createDb(url);
     const created: string[] = [];
-    await use(async ({ admin = false, temporary = false } = {}) => {
+    await use(async ({ admin = false, temporary = false, trainerIn } = {}) => {
       const collegeId = await findCollegeId(db);
       if (!collegeId) throw new Error("e2e: run pnpm seed:demo first");
       const employeeNumber = String(randomInt(900_000_000, 999_999_999));
@@ -51,6 +53,26 @@ export const test = base.extend<{
         if (admin) {
           await joinRole(
             { userId: made.userId, collegeId, role: { system: true } },
+            tx,
+          );
+        }
+        if (trainerIn) {
+          const [department] = await tx
+            .select({ id: departments.id })
+            .from(departments)
+            .where(
+              and(
+                eq(departments.collegeId, collegeId),
+                eq(departments.name, trainerIn),
+              ),
+            );
+          await joinRole(
+            {
+              userId: made.userId,
+              collegeId,
+              role: { key: "trainer" },
+              departmentId: department.id,
+            },
             tx,
           );
         }

@@ -30,6 +30,12 @@ const registry = [
     icon: CalendarCheck,
     permission: "settings.edit",
   },
+  {
+    id: "people",
+    href: "/people",
+    icon: CalendarCheck,
+    permission: ["people.manage", "accounts.resetPassword"],
+  },
 ] satisfies NavigationItem<string>[];
 
 const ids = (items: readonly { id: string }[]) => items.map(({ id }) => id);
@@ -44,9 +50,14 @@ describe("visibleNavigation", () => {
     ],
     ["an admin's key", ["settings.edit"], ["today", "settings"]],
     [
+      "one of a page's several keys",
+      ["accounts.resetPassword"],
+      ["today", "people"],
+    ],
+    [
       "every key",
-      ["plan.edit", "review.decide", "settings.edit"],
-      ["today", "plan", "review", "settings"],
+      ["plan.edit", "review.decide", "settings.edit", "people.manage"],
+      ["today", "plan", "review", "settings", "people"],
     ],
     ["a key no page needs", ["task.complete"], ["today"]],
   ])("shows the pages %s opens", (_name, keys, expected) => {
