@@ -346,33 +346,45 @@ export async function addMembership(
     if (role.system && input.departmentId) return { status: "collegeOnly" };
     // A department set aside keeps what was recorded for it, and takes no new member.
     if (!department.active) return { status: "inactive" };
-    const [row] = await tx
-      .insert(memberships)
-      .values({ ...input, collegeId: change.collegeId })
-      .onConflictDoNothing()
-      .returning({ id: memberships.id });
-    if (!row) return { status: "exists" };
-    await writeAudit(
-      {
-        collegeId: change.collegeId,
-        actorId: change.actorId,
-        action: "membership.create",
-        entityType: "membership",
-        entityId: row.id,
-        diff: {
-          to: {
-            userId: input.userId,
-            role: role.key,
-            departmentId: input.departmentId,
-          },
-        },
-        ip: change.ip,
-        userAgent: change.userAgent,
-      },
-      tx,
-    );
-    return { status: "added", id: row.id };
+    const id = await insertMembership(tx, input, role.key, change);
+    return id ? { status: "added", id } : { status: "exists" };
   });
+}
+
+// A membership its caller has checked, with its membership.create event, inside the caller's
+// transaction. Holding the role in that scope already adds nothing: undefined.
+export async function insertMembership(
+  tx: Tx,
+  input: MembershipInput,
+  roleKey: string,
+  change: Change,
+) {
+  const [row] = await tx
+    .insert(memberships)
+    .values({ ...input, collegeId: change.collegeId })
+    .onConflictDoNothing()
+    .returning({ id: memberships.id });
+  if (!row) return undefined;
+  await writeAudit(
+    {
+      collegeId: change.collegeId,
+      actorId: change.actorId,
+      action: "membership.create",
+      entityType: "membership",
+      entityId: row.id,
+      diff: {
+        to: {
+          userId: input.userId,
+          role: roleKey,
+          departmentId: input.departmentId,
+        },
+      },
+      ip: change.ip,
+      userAgent: change.userAgent,
+    },
+    tx,
+  );
+  return row.id;
 }
 
 // Takes a role from a person in one scope and records membership.delete. The system role keeps at

@@ -45,6 +45,7 @@ function createAuth() {
           defaultValue: false,
           input: false,
         },
+        disabledAt: { type: "date", required: false, input: false },
       },
     },
     session: {

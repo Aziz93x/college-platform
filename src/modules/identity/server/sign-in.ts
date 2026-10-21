@@ -1,5 +1,5 @@
 import { isAPIError } from "better-auth/api";
-import { hashPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { type Db, getDb } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
@@ -15,7 +15,7 @@ import {
   subjectOf,
 } from "./lockout.ts";
 import { requestMeta } from "./request.ts";
-import { people, sessions, signInAttempts, users } from "./schema.ts";
+import { accounts, people, sessions, signInAttempts, users } from "./schema.ts";
 
 export type SignInInput = {
   identifier: string;
@@ -27,6 +27,7 @@ type SignInResult =
   | { status: "signedIn" }
   | { status: "twoFactor" }
   | { status: "invalid" }
+  | { status: "disabled" }
   | { status: "locked"; minutes: number }
   | { status: "throttled"; minutes: number };
 
@@ -56,9 +57,15 @@ async function findAccount(db: Db, collegeId: string, identifier: Identifier) {
       userId: users.id,
       email: users.email,
       employeeNumber: people.employeeNumber,
+      disabled: sql<boolean>`${users.disabledAt} is not null`,
+      password: accounts.password,
     })
     .from(users)
     .innerJoin(people, eq(people.userId, users.id))
+    .leftJoin(
+      accounts,
+      and(eq(accounts.userId, users.id), eq(accounts.providerId, "credential")),
+    )
     .where(match);
   return account;
 }
@@ -148,6 +155,16 @@ export async function signIn(
     // As long as checking a password, so the time taken does not tell that no account matched.
     await hashPassword(input.password);
     return failed();
+  }
+  // A disabled account says so only to whoever typed its password; anyone else gets the usual answer.
+  if (account.disabled) {
+    const right =
+      account.password !== null &&
+      (await verifyPassword({
+        hash: account.password,
+        password: input.password,
+      }));
+    return right ? { status: "disabled" } : failed();
   }
 
   let result: Awaited<

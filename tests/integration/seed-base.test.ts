@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterAll, expect, it } from "vitest";
 import { defaultRoles, seedBase, systemRole } from "../../db/seed/base.ts";
 import { createTestDatabase } from "./support/database.ts";
@@ -87,4 +88,39 @@ it("creates one college when several runs start at once", async () => {
   const { rows } = await pool.query("select id from colleges");
   expect(rows).toEqual([{ id: ids[0] }]);
   expect(new Set(ids).size).toBe(1);
+});
+
+// A college seeded before Step 10 has a head without the keys Step 10 gave it, and the base seed
+// never adds a key to a role it finds: migration 0009 adds them, once (Audit 3).
+it("gives the head of a college seeded before Step 10 its new keys through migration 0009, once", async () => {
+  const { db, pool } = await freshDatabase();
+  await seedBase(db, college);
+  const added = ["accounts.linkEmployeeNumber", "accounts.resetPassword"];
+  await pool.query(
+    `delete from role_permissions
+     where permission = any($1) and role_id = (select id from roles where key = 'head')`,
+    [added],
+  );
+  const inserts = readFileSync(
+    new URL(
+      "../../db/migrations/0009_people_and_accounts.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  )
+    .split("--> statement-breakpoint")
+    .filter((statement) => statement.includes("INSERT INTO"));
+  for (const run of [1, 2]) {
+    for (const statement of inserts) await pool.query(statement);
+    expect(
+      (
+        await pool.query(
+          `select p.permission from role_permissions p join roles r on r.id = p.role_id
+           where r.key = 'head' and p.permission = any($1) order by p.permission`,
+          [added],
+        )
+      ).rows,
+      `run ${run}`,
+    ).toEqual(added.map((permission) => ({ permission })));
+  }
 });

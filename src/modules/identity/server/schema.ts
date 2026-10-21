@@ -29,6 +29,8 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   // Set by an admin's reset and by admin:create; cleared when the person sets their own password.
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  // Set while an admin has disabled the account: it signs in nowhere and its sessions are gone.
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

@@ -130,7 +130,9 @@ describe("requiresTwoFactor", () => {
       "college.manage",
       "departments.manage",
       "roles.manage",
+      "people.manage",
       "accounts.resetPassword",
+      "accounts.linkEmployeeNumber",
     ]);
   });
 });

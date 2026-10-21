@@ -13,8 +13,16 @@ const permissions = {
   "departments.manage": { area: "organization", requiresTwoFactor: true },
   // Roles, the keys each holds, who holds them and where, and each role's page order.
   "roles.manage": { area: "organization", requiresTwoFactor: true },
+  // Add people one by one or from a file, correct their names and emails, and disable or enable
+  // their accounts (Step 10).
+  "people.manage": { area: "organization", requiresTwoFactor: true },
   // Issue a temporary password for someone's account.
   "accounts.resetPassword": { area: "organization", requiresTwoFactor: true },
+  // Correct the employee number someone signs in with, the one Rayat's reports carry (Step 10).
+  "accounts.linkEmployeeNumber": {
+    area: "organization",
+    requiresTwoFactor: true,
+  },
   // Terms and their calendars (Step 13).
   "term.manage": { area: "term", requiresTwoFactor: false },
   // Publish the term's general framework (Step 15).

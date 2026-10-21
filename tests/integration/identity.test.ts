@@ -6,12 +6,16 @@ import {
   createAccount,
   getAuth,
   getSessionUser,
+  linkEmployeeNumber,
+  lockedAccounts,
   reauthenticate,
   resetPassword,
   type SignInInput,
+  setAccountDisabled,
   signIn,
   signOut,
   startTwoFactorSetup,
+  updatePerson,
   verifySignInCode,
 } from "../../src/modules/identity/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
@@ -890,5 +894,230 @@ describe("reauthenticate", () => {
     expect(
       await query("select id from sessions where user_id = $1", [userId]),
     ).toEqual([]);
+  });
+});
+
+describe("a disabled account", () => {
+  const change = (actorId: string) => ({
+    collegeId,
+    actorId,
+    ip: "10.0.40.1",
+    userAgent: "integration-test",
+  });
+  const disable = (userId: string, disabled: boolean, actorId = userId) =>
+    getDb().transaction((tx) =>
+      setAccountDisabled(userId, disabled, change(actorId), tx),
+    );
+  const events = async (userId: string) =>
+    (
+      await query(
+        "select action, actor_id from audit_events where entity_id = $1 and action like 'account.%able' order by created_at, id",
+        [userId],
+      )
+    ).map(({ action }) => action);
+
+  it("ends every session, and audits disabling and enabling; the same state again writes nothing", async () => {
+    const admin = await person();
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+
+    expect(await disable(userId, true, admin.userId)).toBe("saved");
+    expect(
+      await query("select id from sessions where id = $1", [device.sessionId]),
+    ).toEqual([]);
+    expect(await disable(userId, true, admin.userId)).toBe("unchanged");
+    expect(await disable(userId, false, admin.userId)).toBe("saved");
+    expect(await events(userId)).toEqual(["account.disable", "account.enable"]);
+    expect(
+      await getDb().transaction((tx) =>
+        setAccountDisabled(
+          userId,
+          true,
+          { ...change(admin.userId), collegeId: crypto.randomUUID() },
+          tx,
+        ),
+      ),
+    ).toBe("notFound");
+  });
+
+  it("says so at sign-in only to whoever typed its password; anyone else gets the usual answer, which counts", async () => {
+    const { userId, employeeNumber } = await person();
+    await disable(userId, true);
+    const sessions = async () =>
+      (await query("select id from sessions where user_id = $1", [userId]))
+        .length;
+
+    expect(await attempt({ identifier: employeeNumber }, "10.0.40.2")).toEqual({
+      status: "disabled",
+    });
+    expect(
+      await attempt(
+        { identifier: employeeNumber, password: "a-wrong-password" },
+        "10.0.40.2",
+      ),
+    ).toEqual({ status: "invalid" });
+    expect(await sessions()).toBe(0);
+
+    await disable(userId, false);
+    expect(await attempt({ identifier: employeeNumber }, "10.0.40.2")).toEqual({
+      status: "signedIn",
+    });
+  });
+
+  it("signs nobody in through a session made as it was disabled, and ends that session", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+    request.headers = device.headers;
+    await query("update users set disabled_at = now() where id = $1", [userId]);
+
+    expect(await getSessionUser()).toBeNull();
+    expect(
+      await query("select id from sessions where id = $1", [device.sessionId]),
+    ).toEqual([]);
+  });
+});
+
+describe("updatePerson and linkEmployeeNumber", () => {
+  const change = (actorId: string) => ({
+    collegeId,
+    actorId,
+    ip: "10.0.50.1",
+  });
+  const events = async (userId: string) =>
+    await query(
+      "select action, diff from audit_events where entity_id = $1 and action like 'person.%' order by created_at, id",
+      [userId],
+    );
+
+  it("corrects the name and the email, records each changed field, and refuses another account's email", async () => {
+    const admin = await person();
+    const { userId, email, employeeNumber } = await person();
+    const other = await person();
+
+    await expect(
+      updatePerson(
+        userId,
+        { name: "Sara Ali", email },
+        change(admin.userId),
+        getDb(),
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      updatePerson(
+        userId,
+        { name: "Sara Ali", email: other.email },
+        change(admin.userId),
+        getDb(),
+      ),
+    ).resolves.toEqual({ status: "emailTaken" });
+    await expect(
+      updatePerson(
+        userId,
+        { name: "Sara Ali", email },
+        change(admin.userId),
+        getDb(),
+      ),
+    ).resolves.toEqual({ status: "unchanged" });
+    await expect(
+      updatePerson(
+        userId,
+        { name: "Sara Ali", email: "sara.ali@college.example" },
+        change(admin.userId),
+        getDb(),
+      ),
+    ).resolves.toEqual({ status: "saved" });
+
+    expect(await events(userId)).toEqual([
+      {
+        action: "person.update",
+        diff: {
+          from: { name: `Person ${employeeNumber}` },
+          to: { name: "Sara Ali" },
+        },
+      },
+      {
+        action: "person.update",
+        diff: {
+          from: { email },
+          to: { email: "sara.ali@college.example" },
+        },
+      },
+    ]);
+    expect(
+      await attempt({ identifier: "Sara.Ali@college.example" }, "10.0.50.2"),
+    ).toEqual({ status: "signedIn" });
+  });
+
+  it("links a new employee number, which the person then signs in with, and refuses one the college has", async () => {
+    const admin = await person();
+    const { userId, employeeNumber } = await person();
+    const other = await person();
+
+    await expect(
+      linkEmployeeNumber(
+        userId,
+        other.employeeNumber,
+        change(admin.userId),
+        getDb(),
+      ),
+    ).resolves.toEqual({ status: "taken" });
+    await expect(
+      linkEmployeeNumber(userId, "4990001", change(admin.userId), getDb()),
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      linkEmployeeNumber(userId, "4990001", change(admin.userId), getDb()),
+    ).resolves.toEqual({ status: "unchanged" });
+
+    expect(await events(userId)).toEqual([
+      {
+        action: "person.linkEmployeeNumber",
+        diff: {
+          from: { employeeNumber },
+          to: { employeeNumber: "4990001" },
+        },
+      },
+    ]);
+    expect(await attempt({ identifier: "4990001" }, "10.0.50.3")).toEqual({
+      status: "signedIn",
+    });
+  });
+});
+
+describe("lockedAccounts", () => {
+  it("finds the accounts whose email or employee number the lockout holds now", async () => {
+    const byEmail = await person();
+    const byNumber = await person();
+    const neither = await person();
+    for (let attempt_ = 0; attempt_ < 5; attempt_++) {
+      await attempt(
+        { identifier: byEmail.email, password: "a-wrong-password" },
+        "10.0.60.1",
+      );
+      await attempt(
+        { identifier: byNumber.employeeNumber, password: "a-wrong-password" },
+        "10.0.60.2",
+      );
+    }
+    await attempt(
+      { identifier: neither.email, password: "a-wrong-password" },
+      "10.0.60.3",
+    );
+
+    const locked = await lockedAccounts(collegeId, [
+      byEmail,
+      byNumber,
+      neither,
+    ]);
+    expect([...locked].sort()).toEqual(
+      [byEmail.userId, byNumber.userId].sort(),
+    );
+    expect(
+      await lockedAccounts(
+        collegeId,
+        [byEmail],
+        getDb(),
+        new Date(Date.now() + 16 * MINUTE_MS),
+      ),
+    ).toEqual(new Set());
   });
 });

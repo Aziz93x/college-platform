@@ -28,8 +28,11 @@ export function SignInForm({ rememberDays }: { rememberDays: number }) {
         : undefined;
   useLeaveTo(destination);
   const refusal =
-    result?.status === "invalid"
-      ? { title: t("invalid.title"), description: t("invalid.description") }
+    result?.status === "invalid" || result?.status === "disabled"
+      ? {
+          title: t(`${result.status}.title`),
+          description: t(`${result.status}.description`),
+        }
       : result?.status === "locked" || result?.status === "throttled"
         ? {
             title: t(`${result.status}.title`),

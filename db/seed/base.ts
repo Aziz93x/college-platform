@@ -46,6 +46,8 @@ export const defaultRoles: {
       "assignment.manage",
       "review.decide",
       "portfolio.approve",
+      "accounts.resetPassword",
+      "accounts.linkEmployeeNumber",
     ],
   },
   { key: "secretary", labels: { ar: "أمين القسم" }, permissions: [] },

@@ -104,6 +104,8 @@ describe("listRoles", () => {
     ]);
     expect(roles[0].permissions).toEqual(permissionKeys);
     expect(roles.find(({ key }) => key === "head")?.permissions).toEqual([
+      "accounts.resetPassword",
+      "accounts.linkEmployeeNumber",
       "plan.edit",
       "plan.publish",
       "assignment.manage",
