@@ -52,9 +52,10 @@ export async function generateMetadata({
   return { title: person?.name };
 }
 
-// One person: their account and roles, and what the viewer may change of it: the name and email,
-// the employee number, a temporary password, and whether the account is disabled. Under it, for
-// whoever may read the log, what happened to the account and the roles it holds.
+// One person: their account and roles, and what the viewer may change of it: the account's actions
+// as buttons (a temporary password, two-factor, disabling), the name and email, and the employee
+// number. A value a form below edits is not shown above it too. Under it, for whoever may read the
+// log, what happened to the account and the roles it holds.
 export default async function PersonPage({
   params,
   searchParams,
@@ -73,7 +74,10 @@ export default async function PersonPage({
     <NextIntlClientProvider messages={{ ui: uiWords, actions, people, reauth }}>
       <PageHeader
         title={person.name}
-        description={t("person.details")}
+        description={[
+          person.employeeNumber,
+          ...new Set(person.roles.map((role) => role.place ?? t("college"))),
+        ].join(" · ")}
         breadcrumbs={[{ label: t("title"), href: "/people" }]}
         breadcrumbsLabel={ui("trail")}
         status={
@@ -81,25 +85,28 @@ export default async function PersonPage({
             {t(`states.${person.state}`)}
           </AnimatedBadge>
         }
-        actions={<AccountActions person={person} />}
       />
       <div className="flex flex-col gap-6">
         <section className="rounded-xl border bg-card px-5 py-5 shadow-xs sm:px-6">
           <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground text-sm">
-                {t("person.employeeNumber")}
-              </dt>
-              <dd className="font-medium">{person.employeeNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground text-sm">
-                {t("person.email")}
-              </dt>
-              <dd className="font-medium">
-                <bdi>{person.email}</bdi>
-              </dd>
-            </div>
+            {person.can.link ? null : (
+              <div>
+                <dt className="text-muted-foreground text-sm">
+                  {t("person.employeeNumber")}
+                </dt>
+                <dd className="font-medium">{person.employeeNumber}</dd>
+              </div>
+            )}
+            {person.can.edit ? null : (
+              <div className="min-w-0">
+                <dt className="text-muted-foreground text-sm">
+                  {t("person.email")}
+                </dt>
+                <dd className="font-medium [overflow-wrap:anywhere]">
+                  <bdi>{person.email}</bdi>
+                </dd>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground text-sm">
                 {t("person.roles")}
@@ -125,6 +132,7 @@ export default async function PersonPage({
             </div>
           </dl>
         </section>
+        <AccountActions person={person} card />
         <PersonForms person={person} />
       </div>
       <HistoryPanel

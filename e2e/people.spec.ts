@@ -278,7 +278,11 @@ test(
       head.getByRole("link", { name: demoAccounts.invitedTrainer.name }),
     ).toHaveCount(0);
     await find(head, other);
-    await expect(head.getByText(text.empty.search)).toBeVisible();
+    await expect(
+      head.getByText(
+        messages.ui.search.none.replace("{query}", other.employeeNumber),
+      ),
+    ).toBeVisible();
 
     await find(head, own);
     await act(head, own, text.account.reset);
@@ -502,13 +506,14 @@ test.describe("the account menu", () => {
       await page
         .getByRole("menuitem", { name: auth.account.changePassword })
         .click();
-      await expect(page).toHaveURL("/change-password");
+      // Inside the shell, then back to the profile (UX review 1).
+      await expect(page).toHaveURL("/profile/password");
       const { changePassword } = auth;
       await page.getByLabel(changePassword.current).fill(person.password);
       await page.getByLabel(changePassword.new, { exact: true }).fill(fresh);
       await page.getByLabel(changePassword.confirm).fill(fresh);
       await page.getByRole("button", { name: changePassword.submit }).click();
-      await expect(page).toHaveURL("/today");
+      await expect(page).toHaveURL("/profile");
 
       await signOut(page, person);
       await signIn(page, {

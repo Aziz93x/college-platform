@@ -35,7 +35,7 @@ test("the first admin replaces the temporary password, reaches Today, and sets u
 
   await page.goto("/profile");
   await page.getByRole("link", { name: profile.twoFactorTurnOn }).click();
-  await expect(page).toHaveURL("/two-factor/setup");
+  await expect(page).toHaveURL("/profile/two-factor");
   await page.getByLabel(twoFactorSetup.password).fill(fresh);
   await page.getByRole("button", { name: twoFactorSetup.start }).click();
   const key = (await page.locator("code").textContent()) ?? "";

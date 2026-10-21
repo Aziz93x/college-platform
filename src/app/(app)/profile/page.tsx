@@ -108,14 +108,14 @@ export default async function ProfilePage() {
           ) : null}
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline" className="h-11">
-              <Link href="/change-password">
+              <Link href="/profile/password">
                 <KeyRound aria-hidden />
                 {t("changePassword")}
               </Link>
             </Button>
             {!viewer.twoFactorEnabled ? (
               <Button asChild variant="outline" className="h-11">
-                <Link href="/two-factor/setup">
+                <Link href="/profile/two-factor">
                   <ShieldCheck aria-hidden />
                   {t("twoFactorTurnOn")}
                 </Link>
@@ -123,6 +123,7 @@ export default async function ProfilePage() {
             ) : viewer.twoFactorRequired ? null : (
               <NextIntlClientProvider
                 messages={{
+                  ui: messages.ui,
                   actions: messages.actions,
                   reauth: messages.reauth,
                   profile: {

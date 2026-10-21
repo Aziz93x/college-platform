@@ -14,6 +14,7 @@ import { turnOffOwnTwoFactorAction } from "./actions.ts";
 // toward the lockout as at sign-in, and a toast once it is off; the page then offers to turn it on.
 export function TurnOffTwoFactor() {
   const t = useTranslations("profile.twoFactorTurnOff");
+  const ui = useTranslations("ui");
   const reauth = useTranslations("reauth");
   const refusals = useTranslations("actions");
   const [open, setOpen] = useState(false);
@@ -72,7 +73,7 @@ export function TurnOffTwoFactor() {
         snapPoints={["auto"]}
         title={t("title")}
         description={t("description")}
-        closeLabel={t("close")}
+        closeLabel={ui("close")}
       >
         <form
           noValidate
@@ -95,20 +96,24 @@ export function TurnOffTwoFactor() {
             error={error}
             className="w-full sm:max-w-sm"
           />
-          <ActionSwapButton
-            type="submit"
-            disabled={running}
-            className="self-start"
-            value={running ? "running" : "idle"}
-            items={[
-              { id: "idle", label: t("confirm"), icon: <ShieldOff /> },
-              {
-                id: "running",
-                label: t("confirming"),
-                icon: <LoaderCircle className="animate-spin" />,
-              },
-            ]}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ActionSwapButton
+              type="submit"
+              disabled={running}
+              value={running ? "running" : "idle"}
+              items={[
+                { id: "idle", label: t("confirm"), icon: <ShieldOff /> },
+                {
+                  id: "running",
+                  label: t("confirming"),
+                  icon: <LoaderCircle className="animate-spin" />,
+                },
+              ]}
+            />
+            <Button type="button" variant="ghost" onClick={close}>
+              {ui("cancel")}
+            </Button>
+          </div>
         </form>
       </BottomSheet>
     </>

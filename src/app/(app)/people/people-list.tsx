@@ -1,13 +1,12 @@
 "use client";
 
-import { Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
-import { Input } from "@/components/motion/input";
 import { searchCommands } from "@/components/motion/lib/command-search";
 import { Table, type TableColumn } from "@/components/motion/table";
+import { NoResults, SearchField } from "@/components/search-field";
 import { toLatinDigits } from "@/platform/validation/digits";
 import { AccountActions } from "./account-actions.tsx";
 import { STATE_BADGE } from "./state-badge.ts";
@@ -99,22 +98,24 @@ export function PeopleList({ people }: { people: PersonView[] }) {
   ];
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        type="search"
+      <SearchField
         label={t("search.label")}
         placeholder={t("search.placeholder")}
         value={query}
         onChange={setQuery}
-        startIcon={<Search />}
-        className="w-full sm:max-w-sm"
+        results={shown.length}
+        className="sm:max-w-sm"
       />
-      <Table
-        data={shown}
-        columns={columns}
-        getRowId={(person) => person.userId}
-        caption={t("table.caption")}
-        emptyState={t("empty.search")}
-      />
+      {shown.length > 0 ? (
+        <Table
+          data={shown}
+          columns={columns}
+          getRowId={(person) => person.userId}
+          caption={t("table.caption")}
+        />
+      ) : (
+        <NoResults query={query} onClear={() => setQuery("")} />
+      )}
     </div>
   );
 }

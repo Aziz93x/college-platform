@@ -36,8 +36,8 @@ export interface TableProps<T> {
   sort?: SortState | null;
   defaultSort?: SortState | null;
   onSortChange?: (sort: SortState | null) => void;
-  /** Shown in place of the rows when there are none. */
-  emptyState: ReactNode;
+  /** Shown in place of the rows when there are none; a caller that draws its own leaves it out. */
+  emptyState?: ReactNode;
   className?: string;
 }
 

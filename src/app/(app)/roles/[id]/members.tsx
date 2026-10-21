@@ -1,10 +1,17 @@
 "use client";
 
-import { LoaderCircle, ShieldCheck, UserPlus, X } from "lucide-react";
+import {
+  LoaderCircle,
+  ShieldCheck,
+  UserMinus,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionSwapButton } from "@/components/motion/action-swap";
+import { BottomSheet } from "@/components/motion/bottom-sheet";
 import {
   Combobox,
   ComboboxContent,
@@ -23,19 +30,21 @@ import {
   SelectValue,
 } from "@/components/motion/select";
 import { usePasswordStep } from "@/components/password-step";
+import { Button } from "@/components/ui/button";
 import type { Member } from "@/modules/access";
 import { addMembershipAction, removeMembershipAction } from "../actions.ts";
 
 const COLLEGE = "college";
 
 // Who holds the role, and where; adding someone, across the college or in one department, and
-// taking the role away. The system role is held across the college only, and keeps its last member.
+// taking the role away, which a sheet confirms as it confirms every change to someone's access. The
+// system role is held across the college only, and keeps its last member.
 export function Members({
   role,
   people,
   departments,
 }: {
-  role: { id: string; system: boolean; members: Member[] };
+  role: { id: string; label: string; system: boolean; members: Member[] };
   people: { userId: string; name: string; employeeNumber: string }[];
   /** The college's departments; the ones set aside name old memberships but are not offered. */
   departments: { id: string; name: string; active: boolean }[];
@@ -46,9 +55,12 @@ export function Members({
   const [person, setPerson] = useState<string>();
   const [scope, setScope] = useState(COLLEGE);
   const [error, setError] = useState<string>();
-  const [running, setRunning] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [removing, setRemoving] = useState<Member>();
   const [, startTransition] = useTransition();
   const step = usePasswordStep();
+  // The system role's last member stays: the college needs one admin.
+  const keeps = role.system && role.members.length === 1;
 
   const scopeName = (departmentId: string | null) =>
     departmentId === null
@@ -76,7 +88,7 @@ export function Members({
       return;
     }
     startTransition(async () => {
-      setRunning("add");
+      setRunning(true);
       setError(undefined);
       const result = await addMembershipAction({
         userId: person,
@@ -84,7 +96,7 @@ export function Members({
         departmentId: scope === COLLEGE ? null : scope,
         password,
       });
-      setRunning(null);
+      setRunning(false);
       const outcome = result?.data;
       if (step.handled(outcome, add)) return;
       if (outcome?.status === "added") {
@@ -95,21 +107,6 @@ export function Members({
       refuse(outcome?.status, result?.serverError);
     });
   };
-
-  const remove = (member: Member) => (password?: string) =>
-    startTransition(async () => {
-      setRunning(member.id);
-      setError(undefined);
-      const result = await removeMembershipAction({ id: member.id, password });
-      setRunning(null);
-      const outcome = result?.data;
-      if (step.handled(outcome, remove(member))) return;
-      if (outcome?.status === "removed") {
-        toast.success(t("toast.removed", { name: member.name }));
-        return;
-      }
-      refuse(outcome?.status, result?.serverError);
-    });
 
   return (
     <section
@@ -142,15 +139,12 @@ export function Members({
               <button
                 type="button"
                 aria-label={t("remove", { name: member.name })}
-                disabled={running !== null}
-                onClick={() => remove(member)()}
-                className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50"
+                aria-describedby={keeps ? `${id}-keeps` : undefined}
+                disabled={keeps}
+                onClick={() => setRemoving(member)}
+                className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
               >
-                {running === member.id ? (
-                  <LoaderCircle aria-hidden className="size-4 animate-spin" />
-                ) : (
-                  <X aria-hidden className="size-4" />
-                )}
+                <X aria-hidden className="size-4" />
               </button>
             </li>
           ))}
@@ -160,6 +154,14 @@ export function Members({
           {t("empty")}
         </p>
       )}
+      {keeps ? (
+        <p
+          id={`${id}-keeps`}
+          className="px-5 pt-3 text-muted-foreground text-xs sm:px-6"
+        >
+          {t("lastAdmin")}
+        </p>
+      ) : null}
       <form
         noValidate
         onSubmit={(event) => {
@@ -235,10 +237,8 @@ export function Members({
         <div className="flex justify-end">
           <ActionSwapButton
             type="submit"
-            disabled={running !== null}
-            value={
-              running === "add" ? "adding" : step.asking ? "confirm" : "add"
-            }
+            disabled={running}
+            value={running ? "adding" : step.asking ? "confirm" : "add"}
             items={[
               { id: "add", label: t("add"), icon: <UserPlus /> },
               {
@@ -255,6 +255,112 @@ export function Members({
           />
         </div>
       </form>
+      {removing ? (
+        <RemoveSheet
+          member={removing}
+          role={role.label}
+          scope={scopeName(removing.departmentId)}
+          onClose={() => setRemoving(undefined)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+// Taking the role from one member, confirmed in a sheet with the password asked again when it is
+// due, as the account actions are (people/account-actions.tsx).
+function RemoveSheet({
+  member,
+  role,
+  scope,
+  onClose,
+}: {
+  member: Member;
+  role: string;
+  scope: string;
+  onClose: () => void;
+}) {
+  const t = useTranslations("roles.members");
+  const ui = useTranslations("ui");
+  const refusals = useTranslations("actions");
+  const step = usePasswordStep();
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string>();
+  const [, startTransition] = useTransition();
+
+  const remove = (password?: string) =>
+    startTransition(async () => {
+      setRunning(true);
+      setError(undefined);
+      const result = await removeMembershipAction({ id: member.id, password });
+      setRunning(false);
+      const outcome = result?.data;
+      if (step.handled(outcome, remove)) return;
+      switch (outcome?.status) {
+        case "removed":
+          toast.success(t("toast.removed", { name: member.name }));
+          onClose();
+          return;
+        case "lastAdmin":
+          setError(t("lastAdmin"));
+          return;
+        case "notFound":
+          setError(t("gone"));
+          return;
+        default:
+          setError(refusals(result?.serverError ?? "unexpected"));
+      }
+    });
+
+  return (
+    <BottomSheet
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      snapPoints={["auto"]}
+      title={t("removeTitle", { name: member.name, role })}
+      description={t("removeDescription", { scope })}
+      closeLabel={ui("close")}
+    >
+      <form
+        noValidate
+        className="flex flex-col gap-4 pt-2 pb-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!step.confirm()) remove();
+        }}
+      >
+        {step.field(t("reauth"))}
+        {error ? (
+          <p role="alert" className="text-alert text-sm">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <ActionSwapButton
+            type="submit"
+            disabled={running}
+            value={running ? "running" : step.asking ? "confirm" : "idle"}
+            items={[
+              { id: "idle", label: t("removeConfirm"), icon: <UserMinus /> },
+              {
+                id: "running",
+                label: step.asking ? step.words.confirming : t("removing"),
+                icon: <LoaderCircle className="animate-spin" />,
+              },
+              {
+                id: "confirm",
+                label: step.words.submit,
+                icon: <ShieldCheck />,
+              },
+            ]}
+          />
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {ui("cancel")}
+          </Button>
+        </div>
+      </form>
+    </BottomSheet>
   );
 }

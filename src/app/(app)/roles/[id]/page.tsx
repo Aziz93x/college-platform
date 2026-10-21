@@ -124,7 +124,12 @@ export default async function RolePage({
             twoFactorRequired={twoFactor}
           />
           <Members
-            role={{ id: role.id, system: role.system, members: role.members }}
+            role={{
+              id: role.id,
+              label,
+              system: role.system,
+              members: role.members,
+            }}
             people={people}
             departments={departments.map(({ id, name, active }) => ({
               id,

@@ -9,20 +9,25 @@ import { Button } from "@/components/ui/button";
 import { changePasswordAction } from "../actions.ts";
 import { RefusalAlert, SubmitButton, useLeaveTo } from "../form-parts.tsx";
 
+// The current password, then the new one twice; then the next page (`done`) loads from scratch. A
+// change the person chose may be cancelled back to `cancelHref`; a forced one may not.
 export function PasswordForm({
   minLength,
-  canCancel,
+  done,
+  cancelHref,
 }: {
   minLength: number;
-  canCancel: boolean;
+  done: string;
+  cancelHref?: string;
 }) {
   const t = useTranslations("auth.changePassword");
+  const ui = useTranslations("ui");
   const signIn = useTranslations("auth.signIn");
   const actions = useTranslations("actions");
   const [state, formAction, pending] = useActionState(changePasswordAction, {});
   const status = state.data?.status;
   const missing = state.validationErrors;
-  const destination = status === "changed" ? "/today" : undefined;
+  const destination = status === "changed" ? done : undefined;
   useLeaveTo(destination);
   const length = { minLength };
   // Too many wrong current passwords: the account is locked and signed out everywhere.
@@ -94,9 +99,9 @@ export function PasswordForm({
         label={t("submit")}
         pendingLabel={t("submitting")}
       />
-      {canCancel ? (
+      {cancelHref ? (
         <Button asChild variant="ghost" className="h-11">
-          <Link href="/today">{t("cancel")}</Link>
+          <Link href={cancelHref}>{ui("cancel")}</Link>
         </Button>
       ) : null}
     </form>
