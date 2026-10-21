@@ -82,7 +82,7 @@ export function RangeSlider({
       {...trackProps}
       className={cn(
         // The border is drawn over the track, so the handle's 44 px hit area is not clipped by it.
-        "relative flex h-11 w-full touch-none select-none items-center overflow-hidden rounded-lg bg-muted [-webkit-touch-callout:none] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-input",
+        "relative flex h-11 w-full touch-none select-none items-center overflow-hidden rounded-lg bg-card [-webkit-touch-callout:none] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-input",
         options.disabled
           ? "pointer-events-none opacity-50"
           : "cursor-grab active:cursor-grabbing",
@@ -95,7 +95,7 @@ export function RangeSlider({
           className="pointer-events-none absolute inset-x-[2px] inset-y-0 overflow-hidden rounded-lg"
         >
           <m.div
-            className="absolute inset-0 rounded-lg bg-primary/20"
+            className="absolute inset-0 rounded-lg bg-primary/25"
             style={{ x: fillX }}
           />
         </div>

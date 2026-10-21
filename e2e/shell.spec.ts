@@ -1,4 +1,5 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoSettings } from "../db/seed/demo/settings.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { STORAGE } from "./support/auth.ts";
@@ -30,6 +31,12 @@ test("the address opens the shell on today's page for someone signed in, right t
   await expect(
     page.getByRole("heading", { name: today.empty.title }),
   ).toBeVisible();
+  // Today is the trainer's only page, so it leads nowhere else.
+  await expect(
+    page.locator("main").getByRole("link", {
+      name: today.empty.next.replace("{page}", ""),
+    }),
+  ).toHaveCount(0);
 });
 
 // Sonner loads only where toasts show (ADR-0010, the script budget); design.spec.ts checks the
@@ -57,14 +64,113 @@ test("the current page is marked in the navigation of the device", async ({
   isMobile,
 }) => {
   await page.goto("/today");
-  const visible = isMobile ? tabBar(page) : sidebar(page);
-  const hidden = isMobile ? sidebar(page) : tabBar(page);
-  await expect(visible).toBeVisible();
-  await expect(hidden).toBeHidden();
-  await expect(visible.getByRole("link", { name: nav.today })).toHaveAttribute(
-    "aria-current",
-    "page",
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(today.title);
+  if (isMobile) {
+    // The trainer's one page leaves nowhere to go, so a phone shows no tab bar (UX review 1); the
+    // admin's phone below has one.
+    await expect(tabBar(page)).toHaveCount(0);
+    await expect(sidebar(page)).toBeHidden();
+    return;
+  }
+  await expect(sidebar(page)).toBeVisible();
+  await expect(tabBar(page)).toBeHidden();
+  await expect(
+    sidebar(page).getByRole("link", { name: nav.today }),
+  ).toHaveAttribute("aria-current", "page");
+});
+
+// The rectangles of the controls in `scope` that are off a screen `width` px wide or smaller than
+// 44 px, as "name x..right × height".
+const cramped = (scope: Locator, width: number) =>
+  scope.locator("a, button").evaluateAll(
+    (controls, screen) =>
+      controls
+        .filter((control) => control.getClientRects().length > 0)
+        .map((control) => ({
+          name:
+            control.getAttribute("aria-label") ?? control.textContent?.trim(),
+          box: control.getBoundingClientRect(),
+        }))
+        .filter(
+          ({ box }) =>
+            box.left < 0 ||
+            box.right > screen ||
+            box.width < 44 ||
+            box.height < 44,
+        )
+        .map(
+          ({ name, box }) =>
+            `${name} ${Math.round(box.left)}..${Math.round(box.right)} × ${Math.round(box.height)}`,
+        ),
+    width,
   );
+
+// How far the page scrolls sideways: nothing on a phone.
+const sideways = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+
+test.describe("as the admin", () => {
+  // Six pages: more than the phone's bar holds.
+  test.use({ storageState: STORAGE.admin });
+
+  test("Today, with nothing for the admin yet, leads to their next page", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await page
+      .getByRole("link", {
+        name: today.empty.next.replace("{page}", nav.departments),
+      })
+      .click();
+    await expect(page).toHaveURL("/departments");
+  });
+
+  // A 320 px phone, and a 390 px one at 200% text, which lays out in 195 CSS px (UX review 1).
+  for (const width of [320, 195]) {
+    test(`at ${width} px every tab and header control is on screen and 44 px wide, and no page scrolls sideways`, async ({
+      page,
+      isMobile,
+    }) => {
+      test.skip(!isMobile, "the desktop has the sidebar");
+      await page.setViewportSize({ width, height: 700 });
+      await page.goto("/today");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        today.title,
+      );
+      const bar = tabBar(page);
+      await expect(bar.getByRole("link", { name: nav.today })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      // Fewer tabs when five do not fit; the rest are under More.
+      await expect(bar.getByRole("button", { name: shell.more })).toBeVisible();
+      expect(await cramped(bar, width)).toEqual([]);
+      expect(await cramped(page.getByRole("banner"), width)).toEqual([]);
+      expect(await sideways(page)).toBe(0);
+
+      await page.goto("/people");
+      await expect(
+        page.getByRole("heading", { level: 1, name: nav.people }),
+      ).toBeVisible();
+      expect(await sideways(page)).toBe(0);
+      await page.getByRole("link", { name: demoAccounts.trainer.name }).click();
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: demoAccounts.trainer.name,
+        }),
+      ).toBeVisible();
+      expect(await sideways(page)).toBe(0);
+
+      await page.goto("/settings?group=security");
+      await expect(page.getByRole("tab", { selected: true })).toBeVisible();
+      expect(await sideways(page)).toBe(0);
+    });
+  }
 });
 
 test("the skip link moves focus to the page's content", async ({

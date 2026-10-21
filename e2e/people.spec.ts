@@ -45,7 +45,7 @@ async function find(page: Page, person: { employeeNumber: string }) {
     .fill(person.employeeNumber);
 }
 
-// Opens the account actions behind a person's row or on their page, and picks one.
+// Opens the account actions behind a person's row, and picks one.
 async function act(page: Page, person: { name: string }, action: string) {
   await page
     .getByRole("button", {
@@ -54,6 +54,12 @@ async function act(page: Page, person: { name: string }, action: string) {
     .click();
   await page.getByRole("button", { name: action, exact: true }).click();
 }
+
+// An account action on the person's page, a button in its card (UX review 1).
+const onPage = (page: Page, action: string) =>
+  page
+    .getByRole("region", { name: text.account.title })
+    .getByRole("button", { name: action, exact: true });
 
 // The sheet that confirms an account action.
 const confirm = (page: Page, label: string) =>
@@ -284,6 +290,10 @@ test(
       ),
     ).toBeVisible();
 
+    // On their page, the temporary password is a button, not behind a menu.
+    await open(head, `/people/${own.userId}`);
+    await expect(onPage(head, text.account.reset)).toBeVisible();
+    await open(head, "/people");
     await find(head, own);
     await act(head, own, text.account.reset);
     await confirm(head, text.reset.confirm);
@@ -330,7 +340,7 @@ test(
     );
 
     await open(page, `/people/${person.userId}`);
-    await act(page, person, text.account.turnOffTwoFactor);
+    await onPage(page, text.account.turnOffTwoFactor).click();
     await confirm(page, text.turnOffTwoFactor.confirm);
     await confirmIfAsked(
       page,
@@ -338,17 +348,7 @@ test(
       demo.adminPassword,
     );
     // Nothing is left to turn off.
-    await page
-      .getByRole("button", {
-        name: text.account.more.replace("{name}", person.name),
-      })
-      .click();
-    await expect(
-      page.getByRole("button", {
-        name: text.account.turnOffTwoFactor,
-        exact: true,
-      }),
-    ).toHaveCount(0);
+    await expect(onPage(page, text.account.turnOffTwoFactor)).toHaveCount(0);
 
     const trainer = await (
       await browser.newContext({ storageState: undefined })
@@ -372,7 +372,7 @@ test(
     const person = await account();
     const disabledName = text.states.disabled;
     await open(page, `/people/${person.userId}`);
-    await act(page, person, text.account.disable);
+    await onPage(page, text.account.disable).click();
     await confirm(page, text.disable.confirm);
     await confirmIfAsked(
       page,
@@ -396,7 +396,7 @@ test(
     ).toBeVisible();
     await expect(visitor).toHaveURL("/");
 
-    await act(page, person, text.account.enable);
+    await onPage(page, text.account.enable).click();
     await confirm(page, text.enable.confirm);
     await confirmIfAsked(
       page,

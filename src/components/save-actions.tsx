@@ -1,8 +1,9 @@
 "use client";
 
 import { Check, LoaderCircle, Save, ShieldCheck } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
@@ -51,10 +52,26 @@ export function SaveActions({
   className?: string;
 }) {
   const ui = useTranslations("ui");
-  if (!dirty && state === "idle" && !asking) return null;
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const shown = dirty || state !== "idle" || asking;
+  // Save appears under what changed: brought into view, clear of the phone's tab bar.
+  useEffect(() => {
+    if (shown) {
+      ref.current?.scrollIntoView({
+        block: "nearest",
+        behavior: reduce ? "instant" : "smooth",
+      });
+    }
+  }, [shown, reduce]);
+  if (!shown) return null;
   return (
     <div
-      className={cn("flex flex-wrap items-center justify-end gap-2", className)}
+      ref={ref}
+      className={cn(
+        "flex scroll-mb-28 flex-wrap items-center justify-end gap-2 lg:scroll-mb-4",
+        className,
+      )}
     >
       {dirty && state !== "saving" ? (
         <Button type="button" variant="ghost" onClick={onDiscard}>

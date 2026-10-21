@@ -64,7 +64,7 @@ export default async function ProfilePage() {
             </div>
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground text-sm">{t("email")}</dt>
-              <dd className="font-medium">
+              <dd className="font-medium [overflow-wrap:anywhere]">
                 <bdi>{viewer.email}</bdi>
               </dd>
             </div>

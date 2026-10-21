@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from "motion/react";
 import {
+  type CSSProperties,
   createContext,
   type HTMLAttributes,
   type ReactNode,
@@ -20,6 +21,8 @@ import { EASE_OUT } from "./lib/ease.ts";
 type LiquidContextValue = {
   getRoot: () => HTMLDivElement | null;
   getPortal: () => SVGGElement | null;
+  // An item starts (1) or ends (-1) a move.
+  moving: (delta: 1 | -1) => void;
 };
 
 const LiquidContext = createContext<LiquidContextValue | null>(null);
@@ -65,6 +68,9 @@ export function Liquid({
   const rootRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<SVGGElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // How many items are moving. Only then do the shapes merge or split through the filter; at rest
+  // each item draws its own shape with CSS, whose edge stays crisp on a 1x screen (UX review 1).
+  const [moving, setMoving] = useState(0);
   const filterId = `liquid-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const intercept = Math.round((0.5 - contrast * (5 / 12)) * 100) / 100;
   const padding = Math.ceil(blur * 3 + filterPadding);
@@ -104,6 +110,7 @@ export function Liquid({
     () => ({
       getRoot: () => rootRef.current,
       getPortal: () => portalRef.current,
+      moving: (delta) => setMoving((count) => Math.max(0, count + delta)),
     }),
     [],
   );
@@ -112,13 +119,24 @@ export function Liquid({
     <div
       {...props}
       ref={setRootRef}
-      className={cn("relative isolate", className)}
-      style={style}
+      data-moving={moving > 0 || undefined}
+      className={cn("group/liquid relative isolate", className)}
+      style={
+        {
+          ...style,
+          "--liquid-fill": fill,
+          "--liquid-edge": `color-mix(in srgb, ${edgeColor} ${edgeOpacity * 100}%, transparent)`,
+          "--liquid-edge-width": `${edgeWidth}px`,
+        } as CSSProperties
+      }
     >
       <svg
         aria-hidden="true"
         focusable="false"
-        className="pointer-events-none absolute inset-0 z-0 size-full overflow-visible"
+        className={cn(
+          "pointer-events-none absolute inset-0 z-0 size-full overflow-visible",
+          moving > 0 ? "opacity-100" : "opacity-0",
+        )}
       >
         <defs>
           <filter
@@ -297,6 +315,7 @@ export function LiquidItem({
       wrapper.style.transform = transform;
       wrapper.style.width = `${box.width}px`;
       wrapper.style.height = `${box.height}px`;
+      wrapper.style.borderRadius = `${box.radius}px`;
       blob.style.transform = transform;
       blob.setAttribute("width", String(box.width));
       blob.setAttribute("height", String(box.height));
@@ -313,6 +332,13 @@ export function LiquidItem({
     const easing = cubicBezier([x1, y1, x2, y2]);
     const startedAt = performance.now();
     let frame = 0;
+    let active = true;
+    context.moving(1);
+    const settle = () => {
+      if (!active) return;
+      active = false;
+      context.moving(-1);
+    };
 
     const tick = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
@@ -327,17 +353,24 @@ export function LiquidItem({
       currentRef.current = current;
       write(current);
       if (progress < 1) frame = requestAnimationFrame(tick);
+      else settle();
     };
 
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      settle();
+    };
   }, [blob, context, duration, height, radius, width, x, x1, x2, y, y1, y2]);
 
   return (
     <div
       {...props}
       ref={wrapperRef}
-      className={cn("absolute left-0 top-0 z-10", className)}
+      className={cn(
+        "absolute left-0 top-0 z-10 bg-(--liquid-fill) shadow-[inset_0_0_0_var(--liquid-edge-width)_var(--liquid-edge)] group-data-moving/liquid:bg-transparent group-data-moving/liquid:shadow-none",
+        className,
+      )}
       style={{ ...style, willChange: "transform, width, height" }}
     >
       {children}

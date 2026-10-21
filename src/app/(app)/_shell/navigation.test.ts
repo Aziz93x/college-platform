@@ -6,6 +6,7 @@ import {
   navigation,
   orderFor,
   phoneTabs,
+  tabSlots,
   visibleNavigation,
 } from "./navigation.ts";
 
@@ -124,6 +125,32 @@ describe("phoneTabs", () => {
     const { tabs, more } = phoneTabs(pages(7));
     expect(tabs).toEqual(pages(4));
     expect(more).toEqual(["page-5", "page-6", "page-7"]);
+  });
+
+  it("keeps fewer tabs in a narrower bar", () => {
+    expect(phoneTabs(pages(5), 3)).toEqual({
+      tabs: pages(2),
+      more: ["page-3", "page-4", "page-5"],
+    });
+    expect(phoneTabs(pages(3), 3)).toEqual({ tabs: pages(3), more: [] });
+  });
+});
+
+describe("tabSlots", () => {
+  it.each([
+    // A 390 px phone, a 320 px one, and both at 200% text (195 and 160 CSS px), less the bar's
+    // 12 px from each edge of the screen.
+    [366, 5],
+    [296, 5],
+    [171, 3],
+    [136, 2],
+    // Exactly four 44 px tabs, and a pixel short of them.
+    [202, 4],
+    [201, 3],
+    // The bar is hidden on a desktop.
+    [0, 5],
+  ])("a %i px bar holds %i targets", (width, slots) => {
+    expect(tabSlots(width)).toBe(slots);
   });
 });
 

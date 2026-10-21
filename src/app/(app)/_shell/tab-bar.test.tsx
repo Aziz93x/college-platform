@@ -44,3 +44,9 @@ it("beyond five pages keeps four tabs and a fifth that opens the sheet with the 
     /<button [^>]*aria-haspopup="dialog" aria-expanded="false"[^>]*>.*More<\/span><\/button>/,
   );
 });
+
+it("draws no bar for one page, which leaves nowhere to go", () => {
+  expect(
+    renderToStaticMarkup(<TabBar links={links(1)} labels={labels} />),
+  ).toBe("");
+});

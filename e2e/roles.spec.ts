@@ -81,7 +81,10 @@ test(
       });
       const saved = admin.getByText(text.grid.toast.replace("{name}", name));
       await key.click();
-      await admin.getByRole("button", { name: text.grid.save }).click();
+      // The Save stays in view at the card's foot, however far down the key is (UX review 1).
+      const save = admin.getByRole("button", { name: text.grid.save });
+      await expect(save).toBeInViewport();
+      await save.click();
       await confirmIfAsked(admin, saved, demo.adminPassword);
       await member.goto("/design");
       await expect(
@@ -117,6 +120,29 @@ test(
         { from: { permissions: [] }, to: { permissions: ["design.view"] } },
         { from: { permissions: ["design.view"] }, to: { permissions: [] } },
       ]);
+
+      // Taking the role away asks first, in a sheet that names the person and the role.
+      await admin
+        .getByRole("button", {
+          name: text.members.remove.replace("{name}", person.name),
+        })
+        .click();
+      const sheet = admin.getByRole("dialog", {
+        name: text.members.removeTitle
+          .replace("{name}", person.name)
+          .replace("{role}", name),
+      });
+      await sheet
+        .getByRole("button", { name: text.members.removeConfirm })
+        .click();
+      await confirmIfAsked(
+        admin,
+        admin.getByText(
+          text.members.toast.removed.replace("{name}", person.name),
+        ),
+        demo.adminPassword,
+      );
+      await expect(admin.getByText(text.members.empty)).toBeVisible();
     } finally {
       // The role's keys and memberships go with it; the person goes with the account fixture.
       await pool.query("delete from roles where labels->>'ar' = $1", [name]);
