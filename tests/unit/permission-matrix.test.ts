@@ -42,6 +42,7 @@ vi.mock("@/modules/access", async (importOriginal) => ({
       email: "trainer@college.example",
       employeeNumber: "2001",
       state: "active",
+      twoFactor: true,
       memberships: [
         {
           id: ID,
@@ -76,6 +77,8 @@ vi.mock("@/modules/identity", async (importOriginal) => ({
   updatePerson: async () => ({ status: "saved" }),
   reauthenticate: async () => ({ status: "confirmed" }),
   requestMeta: () => ({ ip: "10.0.30.1", userAgent: "matrix" }),
+  turnOffTwoFactor: async () => "off",
+  turnOffOwnTwoFactor: async () => ({ status: "off" }),
 }));
 vi.mock("@/platform/files/table", () => ({
   readTable: async () => [
@@ -248,6 +251,13 @@ const checked: {
   },
   {
     module: "(app)/people/actions.ts",
+    action: "turnOffTwoFactorAction",
+    permission: "accounts.resetPassword",
+    input: { userId: ID },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/people/actions.ts",
     action: "linkEmployeeNumberAction",
     permission: "accounts.linkEmployeeNumber",
     input: { userId: ID, employeeNumber: "2002" },
@@ -256,7 +266,8 @@ const checked: {
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others
-// act on the caller's own account (ADR-0009 #6, Audit 2) or their own notifications (Step 12).
+// act on the caller's own account (ADR-0009 #6, Audit 2, ADR-0014) or their own notifications
+// (Step 12).
 const open = [
   "(auth)/actions.ts#signInAction",
   "(auth)/actions.ts#verifyCodeAction",
@@ -266,6 +277,7 @@ const open = [
   "(auth)/actions.ts#signOutAction",
   "(app)/notifications/actions.ts#markReadAction",
   "(app)/notifications/actions.ts#chooseNotificationAction",
+  "(app)/profile/actions.ts#turnOffOwnTwoFactorAction",
 ];
 
 // Each seeded role, and a role with no key; each held across the college or in one department.
@@ -287,6 +299,7 @@ const viewerFor = (
   permissions: new Set(role.permissions),
   roleKeys: [role.key],
   mustChangePassword: false,
+  twoFactorRequired: false,
   needsTwoFactorSetup: false,
 });
 
@@ -380,6 +393,14 @@ describe("the permission matrix", () => {
         userId: ID,
       },
     );
+    expect(result?.data).toEqual({ status: "self" });
+  });
+
+  it("turns off no one's two-factor for their own account: that is the profile's (ADR-0014)", async () => {
+    request.viewer = { ...viewerFor(roles[0], null), userId: ID };
+    const result = await modules[
+      "(app)/people/actions.ts"
+    ].turnOffTwoFactorAction({ userId: ID });
     expect(result?.data).toEqual({ status: "self" });
   });
 

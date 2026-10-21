@@ -1,13 +1,15 @@
-import { BellRing, KeyRound } from "lucide-react";
+import { BellRing, KeyRound, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { listDirectory, requireViewer, roleLabel } from "@/modules/access";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { TurnOffTwoFactor } from "./turn-off-two-factor.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
@@ -16,18 +18,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // The signed-in person's own account: their name, email and employee number, their roles and
-// where, whether two-factor guards it, the way to change the password, and to their notification
-// preferences. A trainer's
-// professional profile joins it in Step 28.
+// where, whether two-factor guards it and the way to turn it on or off (unless the college
+// requires it of them, ADR-0014), the way to change the password, and to their notification
+// preferences. A trainer's professional profile joins it in Step 28.
 export default async function ProfilePage() {
   await connection();
   const viewer = await requireViewer();
   const scope = { collegeId: viewer.collegeId };
-  const [t, [person], departments, language] = await Promise.all([
+  const [t, [person], departments, language, messages] = await Promise.all([
     getTranslations("profile"),
     listDirectory(viewer.collegeId, { userId: viewer.userId }),
     listDepartments(viewer.collegeId),
     getSetting("locale.language", scope),
+    getMessages(),
   ]);
   const roles = (person?.memberships ?? []).map((membership) => ({
     id: membership.id,
@@ -98,12 +101,39 @@ export default async function ProfilePage() {
           <p className="text-sm">
             {viewer.twoFactorEnabled ? t("twoFactorOn") : t("twoFactorOff")}
           </p>
-          <Button asChild variant="outline" className="h-11 self-start">
-            <Link href="/change-password">
-              <KeyRound aria-hidden />
-              {t("changePassword")}
-            </Link>
-          </Button>
+          {viewer.twoFactorRequired ? (
+            <p className="text-muted-foreground text-sm">
+              {t("twoFactorRequired")}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/change-password">
+                <KeyRound aria-hidden />
+                {t("changePassword")}
+              </Link>
+            </Button>
+            {!viewer.twoFactorEnabled ? (
+              <Button asChild variant="outline" className="h-11">
+                <Link href="/two-factor/setup">
+                  <ShieldCheck aria-hidden />
+                  {t("twoFactorTurnOn")}
+                </Link>
+              </Button>
+            ) : viewer.twoFactorRequired ? null : (
+              <NextIntlClientProvider
+                messages={{
+                  actions: messages.actions,
+                  reauth: messages.reauth,
+                  profile: {
+                    twoFactorTurnOff: messages.profile.twoFactorTurnOff,
+                  },
+                }}
+              >
+                <TurnOffTwoFactor />
+              </NextIntlClientProvider>
+            )}
+          </div>
         </section>
         <section
           aria-labelledby="profile-notifications"

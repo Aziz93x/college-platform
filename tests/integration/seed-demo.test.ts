@@ -281,6 +281,7 @@ it("writes three weeks of the college's history, every event in the past and by 
       "account.changePassword",
       "account.startTwoFactorSetup",
       "account.enableTwoFactor",
+      "account.disableTwoFactor",
       "account.lock",
       "account.resetPassword",
       "person.linkEmployeeNumber",

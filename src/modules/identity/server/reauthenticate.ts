@@ -1,10 +1,8 @@
-import { isAPIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../platform/db/client.ts";
 import { getSetting } from "../../settings/index.ts";
-import { getAuth } from "./auth.ts";
 import { requestMeta } from "./request.ts";
-import { checkRetypedPassword } from "./retype.ts";
+import { checkRetypedPassword, passwordCheck } from "./retype.ts";
 import { sessions } from "./schema.ts";
 
 type Reauthentication =
@@ -42,20 +40,7 @@ export async function reauthenticate(
 
   const retyped = await checkRetypedPassword(
     user,
-    async () => {
-      try {
-        await getAuth().api.verifyPassword({
-          body: { password },
-          headers: requestHeaders,
-        });
-        return true;
-      } catch (error) {
-        if (isAPIError(error) && error.body?.code === "INVALID_PASSWORD") {
-          return undefined;
-        }
-        throw error;
-      }
-    },
+    passwordCheck(password, requestHeaders),
     requestMeta(requestHeaders),
     now,
   );

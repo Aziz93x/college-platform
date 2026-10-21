@@ -1,7 +1,9 @@
+import { isAPIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { getSetting } from "../../settings/index.ts";
+import { getAuth } from "./auth.ts";
 import {
   accountSubjects,
   beginAttempt,
@@ -78,4 +80,23 @@ export async function checkRetypedPassword<T>(
     );
   });
   return { status: "locked", minutes: lockoutMinutes };
+}
+
+// The check for a password typed again that changes nothing itself: true when it is the signed-in
+// person's own, nothing when it is wrong.
+export function passwordCheck(password: string, requestHeaders: Headers) {
+  return async () => {
+    try {
+      await getAuth().api.verifyPassword({
+        body: { password },
+        headers: requestHeaders,
+      });
+      return true;
+    } catch (error) {
+      if (isAPIError(error) && error.body?.code === "INVALID_PASSWORD") {
+        return undefined;
+      }
+      throw error;
+    }
+  };
 }

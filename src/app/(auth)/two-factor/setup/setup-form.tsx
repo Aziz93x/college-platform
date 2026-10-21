@@ -9,13 +9,13 @@ import {
   confirmTwoFactorSetupAction,
   startTwoFactorSetupAction,
 } from "../../actions.ts";
-import { RefusalAlert, SubmitButton, useLeaveTo } from "../../form-parts.tsx";
+import { RefusalAlert, SubmitButton } from "../../form-parts.tsx";
 
 // The key in groups of four, as authenticator apps show it; spaces are ignored where it is typed.
 const inGroups = (key: string) => key.match(/.{1,4}/g)?.join(" ") ?? key;
 
 // First the password again, then the app: scan the code or type the key, keep the backup codes,
-// and confirm with the first code the app shows.
+// and confirm with the first code the app shows, whose action sends the person on.
 export function SetupForm() {
   const t = useTranslations("auth.twoFactorSetup");
   const signIn = useTranslations("auth.signIn");
@@ -31,9 +31,6 @@ export function SetupForm() {
   const setup = started.data?.status === "started" ? started.data : undefined;
   // Too many wrong passwords: the account is locked and signed out everywhere.
   const locked = started.data?.status === "locked" ? started.data : undefined;
-  const destination =
-    confirmed.data?.status === "enabled" ? "/today" : undefined;
-  useLeaveTo(destination);
 
   if (!setup) {
     return (
@@ -137,7 +134,7 @@ export function SetupForm() {
           required
         />
         <SubmitButton
-          pending={confirming || destination !== undefined}
+          pending={confirming}
           label={t("confirm")}
           pendingLabel={t("confirming")}
         />

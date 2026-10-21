@@ -23,6 +23,7 @@ import {
   reauthenticate,
   requestMeta,
   resetPassword,
+  turnOffTwoFactor,
   updatePerson,
 } from "@/modules/identity";
 import { readTable } from "@/platform/files/table";
@@ -153,6 +154,31 @@ export const resetPasswordAction = viewerAction
     );
     refresh();
     return { status: "reset" as const, temporaryPassword: temporary };
+  });
+
+// Turns off the two-factor of someone the viewer's key reaches, for one who lost their phone, with
+// the same key and reach as a temporary password (ADR-0014). One's own is turned off on the profile.
+export const turnOffTwoFactorAction = viewerAction
+  .metadata({ name: "turnOffTwoFactor" })
+  .inputSchema(z.object({ userId: z.uuid(), password }))
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const person = await holder(viewer, parsedInput.userId);
+    if (!person) return { status: "notFound" as const };
+    requireReach("accounts.resetPassword", person);
+    if (person.userId === viewer.userId) return { status: "self" as const };
+    const requestHeaders = await headers();
+    const refused = await confirmPassword(
+      parsedInput.password,
+      viewer,
+      requestHeaders,
+    );
+    if (refused) return refused;
+    const status = await turnOffTwoFactor(
+      person.userId,
+      changeBy(viewer, requestHeaders),
+    );
+    if (status === "off") refresh();
+    return { status };
   });
 
 export const linkEmployeeNumberAction = viewerAction

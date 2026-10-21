@@ -15,6 +15,8 @@ import {
   signIn,
   signOut,
   startTwoFactorSetup,
+  turnOffOwnTwoFactor,
+  turnOffTwoFactor,
   updatePerson,
   verifySignInCode,
 } from "../../src/modules/identity/index.ts";
@@ -755,6 +757,69 @@ describe("two-factor", () => {
         diff: { lockedUntil: expect.stringMatching(/^\d{4}-.+Z$/) },
       },
     ]);
+  });
+
+  const turnedOff = (userId: string) =>
+    query(
+      "select actor_id, ip from audit_events where entity_id = $1 and action = 'account.disableTwoFactor'",
+      [userId],
+    );
+
+  it("is turned off for its owner by an admin: the password alone signs in, the secret is gone, and it is audited once (ADR-0014)", async () => {
+    const { userId, email } = await withTwoFactor();
+    const admin = await person();
+    const change = {
+      collegeId,
+      actorId: admin.userId,
+      ip: "10.0.16.1",
+      userAgent: "integration-test",
+    };
+
+    expect(await turnOffTwoFactor(userId, change)).toBe("off");
+    expect(await turnOffTwoFactor(userId, change)).toBe("notOn");
+
+    expect(
+      await query("select id from two_factors where user_id = $1", [userId]),
+    ).toEqual([]);
+    expect(await attempt({ identifier: email }, "10.0.16.1")).toEqual({
+      status: "signedIn",
+    });
+    expect(await turnedOff(userId)).toEqual([
+      { actor_id: admin.userId, ip: "10.0.16.1" },
+    ]);
+  });
+
+  it("is turned off by its owner with the password typed again, which counts toward the lockout (ADR-0014)", async () => {
+    // A session from before two-factor was on: once it is on, signing in asks for a code.
+    const owner = async () => {
+      const { userId, email } = await person();
+      const device = await signedInDevice(email);
+      await query("update users set two_factor_enabled = true where id = $1", [
+        userId,
+      ]);
+      return { user: { userId, collegeId }, headers: device.headers };
+    };
+
+    const right = await owner();
+    expect(
+      await turnOffOwnTwoFactor(PASSWORD, right.user, right.headers),
+    ).toEqual({ status: "off" });
+    expect(await turnedOff(right.user.userId)).toEqual([
+      { actor_id: right.user.userId, ip: null },
+    ]);
+
+    const guessing = await owner();
+    const guess = () =>
+      turnOffOwnTwoFactor("wrong-password", guessing.user, guessing.headers);
+    for (let count = 0; count < 4; count++) {
+      expect(await guess()).toEqual({ status: "wrongPassword" });
+    }
+    expect(await guess()).toEqual({ status: "locked", minutes: 15 });
+    expect(
+      await query("select two_factor_enabled from users where id = $1", [
+        guessing.user.userId,
+      ]),
+    ).toEqual([{ two_factor_enabled: true }]);
   });
 });
 

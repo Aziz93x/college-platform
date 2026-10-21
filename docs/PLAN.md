@@ -101,7 +101,7 @@ A term readiness board shows each role what it still owes, before and during the
 | URL state | nuqs | filters and tabs survive reloads and shared links |
 | Database | PostgreSQL 18 with Drizzle ORM; SQL migrations reviewed in each PR | concurrent writes, point-in-time recovery, easy for IT to host later |
 | Jobs | pg-boss on the same database, run by a worker process | PDFs, imports, thumbnails, digests and metrics with retries |
-| Sign-in | Better Auth: employee number or email with password; "remember this device"; TOTP two-factor (required for admins); rate limits keyed on account and IP; passkeys and a Microsoft Entra provider later (ADR-0008) | modern, self-hosted, works with Drizzle |
+| Sign-in | Better Auth: employee number or email with password; "remember this device"; TOTP two-factor (each person's choice, or required for admin keys by a setting, ADR-0014); rate limits keyed on account and IP; passkeys and a Microsoft Entra provider later (ADR-0008) | modern, self-hosted, works with Drizzle |
 | Files | `StorageAdapter`: local disk now, SharePoint through Microsoft Graph after approval; sharp; poppler `pdftoppm`; compression and HEIC conversion in the browser | one interface, swappable storage |
 | PDF | Playwright Chromium in the worker renders print pages | correct Arabic shaping and real CSS layout |
 | Language | next-intl; Arabic by default (RTL), English catalog optional; Latin digits with Arabic month names; Hijri dates through Intl `islamic-umalqura` where a setting asks | no interface text in code |
@@ -640,6 +640,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - `/design` keeps the proxy's 404 outside a laptop and also requires `design.view`.
 - After signing in or out, setting up two-factor or changing the password, the next page loads from scratch, so nothing typed or shown stays in the browser.
 
+**Note from ADR-0014:** two-factor is the college's choice. The setting `auth.requireTwoFactor` (off by default) decides whether holding a key that requires two-factor sends its holder to set it up; anyone may turn it on from the profile and off with the password, and an admin turns it off for someone who lost their phone, with the temporary password's key and reach. The setup's last step sends the person on itself: to Today when it was required, back to the profile when chosen.
+
 > **Checkpoint: Audit 2.** Run `/audit 4-6`.
 >
 > **Checkpoint: Lead review A.** Run `/lead-review A`, then tag `v0.1-A`.
@@ -676,7 +678,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Generate `AUTH_SECRET` (32 characters or more) into the local `.env` with the others and keep it across restarts: it signs the session cookies and encrypts the two-factor secrets, so a new one signs everyone out and makes every admin set up two-factor again (ADR-0009).
 - The session cookies are Secure (`__Secure-college.session_token`), so phones use Caddy's HTTPS address, never plain HTTP. `src/proxy.ts` refuses a change whose `Origin` does not name the request's host; Caddy passes the host through, so the LAN address works as long as Caddy keeps the `Host` header.
 - Caddy replaces the `X-Forwarded-For` a client sends (its default without `trusted_proxies`): the sign-in limits key on that address, and without Caddy in front a client could choose its own.
-- `pnpm admin:create --name … --email … --employee-number …` prints the temporary password once; the admin replaces it and sets up two-factor at the first sign-in. The end-to-end smoke signs in the demo accounts from `pnpm seed:demo` (`db/seed/demo/accounts.ts`).
+- `pnpm admin:create --name … --email … --employee-number …` prints the temporary password once; the admin replaces it at the first sign-in, then sets up two-factor from the profile, or at the next sign-in once the security settings require it (ADR-0014). The end-to-end smoke signs in the demo accounts from `pnpm seed:demo` (`db/seed/demo/accounts.ts`).
 
 **Note from lead review A:** the PostgreSQL image tag (`postgres:18.6-alpine`) is written in six places. This step touches compose: keep the tag in one exported test constant with a Renovate `customManagers` regex, so Renovate updates every copy at once.
 
@@ -1401,6 +1403,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 12:** measured with Moto G4 emulation as the demo trainer, Today loaded 274,901 bytes of script in all before Step 12 and 279,435 after it, the bell's share; the stack loads when the bell is first reached for. Both are above the 250 KiB of ADR-0010's option B, before and after the load event together; Motion's feature bundle lands on either side of it.
 
+**Note from ADR-0014:** two-factor is off by default (`auth.requireTwoFactor`). The ASVS level 2 checklist asks for multi-factor on administrative interfaces: record in `docs/ops/asvs.md` whether the pilot runs with the setting on, and if it stays off, the owner's reason.
+
 **Note from Step 6:** the Content Security Policy keeps `style-src 'unsafe-inline'` because Motion and the image component set style attributes; verify that nothing else needs it. Better Auth accepts a TOTP code again within its window, and the sign-in limits trust the first `X-Forwarded-For` entry, which only Caddy in front makes the client's own (docs/BACKLOG.md).
 
 **Notes from Audit 2**
@@ -1580,7 +1584,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 - The dean's written circular for the trial: its purpose, the three departments, the people, the data collected, and how long it is kept.
 - Production runs in the Kingdom (Step 47), and a restore from last night's backup was timed this week (Step 48).
 - The production database holds no demo data: no demo account exists, and `seed:demo` refuses to run there.
-- Every admin uses two-factor sign-in, and `pnpm admin:create` refuses to run again.
+- Every admin uses two-factor sign-in, with "Require two-factor for admin keys" on in the security settings unless the owner chose otherwise in writing (ADR-0014), and `pnpm admin:create` refuses to run again.
 - The vice-dean has entered the term with its weeks, calendar and framework; SS01 and SF01 are imported with every section matched; each head has published a plan and assignments.
 - The pilot banner shows on every page.
 - Support works: "I have a problem" reaches the admin, each role has a one-page guide, and each department has had a 15-minute walkthrough.

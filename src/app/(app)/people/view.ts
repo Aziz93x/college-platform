@@ -15,6 +15,9 @@ export type PersonView = {
   can: {
     // A temporary password: never for one's own account, which ends one's own session.
     reset: boolean;
+    // Turn their two-factor off, for one who lost their phone: whoever may give them a temporary
+    // password, while it is on (ADR-0014). One's own is turned off on the profile.
+    turnOffTwoFactor: boolean;
     link: boolean;
     edit: boolean;
     // Disable or enable the account: never one's own.
@@ -35,6 +38,9 @@ export function personView(
     departmentName: (id: string) => string | undefined;
   },
 ): PersonView {
+  const reset =
+    person.userId !== viewer.userId &&
+    reachesAccount(viewer, "accounts.resetPassword", person);
   return {
     userId: person.userId,
     name: person.name,
@@ -50,9 +56,8 @@ export function personView(
           : (departmentName(membership.departmentId) ?? null),
     })),
     can: {
-      reset:
-        person.userId !== viewer.userId &&
-        reachesAccount(viewer, "accounts.resetPassword", person),
+      reset,
+      turnOffTwoFactor: reset && person.twoFactor,
       link: reachesAccount(viewer, "accounts.linkEmployeeNumber", person),
       edit: manages,
       disable: manages && person.userId !== viewer.userId,

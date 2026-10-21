@@ -32,4 +32,4 @@ Each one that the owner accepts gets an ADR and a note under its step before it 
 - 7. Replace the temporary password on the sign-in card itself: a new trainer's first sign-in goes from 4 page views to 2 and from 83 typed characters to 46 or 71. About 3 h; ADR-0012.
 - 9. Give the two sign-in limits different jobs (5 per identifier and address, 20 overall) and add a ceiling of failures per address, in Step 40. 1.5 h; amends ADR-0009.
 - 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011.
-- 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change.
+- 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change. (ADR-0014 removed the bounce: the setup's last step now sends the person on itself, with the router; the full page load there is what remains.)

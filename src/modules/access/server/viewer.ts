@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { getSessionUser, type SessionUser } from "../../identity/index.ts";
+import { getSetting } from "../../settings/index.ts";
 import type { Actor } from "../domain/authorize.ts";
 import {
   type PermissionKey,
@@ -12,7 +13,10 @@ type Viewer = SessionUser &
     // Every key the viewer holds, in any scope: what the navigation offers.
     permissions: ReadonlySet<PermissionKey>;
     roleKeys: string[];
-    // Holds a permission that requires two-factor, and has not set it up yet.
+    // Holds a permission that requires two-factor while the college requires it (ADR-0014): they
+    // cannot turn it off.
+    twoFactorRequired: boolean;
+    // Two-factor is required of them, and they have not set it up yet.
     needsTwoFactorSetup: boolean;
   };
 
@@ -24,19 +28,22 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     user.userId,
     user.collegeId,
   );
+  const twoFactorRequired =
+    requiresTwoFactor(permissions) &&
+    (await getSetting("auth.requireTwoFactor", { collegeId: user.collegeId }));
   return {
     ...user,
     grants,
     permissions,
     roleKeys,
-    needsTwoFactorSetup:
-      requiresTwoFactor(permissions) && !user.twoFactorEnabled,
+    twoFactorRequired,
+    needsTwoFactorSetup: twoFactorRequired && !user.twoFactorEnabled,
   };
 });
 
 // For every page and action behind sign-in: the viewer, once nothing stands between them and the
 // platform. Signed out goes to the login page; a temporary password must be replaced first, and
-// whoever needs two-factor sets it up first.
+// whoever the college requires two-factor of sets it up first.
 export async function requireViewer() {
   // Imported on call: db/ scripts load this module with plain Node, which cannot resolve "next/navigation".
   const { redirect } = await import("next/navigation");

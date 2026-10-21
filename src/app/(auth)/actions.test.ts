@@ -23,6 +23,13 @@ const identity = vi.hoisted(() => ({
   }),
 }));
 vi.mock("@/modules/identity", () => identity);
+// Whether the college requires two-factor of the viewer, which decides where its setup ends.
+const viewer = vi.hoisted(() => ({ needsTwoFactorSetup: false }));
+vi.mock("../../modules/access/server/viewer.ts", () => ({
+  getViewer: async () => viewer,
+}));
+const navigation = vi.hoisted(() => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => navigation);
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/modules/settings", () => ({ getSetting: async () => null }));
 vi.mock("next-intl/server", () => ({
@@ -31,6 +38,7 @@ vi.mock("next-intl/server", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  viewer.needsTwoFactorSetup = false;
 });
 
 const form = (fields: Record<string, string>) => {
@@ -53,6 +61,28 @@ describe("the two-factor code fields", () => {
       expect.objectContaining({ userId: "user-a" }),
       expect.any(Headers),
     );
+  });
+});
+
+describe("the last step of two-factor's setup (ADR-0014)", () => {
+  it("sends whoever the college required it of on to Today, and whoever chose it back to the profile", async () => {
+    viewer.needsTwoFactorSetup = true;
+    await confirmTwoFactorSetupAction({}, form({ code: "123456" }));
+    expect(navigation.redirect).toHaveBeenLastCalledWith("/today");
+
+    viewer.needsTwoFactorSetup = false;
+    await confirmTwoFactorSetupAction({}, form({ code: "123456" }));
+    expect(navigation.redirect).toHaveBeenLastCalledWith("/profile");
+  });
+
+  it("stays on the page for a wrong code", async () => {
+    identity.confirmTwoFactorSetup.mockResolvedValueOnce({
+      status: "invalid",
+    } as never);
+    expect(
+      await confirmTwoFactorSetupAction({}, form({ code: "123456" })),
+    ).toEqual({ data: { status: "invalid" } });
+    expect(navigation.redirect).not.toHaveBeenCalled();
   });
 });
 

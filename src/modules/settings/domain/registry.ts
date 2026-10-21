@@ -149,6 +149,16 @@ export const settingsRegistry = {
     schema: z.boolean(),
     default: false,
   },
+  // Whether holding a key that requires two-factor makes its holder set it up before anything else.
+  // Off, two-factor is each person's own choice on their profile (ADR-0014).
+  "auth.requireTwoFactor": {
+    scope: "college",
+    group: "security",
+    permission: MANAGE,
+    reauth: true,
+    schema: z.boolean(),
+    default: false,
+  },
   // Password policy: the shortest password a person may set.
   "auth.passwordMinLength": {
     scope: "college",

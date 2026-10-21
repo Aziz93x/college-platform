@@ -18,7 +18,8 @@ import { demoSettings } from "./settings.ts";
 // Three weeks of the demo college's log, so the audit log and each record's history have a past to
 // show (Step 11): the admin setting the college up and adding its people, everyone's first sign-in,
 // the heads' two-factor, and the working days since, with a lockout and the head's temporary
-// password, a corrected employee number and email, a disabled account and an export. Each event
+// password, a corrected employee number and email, a disabled account, a head's lost phone and an
+// export. Each event
 // carries what the code that writes it would (src/modules). The times count back from the run, on
 // the college's clock; the log is written once, while it is empty, so a re-run adds nothing.
 
@@ -388,6 +389,28 @@ export async function seedDemoHistory(
       }
     }
   }
+
+  // A head lost their phone: the admin turned off their two-factor, and they signed in with the
+  // password alone and set it up on the new phone (ADR-0014). The last head by name, not a draw, so
+  // the notifications that follow keep theirs.
+  const phoneLost = heads[heads.length - 1];
+  let lostDay = 10;
+  while (!workday(lostDay)) lostDay -= 1;
+  const lostAt = at(lostDay, 12, 15);
+  add(lostAt, admin, "account.disableTwoFactor", user(phoneLost));
+  add(lostAt + 9 * MINUTE, phoneLost, "session.signIn", user(phoneLost));
+  add(
+    lostAt + 11 * MINUTE,
+    phoneLost,
+    "account.startTwoFactorSetup",
+    user(phoneLost),
+  );
+  add(
+    lostAt + 13 * MINUTE,
+    phoneLost,
+    "account.enableTwoFactor",
+    user(phoneLost),
+  );
 
   // Yesterday the admin exported the last week's log.
   const start = at(7, 0, 0);
