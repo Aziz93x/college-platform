@@ -15,7 +15,10 @@ permissions:
 jobs:
   checks:
     name: check:all, build and smoke test
-    runs-on: ubuntu-latest
+    # The visual baselines are pixels from this runner: ubuntu-latest moves between Ubuntu releases,
+    # whose fonts draw text differently, so this job names its release. Moving to a new one means
+    # taking the baselines again (e2e/design.visual.spec.ts).
+    runs-on: ubuntu-24.04
     # The job takes about 14 minutes. A slow package mirror once made the browser install's apt
     # download alone take up to 14 more, so the job gets 30 minutes, as the other jobs do.
     timeout-minutes: 30
