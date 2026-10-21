@@ -29,9 +29,6 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   // Set by an admin's reset and by admin:create; cleared when the person sets their own password.
   mustChangePassword: boolean("must_change_password").notNull().default(false),
-  // Wrong passwords since the last sign-in; the lockout threshold setting locks the account.
-  failedSignIns: integer("failed_sign_ins").notNull().default(0),
-  lockedUntil: timestamp("locked_until", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -146,4 +143,12 @@ export const signInAttempts = pgTable("sign_in_attempts", {
   windowStartedAt: timestamp("window_started_at", {
     withTimezone: true,
   }).notNull(),
+});
+
+// Wrong passwords per account, or per identifier typed when no account matches, which lock alike
+// (lockout.ts). startedAt is the count's first failure, then the lock's start once it locks.
+export const signInLockouts = pgTable("sign_in_lockouts", {
+  subject: text().primaryKey(),
+  failures: integer().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
 });

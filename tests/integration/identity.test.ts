@@ -183,6 +183,62 @@ describe("signIn", () => {
     ).toEqual({ status: "signedIn" });
   });
 
+  it("answers what was typed with no account exactly as an account, through the lockout", async () => {
+    const { employeeNumber } = await person();
+    const now = new Date();
+    const later = new Date(now.getTime() + 15 * MINUTE_MS);
+    // Six wrong passwords, each from a new address, then one more once the lock has ended.
+    const answers = async (identifier: string) => {
+      const wrong = (ip: string, at: Date) =>
+        attempt({ identifier, password: "wrong-password" }, ip, at);
+      const results = [];
+      for (let index = 1; index <= 6; index++) {
+        results.push(await wrong(`10.0.9.${index}`, now));
+      }
+      results.push(await wrong("10.0.9.7", later));
+      return results;
+    };
+
+    const invalid = { status: "invalid" };
+    const locked = { status: "locked", minutes: 15 };
+    const expected = [invalid, invalid, invalid, invalid, locked, locked];
+    expect(await answers(employeeNumber)).toEqual([...expected, invalid]);
+    expect(await answers("777777")).toEqual([...expected, invalid]);
+  });
+
+  it("starts the lockout's count again after a sign-in", async () => {
+    const { employeeNumber } = await person();
+    const wrong = () =>
+      attempt(
+        { identifier: employeeNumber, password: "wrong-password" },
+        "10.0.11.1",
+      );
+
+    for (let count = 0; count < 4; count++) await wrong();
+    expect(await attempt({ identifier: employeeNumber }, "10.0.11.1")).toEqual({
+      status: "signedIn",
+    });
+    for (let count = 0; count < 4; count++) {
+      expect(await wrong()).toEqual({ status: "invalid" });
+    }
+  });
+
+  it("counts wrong passwords for the lockout's minutes, so ones further apart never lock", async () => {
+    const { employeeNumber } = await person();
+    const now = new Date();
+    const later = new Date(now.getTime() + 15 * MINUTE_MS);
+
+    for (const identifier of [employeeNumber, "666666"]) {
+      const wrong = (at: Date) =>
+        attempt({ identifier, password: "wrong-password" }, "10.0.10.1", at);
+      for (let count = 0; count < 4; count++) {
+        expect(await wrong(now)).toEqual({ status: "invalid" });
+      }
+      // The count has ended, so the fifth starts a new one.
+      expect(await wrong(later)).toEqual({ status: "invalid" });
+    }
+  });
+
   describe("with five attempts per account and address", () => {
     beforeAll(async () => {
       await store("auth.signInAttempts", 5);
@@ -268,10 +324,16 @@ describe("resetPassword", () => {
     const { userId, employeeNumber } = await person();
     const admin = await person();
     await attempt({ identifier: employeeNumber }, "10.0.8.1");
-    await query(
-      "update users set failed_sign_ins = 3, locked_until = now() + interval '10 minutes' where id = $1",
-      [userId],
-    );
+    for (let count = 0; count < 5; count++) {
+      await attempt(
+        { identifier: employeeNumber, password: "wrong-password" },
+        "10.0.8.1",
+      );
+    }
+    expect(await attempt({ identifier: employeeNumber }, "10.0.8.1")).toEqual({
+      status: "locked",
+      minutes: 15,
+    });
 
     const temporary = await resetPassword(
       { userId, collegeId },
@@ -280,13 +342,10 @@ describe("resetPassword", () => {
 
     expect(temporary).toMatch(/^[a-z2-9]{12}$/);
     expect(
-      await query(
-        "select must_change_password, failed_sign_ins, locked_until from users where id = $1",
-        [userId],
-      ),
-    ).toEqual([
-      { must_change_password: true, failed_sign_ins: 0, locked_until: null },
-    ]);
+      await query("select must_change_password from users where id = $1", [
+        userId,
+      ]),
+    ).toEqual([{ must_change_password: true }]);
     expect(
       await query("select id from sessions where user_id = $1", [userId]),
     ).toEqual([]);
