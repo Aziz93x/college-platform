@@ -57,6 +57,18 @@ BeUI's popover was weighed for the settings' descriptions and not adopted: a des
 its label, where it reads without a tap and stays visible while the value is chosen. The popover
 joins with a later screen that has a real use for it.
 
+## Adopted in Step 8 (the departments)
+
+| Component | Real use |
+| --- | --- |
+| Motion: table | The departments list: each department's name and short name, how Rayat writes it (hidden on a phone) and its state, sorted from a header |
+| Motion: breadcrumb | The page header's trail on a new department and on a department's page: Departments › the department |
+| Motion: animated badge | A department's state, in the list and beside its name, which rolls to the other state when a save changes it |
+| Motion: switch, input, action swap | The department form: in use or set aside, the names and the Rayat values, "Add department" and "Save" |
+
+The table's selection, sticky header and virtualized rows join with the long lists that need them
+(people, sections, the audit log).
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
@@ -77,10 +89,9 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 
 | Step | Component | Real use |
 | --- | --- | --- |
-| 8 | Motion: table | Departments, then people (10), sections (17) and the audit log (11): sorting, selection, a sticky header, virtualized rows |
-| 8 | Motion: breadcrumb | The page header's trail from the first page below another (Departments › a department) |
-| 8 | Motion: animated badge | A department's active or inactive state; later account (10), readiness (22) and task (26) states |
 | 9 | Motion: combobox | Choosing the person for a membership; later the trainer of a section (17) |
+| 10 | Motion: table | People, then sections (17) and the audit log (11): selection, a sticky header, virtualized rows |
+| 10 | Motion: animated badge | An account's state; then readiness (22) and task (26) states |
 | 10 | Blocks: overflow actions | A person's row: reset the password, lock, disable |
 | 11 | Motion: date range picker | The audit log's period filter; then holidays and exam weeks (13) |
 | 11 | Motion: collapsible | An audit event's diff, and the history panel on entity pages |

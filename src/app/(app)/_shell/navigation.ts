@@ -1,4 +1,9 @@
-import { CalendarCheck, type LucideIcon, Settings } from "lucide-react";
+import {
+  Building2,
+  CalendarCheck,
+  type LucideIcon,
+  Settings,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import type { PermissionKey } from "@/modules/access";
 
@@ -23,6 +28,12 @@ export type ShellLink = {
 // The shell's pages in their default order. A step that adds a page adds its item here.
 export const navigation = [
   { id: "today", href: "/today", icon: CalendarCheck },
+  {
+    id: "departments",
+    href: "/departments",
+    icon: Building2,
+    permission: "departments.manage",
+  },
   {
     id: "settings",
     href: "/settings",

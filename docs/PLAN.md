@@ -776,6 +776,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 2:** the six actions in `src/app/(auth)/actions.ts` carry no permission on purpose: signing in is public, and the other five act on the caller's own account (ADR-0009 #6). The generated matrix test lists them as permission-free rather than flagging them.
 
+**Notes from Step 8**
+
+- Departments are rows of `departments` (`src/modules/org`): a name, a short name and an active flag, with their Rayat values in `department_rayat_values`, where each value is one department's in the college (its primary key). A membership's department scope references `departments.id`. Offer only active departments where someone chooses one: the form tells admins that a department set aside leaves the choices and keeps what was recorded for it.
+- Two keys exist: `departments.manage` and `college.manage`, both requiring two-factor. `/departments` shows the list to the first and the college's names to the second, and its navigation item takes `departments.manage`, so a role given only `college.manage` on the grid needs the item widened then, as with the settings.
+
 > **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
 
 **Notes from Step 7**
@@ -817,6 +822,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 7:** a reset of someone's password asks for the admin's own password again through `reauthenticate()`, as the settings screen does for security settings (`src/app/(app)/settings/actions.ts`).
 
+**Note from Step 8:** an import row's department matches a department's name, short name or Rayat values (`listDepartments()`), each tidied as `oneLine()` tidies them (`src/platform/validation/text.ts`); a department that matches none is a row error, never a new department.
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
 > **From Step 41:** once in about forty loads of the production login page, the page held two identifier inputs for a moment, one with a server id (`_R_…`) and one from a render on the client (`_r_…`), and a strict locator failed. Find the client render behind it.
@@ -824,6 +831,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 > **Before it (lead review A):** capture the screens from the production build, which has no Next.js dev-tools button: `pnpm build`, copy `.next/static` and `public` into `.next/standalone` as CI does, then `CI=1 pnpm e2e:screens`. The review decides the scale of the 390 px captures, which are 1170 px wide today (`scale: "css"`); PR #6 left that question to it.
 >
 > **From Step 7:** the settings screen shows each description under its label rather than in BeUI's popover, saves one setting at a time with its own button, and asks for the password in the row; review those choices, the search's Arabic matching, and whether `ui/switch`, `ui/select` and `ui/tabs` leave the catalog now that their BeUI counterparts are in use.
+>
+> **From Step 8:** on a phone the departments list leaves out how Rayat writes each department, and the college's names sit in a card under the list; the department form saves all its fields with one button, where the settings save one at a time. Two details seen while capturing the screens: the stepper's value has a dashed outline on a desktop that looks rough, and content scrolled under the sticky header shows through its translucent fill.
 
 #### Step 11. Audit log and history (S)
 
@@ -946,6 +955,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Synthetic SS01, SF01 and SO01 files in XLSX, built on the headers in section 9, import end to end, and the demo seed loads them.
 - A test asserts that no name, mobile or grade column exists in the schema or the data.
 - Rollback restores the previous version.
+
+**Note from Step 8:** match the department column against `department_rayat_values` after `oneLine()` (`src/platform/validation/text.ts`), the tidying a value gets before it is stored. A value belongs to one department of the college, so a match is never ambiguous; a value that matches none is a row error that points to the departments screen, where an admin adds it to its department.
 
 #### Step 17. Courses, sections, enrollments and transfers (M)
 

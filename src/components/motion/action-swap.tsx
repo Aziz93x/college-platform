@@ -9,7 +9,12 @@ import {
 import * as m from "motion/react-m";
 import type { ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
-import { EASE_OUT, SPRING_LAYOUT, SPRING_PRESS } from "./lib/ease.ts";
+import {
+  EASE_OUT,
+  SPRING_LAYOUT,
+  SPRING_PRESS,
+  SPRING_SWAP,
+} from "./lib/ease.ts";
 
 type ActionSwapItem = {
   id: string;
@@ -17,15 +22,9 @@ type ActionSwapItem = {
   icon?: ReactNode;
 };
 
-// The arriving layer springs in, so a second change mid-swap bends it toward
+// The arriving layer springs in (SPRING_SWAP), so a second change mid-swap bends it toward
 // the new target instead of restarting. The leaving layer is a little quicker,
 // still long enough to cross the arrival so the swap reads as one morph.
-const SPRING_SWAP = {
-  type: "spring",
-  stiffness: 460,
-  damping: 30,
-  mass: 0.55,
-} as const;
 const EXIT = { duration: 0.16, ease: EASE_OUT } as const;
 // A light blur softens the crossing without smearing small glyphs.
 const SWAP_BLUR = "blur(2px)";
