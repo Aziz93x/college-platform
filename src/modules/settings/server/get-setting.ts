@@ -50,8 +50,12 @@ export function settingValue<K extends SettingKey>(
 export async function getSetting<K extends SettingKey>(
   key: K,
   scope: { collegeId: string },
-  db: Db = getDb(),
+  db?: Db,
 ): Promise<SettingValue<K>> {
-  const stored = await storedSettings(scope.collegeId, db);
+  // cache() keys on the arguments it is given, so the app's calls, which pass no database, share
+  // one read with a page's storedSettings(collegeId) (as findCollegeId does, Audit 3).
+  const stored = await (db
+    ? storedSettings(scope.collegeId, db)
+    : storedSettings(scope.collegeId));
   return settingValue(key, stored, scope.collegeId);
 }
