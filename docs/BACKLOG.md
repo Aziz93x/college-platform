@@ -18,15 +18,17 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - Sign-in limits behind Caddy only: they key on the first `X-Forwarded-For` entry, which a client reaching the app directly could set itself (Steps 6, 40 and 41).
 - One component per job (section 4): the Step 4 primitives and the BeUI pieces overlap on the text field, the checkbox, the command palette (cmdk), the sheet and drawer (vaul) and the menu, and Step 7 adds the switch, select, tabs and popover. docs/design/beui-map.md names the component for each job; in the UX review of Steps 1 to 10, remove the others from the catalog with their dependencies. The Radix sheet and the vaul drawer ease on `--duration-slow` and vaul's 0.5 s curve, and Sonner shows toasts: decide there too whether BeUI's `animated-toast-stack` replaces Sonner. From the Step 4 review, revised in Step 5 and Audit 2.
 
-## For lead review A (audit 1-3, minors 1-5; details in docs/reviews/audit-03.md)
+- Serve the identity font as WOFF2 once its licence allows converting it: the two TTF files are about 150 KiB of the login page's transfer (Audit 2, enhancement 1). Licensed files stay unconverted until then (ADR-0004 and the font-licence item in section 8). Lead review A left it here.
 
-- Record why `cacheComponents` and `partialPrefetching` are on (`next.config.ts`) in ADR-0001, or remove them and the `connection()` calls in `/healthz` and `/readyz`. Since Step 4 the root layout reads the locale settings from the database on every request, so no route gets a static shell: ADR-0007 (proposed) sets out that choice and the cached alternative for the owner.
-- Make `seed:demo` store `locale.timeZone` for the demo college, and leave `random` out of the seed context until a step reads it.
-- Delete the `fs.write` monkeypatch test in `tests/integration/worker.test.ts` and the pg-pool timeout test in `tests/integration/db-client.test.ts`.
-- Keep the PostgreSQL image tag in one exported test constant that a Renovate `customManagers` regex updates, instead of five copies.
+## Lead review A: proposals waiting for the owner (docs/reviews/lead-A.md)
 
-## For lead review A (audit 2, steps 4-6; details in docs/reviews/audit-06.md)
+Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`).
 
-- Before `/ux-review 1-10`, capture `e2e:screens` against the standalone build (or with `devIndicators: false`), so no capture shows the Next.js dev-tools button, and settle the 390 px captures' scale: the files are 1170 px wide (`scale: "css"`). Minors 5 and 6; PR #6 left the scale to the UX review.
-- The `baselines` CI job pushes new screenshots to pull request branches with `contents: write`, and its CodeQL alert is still with the owner. Drop the job and commit the `visual-baselines` artifact by hand, or dismiss the alert with a written reason (minor 8).
-- Serve the identity font as WOFF2 once its licence allows converting it: the two TTF files are about 150 KiB of the login page's transfer (enhancement 1). Licensed files stay unconverted until then (ADR-0004 and the font-licence item in section 8).
+- 1. Sign-in opens the first page the person must see (`/change-password` or `/two-factor/setup`) instead of going through Today. About 1 h; no plan change.
+- 2. "Remember this device" ticked by default on phones and tablets (`auth.rememberByDefault`), for the metric "sign-ins per completed task". 45 min; ADR-0012.
+- 3. Decide ADR-0007: keep `cacheComponents` and `partialPrefetching` and record why in ADR-0001 (10 min), and cache the college and its settings in Step 7 (about 2 h). Pages now run 11 to 16 database statements. If the owner keeps the per-request read instead, remove both flags and the `connection()` calls (about 1 h). This settles the Audit 1 item on those flags.
+- 6. Give section 4's server budget a load level (for example 20 concurrent requests) and a one-minute load run in Step 41's CI smoke: reads take p95 23 to 30 ms one at a time, 291 to 310 ms at 10 at once. 1 h 15 min; extends ADR-0010.
+- 7. Replace the temporary password on the sign-in card itself: a new trainer's first sign-in goes from 4 page views to 2 and from 83 typed characters to 46 or 71. About 3 h; ADR-0012.
+- 9. Give the two sign-in limits different jobs (5 per identifier and address, 20 overall) and add a ceiling of failures per address, in Step 40. 1.5 h; amends ADR-0009.
+- 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011.
+- 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change.
