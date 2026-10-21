@@ -9,9 +9,21 @@ export async function seriousViolations(
   disabledRules: string[] = [],
 ) {
   // Only once React has hydrated the page: rewritten before, the server's text no longer matches,
-  // and React renders the page again with its Arabic. Next.js mounts its announcer on hydration.
-  await page.locator("next-route-announcer").waitFor({ state: "attached" });
+  // and React renders the page again with its Arabic. React hydrates each streamed Suspense boundary
+  // in a later pass, so wait until it owns every element of main (its __reactFiber$ key), but for
+  // the hidden fields its server adds to a form that posts to a server action.
   await settled(page);
+  await page.waitForFunction(() => {
+    const elements = [
+      ...document.querySelectorAll('main, main *:not(input[type="hidden"])'),
+    ];
+    return (
+      elements.length > 0 &&
+      elements.every((element) =>
+        Object.keys(element).some((key) => key.startsWith("__reactFiber$")),
+      )
+    );
+  });
   await page.evaluate(() => {
     const walker = document.createTreeWalker(
       document.body,
@@ -33,7 +45,7 @@ export async function seriousViolations(
   );
   if (arabicBack) {
     throw new Error(
-      "Arabic text came back before axe ran: its contrast went unchecked",
+      "Arabic text was rendered again after the rewrite, so axe did not check its contrast",
     );
   }
   return violations

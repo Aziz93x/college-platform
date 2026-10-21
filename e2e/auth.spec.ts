@@ -87,12 +87,13 @@ test("typed text stays clear of each field's icons, whichever way it runs", asyn
           Number.parseFloat(style.paddingRight),
       };
     });
+    // The icons, and the whole of a button such as "show password", not just its icon.
     const icons = await field
       .locator("xpath=..")
-      .locator("svg")
-      .evaluateAll((svgs) =>
-        svgs.map((svg) => {
-          const box = svg.getBoundingClientRect();
+      .locator("svg, button")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const box = element.getBoundingClientRect();
           return { left: box.left, right: box.right };
         }),
       );
