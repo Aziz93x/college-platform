@@ -136,20 +136,32 @@ export const people = pgTable(
   (table) => [unique().on(table.collegeId, table.employeeNumber)],
 );
 
-// Sign-in attempts per identifier and address, in windows set by the sign-in settings.
-export const signInAttempts = pgTable("sign_in_attempts", {
-  key: text().primaryKey(),
-  attempts: integer().notNull(),
-  windowStartedAt: timestamp("window_started_at", {
-    withTimezone: true,
-  }).notNull(),
-});
+// Sign-in attempts per identifier and address, in windows set by the sign-in settings. Every attempt
+// deletes the windows that have passed, by the index on their start.
+export const signInAttempts = pgTable(
+  "sign_in_attempts",
+  {
+    key: text().primaryKey(),
+    attempts: integer().notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => [
+    index("sign_in_attempts_window_started_at_idx").on(table.windowStartedAt),
+  ],
+);
 
 // Sign-in attempts per identifier as typed, with or without an account (lockout.ts). Each attempt
 // is counted before its password is checked and a sign-in clears the count, so at rest it holds
 // the wrong ones. startedAt is the count's first attempt, then the lock's start once it locks.
-export const signInLockouts = pgTable("sign_in_lockouts", {
-  subject: text().primaryKey(),
-  attempts: integer().notNull(),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-});
+export const signInLockouts = pgTable(
+  "sign_in_lockouts",
+  {
+    subject: text().primaryKey(),
+    attempts: integer().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  },
+  // Every attempt deletes the counts that have ended, by this index.
+  (table) => [index("sign_in_lockouts_started_at_idx").on(table.startedAt)],
+);

@@ -11,6 +11,7 @@ import {
   accountSubjects,
   beginAttempt,
   clearLockouts,
+  minutesUntil,
   subjectOf,
 } from "./lockout.ts";
 import { requestMeta } from "./request.ts";
@@ -91,9 +92,6 @@ async function countAttempt(
     row.windowStartedAt.getTime() + limits.windowMinutes * MINUTE_MS,
   );
 }
-
-const minutesUntil = (end: Date, now: Date) =>
-  Math.max(1, Math.ceil((end.getTime() - now.getTime()) / MINUTE_MS));
 
 // Signs a person in with their employee number or email and their password. The answer never
 // tells a wrong identifier from a wrong password. Limits apply per identifier and address, so a

@@ -17,6 +17,7 @@ export function PasswordForm({
   canCancel: boolean;
 }) {
   const t = useTranslations("auth.changePassword");
+  const signIn = useTranslations("auth.signIn");
   const actions = useTranslations("actions");
   const [state, formAction, pending] = useActionState(changePasswordAction, {});
   const status = state.data?.status;
@@ -24,6 +25,8 @@ export function PasswordForm({
   const destination = status === "changed" ? "/today" : undefined;
   useLeaveTo(destination);
   const length = { minLength, count: String(minLength) };
+  // Too many wrong current passwords: the account is locked and signed out everywhere.
+  const locked = state.data?.status === "locked" ? state.data : undefined;
 
   const newPasswordError =
     status === "tooShort"
@@ -37,8 +40,18 @@ export function PasswordForm({
   return (
     <form action={formAction} noValidate className="mt-6 flex flex-col gap-4">
       <RefusalAlert
-        open={Boolean(state.serverError)}
-        description={state.serverError ? actions(state.serverError) : undefined}
+        open={Boolean(state.serverError || locked)}
+        title={locked ? signIn("locked.title") : undefined}
+        description={
+          locked
+            ? signIn("locked.description", {
+                minutes: locked.minutes,
+                count: String(locked.minutes),
+              })
+            : state.serverError
+              ? actions(state.serverError)
+              : undefined
+        }
       />
       <Input
         name="currentPassword"

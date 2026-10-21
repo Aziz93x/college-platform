@@ -29,6 +29,13 @@
       "when": 1792551777366,
       "tag": "0003_sign_in_lockouts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792557060032,
+      "tag": "0004_sign_in_purge_indexes",
+      "breakpoints": true
     }
   ]
 }

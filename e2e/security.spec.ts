@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { securityHeaders } from "../next.config.ts";
+import { expect, test } from "./support/test.ts";
 
 // Every kind of response: a page, a route handler, a static script and an optimized image.
 test("every response carries the security headers", async ({ request }) => {

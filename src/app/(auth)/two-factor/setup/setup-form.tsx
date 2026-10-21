@@ -18,6 +18,7 @@ const inGroups = (key: string) => key.match(/.{1,4}/g)?.join(" ") ?? key;
 // and confirm with the first code the app shows.
 export function SetupForm() {
   const t = useTranslations("auth.twoFactorSetup");
+  const signIn = useTranslations("auth.signIn");
   const actions = useTranslations("actions");
   const [started, startAction, starting] = useActionState(
     startTwoFactorSetupAction,
@@ -28,6 +29,8 @@ export function SetupForm() {
     {},
   );
   const setup = started.data?.status === "started" ? started.data : undefined;
+  // Too many wrong passwords: the account is locked and signed out everywhere.
+  const locked = started.data?.status === "locked" ? started.data : undefined;
   const destination =
     confirmed.data?.status === "enabled" ? "/today" : undefined;
   useLeaveTo(destination);
@@ -40,9 +43,17 @@ export function SetupForm() {
         className="mt-6 flex flex-col gap-4"
       >
         <RefusalAlert
-          open={Boolean(started.serverError)}
+          open={Boolean(started.serverError || locked)}
+          title={locked ? signIn("locked.title") : undefined}
           description={
-            started.serverError ? actions(started.serverError) : undefined
+            locked
+              ? signIn("locked.description", {
+                  minutes: locked.minutes,
+                  count: String(locked.minutes),
+                })
+              : started.serverError
+                ? actions(started.serverError)
+                : undefined
           }
         />
         <Input

@@ -4,6 +4,7 @@ import { getDb } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { getAuth } from "./auth.ts";
 import { requestMeta } from "./request.ts";
+import { checkRetypedPassword } from "./retype.ts";
 import { people, sessions } from "./schema.ts";
 
 function errorCode(error: unknown) {
@@ -80,7 +81,8 @@ type TwoFactorSetup =
       secret: string;
       backupCodes: string[];
     }
-  | { status: "wrongPassword" };
+  | { status: "wrongPassword" }
+  | { status: "locked"; minutes: number };
 
 // Starts setting up two-factor for the signed-in person, after their password again: returns what
 // the authenticator app scans, the secret to type instead, and the backup codes to keep. Nothing
@@ -90,19 +92,29 @@ export async function startTwoFactorSetup(
   user: { userId: string; collegeId: string },
   requestHeaders: Headers,
 ): Promise<TwoFactorSetup> {
-  let result: Awaited<
-    ReturnType<ReturnType<typeof getAuth>["api"]["enableTwoFactor"]>
-  >;
-  try {
-    result = await getAuth().api.enableTwoFactor({
-      body: { password: input.password, issuer: input.issuer, method: "totp" },
-      headers: requestHeaders,
-    });
-  } catch (error) {
-    if (errorCode(error) === "INVALID_PASSWORD")
-      return { status: "wrongPassword" };
-    throw error;
-  }
+  // The password counts toward the lockout, as at sign-in (retype.ts).
+  const retyped = await checkRetypedPassword(
+    user,
+    async () => {
+      try {
+        return await getAuth().api.enableTwoFactor({
+          body: {
+            password: input.password,
+            issuer: input.issuer,
+            method: "totp",
+          },
+          headers: requestHeaders,
+        });
+      } catch (error) {
+        if (errorCode(error) === "INVALID_PASSWORD") return undefined;
+        throw error;
+      }
+    },
+    requestMeta(requestHeaders),
+  );
+  if (retyped.status === "wrong") return { status: "wrongPassword" };
+  if (retyped.status === "locked") return retyped;
+  const result = retyped.value;
   if (result.method !== "totp")
     throw new Error("two-factor setup did not return TOTP");
   await writeAudit({

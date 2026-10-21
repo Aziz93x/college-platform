@@ -509,7 +509,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - GitHub Actions: install with cache, `check:all`, build, a Playwright smoke test with a PostgreSQL service; keep traces on failure. Add CodeQL, gitleaks and Renovate. Protect `main` with required checks and no required reviewers, since one person builds it.
 - A Dockerfile with two targets: `app` (Next standalone output, non-root user) and `worker` (adds Chromium and poppler-utils). Section K adds an arm64 build for the server, so every base image and tool must also exist for arm64.
-- `docker/compose.dev.yml` (PostgreSQL 18, Mailpit) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, backup), which runs the same way on your laptop (Step 41) and on the server (Section K).
+- `docker/compose.dev.yml` (PostgreSQL 18; Mailpit until lead review A dropped it with SMTP) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, backup), which runs the same way on your laptop (Step 41) and on the server (Section K).
 - `src/platform/config/env.ts`: one Zod schema for every environment variable; the app and the worker refuse to start on invalid values and say which one.
 
 **Done when**
@@ -678,6 +678,10 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Caddy replaces the `X-Forwarded-For` a client sends (its default without `trusted_proxies`): the sign-in limits key on that address, and without Caddy in front a client could choose its own.
 - `pnpm admin:create --name … --email … --employee-number …` prints the temporary password once; the admin replaces it and sets up two-factor at the first sign-in. The end-to-end smoke signs in the demo accounts from `pnpm seed:demo` (`db/seed/demo/accounts.ts`).
 
+**Note from lead review A:** the PostgreSQL image tag (`postgres:18.6-alpine`) is written in six places. This step touches compose: keep the tag in one exported test constant with a Renovate `customManagers` regex, so Renovate updates every copy at once.
+
+**Note from lead review A, on the font:** in the phone test above, also open the login page in a private tab. The text shows in the phone's Arabic font until the identity font arrives, and the page must not move when it does. With Android's Noto Naskh Arabic, tried in Chromium, the pages held still, and `src/styles/fonts.css` sizes Linux's DejaVu Sans. Apple and Windows devices draw Arabic in Arial, which next/font sizes on Latin letters only, or in a system font. Neither was measured, so an iPhone is the one to watch. If its page moves, size its Arabic font as `src/styles/fonts.css` describes, measured on that device.
+
 **Note from Audit 2:** the demo password and the demo admin's authenticator secret are published in `db/seed/demo/accounts.ts`, and `pnpm local:share` puts demo mode behind a public tunnel. In demo mode, generate both into the local `.env` and let `seed:demo` and the smoke test read them from there; keep the published values for CI and `APP_ENV=local` only (docs/reviews/audit-06.md, minor 10).
 
 #### Step 7. Settings screen, defaults and audit (M)
@@ -710,13 +714,13 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from Step 6**
 
 - Step 6 registered the login and sign-in settings with their defaults: `platform.name`, `pilot.banner`, `pilot.bannerText`, `login.showLogo` and `auth.*` (password length, lockout threshold and minutes, sign-in attempts and window, idle minutes, session hours, remembered-device days). This step gives them their description keys, their edit permission and the screen.
-- Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer: changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
+- Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer, checking the password through `checkRetypedPassword()` (`src/modules/identity/server/retype.ts`), so it counts toward the lockout as the password change does (lead review A): changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
 - New actions go through `viewerAction` with the setting's permission key (`src/modules/access/server/action-client.ts`); export it from the module's `index.ts` with this first use.
 
 **Notes from Audit 2**
 
 - `/today` runs eight `getSetting` queries, and the college row is read three times per request (`src/i18n/locale.ts`, the pilot banner, the shell's layout). The per-request cache above can read all of the college's stored settings once, and `findCollege` can take React's `cache()` (docs/reviews/audit-06.md, enhancement 2).
-- `seed:demo` stores no login setting yet: store the demo college's own `platform.name` and `pilot.bannerText` with the seeded defaults, and let the end-to-end login test read them from the seed (enhancement 3). The design catalog's visual baselines show the pilot banner, so they change with the banner text.
+- `seed:demo` stores no login setting yet: store the demo college's own `platform.name`, `pilot.bannerText` and `locale.timeZone` with the seeded defaults, and let the end-to-end login test read them from the seed (enhancement 3; `locale.timeZone` from Audit 1, folded in by lead review A). The design catalog's visual baselines show the pilot banner, so they change with the banner text.
 - Sonner's `<Toaster>` mounts on `/design` only since Audit 2 (the script budget, ADR-0010). The first screen that shows a toast mounts it in its own layout.
 
 #### Step 8. Colleges and departments (S)
@@ -759,6 +763,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Two keys exist: `design.view` and `accounts.resetPassword`. A key marked `requiresTwoFactor` makes its holders set up two-factor before anything else; mark every key that changes access, accounts or settings that way. The `system-admin` role (`system: true`) holds every key in code, including keys added later, and `pnpm admin:create` gives it its first member; "the last admin cannot remove their own access" counts the system role's members.
 - `authorize(actor, permission, scope)` and `viewerAction` take a college scope only; this step adds department and own-record scopes. Changing a role's keys takes effect at once: `getViewer()` reads them on every request.
 
+**Note from lead review A:** `createFirstAdmin()` reads memberships by `role_id`, which no index leads, and this step queries memberships by role and deletes roles with a cascade: add the index here. The system role's membership is inserted in three places (`first-admin.ts`, `db/seed/demo/accounts.ts`, `e2e/support/accounts.ts`); this step's role assignment can give them one helper.
+
 **Note from Audit 2:** the six actions in `src/app/(auth)/actions.ts` carry no permission on purpose: signing in is public, and the other five act on the caller's own account (ADR-0009 #6). The generated matrix test lists them as permission-free rather than flagging them.
 
 > **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
@@ -790,9 +796,13 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - `createAccount()` makes a person with a credential account and, without a password, a temporary one to show once; `resetPassword()` (`src/modules/identity/server/password.ts`) gives a temporary password, ends every session, lifts a lockout, forces a change at the next sign-in and writes `account.resetPassword` without the password. The screens call them through `viewerAction` with `accounts.resetPassword` and the re-authentication step from Step 7.
 - "Locked" in the account states means that one of the account's two rows in `sign_in_lockouts` (`typed:` and its email, or its employee number) reached `auth.lockoutThreshold` attempts less than `auth.lockoutMinutes` ago (`src/modules/identity/server/lockout.ts`). A reset lifts both (Audit 2). Today the only way back for an admin who has lost both the password and the authenticator is another admin (docs/BACKLOG.md).
 
+**Note from lead review A:** the account menu's "change password" has integration tests but no end-to-end test; add one with this step's profile item in the menu.
+
 **Note from Audit 2:** `createAccount()` writes no audit event itself; only `createFirstAdmin()` adds `account.create`. This step's import and invite actions write it too.
 
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
+>
+> **Before it (lead review A):** capture the screens from the production build, which has no Next.js dev-tools button: `pnpm build`, copy `.next/static` and `public` into `.next/standalone` as CI does, then `CI=1 pnpm e2e:screens`. The review decides the scale of the 390 px captures, which are 1170 px wide today (`scale: "css"`); PR #6 left that question to it.
 
 #### Step 11. Audit log and history (S)
 
@@ -833,7 +843,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from ADR-0008**
 
 - Build only the in-app channel: the bell, the notification center, preferences per kind (the channel stays a column whose only value is in-app), message templates and the Sunday digest.
-- The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A drops `SMTP_URL` and Mailpit for good.
+- The SMTP adapter and web push (VAPID) wait for the hosting decision (docs/BACKLOG.md), because an isolated server can send neither. Lead review A dropped `SMTP_URL` and Mailpit; the step that adds SMTP after the hosting decision brings them back.
 - Done when, replaced: the digest reaches the in-app channel for a fixture (snapshot test), and a kind the person muted is not delivered (test).
 
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.

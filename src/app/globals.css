@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "../styles/tokens.css";
 @import "../styles/theme.css";
+@import "../styles/fonts.css";
 
 /* Touch targets of 44 px (docs/PLAN.md section 4). On a touch screen, a control smaller than that
    gets an invisible hit area of at least 44 by 44 px around its center, in either direction. The

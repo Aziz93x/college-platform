@@ -11,9 +11,10 @@ vi.mock("../../identity/index.ts", () => ({
   getSessionUser: async () => request.user,
 }));
 vi.mock("./viewer.ts", () => ({ getViewer: async () => request.viewer }));
+// The request's logger, which puts the request's id on the line.
 const logged = vi.hoisted(() => vi.fn());
-vi.mock("../../../platform/logging/logger.ts", () => ({
-  logger: { error: logged },
+vi.mock("../../../platform/logging/request-logger.ts", () => ({
+  getRequestLogger: async () => ({ error: logged }),
 }));
 
 beforeEach(() => {

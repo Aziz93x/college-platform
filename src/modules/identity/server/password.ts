@@ -11,6 +11,7 @@ import {
 import { getAuth } from "./auth.ts";
 import { accountSubjects, clearLockouts } from "./lockout.ts";
 import { requestMeta } from "./request.ts";
+import { checkRetypedPassword } from "./retype.ts";
 import { accounts, people, sessions, users } from "./schema.ts";
 
 const CREDENTIAL_PROVIDER = "credential";
@@ -22,7 +23,8 @@ type ChangePasswordResult =
   | { status: "changed" }
   | { status: "wrongPassword" }
   | { status: "tooShort"; minLength: number }
-  | { status: "unchanged" };
+  | { status: "unchanged" }
+  | { status: "locked"; minutes: number };
 
 // The signed-in person replaces their password, which ends their other sessions and, after a
 // temporary password, lets them in.
@@ -39,22 +41,32 @@ export async function changePassword(
   }
   if (input.newPassword === input.currentPassword)
     return { status: "unchanged" };
-  try {
-    // Better Auth's own revokeOtherSessions would replace this session with a new remembered one;
-    // keeping it keeps the person's "remember this device" choice.
-    await getAuth().api.changePassword({
-      body: {
-        currentPassword: input.currentPassword,
-        newPassword: input.newPassword,
-      },
-      headers: requestHeaders,
-    });
-  } catch (error) {
-    if (isAPIError(error) && error.body?.code === "INVALID_PASSWORD") {
-      return { status: "wrongPassword" };
-    }
-    throw error;
-  }
+  // The current password counts toward the lockout, as at sign-in (retype.ts).
+  const retyped = await checkRetypedPassword(
+    user,
+    async () => {
+      try {
+        // Better Auth's own revokeOtherSessions would replace this session with a new remembered
+        // one; keeping it keeps the person's "remember this device" choice.
+        await getAuth().api.changePassword({
+          body: {
+            currentPassword: input.currentPassword,
+            newPassword: input.newPassword,
+          },
+          headers: requestHeaders,
+        });
+        return true;
+      } catch (error) {
+        if (isAPIError(error) && error.body?.code === "INVALID_PASSWORD") {
+          return undefined;
+        }
+        throw error;
+      }
+    },
+    requestMeta(requestHeaders),
+  );
+  if (retyped.status === "wrong") return { status: "wrongPassword" };
+  if (retyped.status === "locked") return retyped;
   await getDb().transaction(async (tx) => {
     await tx
       .update(users)

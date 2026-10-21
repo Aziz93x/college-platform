@@ -1,10 +1,10 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { test as base } from "@playwright/test";
 import { and, eq, inArray } from "drizzle-orm";
 import { memberships, roles } from "../../src/modules/access/index.ts";
 import { createAccount, users } from "../../src/modules/identity/index.ts";
 import { findCollegeId } from "../../src/modules/org/index.ts";
 import { createDb } from "../../src/platform/db/client.ts";
+import { test as base } from "./test.ts";
 
 export type TestAccount = {
   userId: string;
@@ -70,4 +70,4 @@ export const test = base.extend<{
   },
 });
 
-export { expect } from "@playwright/test";
+export { expect } from "./test.ts";

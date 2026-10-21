@@ -1,6 +1,7 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { settled } from "./screens/settled";
 import { STORAGE } from "./support/auth.ts";
+import { expect, test } from "./support/test.ts";
 
 // The catalog is open to the demo admin (e2e/auth.setup.ts), who also reaches the shell.
 test.use({ storageState: STORAGE.admin });
@@ -84,6 +85,8 @@ declare global {
   interface Window {
     fontSwap: {
       layoutShift: number;
+      // Each element that moved, for the failure message.
+      moved: string[];
       fontAtFirstFrame?: boolean;
       identityFontLoaded: () => boolean;
     };
@@ -91,7 +94,8 @@ declare global {
 }
 
 // Loads the page with the font files a second late, so the metric-matched fallback paints first,
-// and reports what the first frame and the settled page used and how far the layout shifted.
+// and reports what the first frame and the settled page used, how far the layout shifted and what
+// moved.
 async function loadWithLateFont(page: Page, path: string) {
   await page.route("**/_next/static/media/**", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
@@ -100,6 +104,7 @@ async function loadWithLateFont(page: Page, path: string) {
   await page.addInitScript(() => {
     const swap: Window["fontSwap"] = {
       layoutShift: 0,
+      moved: [],
       // next/font names the face; --font-identity lists it first, then the fallback.
       identityFontLoaded: () =>
         document.fonts.check(
@@ -111,8 +116,15 @@ async function loadWithLateFont(page: Page, path: string) {
       for (const entry of list.getEntries() as (PerformanceEntry & {
         value: number;
         hadRecentInput: boolean;
+        sources: { node: Node | null }[];
       })[]) {
-        if (!entry.hadRecentInput) swap.layoutShift += entry.value;
+        if (entry.hadRecentInput) continue;
+        swap.layoutShift += entry.value;
+        for (const { node } of entry.sources) {
+          swap.moved.push(
+            `${node?.nodeName} "${node?.textContent?.trim().slice(0, 30)}"`,
+          );
+        }
       }
     }).observe({ type: "layout-shift", buffered: true });
     addEventListener("DOMContentLoaded", () =>
@@ -132,6 +144,7 @@ async function loadWithLateFont(page: Page, path: string) {
         fontAtFirstFrame?: boolean;
         fontAtEnd: boolean;
         layoutShift: number;
+        moved: string[];
       }>((resolve) =>
         requestAnimationFrame(() =>
           requestAnimationFrame(() =>
@@ -139,6 +152,7 @@ async function loadWithLateFont(page: Page, path: string) {
               fontAtFirstFrame: window.fontSwap.fontAtFirstFrame,
               fontAtEnd: window.fontSwap.identityFontLoaded(),
               layoutShift: window.fontSwap.layoutShift,
+              moved: window.fontSwap.moved,
             }),
           ),
         ),
@@ -158,11 +172,11 @@ for (const [path, signedIn] of [
     test(`on ${path} the identity font replaces the fallback without a layout shift`, async ({
       page,
     }) => {
-      const { fontAtFirstFrame, fontAtEnd, layoutShift } =
+      const { fontAtFirstFrame, fontAtEnd, layoutShift, moved } =
         await loadWithLateFont(page, path);
       expect(fontAtFirstFrame).toBe(false);
       expect(fontAtEnd).toBe(true);
-      expect(layoutShift).toBeLessThan(0.05);
+      expect(layoutShift, `moved: ${moved.join("; ")}`).toBeLessThan(0.05);
     });
   });
 }

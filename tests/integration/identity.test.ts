@@ -737,3 +737,94 @@ describe("signOut", () => {
     ).toEqual([{ actor_id: userId, action: "session.signOut" }]);
   });
 });
+
+describe("a password typed again behind a session", () => {
+  const changeWith = (
+    currentPassword: string,
+    user: { userId: string; sessionId: string },
+    headers: Headers,
+  ) =>
+    changePassword(
+      { currentPassword, newPassword: "a-new-long-passphrase" },
+      { ...user, collegeId },
+      headers,
+    );
+
+  it("counts toward the lockout: the attempt that reaches the threshold locks both identifiers and ends every session", async () => {
+    const { userId, email, employeeNumber } = await person();
+    const device = await signedInDevice(email);
+    await signedInDevice(email);
+    const user = { userId, sessionId: device.sessionId };
+
+    for (let count = 0; count < 4; count++) {
+      expect(await changeWith("wrong-password", user, device.headers)).toEqual({
+        status: "wrongPassword",
+      });
+    }
+    expect(await changeWith("wrong-password", user, device.headers)).toEqual({
+      status: "locked",
+      minutes: 15,
+    });
+
+    expect(
+      await query("select id from sessions where user_id = $1", [userId]),
+    ).toEqual([]);
+    for (const identifier of [email, employeeNumber]) {
+      expect(await attempt({ identifier }, "10.0.14.1")).toEqual({
+        status: "locked",
+        minutes: 15,
+      });
+    }
+    expect(
+      await query(
+        "select actor_id, action from audit_events where entity_id = $1 and action = 'account.lock'",
+        [userId],
+      ),
+    ).toEqual([{ actor_id: null, action: "account.lock" }]);
+  });
+
+  it("counts at two-factor setup too, and the right password starts the count again", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+    const start = (password: string) =>
+      startTwoFactorSetup(
+        { password, issuer: "Test College" },
+        { userId, collegeId },
+        device.headers,
+      );
+
+    for (let count = 0; count < 4; count++) {
+      expect(await start("wrong-password")).toEqual({
+        status: "wrongPassword",
+      });
+    }
+    expect(await start(PASSWORD)).toMatchObject({ status: "started" });
+    for (let count = 0; count < 4; count++) {
+      expect(await start("wrong-password")).toEqual({
+        status: "wrongPassword",
+      });
+    }
+  });
+
+  it("refuses while guesses at the login page hold the lock, and leaves the person signed in", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+    for (let index = 1; index <= 5; index++) {
+      await attempt(
+        { identifier: email, password: "wrong-password" },
+        `10.0.15.${index}`,
+      );
+    }
+
+    expect(
+      await changeWith(
+        PASSWORD,
+        { userId, sessionId: device.sessionId },
+        device.headers,
+      ),
+    ).toEqual({ status: "locked", minutes: 15 });
+    expect(
+      await query("select id from sessions where id = $1", [device.sessionId]),
+    ).toEqual([{ id: device.sessionId }]);
+  });
+});

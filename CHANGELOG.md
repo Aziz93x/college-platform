@@ -4,6 +4,18 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Lead review A: section A (Steps 1 to 6)
+
+- Session tokens stay out of the logs. A failed query's values, which can hold a session token, used to reach both Better Auth's console line and the platform's "server action failed" line. One error serializer, for the app and the worker, keeps the query and drops its values. Better Auth logs through the platform's logger as JSON lines, and action failures carry the request's id.
+- A password typed again behind a session, to change it or to set up two-factor, counts toward the lockout as at sign-in (`checkRetypedPassword()`, which Step 7's confirmation reuses). The attempt that reaches the threshold locks both of the account's identifiers, ends every session of the account and writes `account.lock`. Before, whoever held a session could guess the password without limit.
+- One stored setting that fails its schema no longer turns every page into the error page: `getSetting` gives the default and logs the key, never the value.
+- A password's Arabic-Indic digits are read as Latin, when it is set and when it is checked.
+- The account menu hydrates for viewers who asked for reduced motion, and every end-to-end test now fails on a hydration warning or error (`e2e/support/test.ts`).
+- `SMTP_URL` and Mailpit are gone until SMTP returns after the hosting decision. So is the CI job that committed visual baselines: a missing baseline is still uploaded as the `visual-baselines` artifact, and is committed by hand after a look.
+- On Linux, CI's browser among them, the page no longer moves when the identity font arrives. Until it does, Arabic shows in DejaVu Sans, about 12% wider than the identity font, which next/font left as it was: it sizes Arial, on Latin letters only. `src/styles/fonts.css` now sizes DejaVu Sans. Android's Noto Naskh Arabic is close enough that its pages already held still.
+- The end-to-end setup project waits up to 60 seconds per expectation, so a fresh `pnpm dev` compiles its first pages in time. The worker test that patched `fs.write` is deleted. Migration `0004` indexes the columns the sign-in purge deletes by.
+- docs/reviews/lead-A.md holds the review and its resolution. Its proposals that change the plan wait for the owner in docs/BACKLOG.md, and notes from it sit under Steps 7, 9, 10 and 41 and at UX review 1.
+
 ### Audit 2: steps 4-6
 
 - The lockout no longer tells which accounts exist. Attempts count against what was typed, an email or an employee number, with or without an account, in the new `sign_in_lockouts` table (migration `0003_sign_in_lockouts`, which drops `users.failed_sign_ins` and `users.locked_until`). Five attempts within 15 minutes of the first, from any address, lock that identifier for 15 minutes from the fifth (`auth.lockoutThreshold`, `auth.lockoutMinutes`). Before, only real accounts locked, their count never lapsed, and locking one identifier locked the other. Each attempt is counted before its password is checked, so attempts that race each other lock once, and a sign-in or a reset clears both of an account's identifiers (ADR-0009, amended).

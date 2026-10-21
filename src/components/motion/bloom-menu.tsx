@@ -274,7 +274,9 @@ export function BloomMenu({
                   openMenu();
                 }
               }}
-              whileTap={reduce ? undefined : { scale: 0.95 }}
+              // Always set: the server cannot know the reduced-motion preference, and MotionConfig
+              // already stops the press for whoever asked for it.
+              whileTap={{ scale: 0.95 }}
               className="grid size-11 place-items-center overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {/* Its own layout counter-scales the content, so it stays crisp while the box morphs. */}

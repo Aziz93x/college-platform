@@ -35,8 +35,15 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    // Signs in the demo roles (e2e/auth.setup.ts) before the specs that start signed in.
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    // Signs in the demo roles (e2e/auth.setup.ts) before the specs that start signed in. On a fresh
+    // pnpm dev, its first visits compile /two-factor and /today, which can take longer than the
+    // usual wait (lead review A).
+    {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+      timeout: 120_000,
+      expect: { timeout: 60_000 },
+    },
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"] },
