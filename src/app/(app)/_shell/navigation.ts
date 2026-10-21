@@ -1,4 +1,4 @@
-import { CalendarCheck, type LucideIcon } from "lucide-react";
+import { CalendarCheck, type LucideIcon, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PermissionKey } from "@/modules/access";
 
@@ -23,6 +23,12 @@ export type ShellLink = {
 // The shell's pages in their default order. A step that adds a page adds its item here.
 export const navigation = [
   { id: "today", href: "/today", icon: CalendarCheck },
+  {
+    id: "settings",
+    href: "/settings",
+    icon: Settings,
+    permission: "settings.manage",
+  },
 ] as const satisfies readonly NavigationItem[];
 
 // The items a viewer may open: those whose permission the viewer holds, in the given order of ids.

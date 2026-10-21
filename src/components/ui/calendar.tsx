@@ -12,12 +12,14 @@ import {
   type DayButton,
   DayPicker,
   type DayPickerLocale,
+  type DayPickerProps,
   getDefaultClassNames,
 } from "react-day-picker";
 import { ar } from "react-day-picker/locale";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import type { SettingValue } from "@/modules/settings";
+import { firstDayOfWeek } from "@/platform/i18n/language";
 
 // DayPicker's month and day names and its labels for each interface language (locale.language).
 const dayPickerLocales: Record<
@@ -37,7 +39,11 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
   const defaultClassNames = getDefaultClassNames();
-  const language = useLocale() as SettingValue<"locale.language">;
+  // next-intl's locale carries the college's first day of the week and digits
+  // (src/i18n/locale.ts): ar-u-fw-sun-nu-latn.
+  const tag = useLocale();
+  const locale = new Intl.Locale(tag);
+  const language = locale.language as SettingValue<"locale.language">;
 
   return (
     <DayPicker
@@ -45,6 +51,8 @@ function Calendar({
       // arrows' icons are turned in className below.
       dir={Direction.useDirection()}
       locale={dayPickerLocales[language]}
+      numerals={locale.numberingSystem as DayPickerProps["numerals"]}
+      weekStartsOn={firstDayOfWeek(tag)}
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-3 [--cell-size:--spacing(8)] pointer-coarse:[--cell-size:--spacing(11)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",

@@ -742,6 +742,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - Each new page adds its item to `src/app/(app)/_shell/navigation.ts` with its permission key and a `nav.<id>` message. BeUI here: table, breadcrumb (the page header's trail) and animated badge.
 
+**Note from Step 7:** the college's own name and short name live in `colleges`, not in settings, so the settings screen does not edit them; give the college its edit form here, beside the departments, with an audit event. The sidebar and the login page already read them.
+
 #### Step 9. Roles, permissions and memberships (L)
 
 **Goal:** who may do what is data, enforced by one function.
@@ -776,6 +778,12 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 > **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
 
+**Notes from Step 7**
+
+- Every setting is edited with `settings.manage` (two-factor required), named per setting in the registry (`src/modules/settings/domain/registry.ts`). When the grid gives a setting to another role, such as the review sample rate to the quality reviewer, give that setting its own key there; the settings screen shows each viewer the settings whose key they hold, and its navigation item takes one key, so a role with only the new key needs the item's permission widened then.
+- `navigation.order` has no control on the settings screen (a map draws none); edit each role's page order with the role, on the grid.
+- The grid's sensitive changes ask for the password again through `reauthenticate()` (`@/modules/identity`), as a security setting does: the action returns `passwordRequired`, the screen asks in place, and the password counts toward the lockout.
+
 #### Step 10. People and accounts (M)
 
 **Goal:** accounts for every role, imported in bulk and managed safely.
@@ -807,11 +815,15 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 2:** `createAccount()` writes no audit event itself; only `createFirstAdmin()` adds `account.create`. This step's import and invite actions write it too.
 
+**Note from Step 7:** a reset of someone's password asks for the admin's own password again through `reauthenticate()`, as the settings screen does for security settings (`src/app/(app)/settings/actions.ts`).
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
 > **From Step 41:** once in about forty loads of the production login page, the page held two identifier inputs for a moment, one with a server id (`_R_…`) and one from a render on the client (`_r_…`), and a strict locator failed. Find the client render behind it.
 >
 > **Before it (lead review A):** capture the screens from the production build, which has no Next.js dev-tools button: `pnpm build`, copy `.next/static` and `public` into `.next/standalone` as CI does, then `CI=1 pnpm e2e:screens`. The review decides the scale of the 390 px captures, which are 1170 px wide today (`scale: "css"`); PR #6 left that question to it.
+>
+> **From Step 7:** the settings screen shows each description under its label rather than in BeUI's popover, saves one setting at a time with its own button, and asks for the password in the row; review those choices, the search's Arabic matching, and whether `ui/switch`, `ui/select` and `ui/tabs` leave the catalog now that their BeUI counterparts are in use.
 
 #### Step 11. Audit log and history (S)
 
@@ -861,6 +873,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 ### Section C. Term, framework and Rayat: the vice-dean's part (steps 13 to 17)
 
+**Note from Step 7:** the digest's day and hour are settings already (`reminders.digestDay`, Sunday, and `reminders.digestHour`, 7, on the college's clock); the job reads them.
+
 #### Step 13. Terms and calendar (M)
 
 **Goal:** the vice-dean defines the term, and every date in the platform derives from it.
@@ -887,6 +901,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Memberships gain their optional term here (see Step 9).
 
 **Note from Step 41:** `pnpm local:up --demo` passes `--seed` to `seed:demo`; give `scripts/local.ts` the `--week` option too, since the GA demonstration starts the stack with `--week 9`.
+
+**Note from Step 7:** the first day of the week (`locale.weekStart`) and the digits (`locale.digits`) travel in next-intl's locale (`ar-u-fw-sun-nu-latn`, `src/i18n/locale.ts`): `firstDayOfWeek()` in `src/platform/i18n/language.ts` reads the first, and the calendar already takes both. Hijri display is the setting `locale.hijri`; Today shows the Umm al-Qura date with `Intl.DateTimeFormat` and `calendar: "islamic-umalqura"` (next-intl's formatter does not take that calendar). Week utilities show it the same way.
 
 #### Step 14. Portfolio axes catalog (S)
 
@@ -1041,6 +1057,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** on option A, Today and the bell are the only way trainers and heads learn about work, and the head's reminders are in-app. "Nothing uploaded this week" and its one-tap reminder move to Step 27, after evidence exists (Step 25).
 
+**Note from Step 7:** the settings screen draws its controls from the schemas and has no "token reference" control yet, since no setting names a token. If the ADR keeps the alert color a setting, its schema names the allowed tokens and the screen gets that control here.
+
 #### Step 24. My work and my sections (M)
 
 **Goal:** all work in one list, and each section on one page.
@@ -1079,6 +1097,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Seeded files carry the visible demo watermark from this step on, not only from Step 43.
 - The end-to-end upload test runs on a minimal task page, which Step 26 turns into the card.
 
+**Note from Step 7:** the size limit and the accepted extensions are settings already (`files.maxSizeMb`, 20, and `files.acceptedTypes`); a framework item's own types narrow them.
+
 #### Step 26. The task card and the done flow (L)
 
 **Goal:** one card for every kind, and finishing takes seconds.
@@ -1110,6 +1130,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** digest snapshot tests pass, and a test counting messages over a full demo week shows no per-task reminder flood.
 
 **Note from ADR-0008:** every rule is an in-app item: the digest, the due-tomorrow reminder, and "nothing uploaded this week" with the head's one-tap reminder (moved from Step 23). Step 29 sends the instant notification on returned work, since it builds the return action. On option A, people see these items only when they open the app on the college Wi-Fi, so the week-2 return metric reads differently under each hosting option.
+
+**Note from Step 7:** the rules are settings already: `reminders.dueTomorrow` and `reminders.nothingUploaded` (both on), with the digest's day and hour from Step 12.
 
 > **Checkpoint: Audit 9.** Run `/audit 25-27`.
 
@@ -1159,6 +1181,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - BeUI here: bouncy accordion (the axes).
 
 > **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
+
+**Note from Step 7:** the rate and the cap are settings already: `review.sampleRate` (20%) and `review.weeklyCap` (30 per reviewer a week).
 
 #### Step 30. What is missing, portfolio approval and exam confidentiality (M)
 
@@ -1324,6 +1348,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - Section 4's script budget, 170 KB per route, is not met: after Audit 2 the login page loads 246.6 KiB of script and Today 248.0 KiB, while React and Next.js alone take about 145 KiB. ADR-0010 (proposed) asks the owner for a measured budget. `lighthouserc.json` warns at 170 KiB until then; this step makes the chosen budget an error, and tries to keep Motion's feature bundle off the routes that do not animate.
 - The Lighthouse gate counts the best of three runs (`aggregationMethod: optimistic` in `lighthouserc.json`). Assert the median after a warm-up run, or record the choice in ADR-0001.
+
+**Note from Step 7:** measured on the production build from a phone, the settings page loads about 304 KiB of script (Today 254 KiB): its BeUI controls with Motion's motion values, about 33 KiB, and Sonner, about 11 KiB. Zod stays off the client: `toLatinDigits` lives apart from the schema helpers in `src/platform/validation/digits.ts`. Decide whether the budget covers admin pages, or trim them here.
 
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
 

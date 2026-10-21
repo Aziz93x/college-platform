@@ -6,6 +6,8 @@ const permissions = {
   "design.view": { requiresTwoFactor: false },
   // Issue a temporary password for someone's account.
   "accounts.resetPassword": { requiresTwoFactor: true },
+  // Change the platform's settings (src/modules/settings): the ones whose registry entry names it.
+  "settings.manage": { requiresTwoFactor: true },
 } as const satisfies Record<string, { requiresTwoFactor: boolean }>;
 
 export type PermissionKey = keyof typeof permissions;

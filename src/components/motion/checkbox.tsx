@@ -55,6 +55,9 @@ export function Checkbox({
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         whileTap={reduce || disabled ? undefined : { scale: 0.92 }}
+        // Set either way: Motion adds tabIndex 0 to an element with whileTap, which the server
+        // renders and a client that prefers reduced motion would not.
+        tabIndex={0}
         transition={SPRING_PRESS}
         data-state={checked ? "checked" : "unchecked"}
         className={cn(

@@ -21,6 +21,8 @@ export interface InputProps
     "value" | "defaultValue" | "onChange" | "dir"
   > {
   label: string;
+  /** Keeps the label for screen readers only, where the page already shows the field's name. */
+  hideLabel?: boolean;
   value?: string;
   defaultValue?: string;
   onChange?: (value: string) => void;
@@ -43,6 +45,7 @@ const SHAKE = [0, -6, 6, -4, 4, -2, 0].map((x) => ({
 
 export function Input({
   label,
+  hideLabel = false,
   value: valueProp,
   defaultValue,
   onChange,
@@ -76,16 +79,22 @@ export function Input({
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={id} className="px-1 font-medium text-sm">
+      <label
+        htmlFor={id}
+        className={cn("px-1 font-medium text-sm", hideLabel && "sr-only")}
+      >
         {label}
       </label>
       <div
         ref={fieldRef}
         data-state={error ? "error" : focused ? "focused" : "idle"}
         className={cn(
-          "relative h-11 overflow-hidden rounded-lg border border-input bg-background transition-[border-color,box-shadow]",
-          focused && !error && "border-ring ring-3 ring-ring/30",
-          error && "border-alert ring-3 ring-alert/20",
+          "relative h-11 overflow-hidden rounded-lg bg-background transition-shadow",
+          // The border is drawn over the field, not around it, so the input fills all 44 px and a
+          // tap on the edge reaches it.
+          "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-input after:transition-colors",
+          focused && !error && "ring-3 ring-ring/30 after:border-ring",
+          error && "ring-3 ring-alert/20 after:border-alert",
           disabled && "opacity-60",
         )}
       >

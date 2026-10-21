@@ -1,6 +1,10 @@
-import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
-import { getSetting } from "../../src/modules/settings/index.ts";
+import {
+  getSetting,
+  resetSetting,
+  setSetting,
+} from "../../src/modules/settings/index.ts";
 import { logger } from "../../src/platform/logging/logger.ts";
 import { createTestDatabase } from "./support/database.ts";
 
@@ -78,4 +82,127 @@ it("returns the default language, then the stored one, and the default again for
   await expect(language()).resolves.toBe("ar");
   expect(logged).toHaveBeenCalledOnce();
   logged.mockRestore();
+});
+
+describe("setSetting and resetSetting", () => {
+  let actorId: string;
+  beforeAll(async () => {
+    actorId = (
+      await database.pool.query("select gen_random_uuid()::text as id")
+    ).rows[0].id;
+  });
+  const change = () => ({
+    collegeId,
+    actorId,
+    ip: "10.0.20.1",
+    userAgent: "integration-test",
+  });
+  const events = async (key: string) =>
+    (
+      await database.pool.query(
+        "select actor_id, action, diff, ip from audit_events where entity_type = 'setting' and entity_id = $1 order by created_at, id",
+        [key],
+      )
+    ).rows;
+  const row = async (key: string) =>
+    (
+      await database.pool.query(
+        "select value, version from settings where college_id = $1 and key = $2",
+        [collegeId, key],
+      )
+    ).rows[0];
+
+  // The screen's save calls setSetting; the next request reads the value through getSetting.
+  it("stores a value that passes the schema, which getSetting returns from then on, and audits it with the value before and after", async () => {
+    await expect(
+      setSetting("auth.lockoutMinutes", 30, change(), database.db),
+    ).resolves.toEqual({ status: "saved", value: 30 });
+    await expect(
+      getSetting("auth.lockoutMinutes", { collegeId }, database.db),
+    ).resolves.toBe(30);
+
+    await setSetting("auth.lockoutMinutes", 45, change(), database.db);
+    await expect(
+      getSetting("auth.lockoutMinutes", { collegeId }, database.db),
+    ).resolves.toBe(45);
+    expect(await row("auth.lockoutMinutes")).toEqual({ value: 45, version: 2 });
+    expect(await events("auth.lockoutMinutes")).toEqual([
+      {
+        actor_id: actorId,
+        action: "setting.update",
+        diff: { from: 15, to: 30 },
+        ip: "10.0.20.1",
+      },
+      {
+        actor_id: actorId,
+        action: "setting.update",
+        diff: { from: 30, to: 45 },
+        ip: "10.0.20.1",
+      },
+    ]);
+  });
+
+  it.each([
+    ["a number past the schema's limit", "auth.lockoutMinutes", 1441],
+    ["a fraction where a whole number is due", "auth.sessionHours", 1.5],
+    ["text where a yes or no is due", "pilot.banner", "yes"],
+    ["a choice the schema does not list", "locale.weekStart", "someday"],
+    ["a time zone Intl does not know", "locale.timeZone", "Mars/Olympus"],
+    ["an empty name", "platform.name", "   "],
+    ["a list with the same type twice", "files.acceptedTypes", ["pdf", "PDF"]],
+  ] as const)("refuses %s, and stores and audits nothing", async (_name, key, value) => {
+    // Tests above stored some of these keys: their rows and events stay as they were.
+    const [rowBefore, eventsBefore] = [await row(key), await events(key)];
+    await expect(
+      setSetting(key, value, change(), database.db),
+    ).resolves.toEqual({ status: "invalid" });
+    expect(await row(key)).toEqual(rowBefore);
+    expect(await events(key)).toEqual(eventsBefore);
+  });
+
+  it("changes and audits nothing for the value already in force", async () => {
+    await expect(
+      setSetting("auth.idleMinutes", 60, change(), database.db),
+    ).resolves.toEqual({ status: "unchanged", value: 60 });
+    expect(await row("auth.idleMinutes")).toBeUndefined();
+    expect(await events("auth.idleMinutes")).toEqual([]);
+  });
+
+  it("stores the value its schema gives, and null for a nullable text, which brings back the catalog's words", async () => {
+    await setSetting(
+      "files.acceptedTypes",
+      [" PDF ", "Jpg"],
+      change(),
+      database.db,
+    );
+    expect((await row("files.acceptedTypes")).value).toEqual(["pdf", "jpg"]);
+
+    await setSetting("pilot.bannerText", "Trial run", change(), database.db);
+    await setSetting("pilot.bannerText", null, change(), database.db);
+    expect(await row("pilot.bannerText")).toEqual({ value: null, version: 2 });
+    await expect(
+      getSetting("pilot.bannerText", { collegeId }, database.db),
+    ).resolves.toBeNull();
+  });
+
+  it("resets to the default by removing the value, and audits it; with nothing stored, it changes nothing", async () => {
+    await setSetting("auth.sessionHours", 8, change(), database.db);
+    await expect(
+      resetSetting("auth.sessionHours", change(), database.db),
+    ).resolves.toEqual({ status: "reset", value: 12 });
+    expect(await row("auth.sessionHours")).toBeUndefined();
+    await expect(
+      getSetting("auth.sessionHours", { collegeId }, database.db),
+    ).resolves.toBe(12);
+
+    await expect(
+      resetSetting("auth.sessionHours", change(), database.db),
+    ).resolves.toEqual({ status: "unchanged", value: 12 });
+    expect(
+      (await events("auth.sessionHours")).map((e) => [e.action, e.diff]),
+    ).toEqual([
+      ["setting.update", { from: 12, to: 8 }],
+      ["setting.reset", { from: 8, to: 12 }],
+    ]);
+  });
 });

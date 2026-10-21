@@ -23,6 +23,15 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `lib/use-row-cursor.ts` | `lib/hooks/use-row-cursor.ts` |
 | `lib/use-touch-capable.ts` | `lib/hooks/use-touch-capable.ts` |
 | `lib/command-search.ts` | `lib/command-search.ts` |
+| `switch.tsx` | `components/motion/switch.tsx` |
+| `select.tsx` | `components/motion/select.tsx` |
+| `tabs.tsx` | `components/motion/tabs.tsx` |
+| `adaptive-stepper.tsx` | `components/motion/adaptive-stepper.tsx` |
+| `liquid.tsx` | `components/motion/liquid.tsx` |
+| `range-slider.tsx` | `components/motion/range-slider.tsx` |
+| `action-swap.tsx` | `components/motion/action-swap.tsx` |
+| `lib/use-listbox.ts` | `lib/hooks/use-listbox.ts` |
+| `lib/use-slider.ts` | `lib/hooks/use-slider.ts` |
 
 ## Local changes
 
@@ -61,4 +70,37 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `loader.tsx`: the spinner only, its turn a CSS animation (`animate-spin`), so it needs no client JavaScript and stops under reduced motion; it is announced only when given a label.
 - `text-reveal.tsx`: rewritten as a server component with the same look, word by word with a 90 ms stagger, rising out of a blur on BeUI's easing, as the CSS animation `--animate-reveal` in `src/styles/theme.css`, so the words paint with the page's HTML. The blur is 8 px, and under reduced motion the words are simply there.
 - `bloom-menu.tsx`: the trigger and the items come from props (`trigger`, `triggerLabel`, `heading`, `items` with links or actions and a busy state), and the panel opens from the trigger's top corner at the end instead of its center, as an account menu in a header does. Arrow keys follow the reading direction, the grid takes as many columns as items up to three, and the close button's label comes from the catalog.
+
+## Local changes from Step 7 (the settings screen)
+
+- Every component renders `m` elements under `MotionProvider`, takes its words as props from the
+  catalog, and keeps its first render the same on the server and on a client that prefers reduced
+  motion: no initial style, variant or `tabIndex` depends on `useReducedMotion()` there.
+  `MotionProvider`'s `reducedMotion="user"` drops the movement instead.
+- `switch.tsx`: named by `aria-labelledby` (a setting's label), with a 44 px hit area around its
+  28 px track; on sits at the inline end, so right to left the thumb travels left; the disabled
+  shake, through Motion's `animate`, is gone.
+- `select.tsx`: controlled open state only from inside; the trigger is a field like the text
+  fields (44 px, `rounded-lg`, the input border and focus ring) and reads `aria-labelledby` before
+  the chosen option; the English placeholder is gone; options take their words as children and are
+  44 px on a touch screen; `text-start` instead of `text-left`. `lib/use-listbox.ts` is copied as is.
+- `tabs.tsx`: the pill variant only (the underline, segment and selected-only icon variants are
+  gone), controlled, with the list's name and the scroll arrows' names as props; the panel the page
+  opens on is drawn as the server sent it, and only a panel chosen later fades in; tabs are 44 px on
+  a touch screen.
+- `adaptive-stepper.tsx` and `liquid.tsx`: controlled, with the buttons' names, the value's words
+  and its digits as props; the English legend is gone (the fieldset is named by
+  `aria-labelledby`); right to left the whole stepper is mirrored with its number turned back, so
+  lower values sit at the start; the liquid surface takes a height of its own, since percentages do
+  not resolve inside a fieldset; `Liquid` takes `ref` as a prop (React 19).
+- `range-slider.tsx` and `lib/use-slider.ts`: controlled; right to left the drawing is mirrored and
+  the pointer and the left and right arrows follow it; the handle has a 44 px hit area and the
+  track's border is drawn over it so the hit area is not clipped; the fill and handle take the
+  primary color.
+- `action-swap.tsx`: the blur swap only (the roll and the letter cascade, which would split joined
+  Arabic letters, are gone), two variants on the tokens, the text layer at the inline start.
+- `lib/command-search.ts`: Arabic words match with or without the article and across hamza, taa
+  marbuta and alef maqsura spellings.
+- `checkbox.tsx` and `input.tsx` (Step 6): the checkbox pins `tabIndex` as above, and the input
+  draws its border over the field, so the input fills all 44 px of it.
 

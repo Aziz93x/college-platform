@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { platformName } from "@/i18n/platform-name";
 import { requireViewer } from "@/modules/access";
 import { findCollege } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
@@ -24,9 +25,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   await connection();
   const viewer = await requireViewer();
   const college = await findCollege();
-  const orders = college
-    ? await getSetting("navigation.order", { collegeId: college.id })
-    : {};
+  const [orders, name] = await Promise.all([
+    college ? getSetting("navigation.order", { collegeId: college.id }) : {},
+    platformName(),
+  ]);
   const items = visibleNavigation(
     navigation,
     viewer.permissions,
@@ -71,6 +73,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </a>
       <div className="flex min-h-dvh">
         <Sidebar
+          platformName={name}
           collegeName={college?.name}
           links={links}
           label={t("navigation")}

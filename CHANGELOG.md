@@ -4,6 +4,17 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 07: settings screen, defaults and audit
+
+- `/settings`, for whoever holds the new key `settings.manage` (two-factor required): a tab per group (platform, language and calendar, security and sign-in, files, review, reminders), kept in the address, and a search across every setting that matches Arabic words with or without the article. Each setting shows its description, its default when it differs, and the control its schema calls for: a switch, a choice, a stepper for a short count, a typed number with its unit for a wide one, a slider for a percentage, a text, or a list of file types. Save and "reset to default" are per setting and confirmed with a toast; the page is drawn again after each change, so the banner, the names and dates follow at once.
+- Changing a security setting asks for the password again, in its row, when it was last typed more than `auth.reauthMinutes` ago (15 by default). It is checked like the password change's, so it counts toward the lockout. Sessions record when the password was last typed (migration `0005`); `reauthenticate()` is the step Steps 9 and 10 reuse.
+- The registry gives every setting a group, the permission that edits it and the unit of a number, and its label and description in `messages/ar.json` (the type check fails without them). New settings with their defaults: first day of the week (Sunday), digits (Latin), Hijri display (off), re-authentication minutes, file size limit (20 MB) and accepted types, review sample rate (20%) and weekly cap (30), and the reminder rules (the digest on Sunday at 7:00, the due-tomorrow reminder and "nothing uploaded this week", both on).
+- `setSetting` and `resetSetting` check the value against its schema and write `setting.update` and `setting.reset` with the value before and after. `getSetting` reads the college's stored settings once per request, and so does `findCollege`; a change shows on the next request (ADR-0007 keeps nothing across requests).
+- The locale carries the college's first day of the week and digits (`ar-u-fw-sun-nu-latn`): dates, numbers, counts in messages and the calendar follow them. Today adds the Umm al-Qura date while Hijri display is on.
+- The platform's name joins the college's in the sidebar and every page title. `seed:demo` stores the demo college's platform name, banner text and time zone, and the login test reads them from the seed.
+- BeUI here: switch, select, tabs, adaptive stepper, range slider and action swap. The motion input now draws its border over the field, so all 44 px of it take a tap.
+- Tests: integration tests for saving, refusing, resetting and auditing settings and for re-authentication; unit tests for the controls drawn from schemas, the catalog's words for every setting, the actions, the locale and Arabic search; end-to-end tests for the screen on the desktop and the phone, with axe and 44 px targets.
+
 ### Step 41: production-like run on the laptop
 
 - `pnpm local:up` runs the platform on the production images: Caddy on `https://localhost` and on the laptop's LAN address, with its own certificate authority, in front of the app, the worker and PostgreSQL, which sit on a network with no route out. Only Caddy publishes ports, and the stack comes back by itself when Docker restarts. `pnpm local:down` stops it. `docs/ops/local.md` explains the run, trusting Caddy's root on a laptop or a phone, and what to do after a restart.

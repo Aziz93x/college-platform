@@ -6,6 +6,7 @@ import {
   createAccount,
   getAuth,
   getSessionUser,
+  reauthenticate,
   resetPassword,
   type SignInInput,
   signIn,
@@ -826,5 +827,68 @@ describe("a password typed again behind a session", () => {
     expect(
       await query("select id from sessions where id = $1", [device.sessionId]),
     ).toEqual([{ id: device.sessionId }]);
+  });
+});
+
+describe("reauthenticate", () => {
+  const passwordEnteredAt = async (sessionId: string) =>
+    (
+      await query("select password_entered_at from sessions where id = $1", [
+        sessionId,
+      ])
+    )[0].password_entered_at as Date;
+
+  it("takes the sign-in's password for the setting's minutes, then asks again, and a right password starts the window again", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+    const user = { userId, sessionId: device.sessionId, collegeId };
+    const signedInAt = await passwordEnteredAt(device.sessionId);
+    const after = (minutes: number) =>
+      new Date(signedInAt.getTime() + minutes * MINUTE_MS);
+
+    expect(
+      await reauthenticate(undefined, user, device.headers, after(14)),
+    ).toEqual({ status: "confirmed" });
+    expect(
+      await reauthenticate(undefined, user, device.headers, after(15)),
+    ).toEqual({ status: "passwordRequired" });
+    expect(
+      await reauthenticate("wrong-password", user, device.headers, after(15)),
+    ).toEqual({ status: "wrongPassword" });
+    expect(
+      await reauthenticate(PASSWORD, user, device.headers, after(15)),
+    ).toEqual({ status: "confirmed" });
+    expect(await passwordEnteredAt(device.sessionId)).toEqual(after(15));
+    expect(
+      await reauthenticate(undefined, user, device.headers, after(29)),
+    ).toEqual({ status: "confirmed" });
+
+    // The window is a setting.
+    await store("auth.reauthMinutes", 60);
+    expect(
+      await reauthenticate(undefined, user, device.headers, after(74)),
+    ).toEqual({ status: "confirmed" });
+    await store("auth.reauthMinutes", 15);
+  });
+
+  it("counts a wrong password toward the lockout, which ends every session", async () => {
+    const { userId, email } = await person();
+    const device = await signedInDevice(email);
+    const user = { userId, sessionId: device.sessionId, collegeId };
+    const later = new Date(
+      (await passwordEnteredAt(device.sessionId)).getTime() + 20 * MINUTE_MS,
+    );
+
+    for (let count = 0; count < 4; count++) {
+      expect(
+        await reauthenticate("wrong-password", user, device.headers, later),
+      ).toEqual({ status: "wrongPassword" });
+    }
+    expect(
+      await reauthenticate("wrong-password", user, device.headers, later),
+    ).toEqual({ status: "locked", minutes: 15 });
+    expect(
+      await query("select id from sessions where user_id = $1", [userId]),
+    ).toEqual([]);
   });
 });

@@ -53,16 +53,18 @@ export const signedInAction = actionClient.use(async ({ next }) => {
 });
 
 // Everything else: a viewer with nothing pending, holding the action's permission in their college.
+// An action whose permission depends on its input, such as the setting it changes, names none in
+// its metadata and calls ctx.requirePermission, which refuses it the same way.
 export const viewerAction = actionClient.use(async ({ next, metadata }) => {
   const viewer = await getViewer();
   if (!viewer || viewer.mustChangePassword || viewer.needsTwoFactorSetup) {
     throw new RefusedError("signedOut");
   }
-  if (
-    metadata.permission &&
-    !authorize(viewer, metadata.permission, { collegeId: viewer.collegeId })
-  ) {
-    throw new RefusedError("forbidden");
-  }
-  return next({ ctx: { viewer } });
+  const requirePermission = (permission: PermissionKey) => {
+    if (!authorize(viewer, permission, { collegeId: viewer.collegeId })) {
+      throw new RefusedError("forbidden");
+    }
+  };
+  if (metadata.permission) requirePermission(metadata.permission);
+  return next({ ctx: { viewer, requirePermission } });
 });

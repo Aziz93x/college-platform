@@ -5,6 +5,8 @@ export {
   type NewAccount,
   resetPassword,
 } from "./server/password.ts";
+export { reauthenticate } from "./server/reauthenticate.ts";
+export { requestMeta } from "./server/request.ts";
 export { twoFactors, users } from "./server/schema.ts";
 export { getSessionUser, type SessionUser } from "./server/session-user.ts";
 export { type SignInInput, signIn } from "./server/sign-in.ts";

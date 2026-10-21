@@ -22,6 +22,7 @@ export default defineConfig({
     "auth.spec.ts",
     "health.spec.ts",
     "security.spec.ts",
+    "settings.spec.ts",
     "shell.spec.ts",
     "stack.smoke.ts",
   ],

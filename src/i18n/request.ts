@@ -1,13 +1,13 @@
 import { getRequestConfig } from "next-intl/server";
 import { loadCollegeLocale } from "./locale.ts";
 
-// next-intl's per-request configuration; the language and the time zone are college settings, not
-// part of the URL.
+// next-intl's per-request configuration; the language, the digits and the time zone are college
+// settings, not part of the URL.
 export default getRequestConfig(async () => {
-  const { lang: locale, timeZone } = await loadCollegeLocale();
+  const { lang, locale, timeZone } = await loadCollegeLocale();
   return {
     locale,
     timeZone,
-    messages: (await import(`../../messages/${locale}.json`)).default,
+    messages: (await import(`../../messages/${lang}.json`)).default,
   };
 });

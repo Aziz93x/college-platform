@@ -13,8 +13,11 @@ import {
   verifySignInCode,
 } from "@/modules/identity";
 import { getSetting } from "@/modules/settings";
-import { latinDigits } from "@/platform/validation/digits";
-import { checkboxField, formFields } from "@/platform/validation/form";
+import {
+  checkboxField,
+  formFields,
+  latinDigits,
+} from "@/platform/validation/form";
 
 // The forms on the sign-in pages post here, before their JavaScript has loaded as well as after.
 // Signing in and its second step are open to anyone; the rest needs a session, even one that still

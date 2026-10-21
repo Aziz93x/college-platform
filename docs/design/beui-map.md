@@ -40,6 +40,23 @@ code with its first real use and a test of that use.
 
 BeUI's one-time-code input was weighed for the admins' code and not adopted: the input above with `autocomplete="one-time-code"` takes a pasted or filled code as well, needs no words of its own for screen readers, and posts with the form before the JavaScript loads.
 
+## Adopted in Step 7 (the settings screen)
+
+| Component | Real use |
+| --- | --- |
+| Motion: switch | Yes-or-no settings: the pilot banner, the logo on the login page, Hijri display, the reminder rules |
+| Motion: select | Choice settings: the language, the first day of the week, the digits, the digest's day |
+| Motion: tabs | The settings groups, kept in the address; the list scrolls with arrows on a phone |
+| Motion: adaptive stepper | Bounded counts (100 steps or fewer): password length, lockout threshold, session hours, remembered-device days, the weekly review cap, the file size, the digest's hour |
+| Motion: range slider | The review sample rate, a percentage |
+| Motion: action swap | Each setting's "Save", which turns into "Saving" and "Saved", and into "Confirm" when the password is asked for |
+
+A wider count (minutes from 1 to 1,440) is typed in the motion input, with its unit under it.
+
+BeUI's popover was weighed for the settings' descriptions and not adopted: a description shows under
+its label, where it reads without a tap and stays visible while the value is chosen. The popover
+joins with a later screen that has a real use for it.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
@@ -51,7 +68,8 @@ Where a BeUI piece serves a job, it is the component for that job everywhere; th
 | Command palette | Blocks: command palette | `ui/command`, and cmdk |
 | Sheet and drawer | Motion: bottom sheet | `ui/sheet`, `ui/drawer`, and vaul |
 | The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
-| Yes or no, a choice, groups, a description | Motion: switch, select, tabs, popover (Step 7) | `ui/switch`, `ui/select`, `ui/tabs`, `ui/popover`, once Step 7 adopts them |
+| Yes or no, a choice, groups | Motion: switch, select, tabs (Step 7) | `ui/switch`, `ui/select`, `ui/tabs` |
+| A count, a percentage | Motion: adaptive stepper, range slider (Step 7) | none |
 
 The toast stays Sonner until the same review decides on BeUI's animated toast stack (docs/BACKLOG.md).
 
@@ -59,13 +77,6 @@ The toast stays Sonner until the same review decides on BeUI's animated toast st
 
 | Step | Component | Real use |
 | --- | --- | --- |
-| 7 | Motion: switch | Yes-or-no settings: Hijri display, logo on the login page, email delivery |
-| 7 | Motion: select | Choice settings: language, first day of the week, digits |
-| 7 | Motion: range slider | Percentages: the review sample rate |
-| 7 | Motion: adaptive stepper | Bounded counts: lockout threshold, remembered-device days, weekly review cap |
-| 7 | Motion: popover | Each setting's description, from a help control beside its label |
-| 7 | Motion: tabs | The settings groups |
-| 7 | Motion: action swap | "Save" that turns into "Saved"; "Reset to default" |
 | 8 | Motion: table | Departments, then people (10), sections (17) and the audit log (11): sorting, selection, a sticky header, virtualized rows |
 | 8 | Motion: breadcrumb | The page header's trail from the first page below another (Departments › a department) |
 | 8 | Motion: animated badge | A department's active or inactive state; later account (10), readiness (22) and task (26) states |

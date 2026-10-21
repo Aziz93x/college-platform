@@ -8,6 +8,7 @@ import {
   demoAccounts,
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
+import { demoSettings } from "../../db/seed/demo/settings.ts";
 import {
   createTestDatabase,
   runScript,
@@ -61,7 +62,11 @@ it("gives db:seed's college the demo values and settings, then a second run chan
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
   expect(
     (await pool.query("select key, value from settings order by key")).rows,
-  ).toEqual([{ key: "locale.language", value: "ar" }]);
+  ).toEqual(
+    Object.entries(demoSettings)
+      .sort(([a], [b]) => a.localeCompare(b, "en"))
+      .map(([key, value]) => ({ key, value })),
+  );
 });
 
 it("adds the demo accounts: an admin with the system role and two-factor, a trainer and an invited trainer", async () => {

@@ -11,11 +11,14 @@ export async function seriousViolations(
   // Only once React has hydrated the page: rewritten before, the server's text no longer matches,
   // and React renders the page again with its Arabic. React hydrates each streamed Suspense boundary
   // in a later pass, so wait until it owns every element of main (its __reactFiber$ key), but for
-  // the hidden fields its server adds to a form that posts to a server action.
+  // the hidden fields its server adds to a form that posts to a server action, and the insides of
+  // a drawing, which a component may draw itself (the stepper's liquid shapes).
   await settled(page);
   await page.waitForFunction(() => {
     const elements = [
-      ...document.querySelectorAll('main, main *:not(input[type="hidden"])'),
+      ...document.querySelectorAll(
+        'main, main *:not(input[type="hidden"], svg *)',
+      ),
     ];
     return (
       elements.length > 0 &&

@@ -4,7 +4,7 @@ import { createFirstAdmin } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
 import { parseEnv } from "../src/platform/config/env.ts";
 import { createDb } from "../src/platform/db/client.ts";
-import { latinDigits } from "../src/platform/validation/digits.ts";
+import { latinDigits } from "../src/platform/validation/form.ts";
 
 // pnpm admin:create --name "<full name>" --email <email> --employee-number <number>
 // Creates the college's first admin and prints their temporary password, once. Refuses once the

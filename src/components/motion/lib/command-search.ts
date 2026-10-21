@@ -4,14 +4,26 @@ type SearchableCommand = {
   keywords?: string[];
 };
 
-function normalize(value: string) {
+// Arabic words that differ only in how they are written match: the definite article (al-) before
+// a word, taa marbuta written as haa, alef maqsura as yaa. NFKD has already taken the hamza off
+// an alef. Escapes, because check:hardcode rejects Arabic script in src/.
+function arabicForms(value: string) {
   return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
+    .replace(/(^| )\u0627\u0644(?=\p{L}{2})/gu, "$1")
+    .replace(/\u0629/g, "\u0647")
+    .replace(/\u0649/g, "\u064A");
+}
+
+function normalize(value: string) {
+  return arabicForms(
+    value
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim(),
+  );
 }
 
 function tokenScore(token: string, field: string) {

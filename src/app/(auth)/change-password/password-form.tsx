@@ -24,7 +24,7 @@ export function PasswordForm({
   const missing = state.validationErrors;
   const destination = status === "changed" ? "/today" : undefined;
   useLeaveTo(destination);
-  const length = { minLength, count: String(minLength) };
+  const length = { minLength };
   // Too many wrong current passwords: the account is locked and signed out everywhere.
   const locked = state.data?.status === "locked" ? state.data : undefined;
 
@@ -44,10 +44,7 @@ export function PasswordForm({
         title={locked ? signIn("locked.title") : undefined}
         description={
           locked
-            ? signIn("locked.description", {
-                minutes: locked.minutes,
-                count: String(locked.minutes),
-              })
+            ? signIn("locked.description", { minutes: locked.minutes })
             : state.serverError
               ? actions(state.serverError)
               : undefined

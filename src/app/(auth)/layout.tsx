@@ -1,10 +1,11 @@
 import Image from "next/image";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, getTranslations } from "next-intl/server";
+import { getMessages } from "next-intl/server";
 import type { ReactNode } from "react";
 import { IdentityArt } from "@/components/identity-art";
 import { TextReveal } from "@/components/motion/text-reveal";
+import { platformName } from "@/i18n/platform-name";
 import { findCollege } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 
@@ -21,10 +22,9 @@ export default async function AuthLayout({
   await connection();
   const college = await findCollege();
   const scope = college ? { collegeId: college.id } : undefined;
-  const [platformName, showLogo, t, { ui, auth, actions }] = await Promise.all([
-    scope ? getSetting("platform.name", scope) : null,
+  const [name, showLogo, { ui, auth, actions }] = await Promise.all([
+    platformName(),
     scope ? getSetting("login.showLogo", scope) : false,
-    getTranslations("platform"),
     getMessages(),
   ]);
 
@@ -60,7 +60,7 @@ export default async function AuthLayout({
         ) : null}
         <TextReveal
           as="h1"
-          text={platformName ?? t("name")}
+          text={name}
           className="max-w-md text-balance text-2xl lg:text-3xl"
         />
         {college ? (
