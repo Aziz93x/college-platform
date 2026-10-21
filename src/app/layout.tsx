@@ -1,11 +1,10 @@
 import "./globals.css";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { getLocale, getMessages } from "next-intl/server";
 import { Direction } from "radix-ui";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { PilotBanner } from "@/components/pilot-banner";
-import { Toaster } from "@/components/ui/sonner";
 import { documentLocale } from "@/platform/i18n/language";
 import { identityFont } from "@/styles/fonts";
 
@@ -17,7 +16,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The setting lives in the database, which next build does not reach.
   await connection();
   const { lang, dir } = documentLocale(await getLocale());
-  const t = await getTranslations("toast");
   // Client components get only the namespaces they read, so a route's payload does not carry the
   // whole catalog; a route that needs more adds its own provider (src/app/design/page.tsx).
   const { ui } = await getMessages();
@@ -34,7 +32,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <PilotBanner />
               {children}
             </MotionProvider>
-            <Toaster dir={dir} containerAriaLabel={t("region")} />
           </Direction.Provider>
         </NextIntlClientProvider>
       </body>

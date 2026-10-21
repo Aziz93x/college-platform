@@ -38,6 +38,12 @@
             "maxNumericValue": 2000,
             "aggregationMethod": "optimistic"
           }
+        ],
+        "resource-summary:script:size": [
+          "warn",
+          {
+            "maxNumericValue": 174080
+          }
         ]
       }
     },
