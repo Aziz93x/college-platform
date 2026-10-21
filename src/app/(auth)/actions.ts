@@ -22,8 +22,9 @@ import { checkboxField, formFields } from "@/platform/validation/form";
 // forms load the next page from scratch themselves (useLeaveTo), so nothing typed or shown here
 // stays in the browser's memory.
 
-// Better Auth's longest password; a longer field is refused before it is hashed.
-const password = z.string().min(1).max(128);
+// Better Auth's longest password; a longer field is refused before it is hashed. Its digits are read
+// as Latin, as in every field, so a password set on an Arabic keyboard works on a Latin one.
+const password = latinDigits(z.string().min(1).max(128));
 
 export const signInAction = publicAction
   .metadata({ name: "signIn" })
@@ -86,7 +87,7 @@ export const changePasswordAction = signedInAction
         .object({
           currentPassword: password,
           newPassword: password,
-          confirmPassword: z.string(),
+          confirmPassword: latinDigits(z.string().max(128)),
         })
         .refine((input) => input.newPassword === input.confirmPassword, {
           path: ["confirmPassword"],

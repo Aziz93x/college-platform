@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { confirmTwoFactorSetupAction, verifyCodeAction } from "./actions.ts";
+import {
+  changePasswordAction,
+  confirmTwoFactorSetupAction,
+  signInAction,
+  startTwoFactorSetupAction,
+  verifyCodeAction,
+} from "./actions.ts";
 
-// The services the code fields reach, so the test sees what each action hands them.
+// The services the fields reach, so the test sees what each action hands them.
 const identity = vi.hoisted(() => ({
+  signIn: vi.fn(async () => ({ status: "signedIn" as const })),
+  startTwoFactorSetup: vi.fn(async () => ({
+    status: "wrongPassword" as const,
+  })),
+  changePassword: vi.fn(async () => ({ status: "changed" as const })),
   verifySignInCode: vi.fn(async () => ({ status: "signedIn" as const })),
   confirmTwoFactorSetup: vi.fn(async () => ({ status: "enabled" as const })),
   getSessionUser: async () => ({
@@ -13,10 +24,13 @@ const identity = vi.hoisted(() => ({
 }));
 vi.mock("@/modules/identity", () => identity);
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/modules/settings", () => ({ getSetting: async () => null }));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
+}));
 
 beforeEach(() => {
-  identity.verifySignInCode.mockClear();
-  identity.confirmTwoFactorSetup.mockClear();
+  vi.clearAllMocks();
 });
 
 const form = (fields: Record<string, string>) => {
@@ -36,6 +50,44 @@ describe("the two-factor code fields", () => {
     await confirmTwoFactorSetupAction({}, form({ code: "۱۲۳۴۵۶" }));
     expect(identity.confirmTwoFactorSetup).toHaveBeenCalledWith(
       "123456",
+      expect.objectContaining({ userId: "user-a" }),
+      expect.any(Headers),
+    );
+  });
+});
+
+describe("the password fields", () => {
+  it("read Arabic-Indic digits as Latin, so a password set on one keyboard works on the other", async () => {
+    await signInAction(
+      {},
+      form({ identifier: "200001", password: "oasis-٢٠٢٦" }),
+    );
+    expect(identity.signIn).toHaveBeenCalledWith(
+      { identifier: "200001", password: "oasis-2026", remember: false },
+      expect.any(Headers),
+    );
+
+    await startTwoFactorSetupAction({}, form({ password: "oasis-٢٠٢٦" }));
+    expect(identity.startTwoFactorSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ password: "oasis-2026" }),
+      expect.objectContaining({ userId: "user-a" }),
+      expect.any(Headers),
+    );
+
+    // The confirmation is read the same way, so it matches the new password whichever digits it has.
+    await changePasswordAction(
+      {},
+      form({
+        currentPassword: "oasis-۲۰۲۶",
+        newPassword: "new-oasis-٢٠٢٧",
+        confirmPassword: "new-oasis-2027",
+      }),
+    );
+    expect(identity.changePassword).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPassword: "oasis-2026",
+        newPassword: "new-oasis-2027",
+      }),
       expect.objectContaining({ userId: "user-a" }),
       expect.any(Headers),
     );
