@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
 import { getSetting } from "../../src/modules/settings/index.ts";
+import { logger } from "../../src/platform/logging/logger.ts";
 import { createTestDatabase } from "./support/database.ts";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
@@ -46,12 +47,18 @@ it("returns the stored value once one exists", async () => {
   await expect(timeZone()).resolves.toBe("Asia/Dubai");
 });
 
-it("throws, naming the key, when the stored value fails the schema", async () => {
+// One bad row, such as one a later step's stricter schema refuses, must not take down every page.
+it("falls back to the default when the stored value fails the schema, and logs the key, never the value", async () => {
+  const logged = vi.spyOn(logger, "error").mockImplementation(() => {});
   await store(collegeId, "locale.timeZone", "Mars/Olympus");
 
-  await expect(timeZone()).rejects.toThrow(
-    "Invalid stored value for setting locale.timeZone",
+  await expect(timeZone()).resolves.toBe("Asia/Riyadh");
+  expect(logged).toHaveBeenCalledWith(
+    expect.objectContaining({ setting: "locale.timeZone" }),
+    expect.any(String),
   );
+  expect(JSON.stringify(logged.mock.calls)).not.toContain("Mars/Olympus");
+  logged.mockRestore();
 });
 
 // "ar" is the only language with a catalog so far, so the stored value equals the default;
@@ -59,14 +66,16 @@ it("throws, naming the key, when the stored value fails the schema", async () =>
 const language = () =>
   getSetting("locale.language", { collegeId }, database.db);
 
-it("returns the default language, then the stored one, and throws on a language the schema refuses", async () => {
+it("returns the default language, then the stored one, and the default again for a language the schema refuses", async () => {
+  const logged = vi.spyOn(logger, "error").mockImplementation(() => {});
   await expect(language()).resolves.toBe("ar");
 
   await store(collegeId, "locale.language", "ar");
   await expect(language()).resolves.toBe("ar");
+  expect(logged).not.toHaveBeenCalled();
 
   await store(collegeId, "locale.language", "xx");
-  await expect(language()).rejects.toThrow(
-    "Invalid stored value for setting locale.language",
-  );
+  await expect(language()).resolves.toBe("ar");
+  expect(logged).toHaveBeenCalledOnce();
+  logged.mockRestore();
 });

@@ -18,7 +18,7 @@ next-intl's request config (`src/i18n/request.ts`) reads the deployment's colleg
 
 - No route gets a static shell. Every page, the not-found page included, waits for two database round trips before its first byte. This bears on Step 5's Lighthouse performance target (95 or more) and on Step 6's LCP under 2.0 s on 4G.
 - `instant = false` on the root layout turns off Next's instant-navigation validation for the whole app; Next's documentation places it as low in the tree as possible.
-- Every page depends on the database. With PostgreSQL down, or with a stored `locale.language` that fails its schema (`getSetting` throws), every route fails in the root layout, not only `/readyz`. A segment `error.tsx` cannot catch an error thrown by the root layout; only `src/app/global-error.tsx` can. None exists yet, so users would see Next's built-in English error page. Step 5's `global-error.tsx` must render without the database: its own `<html lang dir>` from the registered default language, and its messages imported statically.
+- Every page depends on the database. With PostgreSQL down, every route fails in the root layout, not only `/readyz`. A stored value that fails its schema no longer does: since lead review A, `getSetting` gives the default and logs the key. A segment `error.tsx` cannot catch an error thrown by the root layout; only `src/app/global-error.tsx` can. None exists yet, so users would see Next's built-in English error page. Step 5's `global-error.tsx` must render without the database: its own `<html lang dir>` from the registered default language, and its messages imported statically.
 - `next build` reads neither the environment nor the database; CI builds with them empty, as the Docker build does.
 
 ## Alternative
