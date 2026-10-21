@@ -722,6 +722,40 @@ describe("two-factor", () => {
       { diff: { twoFactor: "backupCode" } },
     ]);
   });
+
+  // Better Auth takes five codes per password step and locks after ten wrong ones in a row (Audit 2).
+  it("locks after ten wrong codes in a row, and records the lock once, as the system", async () => {
+    const { userId, email, key } = await withTwoFactor();
+    const right = totp(key);
+    const wrong = `${right.slice(0, -1)}${(Number(right.at(-1)) + 5) % 10}`;
+    for (const _challenge of [1, 2]) {
+      const headers = await passwordStep(email, false);
+      for (let code = 0; code < 5; code++) {
+        expect(
+          await verifySignInCode({ code: wrong, backup: false }, headers),
+        ).toEqual({ status: "invalid" });
+      }
+    }
+    for (const _again of [1, 2]) {
+      expect(
+        await verifySignInCode(
+          { code: totp(key), backup: false },
+          await passwordStep(email, false),
+        ),
+      ).toEqual({ status: "locked" });
+    }
+
+    const locks = await query(
+      "select actor_id, diff from audit_events where entity_id = $1 and action = 'account.lockTwoFactor'",
+      [userId],
+    );
+    expect(locks).toEqual([
+      {
+        actor_id: null,
+        diff: { lockedUntil: expect.stringMatching(/^\d{4}-.+Z$/) },
+      },
+    ]);
+  });
 });
 
 describe("signOut", () => {

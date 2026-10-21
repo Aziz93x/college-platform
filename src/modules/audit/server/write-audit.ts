@@ -1,4 +1,5 @@
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import type { AuditAction, AuditEntity } from "../domain/actions.ts";
 import { auditEvents } from "./schema.ts";
 
 type AuditEvent = {
@@ -6,8 +7,8 @@ type AuditEvent = {
   // Null when the system acted rather than a person.
   actorId: string | null;
   // What happened, as entity.verb: "account.resetPassword".
-  action: string;
-  entityType: string;
+  action: AuditAction;
+  entityType: AuditEntity;
   entityId: string;
   // What changed, never a secret: no password, hash, token or two-factor secret.
   diff?: Record<string, unknown>;

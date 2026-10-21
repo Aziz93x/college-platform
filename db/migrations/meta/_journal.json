@@ -71,6 +71,13 @@
       "when": 1792600365693,
       "tag": "0009_people_and_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792607103186,
+      "tag": "0010_audit_paging_and_retention",
+      "breakpoints": true
     }
   ]
 }

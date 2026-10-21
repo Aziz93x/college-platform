@@ -51,6 +51,7 @@ export type SettingUnit =
   | "minutes"
   | "hours"
   | "days"
+  | "months"
   | "megabytes"
   | "percent"
   | "items"
@@ -153,6 +154,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(8).max(64),
     default: 10,
     unit: "characters",
@@ -163,6 +165,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(3).max(20),
     default: 5,
     unit: "attempts",
@@ -171,6 +174,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(1).max(1440),
     default: 15,
     unit: "minutes",
@@ -181,6 +185,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(5).max(100),
     default: 10,
     unit: "attempts",
@@ -189,6 +194,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(1).max(1440),
     default: 15,
     unit: "minutes",
@@ -199,6 +205,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(5).max(1440),
     default: 60,
     unit: "minutes",
@@ -207,6 +214,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(1).max(24),
     default: 12,
     unit: "hours",
@@ -216,6 +224,7 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(1).max(REMEMBERED_DEVICE_DAYS_MAX),
     default: 30,
     unit: "days",
@@ -226,9 +235,22 @@ export const settingsRegistry = {
     scope: "college",
     group: "security",
     permission: MANAGE,
+    reauth: true,
     schema: z.int().min(1).max(120),
     default: 15,
     unit: "minutes",
+  },
+  // How long the audit log keeps an event before the daily purge removes it. The database keeps at
+  // least 12 months whatever this says (migration 0010); the default waits for the data
+  // classification the General Administration approves (ADR-0008).
+  "audit.retentionMonths": {
+    scope: "college",
+    group: "security",
+    permission: MANAGE,
+    reauth: true,
+    schema: z.int().min(12).max(120),
+    default: 60,
+    unit: "months",
   },
   // The largest evidence file, and the extensions a file may have (Step 25 checks its contents too).
   "files.maxSizeMb": {
@@ -314,6 +336,8 @@ export const settingsRegistry = {
     schema: z.ZodType;
     default: unknown;
     unit?: SettingUnit;
+    // Changing it asks for the password again (auth.reauthMinutes).
+    reauth?: true;
   }
 >;
 
@@ -327,8 +351,8 @@ export function isSettingKey(value: string): value is SettingKey {
   return Object.hasOwn(settingsRegistry, value);
 }
 
-// A security setting decides who gets in and for how long, so changing one asks for the password
-// again (auth.reauthMinutes).
+// A setting that decides who gets in and for how long, or how long history is kept, asks for the
+// password again when it changes (auth.reauthMinutes).
 export function needsPassword(key: SettingKey) {
-  return settingsRegistry[key].group === "security";
+  return "reauth" in settingsRegistry[key];
 }
