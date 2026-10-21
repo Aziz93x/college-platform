@@ -39,7 +39,7 @@ test("each page's scripts run under a Content Security Policy with that page's o
     expect(nonce).toBeDefined();
     // Next.js puts the nonce on every script it renders.
     const html = await page.text();
-    const scripts = html.match(/<script\b[^>]*>/g) ?? [];
+    const scripts = html.match(/<script\b[^>]*>/gi) ?? [];
     expect(scripts.length).toBeGreaterThan(0);
     for (const tag of scripts) expect(tag).toContain(`nonce="${nonce}"`);
     nonces.push(nonce);
