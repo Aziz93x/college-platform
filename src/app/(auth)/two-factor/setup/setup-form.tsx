@@ -47,10 +47,7 @@ export function SetupForm() {
           title={locked ? signIn("locked.title") : undefined}
           description={
             locked
-              ? signIn("locked.description", {
-                  minutes: locked.minutes,
-                  count: String(locked.minutes),
-                })
+              ? signIn("locked.description", { minutes: locked.minutes })
               : started.serverError
                 ? actions(started.serverError)
                 : undefined

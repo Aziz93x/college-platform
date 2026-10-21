@@ -51,6 +51,11 @@ export const sessions = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // When the password was last typed on this session: at sign-in, which creates the row, and at
+    // each re-authentication before a sensitive change (reauthenticate.ts).
+    passwordEnteredAt: timestamp("password_entered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

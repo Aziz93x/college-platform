@@ -1,16 +1,25 @@
 import "./globals.css";
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { Direction } from "radix-ui";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { PilotBanner } from "@/components/pilot-banner";
+import { platformName } from "@/i18n/platform-name";
 import { documentLocale } from "@/platform/i18n/language";
 import { identityFont } from "@/styles/fonts";
 
 // <html lang dir> comes from a setting read per request and cannot wait behind a Suspense
 // boundary, so no route gets a static shell (docs/ADR/0007-locale-read-per-request.md).
 export const instant = false;
+
+// Every page's title names the page, then the platform.
+export async function generateMetadata(): Promise<Metadata> {
+  await connection();
+  const name = await platformName();
+  return { title: { template: `%s · ${name}`, default: name } };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The setting lives in the database, which next build does not reach.

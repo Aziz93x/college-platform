@@ -35,7 +35,6 @@ export function SignInForm({ rememberDays }: { rememberDays: number }) {
             title: t(`${result.status}.title`),
             description: t(`${result.status}.description`, {
               minutes: result.minutes,
-              count: String(result.minutes),
             }),
           }
         : state.serverError
@@ -90,10 +89,7 @@ export function SignInForm({ rememberDays }: { rememberDays: number }) {
         checked={remember}
         onCheckedChange={setRemember}
         label={t("remember")}
-        description={t("rememberHint", {
-          days: rememberDays,
-          count: String(rememberDays),
-        })}
+        description={t("rememberHint", { days: rememberDays })}
       />
       <SubmitButton
         pending={pending || destination !== undefined}

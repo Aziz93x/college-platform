@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
+import {
+  getFormatter,
+  getLocale,
+  getTimeZone,
+  getTranslations,
+} from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { findCollege } from "@/modules/org";
+import { getSetting } from "@/modules/settings";
 import { greetingPeriod } from "./greeting.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,22 +23,39 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TodayPage() {
   // The greeting and the date are the request's, never a build's.
   await connection();
-  const [t, format, timeZone] = await Promise.all([
+  const college = await findCollege();
+  const [t, format, locale, timeZone, hijri] = await Promise.all([
     getTranslations("today"),
     getFormatter(),
+    getLocale(),
     getTimeZone(),
+    college ? getSetting("locale.hijri", { collegeId: college.id }) : false,
   ]);
   const now = new Date();
+  // Arabic month names on the Gregorian calendar, in the college's digits (docs/PLAN.md section 4),
+  // and the Umm al-Qura date beside it where the locale.hijri setting asks.
+  const gregorian = format.dateTime(now, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    calendar: "gregory",
+  });
+  const date = hijri
+    ? t("withHijri", {
+        gregorian,
+        // next-intl's formatter does not take this calendar; Intl does, with the same locale.
+        hijri: new Intl.DateTimeFormat(locale, {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          calendar: "islamic-umalqura",
+          timeZone,
+        }).format(now),
+      })
+    : gregorian;
   const eyebrow = t("eyebrow", {
     greeting: t(`greeting.${greetingPeriod(now, timeZone)}`),
-    // Latin digits with Arabic month names on the Gregorian calendar (docs/PLAN.md section 4).
-    date: format.dateTime(now, {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      calendar: "gregory",
-      numberingSystem: "latn",
-    }),
+    date,
   });
   return (
     <>
