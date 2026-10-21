@@ -39,17 +39,18 @@ export async function signedIn(
 
 // A change to someone's account or access asks for the password again once it was typed too long
 // ago, which another test may have made it on purpose: type it when asked, then wait for what the
-// change shows.
+// change shows, up to `timeout` for a change that may wait its turn.
 export async function confirmIfAsked(
   page: Page,
   done: Locator,
   password: string,
+  timeout?: number,
 ) {
   const field = page.getByLabel(reauth.password, { exact: true });
-  await expect(done.or(field).first()).toBeVisible();
+  await expect(done.or(field).first()).toBeVisible({ timeout });
   if (await field.isVisible()) {
     await field.fill(password);
     await page.getByRole("button", { name: reauth.submit }).click();
   }
-  await expect(done).toBeVisible();
+  await expect(done).toBeVisible({ timeout });
 }

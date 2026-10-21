@@ -1,12 +1,7 @@
 "use client";
 
 import { MoreHorizontal, X } from "lucide-react";
-import {
-  AnimatePresence,
-  type Transition,
-  useReducedMotion,
-  type Variants,
-} from "motion/react";
+import { AnimatePresence, type Transition, type Variants } from "motion/react";
 import * as m from "motion/react-m";
 import {
   type ReactNode,
@@ -67,14 +62,15 @@ export function OverflowActions({
   openLabel,
   closeLabel,
 }: OverflowActionsProps) {
-  const reduce = useReducedMotion();
+  // No branch on reduced motion here: what renders must match the server's HTML, and the app's
+  // MotionConfig (reducedMotion "user") already drops the movement for those who ask.
   const canHover = useHoverCapable();
   const overflowId = useId();
   const overflowWrapperRef = useRef<HTMLDivElement>(null);
   const overflowWrapperLeftRef = useRef(0);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const transition = reduce ? { duration: 0 } : SHELL_TRANSITION;
+  const transition = SHELL_TRANSITION;
 
   useLayoutEffect(() => {
     const overflowNode = overflowWrapperRef.current;
@@ -122,7 +118,6 @@ export function OverflowActions({
                 <ActionButton
                   key={item.id}
                   item={item}
-                  reduce={reduce}
                   canHover={canHover}
                   visible={isExpanded}
                   onAction={handleAction}
@@ -141,8 +136,8 @@ export function OverflowActions({
           aria-label={isExpanded ? closeLabel : openLabel}
           title={isExpanded ? closeLabel : openLabel}
           onClick={() => setIsExpanded(!isExpanded)}
-          whileTap={reduce ? undefined : { scale: 0.96 }}
-          whileHover={reduce || !canHover ? undefined : { scale: 1.03 }}
+          whileTap={{ scale: 0.96 }}
+          whileHover={canHover ? { scale: 1.03 } : undefined}
           transition={transition}
           className={cn(
             "relative inline-grid size-11 shrink-0 place-items-center rounded-full outline-none transition-colors",
@@ -156,9 +151,9 @@ export function OverflowActions({
             <m.span
               key={isExpanded ? "close" : "open"}
               variants={ICON_VARIANTS}
-              initial={reduce ? { opacity: 0 } : "hidden"}
-              animate={reduce ? { opacity: 1 } : "visible"}
-              exit={reduce ? { opacity: 0 } : "exit"}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className="inline-grid place-items-center"
             >
               {isExpanded ? (
@@ -176,14 +171,12 @@ export function OverflowActions({
 
 function ActionButton({
   item,
-  reduce,
   canHover,
   visible,
   onAction,
   layoutTransition,
 }: {
   item: OverflowActionItem;
-  reduce: boolean | null;
   canHover: boolean;
   visible: boolean;
   onAction: (item: OverflowActionItem) => void;
@@ -193,11 +186,11 @@ function ActionButton({
     <m.span
       layout="position"
       variants={OVERFLOW_ACTION_VARIANTS}
-      initial={reduce ? { opacity: 0 } : "hidden"}
-      animate={reduce ? { opacity: 1 } : "visible"}
-      exit={reduce ? { opacity: 0 } : "exit"}
-      whileTap={reduce ? undefined : { scale: 0.97 }}
-      whileHover={reduce || !canHover ? undefined : { scale: 1.008 }}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      whileTap={{ scale: 0.97 }}
+      whileHover={canHover ? { scale: 1.008 } : undefined}
       transition={layoutTransition}
       className="inline-flex shrink-0"
     >

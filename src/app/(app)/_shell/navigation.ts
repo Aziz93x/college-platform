@@ -2,12 +2,22 @@ import {
   Building2,
   CalendarCheck,
   Contact,
+  History,
   type LucideIcon,
   Settings,
   UsersRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PermissionKey } from "@/modules/access";
+
+// The sidebar's groups of pages, each under its label nav.groups.<id>; a page in none stands above
+// them.
+const navigationGroups = ["administration"] as const;
+export type NavigationGroup = (typeof navigationGroups)[number];
+
+// The cookie that keeps the desktop sidebar open or on its icon rail ("collapsed"), so the server
+// draws it as the viewer left it.
+export const SIDEBAR_COOKIE = "sidebar";
 
 // A page of the app shell. Its label is the message nav.<id>. Its permission is a permission key,
 // or several of which the viewer holds any; an item without one is open to everyone who reaches
@@ -18,6 +28,7 @@ export type NavigationItem<Key extends string = PermissionKey> = {
   href: string;
   icon: LucideIcon;
   permission?: Key | readonly Key[];
+  group?: NavigationGroup;
 };
 
 // An item as the shell draws it: its label translated and its icon rendered on the server.
@@ -26,6 +37,7 @@ export type ShellLink = {
   href: string;
   label: string;
   icon: ReactNode;
+  group?: NavigationGroup;
 };
 
 // The shell's pages in their default order. A step that adds a page adds its item here.
@@ -36,12 +48,14 @@ export const navigation = [
     href: "/departments",
     icon: Building2,
     permission: "departments.manage",
+    group: "administration",
   },
   {
     id: "roles",
     href: "/roles",
     icon: UsersRound,
     permission: "roles.manage",
+    group: "administration",
   },
   {
     id: "people",
@@ -53,12 +67,21 @@ export const navigation = [
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
     ],
+    group: "administration",
   },
   {
     id: "settings",
     href: "/settings",
     icon: Settings,
     permission: "settings.manage",
+    group: "administration",
+  },
+  {
+    id: "audit",
+    href: "/audit",
+    icon: History,
+    permission: "audit.view",
+    group: "administration",
   },
 ] as const satisfies readonly NavigationItem[];
 

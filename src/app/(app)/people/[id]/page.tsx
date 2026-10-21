@@ -10,6 +10,9 @@ import { PageHeader } from "@/components/page-header";
 import { listDirectory, requireViewer } from "@/modules/access";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { HistoryPanel } from "../../audit/history-panel.tsx";
+import { auditHref } from "../../audit/href.ts";
+import { parseCursor } from "../../audit/query.ts";
 import { AccountActions } from "../account-actions.tsx";
 import { PersonForms } from "../person-forms.tsx";
 import { peopleScope } from "../scope.ts";
@@ -50,9 +53,11 @@ export async function generateMetadata({
 }
 
 // One person: their account and roles, and what the viewer may change of it: the name and email,
-// the employee number, a temporary password, and whether the account is disabled.
+// the employee number, a temporary password, and whether the account is disabled. Under it, for
+// whoever may read the log, what happened to the account and the roles it holds.
 export default async function PersonPage({
   params,
+  searchParams,
 }: PageProps<"/people/[id]">) {
   await connection();
   const { allowed, person } = await personFor((await params).id);
@@ -122,6 +127,17 @@ export default async function PersonPage({
         </section>
         <PersonForms person={person} />
       </div>
+      <HistoryPanel
+        subjects={[
+          { entityType: "user", entityId: person.userId },
+          { membershipsOf: "userId", value: person.userId },
+        ]}
+        // Their daily sign-ins would bury what changed; the log keeps them.
+        except={["session.signIn", "session.signOut"]}
+        logHref={auditHref("/audit", { q: person.employeeNumber })}
+        after={parseCursor((await searchParams).history)}
+        href={`/people/${person.userId}`}
+      />
     </NextIntlClientProvider>
   );
 }

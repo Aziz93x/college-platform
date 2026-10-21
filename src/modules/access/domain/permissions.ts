@@ -5,6 +5,8 @@
 const permissions = {
   // The token and component catalog at /design.
   "design.view": { area: "platform", requiresTwoFactor: false },
+  // The audit log: every change, who made it and from where, and its export (Step 11).
+  "audit.view": { area: "platform", requiresTwoFactor: true },
   // Change the platform's settings (src/modules/settings): the ones whose registry entry names it.
   "settings.manage": { area: "platform", requiresTwoFactor: true },
   // The college's own name and short name.

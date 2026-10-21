@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import writeXlsxFile from "write-excel-file/node";
-import { readTable } from "./table.ts";
+import { csvLines, readTable } from "./table.ts";
 
 const header = ["employee", "name"];
 
@@ -44,4 +44,17 @@ describe("readTable", () => {
     expect(await readTable({ name: "people.txt", bytes })).toBeUndefined();
     expect(await readTable({ name: "people.xlsx", bytes })).toBeUndefined();
   });
+});
+
+it("csvLines quotes what needs it and keeps formulas as text", () => {
+  expect(
+    csvLines([
+      ["a", "b,c"],
+      ['say "hi"', "=HYPERLINK(1)"],
+      ["-5", "line\nbreak"],
+    ]),
+  ).toBe(
+    'a,"b,c"\r\n"say ""hi""","\'=HYPERLINK(1)"\r\n"\'-5","line\nbreak"\r\n',
+  );
+  expect(csvLines([])).toBe("");
 });

@@ -9,8 +9,9 @@ const migrationsFolder = fileURLToPath(new URL("migrations", import.meta.url));
 
 // The role the app and the worker connect as, named by APP_DATABASE_URL. It neither owns the tables
 // nor is a superuser, so the audit log's triggers bind it (docs/PLAN.md, Step 41). It reads and
-// writes the rows of the platform's tables and of pg-boss's, those of later migrations included, and
-// changes no table, schema or trigger. Its password follows the URL on every run.
+// writes the rows of the platform's tables and of pg-boss's, those of later migrations included, but
+// for the audit log's, which it only adds to, and changes no table, schema or trigger. Its password
+// follows the URL on every run.
 export async function grantAppRole(ownerUrl: string, appUrl: string) {
   const app = new URL(appUrl);
   const client = new Client({ connectionString: ownerUrl });
@@ -41,6 +42,14 @@ export async function grantAppRole(ownerUrl: string, appUrl: string) {
         `alter default privileges in schema ${target} grant usage, select on sequences to ${name}`,
       );
     }
+    // History is append-only: the role adds and reads events, and removes old ones only through the
+    // retention purge, which keeps at least a year (migration 0010).
+    await client.query(
+      `revoke update, delete on public.audit_events from ${name}`,
+    );
+    await client.query(
+      `grant execute on function public.purge_audit_events(uuid, integer) to ${name}`,
+    );
   } finally {
     await client.end();
   }

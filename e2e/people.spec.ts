@@ -127,10 +127,12 @@ test(
       await page
         .getByRole("button", { name: t("import.confirm", { count: 40 }) })
         .click();
+      // Imports take the college's lock in turn, so this one may wait for another project's.
       await confirmIfAsked(
         page,
         page.getByRole("heading", { name: text.import.result.title }),
         demo.adminPassword,
+        30_000,
       );
       await expect(
         page.getByText(t("import.result.created", { count: 40 })),
@@ -227,10 +229,12 @@ test(
       await page
         .getByRole("button", { name: t("import.confirm", { count: 1 }) })
         .click();
+      // Imports take the college's lock in turn, so this one may wait for another project's.
       await confirmIfAsked(
         page,
         page.getByRole("heading", { name: text.import.result.title }),
         demo.adminPassword,
+        30_000,
       );
       await expect(
         page.getByText(t("import.result.skipped", { count: 2 })),

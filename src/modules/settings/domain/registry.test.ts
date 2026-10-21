@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { settingsRegistry } from "./registry.ts";
+import {
+  needsPassword,
+  type SettingKey,
+  settingsRegistry,
+} from "./registry.ts";
 
 it.each(
   Object.entries(settingsRegistry),
@@ -41,4 +45,18 @@ it.each([
   ["a page id that is not text", { trainer: [7] }],
 ])("rejects %s as a navigation order", (_name, value) => {
   expect(navigationOrder.safeParse(value).success).toBe(false);
+});
+
+// Who gets in and for how long, and how long history is kept (Audit 3).
+it("asks for the password again for the security settings and the audit log's retention only", () => {
+  const keys = Object.keys(settingsRegistry) as SettingKey[];
+  expect(keys.filter(needsPassword)).toEqual(
+    keys.filter(
+      (key) =>
+        settingsRegistry[key].group === "security" ||
+        key === "audit.retentionMonths",
+    ),
+  );
+  expect(needsPassword("audit.retentionMonths")).toBe(true);
+  expect(needsPassword("review.weeklyCap")).toBe(false);
 });

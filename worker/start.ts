@@ -1,5 +1,7 @@
 import { type Clock, PgBoss } from "pg-boss";
 import type { Logger } from "pino";
+import { createDb } from "../src/platform/db/client.ts";
+import { auditRetention } from "./jobs/audit-retention.ts";
 import { heartbeat } from "./jobs/heartbeat.ts";
 
 // Docker kills a container 10 s after SIGTERM, so active jobs get 8 s to finish.
@@ -30,10 +32,17 @@ export async function startWorker({
   await boss.createQueue("heartbeat");
   await boss.schedule("heartbeat", "* * * * *");
   await boss.work("heartbeat", heartbeat(logger));
+  // The jobs' own reads and writes go through a pool of their own.
+  const { db, pool } = createDb(databaseUrl);
+  // Each night, at an hour no one works, in UTC.
+  await boss.createQueue("audit-retention");
+  await boss.schedule("audit-retention", "17 0 * * *");
+  await boss.work("audit-retention", auditRetention(logger, db));
   return {
     boss,
     stop: async () => {
       await boss.stop({ graceful: true, timeout: STOP_TIMEOUT_MS });
+      await pool.end();
       logger.info("worker stopped");
     },
   };

@@ -17,12 +17,17 @@ export default defineConfig({
       },
       {
         // Real PostgreSQL through Testcontainers, so it needs Docker; each file gets its own database.
+        // The server actions it runs import through the @/ alias too.
+        resolve: { tsconfigPaths: true },
         test: {
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
           globalSetup: ["tests/integration/global-setup.ts"],
           testTimeout: 60_000,
           hookTimeout: 120_000,
+          // Better Auth sets its cookies through next/headers; run through Vitest, it reaches a
+          // test's stand-in for it, as a server action's request in the app.
+          server: { deps: { inline: ["better-auth"] } },
         },
       },
     ],

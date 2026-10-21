@@ -58,10 +58,10 @@ it("reads and writes the platform's rows", async () => {
   expect(rows).toEqual([{ action: "college.create" }]);
 });
 
-it("is bound by the audit log's triggers, which it cannot switch off", async () => {
+it("cannot change the audit log or switch its triggers off", async () => {
   await expect(
     app.query("update audit_events set action = 'college.delete'"),
-  ).rejects.toThrow("audit_events is append-only");
+  ).rejects.toThrow("permission denied for table audit_events");
   await expect(
     app.query(
       "alter table audit_events disable trigger audit_events_no_update_or_delete",
@@ -70,6 +70,23 @@ it("is bound by the audit log's triggers, which it cannot switch off", async () 
   await expect(app.query("truncate audit_events")).rejects.toThrow(
     "permission denied",
   );
+});
+
+it("adds to the audit log and never removes from it, even with the purge's own variable set", async () => {
+  for (const statement of [
+    "delete from audit_events",
+    "update audit_events set action = 'college.delete'",
+  ]) {
+    const client = await app.connect();
+    try {
+      await client.query("set audit.purging = 'on'");
+      await expect(client.query(statement)).rejects.toThrow(
+        "permission denied for table audit_events",
+      );
+    } finally {
+      client.release();
+    }
+  }
 });
 
 it("is no superuser and creates no table", async () => {
