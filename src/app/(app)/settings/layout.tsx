@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,6 +11,8 @@ export default async function SettingsLayout({
 }: {
   children: ReactNode;
 }) {
+  // The locale is a college setting in the database, which next build does not reach.
+  await connection();
   const [locale, t] = await Promise.all([
     getLocale(),
     getTranslations("toast"),
