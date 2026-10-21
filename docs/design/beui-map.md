@@ -27,16 +27,23 @@ code with its first real use and a test of that use.
 | Motion: shared-layout-bg | The desktop sidebar: the pill that follows the pointer and the keyboard |
 | Motion: bottom sheet | The phone's "More" sheet, beyond five pages (and the design catalog) |
 
+## Adopted in Step 6 (sign-in)
+
+| Component | Real use |
+| --- | --- |
+| Motion: input | Every field on the login, code, setup and password pages: label, a stable message line, a shake when an error appears |
+| Motion: checkbox | "Remember this device", posting with the form through a hidden field |
+| Motion: alert | Refusals (a wrong password, the lockout, a wrong code), announced at once, and the pilot banner above every page, announced politely |
+| Motion: loader | Each form's button while its action runs (the spinner, as CSS) |
+| Motion: text animation (reveal) | The platform and college names over the login page's identity art, word by word (as CSS, so they paint with the HTML) |
+| Blocks: bloom menu | The account menu in the header: the initials open into the name, the email, "change password" and "sign out". Step 10 adds the profile |
+
+BeUI's one-time-code input was weighed for the admins' code and not adopted: the input above with `autocomplete="one-time-code"` takes a pasted or filled code as well, needs no words of its own for screen readers, and posts with the form before the JavaScript loads.
+
 ## The rest, by the step that first uses each one
 
 | Step | Component | Real use |
 | --- | --- | --- |
-| 6 | Motion: input | Employee number or email and password on the login page: label, stable error row, error shake |
-| 6 | Motion: checkbox | "Remember this device" |
-| 6 | Motion: alert | Sign-in errors and the lockout (announced at once), and the pilot banner (announced politely) |
-| 6 | Motion: loader | The sign-in button while it signs in |
-| 6 | Motion: text animation (reveal) | The platform and college names over the login page's identity art |
-| 6 | Blocks: bloom menu | The avatar menu in the header: profile, change password, sign out |
 | 7 | Motion: switch | Yes-or-no settings: Hijri display, logo on the login page, email delivery |
 | 7 | Motion: select | Choice settings: language, first day of the week, digits |
 | 7 | Motion: range slider | Percentages: the review sample rate |
@@ -69,6 +76,5 @@ code with its first real use and a test of that use.
 | 31 | Motion: bouncy accordion | The portfolio's 11 axes in three groups, one open at a time |
 | 32 | Motion: text animation (shimmer) | "Preparing the PDF" while the worker renders it |
 
-Not listed by the owner but fitting: BeUI's one-time-code input for the admins' two-factor code
-(Step 6), and its number ticker for "portfolio: 12 of 40" on Today (Step 23). Each joins only if
-its step finds it better than the plain primitive.
+Not listed by the owner but fitting: BeUI's number ticker for "portfolio: 12 of 40" on Today
+(Step 23). It joins only if its step finds it better than the plain primitive.

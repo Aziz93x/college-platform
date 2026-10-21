@@ -633,6 +633,13 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Register the login page's settings here with their defaults, including the pilot-banner text, so that Step 41, which runs next, shows the banner without Step 7's screen.
 - TOTP needs a correct server clock; on option A that means an internal time source (docs/ops/hosting-options.md).
 
+**Decisions in this step** (ADR-0009)
+
+- Better Auth runs inside the server only: the pages post to next-safe-action actions, and its HTTP routes are not mounted. The college's session limits apply on every request, where a session past them is deleted.
+- Re-authentication: here the sensitive actions are the password change and the two-factor setup, which both ask for the password; the general step comes with its first admin action in Step 7.
+- `/design` keeps the proxy's 404 outside a laptop and also requires `design.view`.
+- After signing in or out, setting up two-factor or changing the password, the next page loads from scratch, so nothing typed or shown stays in the browser.
+
 > **Checkpoint: Audit 2.** Run `/audit 4-6`.
 >
 > **Checkpoint: Lead review A.** Run `/lead-review A`, then tag `v0.1-A`.
@@ -664,6 +671,13 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Done when, added: a CI job starts the production images this way and runs the end-to-end smoke against Caddy, with the browser failing any request outside the app's origin. The worker's Chromium prints one Arabic test page to PDF on that network, and the stack starts from saved archives without a registry. **You:** add the new check to the required checks on `main`.
 - **You, after the merge (it does not hold up Step 7):** on the college Wi-Fi, a phone that trusts the exported root opens the laptop's LAN address and shows the login page. The result goes into the GA request. A pass is only weak evidence for a server on another network segment, because of client isolation and VLANs.
 
+**Notes from Step 6**
+
+- Generate `AUTH_SECRET` (32 characters or more) into the local `.env` with the others and keep it across restarts: it signs the session cookies and encrypts the two-factor secrets, so a new one signs everyone out and makes every admin set up two-factor again (ADR-0009).
+- The session cookies are Secure (`__Secure-college.session_token`), so phones use Caddy's HTTPS address, never plain HTTP. `src/proxy.ts` refuses a change whose `Origin` does not name the request's host; Caddy passes the host through, so the LAN address works as long as Caddy keeps the `Host` header.
+- Caddy replaces the `X-Forwarded-For` a client sends (its default without `trusted_proxies`): the sign-in limits key on that address, and without Caddy in front a client could choose its own.
+- `pnpm admin:create --name … --email … --employee-number …` prints the temporary password once; the admin replaces it and sets up two-factor at the first sign-in. The end-to-end smoke signs in the demo accounts from `pnpm seed:demo` (`db/seed/demo/accounts.ts`).
+
 #### Step 7. Settings screen, defaults and audit (M)
 
 **Goal:** every value that may change lives in settings, typed and audited.
@@ -690,6 +704,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - The sidebar shows the college's name from `colleges`; the platform name this step seeds joins it there and in the page title. `navigation.order` is a setting already (role key to page ids).
 - BeUI here: switch, select, range slider, adaptive stepper, popover (each setting's description), tabs (the groups) and action swap (save).
+
+**Notes from Step 6**
+
+- Step 6 registered the login and sign-in settings with their defaults: `platform.name`, `pilot.banner`, `pilot.bannerText`, `login.showLogo` and `auth.*` (password length, lockout threshold and minutes, sign-in attempts and window, idle minutes, session hours, remembered-device days). This step gives them their description keys, their edit permission and the screen.
+- Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer: changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
+- New actions go through `viewerAction` with the setting's permission key (`src/modules/access/server/action-client.ts`); export it from the module's `index.ts` with this first use.
 
 #### Step 8. Colleges and departments (S)
 
@@ -726,6 +746,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Note from ADR-0008:** the membership's optional term is added in Step 13, which creates terms.
 
+**Notes from Step 6**
+
+- Two keys exist: `design.view` and `accounts.resetPassword`. A key marked `requiresTwoFactor` makes its holders set up two-factor before anything else; mark every key that changes access, accounts or settings that way. The `system-admin` role (`system: true`) holds every key in code, including keys added later, and `pnpm admin:create` gives it its first member; "the last admin cannot remove their own access" counts the system role's members.
+- `authorize(actor, permission, scope)` and `viewerAction` take a college scope only; this step adds department and own-record scopes. Changing a role's keys takes effect at once: `getViewer()` reads them on every request.
+
 > **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
 
 #### Step 10. People and accounts (M)
@@ -750,6 +775,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - The email column holds each person's Microsoft 365 sign-in address, so Entra can link accounts later without a re-import.
 - Imports run on synthetic files until the General Administration approves the data classification.
 
+**Notes from Step 6**
+
+- `createAccount()` makes a person with a credential account and, without a password, a temporary one to show once; `resetPassword()` (`src/modules/identity/server/password.ts`) gives a temporary password, ends every session, lifts a lockout, forces a change at the next sign-in and writes `account.resetPassword` without the password. The screens call them through `viewerAction` with `accounts.resetPassword` and the re-authentication step from Step 7.
+- "Locked" in the account states is `users.locked_until` in the future, set by the lockout; a reset lifts it. Today the only way back for an admin who has lost both the password and the authenticator is another admin (docs/BACKLOG.md).
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 
 #### Step 11. Audit log and history (S)
@@ -767,6 +797,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - With the administration pages the sidebar gets its first group: move it onto BeUI's animated sidebar. A viewer with more than five pages gets the phone's "More" sheet: add its end-to-end test then. BeUI here also: table (virtualized), date range picker and collapsible.
 
 **Note from ADR-0008:** Step 41 runs before this step and gives the app a database user that does not own the tables. The retention purge therefore runs through the table owner, and the triggers now bind the app. The retention default follows the data classification the General Administration approves; it is already a setting.
+
+**Note from Step 6:** the events so far are `session.signIn`, `session.signOut`, `account.lock` (no actor: the system locked it), `account.create`, `account.resetPassword`, `account.changePassword`, `account.startTwoFactorSetup` and `account.enableTwoFactor`. A failed sign-in writes an event only when it locks the account, so the test that every server action writes an event treats the sign-in and code actions by their outcome.
 
 #### Step 12. Notifications foundation (M)
 
@@ -1246,6 +1278,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Done when:** the budgets pass in CI, the ZAP baseline reports no high findings, and `docs/ops/asvs.md` is complete.
 
 **Note from ADR-0008:** `docs/ops/asvs.md` marks the TLS, HSTS and network-exposure items "after the hosting decision". The dependency audit names option A's update path (a monthly image bundle on approved media, plus an urgent path for vulnerabilities) beside Renovate's automerge (ADR-0006). This step also verifies the account-plus-IP sign-in limits from Step 6.
+
+**Note from Step 6:** the Content Security Policy keeps `style-src 'unsafe-inline'` because Motion and the image component set style attributes; verify that nothing else needs it. Better Auth accepts a TOTP code again within its window, and the sign-in limits trust the first `X-Forwarded-For` entry, which only Caddy in front makes the client's own (docs/BACKLOG.md).
 
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
 
