@@ -42,12 +42,19 @@ export async function enterCode(page: Page, key: Buffer) {
 }
 
 // Signs out from the account menu, which carries the person's name, and lands on the login page.
+// A press before React has hydrated the menu's button only focuses it, so the press waits for that.
 export async function signOut(page: Page, person: { name: string }) {
-  await page
-    .getByRole("button", {
-      name: accountMenu.open.replace("{name}", person.name),
-    })
-    .click();
+  const trigger = page.getByRole("button", {
+    name: accountMenu.open.replace("{name}", person.name),
+  });
+  await expect
+    .poll(() =>
+      trigger.evaluate((node) =>
+        Object.keys(node).some((key) => key.startsWith("__reactFiber$")),
+      ),
+    )
+    .toBe(true);
+  await trigger.click();
   await page.getByRole("menuitem", { name: accountMenu.signOut }).click();
   await expect(page).toHaveURL("/");
 }
