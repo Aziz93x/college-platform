@@ -20,6 +20,12 @@ const seedSchema = schema.extend({
   SEED_COLLEGE_SHORT_NAME: z.string().trim().min(1),
 });
 
+// Migrations run as the tables' owner (DATABASE_URL); given the app's own URL, they also grant its
+// role the rights it needs (db/migrate.ts).
+const migrateSchema = schema.extend({
+  APP_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
+});
+
 export type Env = z.infer<typeof schema>;
 
 function parseWith<T extends z.ZodType>(
@@ -42,4 +48,8 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 
 export function parseSeedEnv(source: Record<string, string | undefined>) {
   return parseWith(seedSchema, source);
+}
+
+export function parseMigrateEnv(source: Record<string, string | undefined>) {
+  return parseWith(migrateSchema, source);
 }
