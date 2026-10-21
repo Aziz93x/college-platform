@@ -3,10 +3,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
-import { getMessages, getTranslations } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { Toaster } from "@/components/ui/sonner";
 import { authorize, requireViewer } from "@/modules/access";
 import { parseEnv } from "@/platform/config/env";
+import { documentLocale } from "@/platform/i18n/language";
 import { paletteTokens, roleTokens } from "@/styles/token-names";
 import { isDesignCatalogEnabled } from "./gate";
 import { MotionDemos } from "./motion-demos";
@@ -77,9 +79,13 @@ export default async function DesignPage() {
   }
   // The catalog's client components read the design messages; other routes never receive them.
   const { ui, design } = await getMessages();
+  // Only the catalog shows toasts so far, so only it carries Sonner (Audit 2, the script budget).
+  const { dir } = documentLocale(await getLocale());
+  const t = await getTranslations("toast");
   return (
     <NextIntlClientProvider messages={{ ui, design }}>
       <Catalog />
+      <Toaster dir={dir} containerAriaLabel={t("region")} />
     </NextIntlClientProvider>
   );
 }

@@ -7,6 +7,12 @@ import { findCollegeId } from "../../org/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import { type Identifier, parseIdentifier } from "../domain/identifier.ts";
 import { getAuth } from "./auth.ts";
+import {
+  accountSubjects,
+  beginAttempt,
+  clearLockouts,
+  subjectOf,
+} from "./lockout.ts";
 import { requestMeta } from "./request.ts";
 import { people, sessions, signInAttempts, users } from "./schema.ts";
 
@@ -48,7 +54,7 @@ async function findAccount(db: Db, collegeId: string, identifier: Identifier) {
     .select({
       userId: users.id,
       email: users.email,
-      lockedUntil: users.lockedUntil,
+      employeeNumber: people.employeeNumber,
     })
     .from(users)
     .innerJoin(people, eq(people.userId, users.id))
@@ -86,34 +92,14 @@ async function countAttempt(
   );
 }
 
-// A wrong password: counts it, and locks the account when the count reaches the threshold.
-// One statement, so attempts that race each other are all counted. Returns the lock's end.
-async function countFailure(
-  db: Db,
-  userId: string,
-  limits: { lockoutThreshold: number; lockoutMinutes: number },
-  now: Date,
-) {
-  const reached = sql`${users.failedSignIns} + 1 >= ${limits.lockoutThreshold}`;
-  const [row] = await db
-    .update(users)
-    .set({
-      failedSignIns: sql`case when ${reached} then 0 else ${users.failedSignIns} + 1 end`,
-      lockedUntil: sql`case when ${reached} then ${new Date(now.getTime() + limits.lockoutMinutes * MINUTE_MS)} else ${users.lockedUntil} end`,
-    })
-    .where(eq(users.id, userId))
-    .returning({ lockedUntil: users.lockedUntil });
-  return row?.lockedUntil && row.lockedUntil > now ? row.lockedUntil : null;
-}
-
 const minutesUntil = (end: Date, now: Date) =>
   Math.max(1, Math.ceil((end.getTime() - now.getTime()) / MINUTE_MS));
 
 // Signs a person in with their employee number or email and their password. The answer never
-// tells a wrong identifier from a wrong password. Limits apply per account and address, so a
-// workshop behind one address does not block itself (ADR-0008), and an account locks after the
-// threshold of wrong passwords in a row, from any address. Better Auth works on the shared
-// database, so this does too.
+// tells a wrong identifier from a wrong password. Limits apply per identifier and address, so a
+// workshop behind one address does not block itself (ADR-0008). The threshold of attempts within
+// the lockout's minutes of the first, from any address, locks what was typed, with or without an
+// account (lockout.ts). Better Auth works on the shared database, so this does too.
 export async function signIn(
   input: SignInInput,
   requestHeaders: Headers,
@@ -127,26 +113,43 @@ export async function signIn(
   const identifier = parseIdentifier(input.identifier);
   const account = await findAccount(db, collegeId, identifier);
 
-  // The account, or what was typed when there is none, together with the address.
-  const subject = account
-    ? `user:${account.userId}`
-    : `typed:${identifier.kind === "email" ? identifier.email : identifier.employeeNumber}`;
+  // What was typed, together with the address.
+  const subject = subjectOf(identifier);
   const attemptKey = `${subject}|${meta.ip ?? "unknown"}`;
   const blockedUntil = await countAttempt(db, attemptKey, limits, now);
   if (blockedUntil) {
     return { status: "throttled", minutes: minutesUntil(blockedUntil, now) };
   }
+  const lockout = await beginAttempt(db, subject, limits, now);
+  if (lockout.place > limits.lockoutThreshold) {
+    return { status: "locked", minutes: minutesUntil(lockout.ends, now) };
+  }
+
+  // A wrong password, or no account: the same count, lock and answer.
+  const failed = async (): Promise<SignInResult> => {
+    if (lockout.place < limits.lockoutThreshold) return { status: "invalid" };
+    // This attempt reached the threshold, so its lock starts now.
+    if (account) {
+      await writeAudit(
+        {
+          collegeId,
+          actorId: null,
+          action: "account.lock",
+          entityType: "user",
+          entityId: account.userId,
+          diff: { lockedUntil: lockout.ends.toISOString() },
+          ...meta,
+        },
+        db,
+      );
+    }
+    return { status: "locked", minutes: minutesUntil(lockout.ends, now) };
+  };
 
   if (!account) {
     // As long as checking a password, so the time taken does not tell that no account matched.
     await hashPassword(input.password);
-    return { status: "invalid" };
-  }
-  if (account.lockedUntil && account.lockedUntil > now) {
-    return {
-      status: "locked",
-      minutes: minutesUntil(account.lockedUntil, now),
-    };
+    return failed();
   }
 
   let result: Awaited<
@@ -163,27 +166,10 @@ export async function signIn(
     });
   } catch (error) {
     if (!isAPIError(error) || error.status !== "UNAUTHORIZED") throw error;
-    const lockedUntil = await countFailure(db, account.userId, limits, now);
-    if (!lockedUntil) return { status: "invalid" };
-    await writeAudit(
-      {
-        collegeId,
-        actorId: null,
-        action: "account.lock",
-        entityType: "user",
-        entityId: account.userId,
-        diff: { lockedUntil: lockedUntil.toISOString() },
-        ...meta,
-      },
-      db,
-    );
-    return { status: "locked", minutes: minutesUntil(lockedUntil, now) };
+    return failed();
   }
 
-  await db
-    .update(users)
-    .set({ failedSignIns: 0, lockedUntil: null })
-    .where(eq(users.id, account.userId));
+  await clearLockouts(db, accountSubjects(account));
   await db.delete(signInAttempts).where(eq(signInAttempts.key, attemptKey));
   if ("twoFactorRedirect" in result) return { status: "twoFactor" };
   await db

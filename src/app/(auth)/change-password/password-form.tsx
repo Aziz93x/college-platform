@@ -53,7 +53,6 @@ export function PasswordForm({
         }
         startIcon={<LockKeyhole />}
         autoComplete="current-password"
-        dir="auto"
         required
       />
       <Input
@@ -65,7 +64,6 @@ export function PasswordForm({
         startIcon={<LockKeyhole />}
         autoComplete="new-password"
         minLength={minLength}
-        dir="auto"
         required
       />
       <Input
@@ -79,7 +77,6 @@ export function PasswordForm({
         }
         startIcon={<LockKeyhole />}
         autoComplete="new-password"
-        dir="auto"
         required
       />
       <SubmitButton

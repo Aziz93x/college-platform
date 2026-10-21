@@ -6,8 +6,9 @@ import {
 } from "../db/seed/demo/accounts.ts";
 import { demoCollege } from "../db/seed/demo/college.ts";
 import messages from "../messages/ar.json" with { type: "json" };
+import { base32Bytes, totp } from "../tests/support/totp.ts";
 import { expect, type TestAccount, test } from "./support/accounts.ts";
-import { base32Bytes, enterCode, signIn, totp } from "./support/auth.ts";
+import { enterCode, signIn } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 
 const { platform } = messages;
@@ -59,6 +60,50 @@ test("the login page names the platform and the college under the pilot banner, 
   await expect(page).toHaveURL("/today");
 });
 
+test("typed text stays clear of each field's icons, whichever way it runs", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const identifier = page.getByLabel(signInText.identifier);
+  const password = page.getByLabel(signInText.password, { exact: true });
+  // A long email and a long passphrase, both left to right on a right-to-left page.
+  await identifier.fill("abdulrahman.alqahtani.training@oasis.example");
+  await password.fill("a long passphrase that fills the whole field");
+  await page.getByRole("button", { name: signInText.showPassword }).click();
+
+  for (const field of [identifier, password]) {
+    // Where the text shows: the field without its padding and border.
+    const text = await field.evaluate((input) => {
+      const box = input.getBoundingClientRect();
+      const style = getComputedStyle(input);
+      return {
+        left:
+          box.left +
+          Number.parseFloat(style.borderLeftWidth) +
+          Number.parseFloat(style.paddingLeft),
+        right:
+          box.right -
+          Number.parseFloat(style.borderRightWidth) -
+          Number.parseFloat(style.paddingRight),
+      };
+    });
+    // The icons, and the whole of a button such as "show password", not just its icon.
+    const icons = await field
+      .locator("xpath=..")
+      .locator("svg, button")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return { left: box.left, right: box.right };
+        }),
+      );
+    expect(icons.length).toBeGreaterThan(0);
+    for (const icon of icons) {
+      expect(icon.right <= text.left || icon.left >= text.right).toBe(true);
+    }
+  }
+});
+
 test("signs out from the account menu; the shell then sends back to the login page", async ({
   page,
   account,
@@ -76,7 +121,7 @@ test("signs out from the account menu; the shell then sends back to the login pa
   await expect(page).toHaveURL("/");
 });
 
-test("one answer for any wrong sign-in, and a lock after five wrong passwords in a row", async ({
+test("one answer for any wrong sign-in, and a lock after five wrong passwords", async ({
   page,
   account,
 }) => {

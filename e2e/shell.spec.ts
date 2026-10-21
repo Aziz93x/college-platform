@@ -27,13 +27,16 @@ test("the address opens the shell on today's page for someone signed in, right t
   ).toBeVisible();
 });
 
-test("the notifications region takes its label from the message catalog", async ({
+// Sonner loads only where toasts show (ADR-0010, the script budget); design.spec.ts checks the
+// region's label there.
+test("the shell carries no toaster until one of its screens shows toasts", async ({
   page,
 }) => {
   await page.goto("/today");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(today.title);
   await expect(
     page.getByRole("region", { name: messages.toast.region }),
-  ).toBeAttached();
+  ).toHaveCount(0);
 });
 
 test("the page carries the messages its client components read, not the whole catalog", async ({
