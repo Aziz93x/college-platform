@@ -57,3 +57,7 @@ next-env.d.ts
 /tests/explore/
 !.env.example
 .lighthouseci/
+
+# Database dumps and incident evidence hold personal data (docs/ops/breach-response.md)
+*.dump
+/incident-*/
