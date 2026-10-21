@@ -59,6 +59,35 @@ export async function beginAttempt(
   };
 }
 
+// Locks the subjects from now, for the lockout's minutes: a password typed again behind a session
+// reached the threshold (retype.ts).
+export async function lockSubjects(
+  db: Db | Tx,
+  subjects: string[],
+  limits: LockoutLimits,
+  now: Date,
+) {
+  await db
+    .insert(signInLockouts)
+    .values(
+      subjects.map((subject) => ({
+        subject,
+        attempts: limits.lockoutThreshold,
+        startedAt: now,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: signInLockouts.subject,
+      set: {
+        attempts: sql`greatest(${signInLockouts.attempts}, excluded.attempts)`,
+        startedAt: sql`excluded.started_at`,
+      },
+    });
+}
+
+export const minutesUntil = (end: Date, now: Date) =>
+  Math.max(1, Math.ceil((end.getTime() - now.getTime()) / MINUTE_MS));
+
 // A sign-in clears its account's counts, and an admin's reset lifts its locks.
 export async function clearLockouts(db: Db | Tx, subjects: string[]) {
   await db

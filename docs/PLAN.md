@@ -710,7 +710,7 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Notes from Step 6**
 
 - Step 6 registered the login and sign-in settings with their defaults: `platform.name`, `pilot.banner`, `pilot.bannerText`, `login.showLogo` and `auth.*` (password length, lockout threshold and minutes, sign-in attempts and window, idle minutes, session hours, remembered-device days). This step gives them their description keys, their edit permission and the screen.
-- Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer: changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
+- Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer, checking the password through `checkRetypedPassword()` (`src/modules/identity/server/retype.ts`), so it counts toward the lockout as the password change does (lead review A): changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
 - New actions go through `viewerAction` with the setting's permission key (`src/modules/access/server/action-client.ts`); export it from the module's `index.ts` with this first use.
 
 **Notes from Audit 2**
