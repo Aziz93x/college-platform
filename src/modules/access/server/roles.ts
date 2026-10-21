@@ -303,8 +303,8 @@ export async function setRolePermissions(
   });
 }
 
-// Gives a person of the college a role, across the college or in one of its departments, and
-// records membership.create. Holding it there already changes nothing. The system role is held
+// Gives a person of the college a role, across the college or in one of its active departments,
+// and records membership.create. Holding it there already changes nothing. The system role is held
 // across the college only, so its members are always the college's admins.
 export async function addMembership(
   input: MembershipInput,
@@ -312,7 +312,7 @@ export async function addMembership(
   db: Db = getDb(),
 ): Promise<
   | { status: "added"; id: string }
-  | { status: "exists" | "notFound" | "collegeOnly" }
+  | { status: "exists" | "notFound" | "collegeOnly" | "inactive" }
 > {
   return db.transaction(async (tx) => {
     const [role] = await tx
@@ -333,7 +333,7 @@ export async function addMembership(
       );
     const [department] = input.departmentId
       ? await tx
-          .select({ id: departments.id })
+          .select({ active: departments.active })
           .from(departments)
           .where(
             and(
@@ -341,9 +341,11 @@ export async function addMembership(
               eq(departments.id, input.departmentId),
             ),
           )
-      : [{ id: null }];
+      : [{ active: true }];
     if (!role || !person || !department) return { status: "notFound" };
     if (role.system && input.departmentId) return { status: "collegeOnly" };
+    // A department set aside keeps what was recorded for it, and takes no new member.
+    if (!department.active) return { status: "inactive" };
     const [row] = await tx
       .insert(memberships)
       .values({ ...input, collegeId: change.collegeId })

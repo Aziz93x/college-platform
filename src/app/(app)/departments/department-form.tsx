@@ -112,10 +112,14 @@ export function DepartmentForm({ department }: { department?: Department }) {
           toast.success(t("toast.saved", { name }));
           return;
         case "nameTaken":
-          setErrors({ name: t("nameTaken") });
+          setErrors({
+            name: t("nameTaken", { department: outcome.department }),
+          });
           break;
         case "shortNameTaken":
-          setErrors({ shortName: t("shortNameTaken") });
+          setErrors({
+            shortName: t("shortNameTaken", { department: outcome.department }),
+          });
           break;
         case "valueTaken":
           setErrors({

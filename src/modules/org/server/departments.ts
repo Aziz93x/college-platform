@@ -1,5 +1,6 @@
-import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { foldCase } from "../../../platform/validation/text.ts";
 import { writeAudit } from "../../audit/index.ts";
 import type { CollegeInput, DepartmentInput } from "../domain/inputs.ts";
 import { colleges, departmentRayatValues, departments } from "./schema.ts";
@@ -20,11 +21,13 @@ export type Department = {
   rayatValues: string[];
 };
 
-// What keeps a department from being saved as asked: another department of the college has its
-// name, its short name or one of its Rayat values.
+// What keeps a department from being saved as asked: its name, its short name or one of its Rayat
+// values is already a text of another department of the college, as a name, a short name or a value,
+// in any case of its Latin letters. An import matches a department by any of them (docs/PLAN.md,
+// Steps 10 and 16), so each text names one department.
 type Conflict =
-  | { status: "nameTaken" }
-  | { status: "shortNameTaken" }
+  | { status: "nameTaken"; department: string }
+  | { status: "shortNameTaken"; department: string }
   | { status: "valueTaken"; value: string; department: string };
 
 const columns = {
@@ -102,38 +105,36 @@ async function findConflict(
   const others = except
     ? and(eq(departments.collegeId, collegeId), ne(departments.id, except))
     : eq(departments.collegeId, collegeId);
-  const [named] = await tx
-    .select({ name: departments.name, shortName: departments.shortName })
-    .from(departments)
-    .where(
-      and(
-        others,
-        or(
-          eq(departments.name, input.name),
-          eq(departments.shortName, input.shortName),
-        ),
-      ),
-    )
-    .limit(1);
-  if (named) {
-    return named.name === input.name
-      ? { status: "nameTaken" }
-      : { status: "shortNameTaken" };
-  }
-  const [taken] = await tx
+  const rows = await tx
     .select({
-      value: departmentRayatValues.value,
       department: departments.name,
+      shortName: departments.shortName,
+      value: departmentRayatValues.value,
     })
-    .from(departmentRayatValues)
-    .innerJoin(
-      departments,
-      eq(departments.id, departmentRayatValues.departmentId),
+    .from(departments)
+    .leftJoin(
+      departmentRayatValues,
+      eq(departmentRayatValues.departmentId, departments.id),
     )
-    .where(and(others, inArray(departmentRayatValues.value, input.rayatValues)))
-    .orderBy(asc(departmentRayatValues.value))
-    .limit(1);
-  return taken ? { status: "valueTaken", ...taken } : undefined;
+    .where(others);
+  // Every text of the other departments, folded, and the department it names.
+  const named = new Map<string, string>();
+  for (const { department, shortName, value } of rows) {
+    for (const text of [department, shortName, value]) {
+      if (text !== null) named.set(foldCase(text), department);
+    }
+  }
+  const owner = (text: string) => named.get(foldCase(text));
+
+  const byName = owner(input.name);
+  if (byName) return { status: "nameTaken", department: byName };
+  const byShortName = owner(input.shortName);
+  if (byShortName) return { status: "shortNameTaken", department: byShortName };
+  for (const value of [...input.rayatValues].sort()) {
+    const department = owner(value);
+    if (department) return { status: "valueTaken", value, department };
+  }
+  return undefined;
 }
 
 // Adds a department and records it as department.create with what it was given.

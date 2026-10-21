@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  foreignKey,
   index,
   jsonb,
   pgTable,
@@ -62,8 +63,8 @@ export const memberships = pgTable(
     collegeId: uuid("college_id")
       .notNull()
       .references(() => colleges.id),
-    // Null: the whole college.
-    departmentId: uuid("department_id").references(() => departments.id),
+    // Null: the whole college. Otherwise one of the college's departments (the key below).
+    departmentId: uuid("department_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -74,5 +75,10 @@ export const memberships = pgTable(
       .nullsNotDistinct(),
     // A role's members: the grid's list, the last-admin rule and the first admin's check.
     index("memberships_role_id_index").on(table.roleId),
+    foreignKey({
+      name: "memberships_department_fk",
+      columns: [table.collegeId, table.departmentId],
+      foreignColumns: [departments.collegeId, departments.id],
+    }),
   ],
 );

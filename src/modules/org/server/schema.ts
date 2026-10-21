@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  foreignKey,
   index,
   pgTable,
   primaryKey,
@@ -24,7 +25,9 @@ export const colleges = pgTable("colleges", {
 });
 
 // A department of the college. Its names are data: none appears in code or in the base seed. A
-// department is deactivated, never deleted: plans, sections and portfolios will point at it.
+// department is deactivated, never deleted: plans, sections and portfolios will point at it. A row
+// that points at a department names the college too, and (college_id, id) must be one department's,
+// so no row can reach another college's department whatever a query forgets (Audit 3).
 export const departments = pgTable(
   "departments",
   {
@@ -39,6 +42,7 @@ export const departments = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    unique("departments_college_id_id_unique").on(table.collegeId, table.id),
     unique("departments_name_unique").on(table.collegeId, table.name),
     unique("departments_short_name_unique").on(
       table.collegeId,
@@ -55,9 +59,7 @@ export const departmentRayatValues = pgTable(
     collegeId: uuid("college_id")
       .notNull()
       .references(() => colleges.id),
-    departmentId: uuid("department_id")
-      .notNull()
-      .references(() => departments.id, { onDelete: "cascade" }),
+    departmentId: uuid("department_id").notNull(),
     value: text().notNull(),
   },
   (table) => [
@@ -65,6 +67,11 @@ export const departmentRayatValues = pgTable(
       name: "department_rayat_values_pkey",
       columns: [table.collegeId, table.value],
     }),
+    foreignKey({
+      name: "department_rayat_values_department_fk",
+      columns: [table.collegeId, table.departmentId],
+      foreignColumns: [departments.collegeId, departments.id],
+    }).onDelete("cascade"),
     index("department_rayat_values_department_id_index").on(table.departmentId),
   ],
 );
