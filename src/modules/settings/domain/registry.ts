@@ -62,7 +62,8 @@ export const settingsRegistry = {
     schema: z.int().min(8).max(64),
     default: 10,
   },
-  // Wrong passwords in a row that lock an account, and for how long.
+  // Wrong passwords within lockoutMinutes, from any address, that lock an account (or what was
+  // typed when no account matches), and for how long (identity's lockout.ts).
   "auth.lockoutThreshold": {
     scope: "college",
     schema: z.int().min(3).max(20),

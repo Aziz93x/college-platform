@@ -4,6 +4,16 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 2: steps 4-6
+
+- The lockout no longer tells which accounts exist. Wrong passwords count per account, or per identifier typed when no account matches, in the new `sign_in_lockouts` table through one code path (migration `0003_sign_in_lockouts`, which drops `users.failed_sign_ins` and `users.locked_until`). Five wrong passwords within 15 minutes, from any address, lock either for 15 minutes from the fifth (`auth.lockoutThreshold`, `auth.lockoutMinutes`); before, only real accounts locked, and their count never lapsed. A reset lifts the lock through the same table (ADR-0009, amended).
+- Two-factor codes typed in Arabic-Indic digits are read as Latin digits, at sign-in and at setup.
+- Typed text stays clear of a field's icons: the sign-in fields set `dir="auto"`, which swapped their padding once an email or a Latin password was typed, so a long email ran under the identifier's icon. The motion input now keeps the page's direction for its padding and icons and takes the text's direction from what is typed (`unicode-bidi: plaintext`).
+- Sonner's toaster mounts on `/design` only, the one page that shows toasts: about 10 KiB less script on every other page. `pnpm lighthouse` warns when a route's scripts pass section 4's 170 KiB; the login page loads 246.6 KiB and Today 248.0 KiB. ADR-0010 (proposed) asks the owner for a measured budget of 250 KiB per route.
+- The sign-in pages get a loading state shaped like the form (`src/app/(auth)/loading.tsx`), and a unit test fails when a page under `src/app` has no `loading.tsx` above it.
+- Tests: two-factor setup and its events, sign-in with the app's code (remembering the device only when asked) and with a backup code, sign-out and its event, the admins' two-factor requirement, and the hash for an unknown identifier. The axe helper waits for hydration before it replaces Arabic letters, and fails if they come back, so axe now checks the contrast of Arabic text on the login, code, password and shell pages.
+- docs/reviews/audit-06.md holds the report and its resolution; deferred items are notes under Steps 7, 9, 10, 11, 40 and 41 and entries in docs/BACKLOG.md, and docs/design/beui-map.md names one component per job.
+
 ### Step 06: sign-in and the login page
 
 - `/` is the login page (the redirect to `/today` is gone): one column on a phone, and on a wide screen the identity's dark panel beside the form, with the dot grid, the wave in teal lines brightened by a screen blend, and the platform and college names rising word by word (BeUI's text reveal as a CSS animation, so the names paint with the HTML). The platform name is the setting `platform.name` or the catalog's; the college logo shows only while `login.showLogo` is on (off until the dean approves). The pilot banner shows above every page while `pilot.banner` is on, with `pilot.bannerText` or the catalog's words. Every word comes from `messages/ar.json` or settings.

@@ -235,7 +235,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | Lighthouse, mobile (login, Today, section page) | performance 95 or more, accessibility 100, best practices 95 or more |
 | Core Web Vitals | LCP under 2.0 s on 4G, INP under 200 ms, CLS under 0.05 |
 | Accessibility | axe: no serious or critical issues; WCAG 2.2 AA; touch targets 44 px; usable at 200% text size |
-| JavaScript per route | 170 KB gzipped or less |
+| JavaScript per route | 170 KB gzipped or less (not met; a measured budget is proposed in ADR-0010) |
 | Server time | p95 under 300 ms for reads and under 1 s for writes |
 
 **The login page at `/`.** A split layout on desktop and one column on phones: identity wave art, the platform and college names from settings, employee number or email, password, "remember this device", and a pilot banner whose text is a setting. Showing the college logo before sign-in is also a setting, off until the dean gives written permission.
@@ -678,6 +678,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Caddy replaces the `X-Forwarded-For` a client sends (its default without `trusted_proxies`): the sign-in limits key on that address, and without Caddy in front a client could choose its own.
 - `pnpm admin:create --name … --email … --employee-number …` prints the temporary password once; the admin replaces it and sets up two-factor at the first sign-in. The end-to-end smoke signs in the demo accounts from `pnpm seed:demo` (`db/seed/demo/accounts.ts`).
 
+**Note from Audit 2:** the demo password and the demo admin's authenticator secret are published in `db/seed/demo/accounts.ts`, and `pnpm local:share` puts demo mode behind a public tunnel. In demo mode, generate both into the local `.env` and let `seed:demo` and the smoke test read them from there; keep the published values for CI and `APP_ENV=local` only (docs/reviews/audit-06.md, minor 10).
+
 #### Step 7. Settings screen, defaults and audit (M)
 
 **Goal:** every value that may change lives in settings, typed and audited.
@@ -710,6 +712,12 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Step 6 registered the login and sign-in settings with their defaults: `platform.name`, `pilot.banner`, `pilot.bannerText`, `login.showLogo` and `auth.*` (password length, lockout threshold and minutes, sign-in attempts and window, idle minutes, session hours, remembered-device days). This step gives them their description keys, their edit permission and the screen.
 - Re-authentication before sensitive actions (Step 6's Do, ADR-0009) arrives here with its first consumer: changing an `auth.*` setting asks for the password again when it was last entered more than a set number of minutes ago (a new setting). Steps 9 and 10 reuse the same step for the grid and for resets.
 - New actions go through `viewerAction` with the setting's permission key (`src/modules/access/server/action-client.ts`); export it from the module's `index.ts` with this first use.
+
+**Notes from Audit 2**
+
+- `/today` runs eight `getSetting` queries, and the college row is read three times per request (`src/i18n/locale.ts`, the pilot banner, the shell's layout). The per-request cache above can read all of the college's stored settings once, and `findCollege` can take React's `cache()` (docs/reviews/audit-06.md, enhancement 2).
+- `seed:demo` stores no login setting yet: store the demo college's own `platform.name` and `pilot.bannerText` with the seeded defaults, and let the end-to-end login test read them from the seed (enhancement 3). The design catalog's visual baselines show the pilot banner, so they change with the banner text.
+- Sonner's `<Toaster>` mounts on `/design` only since Audit 2 (the script budget, ADR-0010). The first screen that shows a toast mounts it in its own layout.
 
 #### Step 8. Colleges and departments (S)
 
@@ -751,6 +759,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - Two keys exist: `design.view` and `accounts.resetPassword`. A key marked `requiresTwoFactor` makes its holders set up two-factor before anything else; mark every key that changes access, accounts or settings that way. The `system-admin` role (`system: true`) holds every key in code, including keys added later, and `pnpm admin:create` gives it its first member; "the last admin cannot remove their own access" counts the system role's members.
 - `authorize(actor, permission, scope)` and `viewerAction` take a college scope only; this step adds department and own-record scopes. Changing a role's keys takes effect at once: `getViewer()` reads them on every request.
 
+**Note from Audit 2:** the six actions in `src/app/(auth)/actions.ts` carry no permission on purpose: signing in is public, and the other five act on the caller's own account (ADR-0009 #6). The generated matrix test lists them as permission-free rather than flagging them.
+
 > **Checkpoint: Audit 3.** Run `/audit 41,7-9`.
 
 #### Step 10. People and accounts (M)
@@ -780,6 +790,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - `createAccount()` makes a person with a credential account and, without a password, a temporary one to show once; `resetPassword()` (`src/modules/identity/server/password.ts`) gives a temporary password, ends every session, lifts a lockout, forces a change at the next sign-in and writes `account.resetPassword` without the password. The screens call them through `viewerAction` with `accounts.resetPassword` and the re-authentication step from Step 7.
 - "Locked" in the account states is the account's row in `sign_in_lockouts` (subject `user:<id>`) while `lockEnd()` in `src/modules/identity/server/lockout.ts` returns a time; the lockout sets it, and a reset lifts it (Audit 2). Today the only way back for an admin who has lost both the password and the authenticator is another admin (docs/BACKLOG.md).
 
+**Note from Audit 2:** `createAccount()` writes no audit event itself; only `createFirstAdmin()` adds `account.create`. This step's import and invite actions write it too.
+
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 
 #### Step 11. Audit log and history (S)
@@ -799,6 +811,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Note from ADR-0008:** Step 41 runs before this step and gives the app a database user that does not own the tables. The retention purge therefore runs through the table owner, and the triggers now bind the app. The retention default follows the data classification the General Administration approves; it is already a setting.
 
 **Note from Step 6:** the events so far are `session.signIn`, `session.signOut`, `account.lock` (no actor: the system locked it), `account.create`, `account.resetPassword`, `account.changePassword`, `account.startTwoFactorSetup` and `account.enableTwoFactor`. A failed sign-in writes an event only when it locks the account, so the test that every server action writes an event treats the sign-in and code actions by their outcome.
+
+**Note from Audit 2:** Better Auth locks two-factor for 15 minutes after ten wrong codes in a row (five per challenge), a library default rather than a setting, and writes no event. Add one with the others here, written once per lock: `verifySignInCode()` returns `locked` (`src/modules/identity/server/two-factor.ts`).
 
 #### Step 12. Notifications foundation (M)
 
@@ -1280,6 +1294,11 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Note from ADR-0008:** `docs/ops/asvs.md` marks the TLS, HSTS and network-exposure items "after the hosting decision". The dependency audit names option A's update path (a monthly image bundle on approved media, plus an urgent path for vulnerabilities) beside Renovate's automerge (ADR-0006). This step also verifies the account-plus-IP sign-in limits from Step 6.
 
 **Note from Step 6:** the Content Security Policy keeps `style-src 'unsafe-inline'` because Motion and the image component set style attributes; verify that nothing else needs it. Better Auth accepts a TOTP code again within its window, and the sign-in limits trust the first `X-Forwarded-For` entry, which only Caddy in front makes the client's own (docs/BACKLOG.md).
+
+**Notes from Audit 2**
+
+- Section 4's script budget, 170 KB per route, is not met: after Audit 2 the login page loads 246.6 KiB of script and Today 248.0 KiB, while React and Next.js alone take about 145 KiB. ADR-0010 (proposed) asks the owner for a measured budget. `lighthouserc.json` warns at 170 KiB until then; this step makes the chosen budget an error, and tries to keep Motion's feature bundle off the routes that do not animate.
+- The Lighthouse gate counts the best of three runs (`aggregationMethod: optimistic` in `lighthouserc.json`). Assert the median after a warm-up run, or record the choice in ADR-0001.
 
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
 

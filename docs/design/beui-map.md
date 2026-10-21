@@ -40,6 +40,21 @@ code with its first real use and a test of that use.
 
 BeUI's one-time-code input was weighed for the admins' code and not adopted: the input above with `autocomplete="one-time-code"` takes a pasted or filled code as well, needs no words of its own for screen readers, and posts with the form before the JavaScript loads.
 
+## One component per job
+
+Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
+
+| Job | The component | Leaves the catalog |
+| --- | --- | --- |
+| Text field | Motion: input | `ui/input` |
+| Checkbox | Motion: checkbox | `ui/checkbox` |
+| Command palette | Blocks: command palette | `ui/command`, and cmdk |
+| Sheet and drawer | Motion: bottom sheet | `ui/sheet`, `ui/drawer`, and vaul |
+| The account menu, a row's actions | Blocks: bloom menu (5), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
+| Yes or no, a choice, groups, a description | Motion: switch, select, tabs, popover (Step 7) | `ui/switch`, `ui/select`, `ui/tabs`, `ui/popover`, once Step 7 adopts them |
+
+The toast stays Sonner until the same review decides on BeUI's animated toast stack (docs/BACKLOG.md).
+
 ## The rest, by the step that first uses each one
 
 | Step | Component | Real use |
