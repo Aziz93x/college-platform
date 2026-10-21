@@ -10,6 +10,7 @@ export {
   signedInAction,
   viewerAction,
 } from "./server/action-client.ts";
+export { createFirstAdmin } from "./server/first-admin.ts";
 export { loadAccess } from "./server/load-access.ts";
 export { memberships, rolePermissions, roles } from "./server/schema.ts";
 export { getViewer, requireViewer, type Viewer } from "./server/viewer.ts";
