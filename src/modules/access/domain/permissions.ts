@@ -8,6 +8,10 @@ const permissions = {
   "accounts.resetPassword": { requiresTwoFactor: true },
   // Change the platform's settings (src/modules/settings): the ones whose registry entry names it.
   "settings.manage": { requiresTwoFactor: true },
+  // The college's own name and short name.
+  "college.manage": { requiresTwoFactor: true },
+  // The college's departments: their names, Rayat matching values and active state.
+  "departments.manage": { requiresTwoFactor: true },
 } as const satisfies Record<string, { requiresTwoFactor: boolean }>;
 
 export type PermissionKey = keyof typeof permissions;

@@ -20,6 +20,7 @@ export default defineConfig({
   testMatch: [
     "auth.setup.ts",
     "auth.spec.ts",
+    "departments.spec.ts",
     "health.spec.ts",
     "security.spec.ts",
     "settings.spec.ts",

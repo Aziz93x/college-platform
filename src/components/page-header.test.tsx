@@ -16,10 +16,17 @@ it("shows the trail above the title, links the pages above and marks the current
     />,
   );
   expect(html).toContain('<nav aria-label="Trail"');
-  expect(html).toMatch(/<span>Admin<\/span>/);
+  expect(html).toMatch(/<span[^>]*>Admin<\/span>/);
   expect(html).toMatch(/<a[^>]*href="\/departments"[^>]*>Departments<\/a>/);
-  expect(html).toMatch(/<li aria-current="page"[^>]*>Department<\/li>/);
+  expect(html).toMatch(/<span aria-current="page"[^>]*>Department<\/span>/);
   expect(html.indexOf("<nav")).toBeLessThan(html.indexOf("<h1"));
+});
+
+it("shows the state of what the page shows beside its title", () => {
+  const html = renderToStaticMarkup(
+    <PageHeader title="Department" status={<span>Active</span>} />,
+  );
+  expect(html).toMatch(/<h1[^>]*>Department<\/h1><span>Active<\/span>/);
 });
 
 it("has no trail on a top-level page, and shows the eyebrow and description when given", () => {

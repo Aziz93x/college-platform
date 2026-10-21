@@ -5,6 +5,7 @@ import { createDb } from "../../src/platform/db/client.ts";
 import { seedBase } from "./base.ts";
 import { demoSecrets, seedDemoAccounts } from "./demo/accounts.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
+import { seedDemoDepartments } from "./demo/departments.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
 
@@ -43,6 +44,7 @@ try {
     const ctx = { db, random: createRandom(seed) };
     const collegeId = await seedBase(db, demoCollege);
     await seedDemoCollege(ctx, collegeId);
+    await seedDemoDepartments(ctx, collegeId);
     await seedDemoSettings(ctx, collegeId);
     await seedDemoAccounts(ctx, collegeId, env.AUTH_SECRET, demoSecrets(env));
     console.log(

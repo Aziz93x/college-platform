@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
 import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { colleges } from "../../org/index.ts";
+
+// The colleges table as far as the foreign key below needs it: its name and its key. The org module
+// owns the table and records its own changes here, so importing the table from it would make the
+// two modules import each other. Not exported: drizzle-kit reads only org's definition.
+const colleges = pgTable("colleges", { id: uuid().primaryKey() });
 
 // Append-only: rows are inserted, never updated or deleted by the app.
 export const auditEvents = pgTable("audit_events", {

@@ -8,6 +8,7 @@ import {
   demoAccounts,
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
+import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
 import {
   createTestDatabase,
@@ -41,7 +42,7 @@ const theDemoCollege = [
   { name: demoCollege.name, short_name: demoCollege.shortName },
 ];
 
-it("gives db:seed's college the demo values and settings, then a second run changes no row", async () => {
+it("gives db:seed's college the demo values, settings and departments, then a second run changes no row", async () => {
   const { url, pool } = await freshDatabase();
   const base = await runScript("db/seed/base.ts", [], scriptEnv(url));
   expect(base.code, base.stderr).toBe(0);
@@ -55,6 +56,8 @@ it("gives db:seed's college the demo values and settings, then a second run chan
     expect.arrayContaining([
       "public.audit_events",
       "public.colleges",
+      "public.department_rayat_values",
+      "public.departments",
       "public.settings",
       "public.users",
     ]),
@@ -66,6 +69,20 @@ it("gives db:seed's college the demo values and settings, then a second run chan
     Object.entries(demoSettings)
       .sort(([a], [b]) => a.localeCompare(b, "en"))
       .map(([key, value]) => ({ key, value })),
+  );
+  const { rows: seeded } = await pool.query(`
+    select d.name, d.short_name, d.active, array_agg(v.value order by v.value) as values
+    from departments d join department_rayat_values v on v.department_id = d.id
+    group by d.id order by d.name`);
+  expect(seeded).toEqual(
+    demoDepartments
+      .map(({ name, shortName, rayatValues }) => ({
+        name,
+        short_name: shortName,
+        active: true,
+        values: [...rayatValues].sort(),
+      }))
+      .sort((a, b) => (a.name < b.name ? -1 : 1)),
   );
 });
 
@@ -135,6 +152,7 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "user_id",
     "role_id",
     "account_id",
+    "department_id",
     "created_at",
     "updated_at",
     "password",

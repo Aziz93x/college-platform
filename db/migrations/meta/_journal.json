@@ -43,6 +43,13 @@
       "when": 1792566488368,
       "tag": "0005_session_password_entered_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792589065412,
+      "tag": "0006_departments",
+      "breakpoints": true
     }
   ]
 }

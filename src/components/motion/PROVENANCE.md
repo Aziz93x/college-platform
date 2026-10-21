@@ -28,6 +28,13 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `tabs.tsx` | `components/motion/tabs.tsx` |
 | `adaptive-stepper.tsx` | `components/motion/adaptive-stepper.tsx` |
 | `liquid.tsx` | `components/motion/liquid.tsx` |
+| `animated-badge.tsx` | `components/motion/animated-badge.tsx` |
+| `breadcrumb.tsx` | `components/motion/breadcrumb.tsx` |
+| `table/index.tsx` | `components/motion/table/index.tsx` |
+| `table/table-header.tsx` | `components/motion/table/table-header.tsx` |
+| `table/types.ts` | `components/motion/table/types.ts` |
+| `table/use-column-sort.ts` | `components/motion/table/use-column-sort.ts` |
+| `table/utils.ts` | `components/motion/table/utils.ts` |
 | `range-slider.tsx` | `components/motion/range-slider.tsx` |
 | `action-swap.tsx` | `components/motion/action-swap.tsx` |
 | `lib/use-listbox.ts` | `lib/hooks/use-listbox.ts` |
@@ -104,3 +111,20 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `checkbox.tsx` and `input.tsx` (Step 6): the checkbox pins `tabIndex` as above, and the input
   draws its border over the field, so the input fills all 44 px of it.
 
+## Local changes from Step 8 (the departments)
+
+- `animated-badge.tsx`: two states on the identity's tokens, `neutral` (set aside) and `success`
+  (in use: the teal fill and icon with the primary blue for the words, since the identity has no
+  green dark enough for small text); one size, 28 px; the words are a string, which keys the roll;
+  the pulse, the custom icon and the content key are gone. `SPRING_SWAP` moved to `lib/ease.ts`,
+  shared with the action swap.
+- `breadcrumb.tsx`: the trail's name is required; links render the router's `Link` through
+  `render` and are 44 px on a touch screen; the separator turns with the reading direction; the
+  ellipsis and its popover, for trails longer than this platform's, are gone; `ref` is a prop
+  (React 19).
+- `table/`: columns, sorting from a header and the empty row only, with the caption required for
+  screen readers; selection, column resizing and reordering, editable cells, row handles, the menu,
+  skeleton rows and virtualized rows are gone until a list needs them. Sorting compares text in the
+  page's language (`Intl.Collator`); `align` takes `start`, `center` and `end`; a column takes
+  classes of its own, to hide it on a phone; the header's labels take the foreground color, since
+  the muted one is too light on its fill; a narrow screen scrolls the table inside its frame.
