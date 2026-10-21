@@ -1,7 +1,7 @@
 # Data protection: the platform's record of personal data
 
 - Status: draft, for the controller and its data protection officer to confirm
-- Date: 2026-10-21, updated the same day for Steps 10 and 11 as merged (#21 and #22)
+- Date: 2026-10-21, updated the same day for Steps 10 to 12 as merged (#21, #22 and #23)
 - Decisions: ADR-0013 (proposed)
 - Related: `docs/privacy/privacy-notice.md` (the notice, in Arabic), `docs/ops/breach-response.md` (the incident runbook, in Arabic), `docs/ops/hosting-options.md` (the request to the General Administration)
 
@@ -88,7 +88,7 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 
 ## What the platform keeps
 
-### Today (Steps 1 to 11)
+### Today (Steps 1 to 12)
 
 | Data | About | Where | Why | Who sees it |
 | --- | --- | --- | --- | --- |
@@ -103,6 +103,8 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 | Who holds which role, across the college or in a department | Staff | `memberships` | Authorization | Holders of `roles.manage` |
 | Who did what to which record, its changes, IP address and user agent | Staff | `audit_events` | Accountability and security investigation | Holders of `audit.view`, which requires two-factor: the system role by default. Step 11's audit screen shows the IP address and the device, and its CSV export writes them out; each export is itself audited (`audit.export`). The history under each record shows its events without them. |
 | A people file: employee number, name, email, department and role on each row | Staff | Not stored. Read in memory for the preview, then its rows are sent back for the import (Step 10). | Creating accounts and memberships | The admin who imports it |
+| What a person was told: the kind, its details (a role and its department, or the week's unread count and the newest notifications), and when it was sent and read | Staff | `notifications` (Step 12) | Telling people what changed for them, in the platform only | The person |
+| Which kinds each person receives | Staff | `notification_prefs` (Step 12) | The same | The person |
 
 Colleges, departments, roles and settings hold no personal data. Their audit events name the admin who changed them.
 
@@ -112,7 +114,6 @@ Each step updates its row when it is built. The data is listed here now so the c
 
 | Data | About | Step | Notes |
 | --- | --- | --- | --- |
-| Notifications | Staff | 12 | |
 | Trainee number, registration status and trainee status per section (SF01) | Trainees | 16, 17 | Names, mobile numbers and grades are dropped while parsing. ADR-0013 proposes per-section counts instead of trainee numbers. |
 | Trainee number, course status such as barred for absence, unexcused absence in percent and hours (SO01, optional) | Trainees | 16 | Same proposal: per-course counts and bands |
 | Evidence: photos and files from trainers' phones | Trainers, and trainees who appear in them | 25 | May show a trainee's face, name or grade, as on a homework sample or a grade sheet. The browser removes location; ADR-0013 removes all metadata. |
@@ -154,6 +155,7 @@ The schedule follows a few rules:
 | Sign-in counts | 15 minutes by default (`auth.signInWindowMinutes`, `auth.lockoutMinutes`) | Pruned by the next attempt, and by the daily job | The typed identifier and the address become keyed hashes (ADR-0013) |
 | IP address and user agent in audit events | Proposed: 12 months, the ECC-2:2024 minimum (2-12-3-5). Today they stay as long as their event. | A second owner function, next to Step 11's `purge_audit_events()`, clears both columns and keeps the event | Setting `privacy.auditNetworkMonths` (12, never less): ADR-0013 |
 | The rest of each audit event | `audit.retentionMonths`: 60 months by default, from 12 to 120, changed by an admin after re-authentication | Step 11's daily job deletes them as the table owner (`purge_audit_events()`, migration 0010) | Step 11. **To confirm:** the records schedule may keep the events about training records longer. |
+| Notifications | Proposed: 12 months after they were sent | The daily job | Job and setting `privacy.notificationMonths` (12): ADR-0013. Today they stay. |
 | Error reports | 90 days | Step 42's job | Step 42 |
 | Logs | Security events 12 months, the rest 30 days | Rotation | Step 42 |
 | Backups | About 15 days today: a daily dump on the same server, and each day's run deletes the dumps more than 14 full days old | Rotation, which bounds every deletion above | Deployment configuration, not a setting. Step 42 replaces it with encrypted backups and states its periods here. |

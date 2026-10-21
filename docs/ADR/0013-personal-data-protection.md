@@ -1,7 +1,7 @@
 # ADR-0013: Personal data protection
 
 - Status: proposed
-- Date: 2026-10-21, revised the same day for Steps 10 and 11 as merged (#21 and #22)
+- Date: 2026-10-21, revised the same day for Steps 10 to 12 as merged (#21, #22 and #23)
 - Source: the owner's review. The plan never named the PDPL, SDAIA, the NCA or the NDMO, and it had no privacy notice, no retention periods and no breach procedure. The record that answers it is `docs/privacy/data-protection.md`.
 - Builds on:
   - ADR-0004: the public repository.
@@ -13,7 +13,7 @@
 ## Context
 
 The platform keeps personal data in stages:
-- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge.
+- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge. Step 12 added in-app notifications, kept with no end date.
 - **Step 16:** Rayat's data under trainee numbers. That includes absence and "barred for absence".
 - **Step 25:** evidence photos, which may show a trainee's face, name or grade.
 - **Step 36:** a per-person log of events with their durations, for the pilot measurement.
@@ -55,7 +55,8 @@ Better Auth already deletes expired verification values whenever anyone checks a
    - **A daily worker job,** as the app's database user, which already deletes these rows elsewhere:
      - sessions past the college's limits (the same rule `getSessionUser()` applies when a session is seen), and sessions past `expires_at`;
      - expired verification values, as a backstop to Better Auth's own cleanup;
-     - sign-in counts past their window or lock (the same rule the next attempt applies).
+     - sign-in counts past their window or lock (the same rule the next attempt applies);
+     - notifications older than `privacy.notificationMonths`, 12 by default (Step 12 keeps them with no end date).
    - **A second owner function, next to Step 11's `purge_audit_events()`:**
      - it clears the IP address and user agent of audit events older than `privacy.auditNetworkMonths`, and keeps the events;
      - the default is 12, and the schema refuses less, which is the ECC-2:2024 floor (2-12-3-5);
