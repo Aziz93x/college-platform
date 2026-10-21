@@ -30,6 +30,9 @@ beforeAll(async () => {
   appUrl = urlFor(randomBytes(12).toString("hex"));
   await grantAppRole(database.url, appUrl);
   app = new Pool({ connectionString: appUrl });
+  // The drop after the tests ends any connection the pool still closes; without a listener, as
+  // createDb's pools have, that error would crash the whole run.
+  app.on("error", () => {});
 });
 
 afterAll(async () => {

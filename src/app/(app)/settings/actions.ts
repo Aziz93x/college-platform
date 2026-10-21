@@ -13,7 +13,7 @@ import {
   setSetting,
   settingsRegistry,
 } from "@/modules/settings";
-import { latinDigits } from "@/platform/validation/digits";
+import { latinDigits } from "@/platform/validation/form";
 
 // The settings screen saves and resets one setting at a time. Each needs the setting's own
 // permission, a security setting needs the password again (reauthenticate()), and the domain

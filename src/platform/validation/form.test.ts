@@ -1,6 +1,6 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { checkboxField, formFields } from "./form.ts";
+import { checkboxField, formFields, latinDigits } from "./form.ts";
 
 const schema = formFields(
   z.object({ name: z.string(), remember: checkboxField }),
@@ -21,4 +21,27 @@ it("refuses a checkbox value a checkbox never sends", () => {
   expect(schema.safeParse({ name: "Sara", remember: "yes" }).success).toBe(
     false,
   );
+});
+
+describe("latinDigits", () => {
+  it("lets a number schema read Arabic-Indic digits", () => {
+    expect(latinDigits(z.coerce.number()).parse("١٢")).toBe(12);
+  });
+
+  it("lets a number schema read a decimal typed on an Arabic keyboard", () => {
+    expect(latinDigits(z.coerce.number()).parse("٨٧٫٥")).toBe(87.5);
+  });
+
+  it("hands Latin digits to a string schema", () => {
+    expect(latinDigits(z.string().regex(/^\d+$/)).parse("۲۰۲۶")).toBe("2026");
+  });
+
+  it("passes values that are not strings through unchanged", () => {
+    const schema = latinDigits(z.unknown());
+    const value = { week: "٧" };
+
+    expect(schema.parse(7)).toBe(7);
+    expect(schema.parse(value)).toBe(value);
+    expect(schema.parse(null)).toBe(null);
+  });
 });

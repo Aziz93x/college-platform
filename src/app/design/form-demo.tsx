@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { latinDigits } from "@/platform/validation/digits";
+import { latinDigits } from "@/platform/validation/form";
 
 // react-hook-form with a Zod schema: Arabic-Indic digits are read, and kept, as Latin ones.
 export function FormDemo() {
