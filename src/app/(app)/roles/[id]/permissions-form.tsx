@@ -6,10 +6,10 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Switch } from "@/components/motion/switch";
+import { usePasswordStep } from "@/components/password-step";
 import { cn } from "@/components/ui/cn";
 import type { PermissionArea, PermissionKey } from "@/modules/access";
 import { setRolePermissionsAction } from "../actions.ts";
-import { usePasswordStep } from "./use-password-step.tsx";
 
 export type GridArea = {
   area: PermissionArea;

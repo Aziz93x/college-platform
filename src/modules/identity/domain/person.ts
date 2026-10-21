@@ -26,5 +26,3 @@ export const personInput = z.object({
   email: personEmail,
   employeeNumber,
 });
-
-export type PersonInput = z.infer<typeof personInput>;

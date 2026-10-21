@@ -1,6 +1,12 @@
 "use client";
 
-import { Check, Circle, type LucideIcon } from "lucide-react";
+import {
+  Check,
+  Circle,
+  CircleAlert,
+  Clock3,
+  type LucideIcon,
+} from "lucide-react";
 import {
   AnimatePresence,
   type HTMLMotionProps,
@@ -11,9 +17,10 @@ import * as m from "motion/react-m";
 import { cn } from "@/components/ui/cn";
 import { EASE_OUT, SPRING_LAYOUT, SPRING_SWAP } from "./lib/ease.ts";
 
-// The states a badge shows so far: something in use, and something set aside. A step whose badge
-// needs another state (an account, readiness, a task) adds it here with its identity colors.
-type AnimatedBadgeStatus = "neutral" | "success";
+// The states a badge shows so far: something set aside, something in use, something waiting on
+// someone (an invited account), and something that needs attention (a locked account). A step
+// whose badge needs another state (readiness, a task) adds it here with its identity colors.
+type AnimatedBadgeStatus = "neutral" | "success" | "pending" | "alert";
 
 export interface AnimatedBadgeProps
   extends Omit<HTMLMotionProps<"span">, "children"> {
@@ -27,11 +34,15 @@ const STATUS_CLASS: Record<AnimatedBadgeStatus, string> = {
   neutral: "border-border bg-card text-muted-foreground",
   success:
     "border-secondary/40 bg-secondary/10 text-primary [&_[data-badge-icon]]:text-secondary",
+  pending: "border-primary/30 bg-primary/5 text-primary",
+  alert: "border-alert/40 bg-alert/5 text-alert",
 };
 
 const ICONS: Record<AnimatedBadgeStatus, LucideIcon> = {
   neutral: Circle,
   success: Check,
+  pending: Clock3,
+  alert: CircleAlert,
 };
 
 // Status swaps roll like the action swap: the leaving glyphs slide up and out while the next ones

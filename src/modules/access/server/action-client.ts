@@ -7,6 +7,7 @@ import {
   type Scope,
 } from "../domain/authorize.ts";
 import { type PermissionKey, permissionKeys } from "../domain/permissions.ts";
+import { type AccountHolder, reachesAccount } from "../domain/reach.ts";
 import { getViewer } from "./viewer.ts";
 
 // Why an action was refused, as a message key under "actions" in messages/*.json.
@@ -60,7 +61,7 @@ export const signedInAction = actionClient.use(async ({ next }) => {
 // college. An action whose permission or scope depends on its input, such as the setting it
 // changes or the department it touches, names none in its metadata and calls
 // ctx.requirePermission with the scope, which refuses it the same way; a list keeps to
-// ctx.departmentsFor.
+// ctx.departmentsFor. An action on someone's account calls ctx.requireReach with them.
 export const viewerAction = actionClient.use(async ({ next, metadata }) => {
   const viewer = await getViewer();
   if (!viewer || viewer.mustChangePassword || viewer.needsTwoFactorSetup) {
@@ -78,6 +79,13 @@ export const viewerAction = actionClient.use(async ({ next, metadata }) => {
   };
   const departmentsFor = (permission: PermissionKey) =>
     permittedDepartments(viewer, permission);
+  const requireReach = (permission: PermissionKey, holder: AccountHolder) => {
+    if (!reachesAccount(viewer, permission, holder)) {
+      throw new RefusedError("forbidden");
+    }
+  };
   if (metadata.permission) requirePermission(metadata.permission);
-  return next({ ctx: { viewer, requirePermission, departmentsFor } });
+  return next({
+    ctx: { viewer, requirePermission, departmentsFor, requireReach },
+  });
 });

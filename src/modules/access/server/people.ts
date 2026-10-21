@@ -25,7 +25,7 @@ type Change = {
 
 // A person of the college as the people list and their page show them: their account, its state,
 // each role they hold and where, and every key those roles give (to see whose account a key reaches).
-export type PersonEntry = AccountHolder & {
+export type PersonEntry = {
   userId: string;
   name: string;
   email: string;
@@ -38,6 +38,7 @@ export type PersonEntry = AccountHolder & {
     system: boolean;
     departmentId: string | null;
   }[];
+  permissions: AccountHolder["permissions"];
 };
 
 // The college's people by name: everyone, the people who hold a role in one of these departments,

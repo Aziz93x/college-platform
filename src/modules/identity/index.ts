@@ -1,7 +1,6 @@
 export { type AccountState, accountState } from "./domain/account-state.ts";
 export {
   employeeNumber,
-  type PersonInput,
   personEmail,
   personInput,
   personName,

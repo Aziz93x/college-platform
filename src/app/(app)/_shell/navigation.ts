@@ -1,6 +1,7 @@
 import {
   Building2,
   CalendarCheck,
+  Contact,
   type LucideIcon,
   Settings,
   UsersRound,
@@ -8,14 +9,15 @@ import {
 import type { ReactNode } from "react";
 import type { PermissionKey } from "@/modules/access";
 
-// A page of the app shell. Its label is the message nav.<id>. Its permission is a permission key;
-// an item without one is open to everyone who reaches the shell. The registry below takes only the
-// keys in code; the functions work on any keys, so their tests can use their own.
+// A page of the app shell. Its label is the message nav.<id>. Its permission is a permission key,
+// or several of which the viewer holds any; an item without one is open to everyone who reaches
+// the shell. The registry below takes only the keys in code; the functions work on any keys, so
+// their tests can use their own.
 export type NavigationItem<Key extends string = PermissionKey> = {
   id: string;
   href: string;
   icon: LucideIcon;
-  permission?: Key;
+  permission?: Key | readonly Key[];
 };
 
 // An item as the shell draws it: its label translated and its icon rendered on the server.
@@ -42,6 +44,17 @@ export const navigation = [
     permission: "roles.manage",
   },
   {
+    id: "people",
+    href: "/people",
+    icon: Contact,
+    // The people page serves each of these keys; a head holds the last two in their department.
+    permission: [
+      "people.manage",
+      "accounts.resetPassword",
+      "accounts.linkEmployeeNumber",
+    ],
+  },
+  {
     id: "settings",
     href: "/settings",
     icon: Settings,
@@ -64,7 +77,8 @@ export function visibleNavigation<T extends NavigationItem<string>>(
   return items
     .filter(
       (item) =>
-        item.permission === undefined || permissions.has(item.permission),
+        item.permission === undefined ||
+        [item.permission].flat().some((key) => permissions.has(key)),
     )
     .sort((a, b) => rank(a) - rank(b));
 }

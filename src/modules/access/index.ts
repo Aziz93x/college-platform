@@ -11,7 +11,6 @@ export {
 export { roleLabel } from "./domain/labels.ts";
 export {
   MAX_PEOPLE_ROWS,
-  type PeopleColumn,
   type PeopleRow,
   peopleColumns,
   readPeopleFile,
