@@ -92,7 +92,7 @@ services:
   # pnpm local:share: a temporary HTTPS address for a phone, on demo data only. It reaches Caddy's
   # unpublished tunnel entrance, so the stack's own network keeps no route out.
   share:
-    image: cloudflare/cloudflared:2025.10.0
+    image: cloudflare/cloudflared:2026.10.0
     profiles: [share]
     command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:8080"]
     networks: [edge]

@@ -492,7 +492,7 @@ Arabic-first platform where each role fills its part of one loop: term and frame
 ## Commands
 pnpm dev | pnpm check:all | pnpm test | pnpm test:e2e | pnpm e2e:screens
 pnpm db:generate | pnpm db:migrate | pnpm db:seed | pnpm seed:demo | pnpm admin:create | pnpm identity:sync
-pnpm local:up | pnpm local:down | pnpm local:share
+pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 ```
 
 **Done when**
@@ -723,6 +723,13 @@ pnpm local:up | pnpm local:down | pnpm local:share
 - `seed:demo` stores no login setting yet: store the demo college's own `platform.name`, `pilot.bannerText` and `locale.timeZone` with the seeded defaults, and let the end-to-end login test read them from the seed (enhancement 3; `locale.timeZone` from Audit 1, folded in by lead review A). The design catalog's visual baselines show the pilot banner, so they change with the banner text.
 - Sonner's `<Toaster>` mounts on `/design` only since Audit 2 (the script budget, ADR-0010). The first screen that shows a toast mounts it in its own layout.
 
+**Notes from Step 41 (for this step and every one after it)**
+
+- A new environment variable goes into `docker/compose.yml` and `docker/.env.example` in the same pull request. An empty value in `docker/.env.example` is a secret that `pnpm local:up` fills in.
+- The app and the worker connect as a role that changes no table, schema or trigger (`db/migrate.ts`). Work that needs the tables' owner runs in a migration, or in the stack through `pnpm local:run`.
+- A new journey's spec joins the list in `e2e/stack.config.ts`, which CI's Production stack job runs against Caddy on demo data. A test that makes its own rows in the database carries `@database` and stays out of it.
+- `e2e/support/test.ts` fails any test whose page asks for something outside the platform's origin.
+
 #### Step 8. Colleges and departments (S)
 
 **Goal:** the organization is data.
@@ -802,6 +809,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
+> **From Step 41:** once in about forty loads of the production login page, the page held two identifier inputs for a moment, one with a server id (`_R_…`) and one from a render on the client (`_r_…`), and a strict locator failed. Find the client render behind it.
+>
 > **Before it (lead review A):** capture the screens from the production build, which has no Next.js dev-tools button: `pnpm build`, copy `.next/static` and `public` into `.next/standalone` as CI does, then `CI=1 pnpm e2e:screens`. The review decides the scale of the 390 px captures, which are 1170 px wide today (`scale: "css"`); PR #6 left that question to it.
 
 #### Step 11. Audit log and history (S)
@@ -876,6 +885,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 - `pnpm seed:demo --week N` (default 9) moves here from Step 43. The demo term starts on the date that puts today in week N (test), and every later step seeds its states relative to it. Step 43 keeps the full amounts, the closed previous term and the `alt` profile.
 - Memberships gain their optional term here (see Step 9).
+
+**Note from Step 41:** `pnpm local:up --demo` passes `--seed` to `seed:demo`; give `scripts/local.ts` the `--week` option too, since the GA demonstration starts the stack with `--week 9`.
 
 #### Step 14. Portfolio axes catalog (S)
 
@@ -1184,6 +1195,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 
 **Note from ADR-0008:** the worker's Chromium aborts every request that does not go to the app, and the app serves the fonts and images. A test proves a render completes with outbound traffic blocked. Axis 11's charts come with Step 35, which adds trainer indicators to the portfolio. The font-embedding license is settled before any demo PDF leaves the college; until then the GA demonstration uses the fallback font.
 
+**Note from Step 41:** the worker image already carries Chromium, poppler and the identity font, and `node worker/print-check.ts` prints an Arabic page to PDF on the stack's network, which has no route out (CI's Production stack job runs it). It starts Chromium without its sandbox, which needs privileges a container lacks: Step 40 reviews that.
+
 #### Step 33. Department and college portfolios (M)
 
 **Goal:** the department file and the college summary build themselves.
@@ -1302,6 +1315,8 @@ pnpm local:up | pnpm local:down | pnpm local:share
 **Done when:** the budgets pass in CI, the ZAP baseline reports no high findings, and `docs/ops/asvs.md` is complete.
 
 **Note from ADR-0008:** `docs/ops/asvs.md` marks the TLS, HSTS and network-exposure items "after the hosting decision". The dependency audit names option A's update path (a monthly image bundle on approved media, plus an urgent path for vulnerabilities) beside Renovate's automerge (ADR-0006). This step also verifies the account-plus-IP sign-in limits from Step 6.
+
+**Note from Step 41:** the worker starts Chromium with `--no-sandbox` (`worker/print-check.ts`, then Step 32's renderer). Keep it, since Chromium prints only the platform's own pages from disk with no route out, or give the worker a seccomp profile that lets the sandbox run, and record the choice in `docs/ops/asvs.md`.
 
 **Note from Step 6:** the Content Security Policy keeps `style-src 'unsafe-inline'` because Motion and the image component set style attributes; verify that nothing else needs it. Better Auth accepts a TOTP code again within its window, and the sign-in limits trust the first `X-Forwarded-For` entry, which only Caddy in front makes the client's own (docs/BACKLOG.md).
 

@@ -22,4 +22,4 @@ Arabic-first platform where each role fills its part of one loop: term and frame
 ## Commands
 pnpm dev | pnpm check:all | pnpm test | pnpm test:e2e | pnpm e2e:screens
 pnpm db:generate | pnpm db:migrate | pnpm db:seed | pnpm seed:demo | pnpm admin:create | pnpm identity:sync
-pnpm local:up | pnpm local:down | pnpm local:share
+pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
