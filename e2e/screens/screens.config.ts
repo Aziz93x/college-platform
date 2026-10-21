@@ -14,6 +14,17 @@ export default defineConfig({
   fullyParallel: true,
   reporter: "list",
   use: config.use,
-  projects: screenProjects,
+  projects: [
+    // Signs in the demo roles first, as for pnpm test:e2e.
+    {
+      name: "setup",
+      testDir: join(root, "e2e"),
+      testMatch: /auth\.setup\.ts/,
+    },
+    ...screenProjects.map((project) => ({
+      ...project,
+      dependencies: ["setup"],
+    })),
+  ],
   webServer: { ...webServer, cwd: root },
 });

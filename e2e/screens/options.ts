@@ -3,8 +3,8 @@ import { devices } from "@playwright/test";
 
 // pnpm e2e:screens captures each route for each role at these widths, for the UX reviews.
 export const SCREEN_WIDTHS = [390, 768, 1440] as const;
-// Who the capture signs in as; Step 6 adds the others with sign-in.
-const KNOWN_ROLES = ["anonymous"];
+// Who the capture signs in as: nobody, or a demo role e2e/auth.setup.ts signs in.
+const KNOWN_ROLES = ["anonymous", "trainer", "admin"];
 
 // One Playwright project per width. The phone width is captured as a phone, with touch, a mobile
 // viewport and its pixel ratio, so coarse-pointer styles apply as they do on a real phone.
@@ -27,7 +27,7 @@ const slugOf = (route: string) =>
   route.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "index";
 
 // SCREENS_ROUTES: routes separated by spaces or commas (default "/"); SCREENS_OUT: the folder
-// (default .local/screens); SCREENS_ROLES: who signs in (default anonymous).
+// (default .local/screens); SCREENS_ROLES: who signs in (default anonymous; trainer or admin).
 export function screensOptions(env: Record<string, string | undefined>) {
   const routes = list(env.SCREENS_ROUTES, "/");
   const roles = list(env.SCREENS_ROLES, "anonymous");

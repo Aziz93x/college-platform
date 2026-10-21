@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { expectIdentityLoaded, identityImages } from "./identity-assets";
 import { settled } from "./screens/settled";
+import { STORAGE } from "./support/auth.ts";
+
+// The catalog is open to whoever holds design.view: the demo admin (e2e/auth.setup.ts).
+test.use({ storageState: STORAGE.admin });
 
 // Baselines come from CI's pinned Chromium, never from a laptop: a run there writes a missing
 // baseline and fails, and the baselines job in .github/workflows/ci.yml commits it to the pull

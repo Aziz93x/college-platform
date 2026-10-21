@@ -1,5 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
 import { settled } from "./screens/settled";
+import { STORAGE } from "./support/auth.ts";
+
+// The catalog is open to the demo admin (e2e/auth.setup.ts), who also reaches the shell.
+test.use({ storageState: STORAGE.admin });
 
 // Every Arabic letter (a pangram), the hamza forms, taa marbuta, alif maqsura, lam-alif, Arabic
 // punctuation and the Latin digits the platform shows.
@@ -142,17 +146,23 @@ async function loadWithLateFont(page: Page, path: string) {
   );
 }
 
-// The catalog, and the shell's first page.
-for (const path of ["/design", "/today"]) {
-  test(`on ${path} the identity font replaces the fallback without a layout shift`, async ({
-    page,
-  }) => {
-    const { fontAtFirstFrame, fontAtEnd, layoutShift } = await loadWithLateFont(
+// The login page, signed out; the catalog and the shell's first page.
+for (const [path, signedIn] of [
+  ["/", false],
+  ["/design", true],
+  ["/today", true],
+] as const) {
+  test.describe(path, () => {
+    if (!signedIn) test.use({ storageState: { cookies: [], origins: [] } });
+
+    test(`on ${path} the identity font replaces the fallback without a layout shift`, async ({
       page,
-      path,
-    );
-    expect(fontAtFirstFrame).toBe(false);
-    expect(fontAtEnd).toBe(true);
-    expect(layoutShift).toBeLessThan(0.05);
+    }) => {
+      const { fontAtFirstFrame, fontAtEnd, layoutShift } =
+        await loadWithLateFont(page, path);
+      expect(fontAtFirstFrame).toBe(false);
+      expect(fontAtEnd).toBe(true);
+      expect(layoutShift).toBeLessThan(0.05);
+    });
   });
 }

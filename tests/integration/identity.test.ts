@@ -1,15 +1,24 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
 import {
   changePassword,
   createAccount,
   getAuth,
+  getSessionUser,
   resetPassword,
   type SignInInput,
   signIn,
 } from "../../src/modules/identity/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
+
+// The request getSessionUser reads, and a cookie store for Better Auth's Next.js plugin, which
+// writes the cookies it sets through next/headers.
+const request = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => request.headers,
+  cookies: async () => ({ set: () => {} }),
+}));
 
 const PASSWORD = "correct-horse-battery";
 const MINUTE_MS = 60_000;
@@ -54,6 +63,26 @@ const attempt = (
   ip: string,
   now?: Date,
 ) => signIn({ password: PASSWORD, remember: false, ...input }, from(ip), now);
+
+// A signed-in device: the cookie Better Auth sets, as the browser sends it back.
+async function signedInDevice(email: string) {
+  const { headers } = await getAuth().api.signInEmail({
+    body: { email, password: PASSWORD, rememberMe: true },
+    returnHeaders: true,
+  });
+  const cookie = headers
+    .getSetCookie()
+    .map((entry) => entry.split(";")[0])
+    .join("; ");
+  const [session] = await query(
+    "select id from sessions where token = split_part(split_part($1, '=', 2), '.', 1)",
+    [cookie],
+  );
+  return {
+    headers: new Headers({ cookie }),
+    sessionId: session.id as string,
+  };
+}
 
 async function store(key: string, value: unknown) {
   await query(
@@ -288,26 +317,6 @@ describe("resetPassword", () => {
 });
 
 describe("changePassword", () => {
-  // A signed-in device: the cookie Better Auth sets, as the browser sends it back.
-  async function signedInDevice(email: string) {
-    const { headers } = await getAuth().api.signInEmail({
-      body: { email, password: PASSWORD, rememberMe: true },
-      returnHeaders: true,
-    });
-    const cookie = headers
-      .getSetCookie()
-      .map((entry) => entry.split(";")[0])
-      .join("; ");
-    const [session] = await query(
-      "select id from sessions where token = split_part(split_part($1, '=', 2), '.', 1)",
-      [cookie],
-    );
-    return {
-      headers: new Headers({ cookie }),
-      sessionId: session.id as string,
-    };
-  }
-
   it("replaces the password, keeps this device's session as it was, ends the others and audits it", async () => {
     const { userId, email, employeeNumber } = await person();
     await query("update users set must_change_password = true where id = $1", [
@@ -372,5 +381,87 @@ describe("changePassword", () => {
     expect(
       await query("select id from audit_events where entity_id = $1", [userId]),
     ).toEqual([]);
+  });
+});
+
+describe("getSessionUser", () => {
+  const MINUTE_MS = 60_000;
+
+  async function deviceSeen(
+    email: string,
+    session: { remembered: boolean; idle: string; age?: string },
+  ) {
+    const device = await signedInDevice(email);
+    await query(
+      `update sessions set remembered = $2,
+         last_seen_at = now() - $3::interval,
+         created_at = now() - coalesce($4, $3)::interval
+       where id = $1`,
+      [device.sessionId, session.remembered, session.idle, session.age ?? null],
+    );
+    request.headers = device.headers;
+    return device;
+  }
+
+  const stillThere = async (sessionId: string) =>
+    (await query("select id from sessions where id = $1", [sessionId])).length;
+
+  it("ends a session that sat idle past the college's limit, and deletes it", async () => {
+    const { email } = await person();
+    const { sessionId } = await deviceSeen(email, {
+      remembered: false,
+      idle: "61 minutes",
+    });
+
+    expect(await getSessionUser()).toBeNull();
+    expect(await stillThere(sessionId)).toBe(0);
+  });
+
+  it("keeps a remembered device signed in however long it sat idle, until its days are up", async () => {
+    const { userId, email } = await person();
+    const kept = await deviceSeen(email, {
+      remembered: true,
+      idle: "3 days",
+    });
+    expect(await getSessionUser()).toMatchObject({
+      userId,
+      sessionId: kept.sessionId,
+      collegeId,
+    });
+
+    const expired = await deviceSeen(email, {
+      remembered: true,
+      idle: "1 day",
+      age: "31 days",
+    });
+    expect(await getSessionUser()).toBeNull();
+    expect(await stillThere(expired.sessionId)).toBe(0);
+  });
+
+  it("notes a request's time at most once a minute", async () => {
+    const { email } = await person();
+    const { sessionId } = await deviceSeen(email, {
+      remembered: false,
+      idle: "2 minutes",
+    });
+    const lastSeen = async () =>
+      new Date(
+        (
+          await query("select last_seen_at from sessions where id = $1", [
+            sessionId,
+          ])
+        )[0].last_seen_at,
+      ).getTime();
+
+    await getSessionUser();
+    expect(Date.now() - (await lastSeen())).toBeLessThan(MINUTE_MS / 2);
+
+    await query(
+      "update sessions set last_seen_at = now() - interval '30 seconds' where id = $1",
+      [sessionId],
+    );
+    const before = await lastSeen();
+    await getSessionUser();
+    expect(await lastSeen()).toBe(before);
   });
 });

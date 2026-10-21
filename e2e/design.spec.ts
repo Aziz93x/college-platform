@@ -1,8 +1,12 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import messages from "../messages/ar.json" with { type: "json" };
 import { expectIdentityLoaded, identityImages } from "./identity-assets";
 import { settled } from "./screens/settled";
+import { STORAGE } from "./support/auth.ts";
+import { seriousViolations } from "./support/axe.ts";
+
+// The catalog is open to whoever holds design.view: the demo admin (e2e/auth.setup.ts).
+test.use({ storageState: STORAGE.admin });
 
 const design = messages.design;
 
@@ -116,31 +120,6 @@ const OVERLAYS: Overlay[] = [
 // the overlay, but axe's aria-hidden-focus credits only a modal dialog with that. For these two
 // the test proves instead that Tab cannot leave the overlay.
 const FOCUS_KEPT = new Set(["dropdown", "select"]);
-
-// WCAG 2.2 AA; only serious and critical violations fail. axe takes joined Arabic letters for an
-// icon font's ligatures and then skips their contrast, so they become Latin letters first: same
-// elements, same styles, and the contrast check runs.
-async function seriousViolations(page: Page, disabledRules: string[] = []) {
-  await page.evaluate(() => {
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-    );
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      node.nodeValue = (node.nodeValue ?? "").replace(
-        /\p{Script=Arabic}/gu,
-        "a",
-      );
-    }
-  });
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-    .disableRules(disabledRules)
-    .analyze();
-  return violations
-    .filter(({ impact }) => impact === "serious" || impact === "critical")
-    .map(({ id, nodes }) => ({ id, targets: nodes.map((n) => n.target) }));
-}
 
 // The catalog, not loading.tsx's skeleton, which stays in its place until after the load event.
 test.beforeEach(async ({ page }) => {

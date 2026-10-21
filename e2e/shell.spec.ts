@@ -1,38 +1,19 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import messages from "../messages/ar.json" with { type: "json" };
+import { STORAGE } from "./support/auth.ts";
+import { seriousViolations } from "./support/axe.ts";
 
 const { shell, nav, today, pages } = messages;
+
+// The shell as the demo trainer sees it (e2e/auth.setup.ts).
+test.use({ storageState: STORAGE.trainer });
 
 const sidebar = (page: Page) =>
   page.locator("aside").getByRole("navigation", { name: shell.navigation });
 const tabBar = (page: Page) =>
   page.locator("nav.fixed").filter({ has: page.getByRole("list") });
 
-// WCAG 2.2 AA; only serious and critical violations fail. Arabic letters become Latin first, as in
-// e2e/design.spec.ts, so axe checks their contrast instead of skipping them as icon ligatures.
-async function seriousViolations(page: Page) {
-  await page.evaluate(() => {
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-    );
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      node.nodeValue = (node.nodeValue ?? "").replace(
-        /\p{Script=Arabic}/gu,
-        "a",
-      );
-    }
-  });
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
-    .analyze();
-  return violations
-    .filter(({ impact }) => impact === "serious" || impact === "critical")
-    .map(({ id, nodes }) => ({ id, targets: nodes.map((n) => n.target) }));
-}
-
-test("the address opens the shell on today's page, right to left in Arabic", async ({
+test("the address opens the shell on today's page for someone signed in, right to left in Arabic", async ({
   page,
 }) => {
   await page.goto("/");
