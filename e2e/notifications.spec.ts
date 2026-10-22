@@ -215,8 +215,13 @@ test(
     await sendTo(person, "membershipRemoved", "second");
     const page = await asPerson(browser, person);
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 2 }));
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await visit(page, "/notifications");
     await expect(page.locator("main ol > li")).toHaveCount(2);
+    // Two unread rows, whatever the demo data holds, for the contrast check (Audit 4). Axe reads the
+    // page with its Arabic made Latin, so the page is opened again before it is used.
+    expect(await seriousViolations(page)).toEqual([]);
+    await visit(page, "/notifications");
     await page.getByRole("button", { name: text.markAllRead }).click();
     await expect(page.getByText(text.markedAllRead)).toBeVisible();
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 0 }));

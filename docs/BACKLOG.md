@@ -20,6 +20,11 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - Serve the identity font as WOFF2 once its licence allows converting it: the two TTF files are about 150 KiB of the login page's transfer (Audit 2, enhancement 1). Licensed files stay unconverted until then (ADR-0004 and the font-licence item in section 8). Lead review A left it here.
 - Sign the image archives that updates bring on approved media: `SHA256SUMS` on the same medium proves the copy is whole, not that it came from the owner. A detached signature (minisign, or `cosign sign-blob` with a key the owner keeps), checked by `pnpm local:up --images`, gives an isolated server authenticity without a registry. About 1 h plus keeping the key; Step 40's dependency audit could own it (Audit 3, enhancement 2).
 
+## Audit 4 (docs/reviews/audit-12.md)
+
+- A calendar sweep in CI: each night, `seed:demo` with the clock moved to each day of the week (a 12-line preload around `Date`), then the specs that read demo data (`--grep-invert @database`). It finds a test that passes only on some days before it turns CI red, as the notification tests did; Step 13's terms and Step 27's reminders add more rules about dates. About 1 h, plus seven short runs a night (enhancement 2).
+- A random stream per record in the demo seed: each person's and each week's draws from `createRandom(hash(seed, key))` instead of one shared stream, so a new draw, or the calendar, no longer shifts every later person's data. Audit 4 fixed the demo trainer's notifications by hand; this removes the cause for the rest. About 1 h, and the demo data changes once: do it with Step 43's larger seed (enhancement 3).
+
 ## UX review 1: should fix (docs/reviews/ux-10.md)
 
 Every score is 4 or above without these; the review ranks them after its must-fix items, which its PR fixed.

@@ -448,4 +448,34 @@ describe("importing people", () => {
       ).map(({ department_id }) => department_id),
     ).toEqual([electrical, mechanical].sort());
   });
+
+  it("runs one import at a time per college, so two at once make a person once (Audit 4)", async () => {
+    const same = [
+      row(2, {
+        employeeNumber: "920001",
+        name: "Imported Twice",
+        email: "imported.twice@college.example",
+        department: "Electrical",
+        role: "trainer",
+      }),
+    ];
+    const results = await Promise.all([
+      importPeople(same, { canGiveRoles: true }, change(importer)),
+      importPeople(same, { canGiveRoles: true }, change(importer)),
+    ]);
+    // The second plans again once the first has finished, and finds the person there.
+    expect(
+      results
+        .map(({ created, unchanged }) => [created.length, unchanged])
+        .sort(),
+    ).toEqual([
+      [0, 1],
+      [1, 0],
+    ]);
+    expect(
+      await query(
+        "select count(*)::int as made from people where employee_number = '920001'",
+      ),
+    ).toEqual([{ made: 1 }]);
+  });
 });

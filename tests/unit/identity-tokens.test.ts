@@ -91,6 +91,40 @@ const textPairs = {
   // fail there: the dark theme waits for the owner's answer (docs/PLAN.md, Step 23 notes).
   dark: [...sharedText, ["alert-foreground", "alert"]],
 };
+// Tinted grounds that carry text, as Tailwind paints `bg-primary/5`: the role mixed at its share
+// over the card. Muted text stays off them: on an unread notification's tint it measured 4.18:1
+// (Audit 4), so tinted rows and their hover use the foreground.
+const tints: Record<string, [role: string, share: number]> = {
+  // An unread notification, the pilot banner and an info alert.
+  "primary/5": ["primary", 0.05],
+  // A row under the pointer.
+  "muted/60": ["muted", 0.6],
+  // An error alert.
+  "alert/5": ["alert", 0.05],
+};
+const tintedText = [
+  ["foreground", "primary/5"],
+  ["primary", "primary/5"],
+  ["foreground", "muted/60"],
+  ["alert", "alert/5"],
+];
+function tinted(ground: string) {
+  const [role, share] = tints[ground];
+  const [over, under] = [hexOf("light", role), hexOf("light", "card")];
+  const channel = (hex: string, at: number) =>
+    Number.parseInt(hex.slice(at, at + 2), 16);
+  return `#${[1, 3, 5]
+    .map((at) =>
+      Math.round(
+        share * channel(over ?? "", at) +
+          (1 - share) * channel(under ?? "", at),
+      )
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 // UI parts and graphics against their surface: 3:1 (WCAG 1.4.11). Border (the identity's light
 // rule) and secondary are decoration, so they are not here.
 const sharedUi = [
@@ -142,6 +176,14 @@ describe("src/styles/tokens.css", () => {
   )("%s: %s on %s reaches 4.5:1", (theme, fore, back) => {
     expect(
       contrast(hexOf(theme, fore) ?? "", hexOf(theme, back) ?? ""),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(
+    tintedText,
+  )("light: %s on the %s tint reaches 4.5:1", (fore, ground) => {
+    expect(
+      contrast(hexOf("light", fore) ?? "", tinted(ground)),
     ).toBeGreaterThanOrEqual(4.5);
   });
 

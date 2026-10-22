@@ -24,4 +24,4 @@ export {
   type NotificationEntry,
   unreadCount,
 } from "./server/read.ts";
-export { notifications } from "./server/schema.ts";
+export { notificationPrefs, notifications } from "./server/schema.ts";

@@ -38,7 +38,7 @@ const COLLEGE = "college";
 
 // Who holds the role, and where; adding someone, across the college or in one department, and
 // taking the role away, which a sheet confirms as it confirms every change to someone's access. The
-// system role is held across the college only, and keeps its last member.
+// system role is held across the college only, and keeps its last member who can sign in.
 export function Members({
   role,
   people,
@@ -59,8 +59,10 @@ export function Members({
   const [removing, setRemoving] = useState<Member>();
   const [, startTransition] = useTransition();
   const step = usePasswordStep();
-  // The system role's last member stays: the college needs one admin.
-  const keeps = role.system && role.members.length === 1;
+  // The system role's last enabled member stays: the college needs one admin who can sign in.
+  const enabled = role.members.filter((member) => !member.disabled);
+  const keeps = (member: Member) =>
+    role.system && !member.disabled && enabled.length === 1;
 
   const scopeName = (departmentId: string | null) =>
     departmentId === null
@@ -134,13 +136,19 @@ export function Members({
                   <span dir="ltr">{member.employeeNumber}</span>
                   <span aria-hidden> · </span>
                   {scopeName(member.departmentId)}
+                  {member.disabled ? (
+                    <>
+                      <span aria-hidden> · </span>
+                      {t("disabled")}
+                    </>
+                  ) : null}
                 </p>
               </div>
               <button
                 type="button"
                 aria-label={t("remove", { name: member.name })}
-                aria-describedby={keeps ? `${id}-keeps` : undefined}
-                disabled={keeps}
+                aria-describedby={keeps(member) ? `${id}-keeps` : undefined}
+                disabled={keeps(member)}
                 onClick={() => setRemoving(member)}
                 className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
               >
@@ -154,7 +162,7 @@ export function Members({
           {t("empty")}
         </p>
       )}
-      {keeps ? (
+      {role.members.some(keeps) ? (
         <p
           id={`${id}-keeps`}
           className="px-5 pt-3 text-muted-foreground text-xs sm:px-6"
