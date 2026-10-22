@@ -290,9 +290,13 @@ test(
       ),
     ).toBeVisible();
 
-    // On their page, the temporary password is a button, not behind a menu.
+    // On their page, the temporary password is a button, not behind a menu; the log's history of
+    // the account is for whoever may read the log, which a head may not (Audit 4).
     await open(head, `/people/${own.userId}`);
     await expect(onPage(head, text.account.reset)).toBeVisible();
+    await expect(
+      head.getByRole("region", { name: messages.audit.history.title }),
+    ).toHaveCount(0);
     await open(head, "/people");
     await find(head, own);
     await act(head, own, text.account.reset);

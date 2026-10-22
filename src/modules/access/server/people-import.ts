@@ -77,34 +77,34 @@ export async function planPeopleImport(
   options: { canGiveRoles: boolean },
   db: Db | Tx = getDb(),
 ): Promise<PlannedRow[]> {
-  const [departmentRows, valueRows, roleRows, language] = await Promise.all([
-    db
-      .select({
-        id: departments.id,
-        name: departments.name,
-        shortName: departments.shortName,
-        active: departments.active,
-      })
-      .from(departments)
-      .where(eq(departments.collegeId, collegeId)),
-    db
-      .select({
-        departmentId: departmentRayatValues.departmentId,
-        value: departmentRayatValues.value,
-      })
-      .from(departmentRayatValues)
-      .where(eq(departmentRayatValues.collegeId, collegeId)),
-    db
-      .select({
-        id: roles.id,
-        key: roles.key,
-        labels: roles.labels,
-        system: roles.system,
-      })
-      .from(roles)
-      .where(eq(roles.collegeId, collegeId)),
-    getSetting("locale.language", { collegeId }),
-  ]);
+  // One read after another: an import passes its transaction, one connection, which pg 9 will
+  // refuse two queries at once (Audit 4).
+  const departmentRows = await db
+    .select({
+      id: departments.id,
+      name: departments.name,
+      shortName: departments.shortName,
+      active: departments.active,
+    })
+    .from(departments)
+    .where(eq(departments.collegeId, collegeId));
+  const valueRows = await db
+    .select({
+      departmentId: departmentRayatValues.departmentId,
+      value: departmentRayatValues.value,
+    })
+    .from(departmentRayatValues)
+    .where(eq(departmentRayatValues.collegeId, collegeId));
+  const roleRows = await db
+    .select({
+      id: roles.id,
+      key: roles.key,
+      labels: roles.labels,
+      system: roles.system,
+    })
+    .from(roles)
+    .where(eq(roles.collegeId, collegeId));
+  const language = await getSetting("locale.language", { collegeId });
   const departmentByText = new Map<string, (typeof departmentRows)[number]>();
   for (const department of departmentRows) {
     departmentByText.set(key(department.name), department);
@@ -127,10 +127,10 @@ export async function planPeopleImport(
   const emails = typed.flatMap((person) =>
     person.success ? [person.data.email] : [],
   );
-  const [byNumber, byEmail] = await Promise.all([
+  const byNumber =
     numbers.length === 0
       ? []
-      : db
+      : await db
           .select({
             userId: people.userId,
             employeeNumber: people.employeeNumber,
@@ -143,14 +143,14 @@ export async function planPeopleImport(
               eq(people.collegeId, collegeId),
               inArray(people.employeeNumber, numbers),
             ),
-          ),
+          );
+  const byEmail =
     emails.length === 0
       ? []
-      : db
+      : await db
           .select({ email: users.email })
           .from(users)
-          .where(inArray(users.email, emails)),
-  ]);
+          .where(inArray(users.email, emails));
   const held =
     byNumber.length === 0
       ? []
