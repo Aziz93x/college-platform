@@ -34,7 +34,16 @@ it.each([
     z.string().max(80).nullable(),
     { kind: "text", maxLength: 80, nullable: true },
   ],
-  ["a list of texts", z.array(z.string()).min(1), { kind: "list" }],
+  [
+    "a list of file extensions",
+    z.array(z.string().regex(/^[a-z0-9]+$/)).min(1),
+    { kind: "list", item: "extension" },
+  ],
+  [
+    "a list of words",
+    z.array(z.string().trim().min(1).max(100)).min(1).nullable(),
+    { kind: "list", item: "word", maxLength: 100 },
+  ],
   [
     "a text for each field",
     z
@@ -80,5 +89,30 @@ it("reads each setting's own schema and unit", () => {
     maxLength: 80,
     nullable: true,
   });
-  expect(settingControl("files.acceptedTypes")).toEqual({ kind: "list" });
+  expect(settingControl("files.acceptedTypes")).toEqual({
+    kind: "list",
+    item: "extension",
+  });
+  expect(settingControl("catalogs.trainingMethods")).toEqual({
+    kind: "list",
+    item: "word",
+    maxLength: 100,
+  });
+  expect(settingControl("catalogs.gradeBands")).toEqual({
+    kind: "list",
+    item: "percent",
+    min: 1,
+    max: 99,
+  });
+});
+
+it("draws a list of numbers only as percentages", () => {
+  const bounds = z.array(z.int().min(1).max(99));
+  expect(controlFor(bounds, "percent")).toEqual({
+    kind: "list",
+    item: "percent",
+    min: 1,
+    max: 99,
+  });
+  expect(controlFor(bounds)).toBeUndefined();
 });

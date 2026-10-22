@@ -85,3 +85,10 @@ export const frameworkItemInput = z.object({
     .pipe(z.string().max(frameworkLimits.notes)),
 });
 export type FrameworkItemInput = z.infer<typeof frameworkItemInput>;
+
+// A head's section template (Step 18): an item for each trainer of each of the department's
+// sections, so it has a framework item's fields but whom it reaches.
+export const sectionTemplateInput = frameworkItemInput.omit({
+  appliesTo: true,
+});
+export type SectionTemplateInput = z.infer<typeof sectionTemplateInput>;

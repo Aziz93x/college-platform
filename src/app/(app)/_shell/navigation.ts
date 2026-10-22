@@ -80,8 +80,8 @@ export const navigation = [
     href: "/settings",
     icon: Settings,
     // Every key that edits a setting (src/modules/settings/domain/registry.ts): the vice-dean's
-    // counts a term's weeks there.
-    permission: ["settings.manage", "term.manage"],
+    // count a term's weeks and keep the catalogs there.
+    permission: ["settings.manage", "term.manage", "framework.publish"],
     group: "administration",
   },
   {

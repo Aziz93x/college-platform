@@ -46,7 +46,13 @@ export function useSettingWords() {
       case "number":
         return withUnit(setting.unit, Number(value));
       case "list":
-        return format.list(value as string[]);
+        return format.list(
+          ((value ?? []) as (string | number)[]).map((item) =>
+            control.item === "percent"
+              ? withUnit("percent", Number(item))
+              : String(item),
+          ),
+        );
       case "columns":
         return format.list(
           Object.values((value ?? {}) as Record<string, string>),

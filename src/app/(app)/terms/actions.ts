@@ -6,6 +6,7 @@ import { z } from "zod";
 import { viewerAction } from "@/modules/access";
 import { copyFrameworkInto } from "@/modules/framework";
 import { requestMeta } from "@/modules/identity";
+import { copyTemplatesInto } from "@/modules/planning";
 import { getSetting } from "@/modules/settings";
 import {
   activateTerm,
@@ -86,14 +87,18 @@ export const openNextTermAction = viewerAction
   .inputSchema(termInput.extend({ fromId: z.uuid() }))
   .action(async ({ parsedInput: { fromId, ...input }, ctx: { viewer } }) => {
     const change = await changeBy(viewer);
-    // The new term starts with a draft of the framework of the term it opens from (Step 15).
+    // The new term starts with drafts of the framework (Step 15) and of the departments' section
+    // templates (Step 18) of the term it opens from.
     return openNextTerm(
       fromId,
       input,
       change,
       await calendarSettings(viewer.collegeId),
       undefined,
-      (tx, from, to) => copyFrameworkInto(tx, from, to, change),
+      async (tx, from, to) => {
+        await copyFrameworkInto(tx, from, to, change);
+        await copyTemplatesInto(tx, from, to, change);
+      },
     );
   });
 

@@ -67,6 +67,12 @@ export const auditActions = [
   "sectionTransfer.create",
   "sectionTransfer.keep",
   "sectionTransfer.cancel",
+  // A head's section templates for a term, and their copy into the next term, recorded on each
+  // department's history (Step 18).
+  "sectionTemplate.create",
+  "sectionTemplate.update",
+  "sectionTemplate.delete",
+  "sectionTemplate.copy",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -85,6 +91,7 @@ const auditEntities = [
   "framework",
   "rayatImport",
   "sectionTransfer",
+  "sectionTemplate",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

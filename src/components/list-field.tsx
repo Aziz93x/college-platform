@@ -19,6 +19,7 @@ export function ListField({
   error,
   words,
   itemDir = "auto",
+  show = (item) => item,
   typed,
   onTypedChange,
   className,
@@ -36,6 +37,8 @@ export function ListField({
   };
   /** Entries in a script of their own, such as file extensions, read left to right. */
   itemDir?: "ltr" | "auto";
+  /** An entry as its chip writes it, such as a number in the page's digits. */
+  show?: (item: string) => string;
   typed?: string;
   onTypedChange?: (typed: string) => void;
   className?: string;
@@ -68,10 +71,10 @@ export function ListField({
             dir={itemDir}
             className="inline-flex h-8 items-center gap-1 rounded-full border bg-muted ps-3 pe-1 font-medium text-sm"
           >
-            {item}
+            {show(item)}
             <button
               type="button"
-              aria-label={words.remove(item)}
+              aria-label={words.remove(show(item))}
               onClick={() => onChange(items.filter((other) => other !== item))}
               className="relative grid size-6 place-items-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:content-[''] hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
             >

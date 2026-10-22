@@ -14,7 +14,7 @@ import {
 import { Switch } from "@/components/motion/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toLatinDigits } from "@/platform/validation/digits";
-import type { SettingView } from "./setting-view.ts";
+import { readListItem, type SettingView } from "./setting-view.ts";
 import type { SettingWords } from "./use-setting-words.ts";
 
 // Text longer than this is edited in a box that grows with it, not on one line.
@@ -186,36 +186,52 @@ export function SettingField({
         </div>
       );
     }
-    case "list":
+    case "list": {
+      // A percentage list holds numbers; its field holds them as Latin digits.
+      const percent = control.item === "percent";
+      const items = percent
+        ? (value as number[]).map(String)
+        : (value as string[]);
       return (
         <ListField
           label={label}
-          items={value as string[]}
-          onChange={onChange}
+          items={items}
+          onChange={(next) => onChange(percent ? next.map(Number) : next)}
           error={error}
-          // File extensions: Latin letters and digits, written without the dot.
           read={(typed, items) => {
-            const item = toLatinDigits(
-              typed.trim().toLowerCase().replace(/^\./, ""),
-            );
-            if (!item) return undefined;
-            if (!/^[a-z0-9]{1,10}$/.test(item)) {
-              return { problem: words.t("list.format") };
-            }
-            if (items.includes(item)) {
-              return { problem: words.t("list.duplicate") };
-            }
-            return { item };
+            const entry = readListItem(control, typed, items);
+            if (!entry || "item" in entry) return entry;
+            return {
+              problem:
+                entry.problem === "tooLong" && control.item === "word"
+                  ? words.t("errors.tooLong", { max: control.maxLength })
+                  : entry.problem === "range" && control.item === "percent"
+                    ? words.t("list.percent.range", {
+                        min: words.number(control.min),
+                        max: words.number(control.max),
+                      })
+                    : words.t(
+                        entry.problem === "format"
+                          ? "list.extension.format"
+                          : `list.${control.item}.duplicate`,
+                      ),
+            };
           }}
           words={{
-            placeholder: words.t("list.placeholder"),
+            placeholder: words.t(`list.${control.item}.placeholder`),
             add: words.t("list.add"),
             remove: (item) => words.t("list.remove", { item }),
           }}
-          itemDir="ltr"
+          itemDir={control.item === "extension" ? "ltr" : "auto"}
+          show={
+            percent
+              ? (item) => words.withUnit("percent", Number(item))
+              : undefined
+          }
           className="lg:w-80"
         />
       );
+    }
   }
 }
 

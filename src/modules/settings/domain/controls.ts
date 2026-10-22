@@ -14,7 +14,11 @@ export type SettingControl =
   | { kind: "slider" | "stepper" | "number"; min: number; max: number }
   // A nullable text is left empty for the default (the message catalog's words).
   | { kind: "text"; maxLength: number; nullable: boolean }
-  | { kind: "list" }
+  // A list of file extensions (a text a pattern checks), of words, such as a catalog's, or of
+  // percentages, such as the grade bands' bounds.
+  | { kind: "list"; item: "extension" }
+  | { kind: "list"; item: "word"; maxLength: number }
+  | { kind: "list"; item: "percent"; min: number; max: number }
   // A text for each of the fields, such as the header of each column of a Rayat report.
   | { kind: "columns"; fields: readonly string[]; maxLength: number };
 
@@ -46,7 +50,25 @@ export function controlFor(
     return { kind: "text", maxLength: inner.maxLength ?? 1000, nullable };
   }
   if (inner instanceof z.ZodArray && inner.element instanceof z.ZodString) {
-    return { kind: "list" };
+    return inner.element.format === "regex"
+      ? { kind: "list", item: "extension" }
+      : {
+          kind: "list",
+          item: "word",
+          maxLength: inner.element.maxLength ?? 1000,
+        };
+  }
+  if (
+    inner instanceof z.ZodArray &&
+    inner.element instanceof z.ZodNumber &&
+    unit === "percent"
+  ) {
+    return {
+      kind: "list",
+      item: "percent",
+      min: inner.element.minValue ?? 0,
+      max: inner.element.maxValue ?? 100,
+    };
   }
   if (inner instanceof z.ZodObject) {
     const fields = Object.values<z.ZodType>(inner.shape);

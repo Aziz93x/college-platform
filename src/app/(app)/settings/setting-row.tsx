@@ -28,6 +28,8 @@ import { type SettingWords, useSettingWords } from "./use-setting-words.ts";
 function fieldValue(setting: SettingView, value: unknown, words: SettingWords) {
   if (setting.control.kind === "number") return words.number(Number(value));
   if (setting.control.kind === "text") return value ?? "";
+  // A catalog the base seed has not written holds no words yet.
+  if (setting.control.kind === "list") return value ?? [];
   if (setting.control.kind === "columns") {
     return (
       value ??
@@ -66,8 +68,8 @@ function readField(
       ? { value: null }
       : { error: words.t("errors.invalid") };
   }
-  if (control.kind === "list" && (shown as string[]).length === 0) {
-    return { error: words.t("errors.empty") };
+  if (control.kind === "list" && (shown as unknown[]).length === 0) {
+    return { error: words.t(`list.${control.item}.empty`) };
   }
   if (control.kind === "columns") {
     const read = readColumns(control.fields, shown as Record<string, string>);
