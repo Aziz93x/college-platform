@@ -16,7 +16,9 @@ jobs:
   checks:
     name: check:all, build and smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The job takes about 14 minutes. A slow package mirror once made the browser install's apt
+    # download alone take up to 14 more, so the job gets 30 minutes, as the other jobs do.
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18.6-alpine
