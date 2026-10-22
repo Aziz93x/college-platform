@@ -130,7 +130,7 @@ export function Bell({
                   opacity: 0,
                   transition: { duration: 0.12 },
                 }}
-                className="absolute -end-2.5 -top-2 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 font-medium text-[0.625rem] text-primary-foreground leading-none ring-2 ring-background"
+                className="absolute -end-2.5 -top-2 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 font-medium text-badge text-primary-foreground leading-none ring-2 ring-background"
               >
                 <ActionSwapText value={countText}>{countText}</ActionSwapText>
               </m.span>

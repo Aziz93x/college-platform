@@ -51,7 +51,7 @@ export function Switch({
         data-state={checked ? "checked" : "unchecked"}
         className={cn(
           // 28 px tall, with a hit area of 44 px.
-          "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full px-1 outline-none transition-colors duration-200",
+          "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full px-1 outline-none transition-colors duration-(--duration-slow)",
           "after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
           "focus-visible:ring-3 focus-visible:ring-ring/50",
           "disabled:cursor-not-allowed disabled:opacity-60",

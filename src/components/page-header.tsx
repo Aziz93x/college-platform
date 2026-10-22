@@ -46,7 +46,7 @@ export function PageHeader({
         />
       ) : null}
       {eyebrow ? (
-        <p className="fade-in mb-2 flex animate-in items-center gap-2 text-muted-foreground text-sm duration-500">
+        <p className="fade-in mb-2 flex animate-in items-center gap-2 text-muted-foreground text-sm duration-(--duration-slow)">
           <span aria-hidden className="size-1.5 rounded-full bg-gradient-end" />
           {eyebrow}
         </p>

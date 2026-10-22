@@ -100,7 +100,7 @@ function DateRangePickerCalendar({
       aria-label={props["aria-label"] ?? ctx.label}
       className={cn(
         // On a touch screen, wide enough for seven 44 px days on a phone of 360 px or more.
-        "w-80 max-w-full rounded-2xl border border-border bg-background p-3.5 pointer-coarse:w-96 pointer-coarse:p-2.5",
+        "w-80 max-w-full rounded-xl border border-border bg-background p-3.5 pointer-coarse:w-96 pointer-coarse:p-2.5",
         className,
       )}
     >
@@ -215,7 +215,7 @@ function DateRangePickerHeader({
           disabled={disabled}
           onClick={() => openChoices("months")}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold transition-colors pointer-coarse:min-h-11 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+            "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors pointer-coarse:min-h-11 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
             view === "years" && "hidden",
           )}
         >
@@ -237,7 +237,7 @@ function DateRangePickerHeader({
           aria-controls={view === "years" ? choicesId : undefined}
           disabled={disabled}
           onClick={() => openChoices("years")}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium tabular-nums text-muted-foreground transition-colors pointer-coarse:min-h-11 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium tabular-nums text-muted-foreground transition-colors pointer-coarse:min-h-11 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
         >
           {view === "years"
             ? `${numberFormat.format(yearPage)}–${numberFormat.format(yearPageEnd)}`
@@ -429,7 +429,7 @@ function DateRangePickerGrid({
                           key={day}
                           scope="col"
                           abbr={day}
-                          className="h-6 pb-1.5 text-center text-[11px] font-medium text-muted-foreground"
+                          className="h-6 pb-1.5 text-center text-xs font-medium text-muted-foreground"
                         >
                           {new Intl.DateTimeFormat(locale, {
                             weekday: "short",
@@ -547,7 +547,7 @@ function DateRangePickerGrid({
                                         "hover:bg-muted",
                                   date === today &&
                                     !endpoint &&
-                                    "font-semibold after:absolute after:bottom-1 after:size-0.75 after:rounded-full after:bg-current",
+                                    "font-medium after:absolute after:bottom-1 after:size-0.75 after:rounded-full after:bg-current",
                                 )}
                               >
                                 {numberFormat.format(
@@ -915,7 +915,7 @@ function CalendarChoices({
           whileTap={reduce ? undefined : { scale: 0.96 }}
           transition={SPRING_PRESS}
           className={cn(
-            "flex h-13 items-center justify-center rounded-xl px-1 text-[13px] tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-25",
+            "flex h-13 items-center justify-center rounded-xl px-1 text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-25",
             choice.id === selected
               ? "bg-foreground font-medium text-background"
               : "bg-muted/40 hover:bg-muted",

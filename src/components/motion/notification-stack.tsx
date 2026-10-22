@@ -298,7 +298,7 @@ export function NotificationStack({
             <ArrowUpRight
               aria-hidden
               className={cn(
-                "size-4 transition-opacity duration-200 rtl:-scale-x-100",
+                "size-4 transition-opacity duration-(--duration-slow) rtl:-scale-x-100",
                 isExpanded ? "opacity-100" : "opacity-0",
               )}
             />

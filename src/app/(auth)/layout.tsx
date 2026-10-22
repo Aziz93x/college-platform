@@ -46,7 +46,7 @@ export default async function AuthLayout({
           element="wave"
           sizes="(min-width: 1024px) 64vw, 120vw"
           eager
-          className="fade-in absolute -end-[10%] bottom-6 -z-10 h-auto w-[120%] max-w-none animate-in opacity-70 mix-blend-screen brightness-250 duration-1000 lg:bottom-12 lg:w-[140%] rtl:-scale-x-100"
+          className="fade-in absolute -end-[10%] bottom-6 -z-10 h-auto w-[120%] max-w-none animate-in opacity-70 mix-blend-screen brightness-250 duration-(--duration-slow) lg:bottom-12 lg:w-[140%] rtl:-scale-x-100"
         />
         {showLogo ? (
           <Image

@@ -11,6 +11,13 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - Every axis is the administration's, so the one key guards them all and no per-axis lock is stored (a note under Step 15).
 - Tests: the seed's axes and groups, once, keeping an axis the admin renamed; the correction, unchanged and not found, in the log; the permission matrix, where a vice-dean renames no axis; every action's audit event; and end-to-end on the desktop and the iPhone, the admin correcting an axis's description with axe and 44 px targets, and a trainer refused the page.
 
+### Design system audit: the copied components on the theme's scales
+
+- Fixed: three classes in the copied BeUI components named a step or a color the theme does not have, so Tailwind generated nothing for them. The date range picker's panel had square corners (`rounded-2xl`), its month and today's date drew Regular (`font-semibold`), and the combobox's list named `text-popover-foreground`. They now take `rounded-xl`, `font-medium` and `text-foreground`.
+- Font sizes off the scale move onto it: the date range picker's 13 and 11 px become `text-sm` and `text-xs`, and the bell's count takes `text-badge`, a size named in `src/styles/theme.css`, at the same 10 px.
+- Every transition and entrance runs on `--duration-fast` or `--duration-slow`, the 120 to 200 ms of docs/PLAN.md section 4, where 16 ran 150 to 1000 ms. The page header's line above the title and the status code fade in over 200 ms instead of 500, the identity art on the login and status pages over 200 ms instead of 1000 and 700, and the sidebar folds its contents over 200 ms instead of 300, within its width's spring.
+- `check:hardcode` fails on a font size off the scale (`font-size-off-scale`), a duration that is not one of the two tokens (`duration-off-token`), and a class whose step or color the theme does not have (`class-without-token`). Tests for each.
+
 ### ADR-0018 amended: Founding Day, each year's holidays in their year, and approval (the owner's request)
 
 - Founding Day joins the college's holidays for the ten years. It is 22 February in the Umm al-Qura year it falls in, moved off the weekend as the official rule says: a Friday gives the Thursday before, and a Saturday the Sunday after.

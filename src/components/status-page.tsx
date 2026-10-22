@@ -20,12 +20,12 @@ export function StatusPage({
       <IdentityArt
         element="curves"
         sizes="(min-width: 768px) 768px, 100vw"
-        className="fade-in absolute inset-x-0 bottom-0 -z-10 mx-auto h-auto w-full max-w-3xl animate-in opacity-40 duration-700 rtl:-scale-x-100"
+        className="fade-in absolute inset-x-0 bottom-0 -z-10 mx-auto h-auto w-full max-w-3xl animate-in opacity-40 duration-(--duration-slow) rtl:-scale-x-100"
       />
       {code ? (
         <p
           aria-hidden
-          className="fade-in slide-in-from-bottom-3 animate-in bg-clip-text text-display text-transparent tracking-tight duration-500 ltr:bg-linear-to-r rtl:bg-linear-to-l from-gradient-start to-gradient-end"
+          className="fade-in slide-in-from-bottom-3 animate-in bg-clip-text text-display text-transparent tracking-tight duration-(--duration-slow) ltr:bg-linear-to-r rtl:bg-linear-to-l from-gradient-start to-gradient-end"
         >
           {code}
         </p>
