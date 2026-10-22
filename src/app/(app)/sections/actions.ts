@@ -13,6 +13,7 @@ import {
 } from "@/modules/academics";
 import { viewerAction } from "@/modules/access";
 import { requestMeta } from "@/modules/identity";
+import { queueGeneration } from "@/modules/tasks";
 
 // The sections page transfers a section, keeps a transfer that a newer SS01 is in conflict with,
 // and cancels one (Step 17). The key is held in departments, so each action asks for it in the
@@ -47,10 +48,12 @@ export const transferSectionAction = viewerAction
     requirePermission("sections.transfer", {
       departmentId: section.departmentId,
     });
-    return drawn(
-      await transferSection(parsedInput, await changeBy(viewer)),
-      "transferred",
-    );
+    const result = await transferSection(parsedInput, await changeBy(viewer));
+    // The section's work goes with it to the new trainer (Step 20).
+    if (result.status === "transferred") {
+      await queueGeneration(viewer.collegeId, parsedInput.termId, "transfer");
+    }
+    return drawn(result, "transferred");
   });
 
 const transferId = z.object({ id: z.uuid() });
@@ -79,9 +82,11 @@ export const cancelTransferAction = viewerAction
       requirePermission("sections.transfer", {
         departmentId: found.departmentId,
       });
-      return drawn(
-        await cancelTransfer(id, await changeBy(viewer)),
-        "cancelled",
-      );
+      const result = await cancelTransfer(id, await changeBy(viewer));
+      // The section's work still to do goes back (Step 20).
+      if (result.status === "cancelled") {
+        await queueGeneration(viewer.collegeId, result.termId, "transfer");
+      }
+      return drawn(result, "cancelled");
     },
   );

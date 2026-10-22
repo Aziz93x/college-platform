@@ -4,7 +4,7 @@ import { rayatColumns, rayatHeaders } from "../../db/seed/rayat-columns.ts";
 import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import { notify } from "../../src/modules/notifications/index.ts";
-import { applyRayat, uploadRayat } from "../../src/modules/rayat/index.ts";
+import { uploadRayat } from "../../src/modules/rayat/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
 import { csvLines } from "../../src/platform/files/table.ts";
 import { base32Bytes, totp } from "../support/totp.ts";
@@ -497,6 +497,16 @@ describe("every server action writes its event", () => {
     await expectWrites(`${rayat}#rollbackRayatAction`, {
       importId: first.importId,
     });
+    // The passes of the generation engine the actions have queued, by what queued them: SF01's
+    // trainees change no task (Step 20).
+    const queued = async () =>
+      (
+        await query(
+          "select reason from generation_runs where term_id = $1 order by queued_at, id",
+          [term.id],
+        )
+      ).map((run) => run.reason);
+    expect(await queued()).toEqual([]);
 
     // The term's SS01, applied: its section transferred to a trainer of Electrical, the transfer
     // kept against a newer SS01 in conflict with it, then cancelled (Step 17, lead review C).
@@ -542,9 +552,12 @@ describe("every server action writes its event", () => {
         { collegeId, actorId: admin.userId },
       );
       if (uploaded.status !== "pending") throw new Error(uploaded.status);
-      await applyRayat(uploaded.importId, { collegeId, actorId: admin.userId });
+      await expectWrites(`${rayat}#applyRayatAction`, {
+        importId: uploaded.importId,
+      });
     };
     await applySs01("101");
+    expect(await queued()).toEqual(["ss01"]);
     const transferred = await expectWrites(
       `${sections}#transferSectionAction`,
       {
@@ -557,6 +570,7 @@ describe("every server action writes its event", () => {
       },
     );
     expect(transferred.status).toBe("transferred");
+    expect(await queued()).toEqual(["ss01", "transfer"]);
     // A newer SS01 that still names the trainer replaced is in conflict with it, which the head keeps.
     await applySs01("102");
     await expectWrites(`${sections}#keepTransferAction`, {
@@ -565,6 +579,7 @@ describe("every server action writes its event", () => {
     await expectWrites(`${sections}#cancelTransferAction`, {
       id: transferred.id,
     });
+    expect(await queued()).toEqual(["ss01", "transfer", "ss01", "transfer"]);
 
     // The term's framework: a draft and its items, endorsed and published, then the next version
     // without one of them (Step 15).
@@ -608,6 +623,7 @@ describe("every server action writes its event", () => {
     await expectWrites(`${framework}#publishDraftAction`, {
       draftId: draft.id,
     });
+    expect((await queued()).at(-1)).toBe("framework");
     await expectWrites(`${terms}#openNextTermAction`, {
       fromId: term.id,
       name: "Autumn 1448",

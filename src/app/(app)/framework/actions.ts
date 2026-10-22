@@ -15,6 +15,7 @@ import {
 } from "@/modules/framework";
 import { requestMeta } from "@/modules/identity";
 import { getSetting } from "@/modules/settings";
+import { queueGeneration } from "@/modules/tasks";
 
 // The term's general framework (Step 15): the vice-dean's draft and its publication need
 // framework.publish, the dean's endorsement framework.endorse, held across the college. The domain
@@ -98,8 +99,14 @@ export const publishDraftAction = viewerAction
     const needsEndorsement = await getSetting("framework.requireEndorsement", {
       collegeId: viewer.collegeId,
     });
-    return drawn(
-      await publishDraft(draftId, await changeBy(viewer), needsEndorsement),
-      "published",
+    const result = await publishDraft(
+      draftId,
+      await changeBy(viewer),
+      needsEndorsement,
     );
+    // The term's tasks follow the version published (Step 20).
+    if (result.status === "published") {
+      await queueGeneration(viewer.collegeId, result.termId, "framework");
+    }
+    return drawn(result, "published");
   });

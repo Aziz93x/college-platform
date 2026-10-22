@@ -10,6 +10,7 @@ export {
   type Section,
   type SectionTransfer,
   sectionCounts,
+  sectionPlaces,
   type Trainer,
   tellTransferConflicts,
   transferCandidates,

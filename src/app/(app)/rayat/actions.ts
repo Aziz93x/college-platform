@@ -14,6 +14,7 @@ import {
   rollbackRayat,
   uploadRayat,
 } from "@/modules/rayat";
+import { queueGeneration } from "@/modules/tasks";
 import { readTable } from "@/platform/files/table";
 import { formFields } from "@/platform/validation/form";
 
@@ -40,7 +41,7 @@ const drawn = <T extends { status: string }>(result: T, ...took: string[]) => {
 
 // A version of SS01 coming into force, applied or rolled back to: the heads hear of each transfer it
 // puts in conflict or leaves changing nothing (ADR-0020), from the transfers' states before and
-// after.
+// after, and the term's tasks follow its sections (Step 20).
 async function tellingHeads<T extends { status: string }>(
   viewer: Viewer,
   importId: string,
@@ -55,6 +56,7 @@ async function tellingHeads<T extends { status: string }>(
   const result = await change();
   if (found && before && result.status === took) {
     await tellTransferConflicts(viewer.collegeId, found.termId, before);
+    await queueGeneration(viewer.collegeId, found.termId, "ss01");
   }
   return result;
 }

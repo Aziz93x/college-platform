@@ -28,9 +28,11 @@ import {
   termFramework,
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
-import { calendarEventKinds, termWeeks } from "@/modules/terms";
+import { latestRun } from "@/modules/tasks";
+import { calendarEventKinds, eventWeeks, termWeeks } from "@/modules/terms";
 import { termCalendar, viewedTerm } from "../_shell/term.ts";
 import { FrameworkDraft, ItemWords } from "./framework-draft.tsx";
+import { TaskGeneration } from "./task-generation.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
@@ -77,6 +79,7 @@ export default async function FrameworkPage() {
     roles,
     needsEndorsement,
     accepted,
+    run,
   ] = await Promise.all([
     getMessages(),
     getLocale(),
@@ -87,6 +90,7 @@ export default async function FrameworkPage() {
     listRoles(viewer.collegeId),
     getSetting("framework.requireEndorsement", scope),
     getSetting("files.acceptedTypes", scope),
+    manage ? latestRun(viewer.collegeId, term.id) : undefined,
   ]);
   const language = locale.split("-")[0];
   const axes = groups.flatMap((group) => group.axes);
@@ -157,15 +161,11 @@ export default async function FrameworkPage() {
       sectionCounts(viewer.collegeId, term.id),
       termCalendar(viewer.collegeId, term.id),
     ]);
-    // Each day of the calendar by the last numbered week it falls in.
-    const weeks = found ? termWeeks(found.calendar) : [];
-    const events: Record<string, number[]> = {};
-    for (const event of found?.term.events ?? []) {
-      const last = weeks
-        .filter((week) => week.number !== null && week.startsOn <= event.endsOn)
-        .at(-1)?.number;
-      if (last) events[event.kind] = [...(events[event.kind] ?? []), last];
-    }
+    // Each kind of day of the calendar by the numbered weeks its days fall in, as the engine counts
+    // them (Step 20).
+    const events = found
+      ? eventWeeks(termWeeks(found.calendar), found.term.events)
+      : {};
     const untaught = items.some((item) => item.appliesTo.type === "eachSection")
       ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
       : 0;
@@ -179,6 +179,73 @@ export default async function FrameworkPage() {
   };
   const impact =
     preparing && draft ? await draftImpact(draft.items) : undefined;
+
+  // The latest pass of the generation engine over the term's tasks, for whoever publishes the
+  // framework (Step 20).
+  const generation = () => {
+    const when = (at: Date | null) =>
+      format.dateTime(at ?? new Date(), {
+        dateStyle: "long",
+        timeStyle: "short",
+      });
+    const words = {
+      title: t("generation.title"),
+      progress: t("generation.progress"),
+    };
+    if (!run) return { words: { ...words, status: t("generation.none") } };
+    switch (run.status) {
+      case "queued":
+        return {
+          following: true,
+          words: { ...words, status: t("generation.queued") },
+        };
+      case "running":
+        return run.total === null
+          ? {
+              following: true,
+              words: { ...words, status: t("generation.starting") },
+            }
+          : {
+              following: true,
+              progress: run.total > 0 ? (run.done / run.total) * 100 : 0,
+              words: {
+                ...words,
+                status: t("generation.running", {
+                  done: run.done,
+                  total: run.total,
+                }),
+              },
+            };
+      case "done":
+        return {
+          words: {
+            ...words,
+            status: t("generation.done", {
+              total: run.total ?? 0,
+              cause: run.reason,
+              date: when(run.finishedAt),
+            }),
+            changes:
+              run.created + run.updated + run.reassigned + run.cancelled > 0
+                ? t("generation.changes", {
+                    created: run.created,
+                    updated: run.updated,
+                    reassigned: run.reassigned,
+                    cancelled: run.cancelled,
+                  })
+                : t("generation.unchanged"),
+          },
+        };
+      case "failed":
+        return {
+          words: {
+            ...words,
+            status: t("generation.failed", { date: when(run.finishedAt) }),
+          },
+        };
+    }
+  };
+  const generated = manage && published ? generation() : undefined;
 
   return (
     <>
@@ -254,6 +321,13 @@ export default async function FrameworkPage() {
                   }),
                 })}
               </p>
+              {generated ? (
+                <TaskGeneration
+                  following={generated.following ?? false}
+                  progress={generated.progress}
+                  words={generated.words}
+                />
+              ) : null}
             </div>
             <ol
               aria-labelledby="framework-published"

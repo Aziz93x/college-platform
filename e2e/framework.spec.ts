@@ -40,8 +40,12 @@ async function viceDeanWithTerm(account: () => Promise<TestAccount>) {
   return {
     person,
     termId: term.id as string,
+    // A statement on the term's rows, $1 its id: what another process writes, such as the worker.
+    query: (statement: string) => pool.query(statement, [term.id]),
     remove: async () => {
-      await pool.query("delete from frameworks where term_id = $1", [term.id]);
+      for (const table of ["tasks", "generation_runs", "frameworks"]) {
+        await pool.query(`delete from ${table} where term_id = $1`, [term.id]);
+      }
       await pool.query("delete from terms where id = $1", [term.id]);
       await pool.end();
     },
@@ -49,7 +53,7 @@ async function viceDeanWithTerm(account: () => Promise<TestAccount>) {
 }
 
 test(
-  "the vice-dean starts the term's framework, adds an item, sees what publishing creates, and publishes it (Step 15)",
+  "the vice-dean starts the term's framework, adds an item, sees what publishing creates, publishes it, and follows the pass that generates its tasks (Steps 15 and 20)",
   DATABASE,
   async ({ browser, account, hasTouch }) => {
     const made = await viceDeanWithTerm(account);
@@ -122,6 +126,47 @@ test(
       await expect(
         page.getByRole("button", { name: text.newVersion }),
       ).toBeVisible();
+
+      // The term's tasks: no worker runs beside these tests, so the pass publishing queued waits,
+      // and the page follows it as the worker writes it, without a reload (Step 20).
+      const generation = published.getByRole("status");
+      const pass = (set: string) =>
+        made.query(`update generation_runs set ${set} where term_id = $1`);
+      await expect(generation).toHaveText(text.generation.queued);
+      await pass(
+        "status = 'running', started_at = now(), total = 10, done = 4",
+      );
+      await expect(generation).toHaveText(
+        t("generation.running", { done: 4, total: 10 }),
+        { timeout: 15_000 },
+      );
+      await expect(
+        published.getByRole("progressbar", { name: text.generation.progress }),
+      ).toHaveAttribute("aria-valuenow", "40");
+      await pass(
+        "status = 'done', finished_at = now(), done = 10, created = 10",
+      );
+      await expect(generation).toContainText(
+        t("generation.changes", {
+          created: 10,
+          updated: 0,
+          reassigned: 0,
+          cancelled: 0,
+        }),
+        { timeout: 15_000 },
+      );
+      await expect(generation).toContainText(/^10 مهام في الفصل/);
+      await expect(published.getByRole("progressbar")).toHaveCount(0);
+      // Checked once the pass has ended and the page reads it no more: the check rewrites the page's
+      // words, and a page still following a pass would write them again.
+      expect(await seriousViolations(page)).toEqual([]);
+      // A pass that failed, and a version no pass has gone over yet: the nightly one will.
+      await pass("status = 'failed', error = 'connection lost'");
+      await page.reload();
+      await expect(generation).toHaveText(/^تعذّر توليد مهام الفصل/);
+      await made.query("delete from generation_runs where term_id = $1");
+      await page.reload();
+      await expect(generation).toHaveText(text.generation.none);
     } finally {
       await made.remove();
     }
@@ -141,6 +186,10 @@ test.describe("a trainer", () => {
     await expect(page.getByRole("button", { name: text.add })).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: text.newVersion }),
+    ).toHaveCount(0);
+    // How the generation engine went over the term's tasks is for whoever publishes (Step 20).
+    await expect(
+      page.getByRole("heading", { name: text.generation.title }),
     ).toHaveCount(0);
   });
 });

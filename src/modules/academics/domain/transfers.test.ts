@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readTransfers, type TaskStatus, transferTasks } from "./transfers.ts";
+import { readTransfers } from "./transfers.ts";
 
 describe("readTransfers", () => {
   // Rayat's file, and transfers made before it was uploaded and after.
@@ -108,48 +108,27 @@ describe("readTransfers", () => {
     expect(read.trainersInWeek(6)).toEqual(["200103"]);
     expect(read.trainersInWeek(9)).toEqual(["200104"]);
   });
-});
 
-describe("transferTasks", () => {
-  const task = (id: string, status: TaskStatus, assigneeId = "a") => ({
-    id,
-    status,
-    assigneeId,
-  });
-  const transfer = { fromId: "a", toId: "c", week: 6 };
-
-  it("moves the replaced trainer's open work to the new trainer", () => {
-    expect(
-      transferTasks(
-        [
-          task("1", "notStarted"),
-          task("2", "inProgress"),
-          task("3", "returned"),
-        ],
-        transfer,
-      ),
-    ).toEqual([
-      task("1", "notStarted", "c"),
-      task("2", "inProgress", "c"),
-      task("3", "returned", "c"),
+  it("keeps each place by the trainer who held it at the term's start, whoever holds it in a week", () => {
+    const read = readTransfers(["200101", "200102"], uploadedAt, [
+      transfer("200101", "200103", 6),
+      transfer("200103", "200104", 9),
+    ]);
+    expect(read.places(5)).toEqual([
+      { first: "200101", holder: "200101" },
+      { first: "200102", holder: "200102" },
+    ]);
+    expect(read.places(9)).toEqual([
+      { first: "200101", holder: "200104" },
+      { first: "200102", holder: "200102" },
     ]);
   });
 
-  it("leaves their completed work with them, marked until the week before the transfer", () => {
-    expect(
-      transferTasks(
-        [task("4", "submitted"), task("5", "done"), task("6", "notApplicable")],
-        transfer,
-      ),
-    ).toEqual([
-      { ...task("4", "submitted"), untilWeek: 5 },
-      { ...task("5", "done"), untilWeek: 5 },
-      { ...task("6", "notApplicable"), untilWeek: 5 },
+  it("names a place after the trainer a confirmed transfer replaced, as before Rayat's file", () => {
+    const read = readTransfers(["200103"], uploadedAt, [
+      transfer("200101", "200103", 6, before),
     ]);
-  });
-
-  it("does not touch another trainer's tasks", () => {
-    const other = task("7", "notStarted", "b");
-    expect(transferTasks([other], transfer)).toEqual([other]);
+    expect(read.places(3)).toEqual([{ first: "200101", holder: "200101" }]);
+    expect(read.places(6)).toEqual([{ first: "200101", holder: "200103" }]);
   });
 });

@@ -517,7 +517,7 @@ describe("a section's transfer", () => {
 
     await expect(
       cancelTransfer(made.id, by("head"), database.db),
-    ).resolves.toEqual({ status: "cancelled" });
+    ).resolves.toEqual({ status: "cancelled", termId });
     const first = (await section("30101", 9))?.transfers[0].id ?? "";
     await cancelTransfer(first, by("head"), database.db);
     expect(await section("30101", 9)).toMatchObject({

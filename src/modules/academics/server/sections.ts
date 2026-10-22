@@ -371,6 +371,30 @@ export async function unmatchedTrainers(
     });
 }
 
+// Each section of the term in SS01 in force, with its department and its places in a week after the
+// head's transfers (readTransfers()): what the generation engine makes the tasks for each section's
+// trainer for, one for each place (Step 20).
+export async function sectionPlaces(
+  collegeId: string,
+  termId: string,
+  db: Db | Tx = getDb(),
+) {
+  const [ss01, transfers] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+  ]);
+  if (!ss01) return [];
+  const { reads } = readAll(transfers, ss01);
+  return ss01.records.map((section) => ({
+    ref: section.sectionRef,
+    departmentId: section.departmentId,
+    places: (
+      reads.get(section.sectionRef) ??
+      readTransfers(section.trainerNumbers, ss01.uploadedAt, [])
+    ).places,
+  }));
+}
+
 // What each department's sections in SS01 in force give a framework's or a plan's items for each
 // section's trainer (Step 15): a task for each trainer of each section, and none for a section with
 // no trainer yet, which the preview names apart (the owner's rule, lead review C).
@@ -601,7 +625,10 @@ export async function cancelTransfer(
   id: string,
   change: Change,
   db: Db = getDb(),
-): Promise<{ status: "cancelled" | "notFound" | "termClosed" }> {
+): Promise<
+  | { status: "notFound" | "termClosed" }
+  | { status: "cancelled"; termId: string }
+> {
   return db.transaction(async (tx) => {
     const found = await openTransfer(tx, change.collegeId, id);
     if (!found) return { status: "notFound" };
@@ -621,6 +648,6 @@ export async function cancelTransfer(
       },
       tx,
     );
-    return { status: "cancelled" };
+    return { status: "cancelled", termId: was.termId };
   });
 }

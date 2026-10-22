@@ -59,9 +59,10 @@ async function viceDeanWithTerm(account: () => Promise<TestAccount>) {
     termId: term.id as string,
     pool,
     remove: async () => {
-      await pool.query("delete from rayat_imports where term_id = $1", [
-        term.id,
-      ]);
+      // Applying SS01 queues a pass of the generation engine over the term (Step 20).
+      for (const table of ["generation_runs", "rayat_imports"]) {
+        await pool.query(`delete from ${table} where term_id = $1`, [term.id]);
+      }
       await pool.query("delete from terms where id = $1", [term.id]);
       await pool.end();
     },

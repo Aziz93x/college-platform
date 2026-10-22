@@ -28,6 +28,7 @@ import {
   runScript,
   scriptEnv,
 } from "./support/database.ts";
+import { publishedPreview } from "./support/preview.ts";
 import { tableRows } from "./support/rows.ts";
 
 const databases: Awaited<ReturnType<typeof createTestDatabase>>[] = [];
@@ -258,6 +259,9 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "published_at",
     "uploaded_at",
     "applied_at",
+    "queued_at",
+    "started_at",
+    "finished_at",
   ];
   // The log names its records by their ids, in its columns and in what changed, so each id reads
   // the same there.
@@ -285,6 +289,11 @@ it("writes three weeks of the college's history, every event in the past and by 
   expect(rows[0].created_at.getTime()).toBeGreaterThan(now - 22 * 86_400_000);
   expect(rows.at(-1).created_at.getTime()).toBeLessThan(now);
   for (const row of rows) {
+    // The generation engine's pass over the term's tasks is the system's, from the worker (Step 20).
+    if (row.action === "task.generate") {
+      expect(row.actor_id).toBeNull();
+      continue;
+    }
     // Only the system locks an account; every other event is a person's, from their device.
     expect(row.actor_known || row.action === "account.lock", row.action).toBe(
       true,
@@ -329,6 +338,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "rayatImport.apply",
       // The head of Electrical's transfer of a section (Step 17).
       "sectionTransfer.create",
+      // The term's tasks, generated (Step 20).
+      "task.generate",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -701,6 +712,62 @@ it("has the head of Electrical transfer a section to another trainer of the depa
     demoVisitor.employeeNumber,
   ]);
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
+});
+
+it("generates the demo term's tasks, as many as its published framework's preview counts, in under 10 s: one exam copy for each trainer of each section, none for a section with no trainer (Step 20)", async () => {
+  const { db, pool } = await seededDatabase();
+  const {
+    rows: [{ id: collegeId }],
+  } = await pool.query("select id from colleges");
+  const term = await activeTerm(collegeId, db);
+  if (!term) throw new Error("no active term");
+  const preview = await publishedPreview(collegeId, term.id, db);
+  const {
+    rows: [run],
+  } = await pool.query(
+    `select status, reason, total, created, updated, reassigned, cancelled,
+       extract(epoch from finished_at - started_at)::float as seconds
+     from generation_runs where term_id = $1`,
+    [term.id],
+  );
+  expect(run).toMatchObject({
+    status: "done",
+    reason: "framework",
+    total: preview,
+    created: preview,
+    updated: 0,
+    reassigned: 0,
+    cancelled: 0,
+  });
+  expect(run.seconds).toBeLessThan(10);
+  const {
+    rows: [{ live }],
+  } = await pool.query(
+    "select count(*)::int as live from tasks where term_id = $1 and cancelled_at is null",
+    [term.id],
+  );
+  expect(live).toBe(preview);
+
+  // The third department's sections in the SS01 in force: a section Rayat gives two trainers has
+  // two exam copies after each exam, and one with none has none (lead review C).
+  const { rows: sections } = await pool.query(
+    `select cardinality(s.trainer_numbers) as trainers,
+       (select count(*)::int from tasks t
+         where t.term_id = $1 and t.section_ref = s.section_ref and t.kind = 'exam_copy') as copies,
+       (select count(distinct t.week)::int from tasks t
+         where t.term_id = $1 and t.kind = 'exam_copy') as exams
+     from rayat_sections s join rayat_imports i on i.id = s.import_id
+     join departments d on d.id = s.department_id
+     where i.term_id = $1 and i.kind = 'ss01' and i.status = 'applied' and d.name = $2
+       and i.applied_at = (select max(applied_at) from rayat_imports
+         where term_id = $1 and kind = 'ss01' and status = 'applied')`,
+    [term.id, demoDepartments[2].name],
+  );
+  expect(sections.length).toBeGreaterThan(0);
+  for (const { trainers, copies, exams } of sections) {
+    expect(exams).toBeGreaterThan(0);
+    expect(copies).toBe(trainers * exams);
+  }
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

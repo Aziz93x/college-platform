@@ -97,10 +97,14 @@ export async function termFramework(
   return { draft: withItems(draft), published: withItems(published) };
 }
 
-// Copies a version's items into another, in their order.
+// The item an item copies, as it was first entered, or the item itself: what the generation engine
+// knows it by in every version (Step 20).
+const origin = sql<string>`coalesce(${frameworkItems.originId}, ${frameworkItems.id})`;
+
+// Copies a version's items into another, in their order, each still knowing the item it copies.
 async function copyItems(tx: Tx, from: string, to: string) {
   const items = await tx
-    .select(itemColumns)
+    .select({ ...itemColumns, origin })
     .from(frameworkItems)
     .where(eq(frameworkItems.frameworkId, from))
     .orderBy(asc(frameworkItems.position));
@@ -110,14 +114,46 @@ async function copyItems(tx: Tx, from: string, to: string) {
     .from(frameworks)
     .where(eq(frameworks.id, to));
   await tx.insert(frameworkItems).values(
-    items.map(({ id: _, frameworkId: __, ...item }, position) => ({
-      ...item,
-      collegeId,
-      frameworkId: to,
-      position,
-    })),
+    items.map(
+      ({ id: _, frameworkId: __, origin: first, ...item }, position) => ({
+        ...item,
+        originId: first,
+        collegeId,
+        frameworkId: to,
+        position,
+      }),
+    ),
   );
   return items.length;
+}
+
+// The items of the term's latest published version, in their order, each with the item it copies as
+// it was first entered: what the generation engine makes tasks of (Step 20). Undefined before the
+// term's first version is published.
+export async function publishedItems(
+  collegeId: string,
+  termId: string,
+  db: Db | Tx = getDb(),
+) {
+  const [latest] = await db
+    .select({ id: frameworks.id, version: frameworks.version })
+    .from(frameworks)
+    .where(
+      and(
+        eq(frameworks.collegeId, collegeId),
+        eq(frameworks.termId, termId),
+        eq(frameworks.status, "published"),
+      ),
+    )
+    .orderBy(desc(frameworks.version))
+    .limit(1);
+  if (!latest) return undefined;
+  const items = await db
+    .select({ ...itemColumns, origin })
+    .from(frameworkItems)
+    .where(eq(frameworkItems.frameworkId, latest.id))
+    .orderBy(asc(frameworkItems.position));
+  return { version: latest.version, items };
 }
 
 // Starts the term's next version as a draft, from its latest published version, or empty. A term
@@ -370,15 +406,17 @@ export async function endorseDraft(
 }
 
 // Publishes a draft: it becomes the term's framework and never changes again. Where the college asks
-// for the dean's endorsement, a draft without it stays a draft.
+// for the dean's endorsement, a draft without it stays a draft. A published draft names its term,
+// whose tasks are generated again (Step 20).
 export async function publishDraft(
   draftId: string,
   change: Change,
   needsEndorsement: boolean,
   db: Db = getDb(),
-): Promise<{
-  status: "notDraft" | "closed" | "empty" | "notEndorsed" | "published";
-}> {
+): Promise<
+  | { status: "notDraft" | "closed" | "empty" | "notEndorsed" }
+  | { status: "published"; termId: string }
+> {
   return db.transaction(async (tx) => {
     const draft = await draftOf(tx, change.collegeId, draftId);
     if (typeof draft === "string") return { status: draft };
@@ -397,7 +435,7 @@ export async function publishDraft(
     await audit(tx, change, "framework.publish", draftId, {
       to: { termId: draft.termId, version: draft.version, items },
     });
-    return { status: "published" };
+    return { status: "published", termId: draft.termId };
   });
 }
 

@@ -73,6 +73,9 @@ export const frameworkItems = pgTable(
     id: uuid().primaryKey().default(sql`uuidv7()`),
     collegeId: uuid("college_id").notNull(),
     frameworkId: uuid("framework_id").notNull(),
+    // The item this one copies, as it was first entered, through each version since; none for an
+    // item first entered here. Its tasks are the same tasks in every version (Step 20).
+    originId: uuid("origin_id"),
     position: integer().notNull(),
     title: text().notNull(),
     axisId: uuid("axis_id").notNull(),

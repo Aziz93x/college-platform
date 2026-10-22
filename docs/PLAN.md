@@ -1062,6 +1062,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 15:** the registry is `taskKinds`, and the shapes are `dueRule`, `evidencePolicy` and `appliesTo` (a role's holders in each department, or each section's trainer), all in `src/modules/framework/domain/inputs.ts`; export the shapes from the module when templates use them. A rule after a calendar day counts each day of that kind in the term ("after each exam week"). The wizard copies the framework through `openNextTerm()`'s last argument, which the templates' copy joins.
 
+**Note from Step 20 (built before this step, ADR-0025):** tasks exist (`tasks`, `src/modules/tasks`), each with its item's `kind` and an empty `payload`. The kinds' payload schemas validate that payload once trainers fill it (Step 26). A template that generates tasks becomes a source of the engine, as Step 19's plan does.
+
 > **Checkpoint: Audit 6.** Run `/audit 16-18`.
 
 #### Step 19. Department plan editor (L)
@@ -1081,6 +1083,14 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **The editor:** previews the weeks each anchored item lands in, and flags one that falls past the term's end.
 - **On the calendar:** these items form the department's layer, which its trainers see in the department's color (Step 24).
 
+**Note from Step 20 (built before this step, ADR-0025):** the plan joins the engine as its second source.
+- **Its items** need an identity across versions, as `framework_items.origin_id` gives the framework's.
+- **The engine** reads both sources: `tasks.source` and its check gain `plan`, `termInputs()` (`src/modules/tasks/server/generate.ts`) reads the department's latest published plan, and a plan's items reach their own department only.
+- **Publishing** queues a pass (`queueGeneration()`, with a cause of its own in `GenerationReason` and its words under `audit.causes` and `framework.generation`).
+- **The preview** counts its weeks with `dueWeeks()` (`src/modules/framework`), as the engine does. The anchored rule above changes `dueWeeks()` and the due day (`dueDay()`, `src/modules/terms`), not the engine.
+- **Step 20's Done-when** "for every demo framework and plan, the published preview equals the tasks generated" is checked here for plans: extend the seed test that checks it for the framework.
+- **`plan.publish`** is checked here: Step 20 did not need it.
+
 #### Step 20. Generation engine (L)
 
 **Goal:** tasks appear for the right person, section and week, every time.
@@ -1096,6 +1106,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 17, as lead review C left it:** a section is SS01's in force, by its Rayat reference in the term; there is no table of sections (`listSections()`, `src/modules/academics`). Its trainers in a week come from `readTransfers(rayat, uploadedAt, transfers)` (`src/modules/academics/domain/transfers.ts`), whose `trainersInWeek(week)` gives Rayat's employee numbers with each confirmed transfer undone for the weeks before it, and each transfer that holds or is in conflict in place of the trainer it replaced from its week on. A transfer that changes nothing changes no week. A number no person has is a trainer not on the platform, whose tasks wait for them. `transferTasks()` holds the rule for tasks: the replaced trainer's open tasks of the section move to the new trainer, and their completed work stays with them, marked with the last week they taught it. Apply it when a transfer is made, and generate a transfer's later weeks for the new trainer. Cancelling a transfer gives its open tasks back.
 
 **Note from lead review C (the owner's rule, 2026-10-22):** an item for each section's trainer makes one task for each trainer of the section, as the engine's key (item, occurrence, assignee and section) has it: a section Rayat gives two trainers makes two, and a section with no trainer yet makes none. The framework's preview counts the same, with `sectionCounts()` giving each department's section trainers and the sections without one, which the preview names apart. The demo has a section with two trainers, one with none, and the exam copy for each section's trainer, so "the published preview equals the tasks generated" is checked on both.
+
+**Built before Steps 18 and 19, in a second session (ADR-0025).** The framework is the engine's only source until Step 19 adds the plan. Step 17's note above is superseded: `transferTasks()` is gone, and each place of a section keeps its tasks while its holder changes.
 
 > **Checkpoint: UX review 2.** Run `/ux-review 11-20` (audit log, notifications, term and framework, Rayat import, sections, templates, plan editor).
 
@@ -1117,6 +1129,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - BeUI here: multi select (the assignment's trainers).
 
+**Note from Step 20 (ADR-0025):** an assignment's tasks come from the engine as a source of their own: add it to `tasks.source`, give each template item an identity as framework items have, and key each task by the assignment's holder, as a role's item is keyed. Assigning or revoking queues a pass.
+
 > **Checkpoint: Audit 7.** Run `/audit 19-21`.
 
 #### Step 22. Quick requests and the term readiness board (M)
@@ -1135,6 +1149,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - BeUI here: expandable control (the quick-request button), multi select (chosen people) and animated badge (readiness).
 
 **Note from Step 12:** a request that tells its targets uses `notify()` with a kind of its own: the kind and its page in `src/modules/notifications/domain/kinds.ts`, its params' type there, and its words under `notifications.kinds.<kind>` in `messages/ar.json` (a label and a hint for the preferences, a title and a description filled with the params). The preferences list it on their own, and a person who turned it off is not told.
+
+**Note from Step 20 (ADR-0025):** a quick request's tasks are created at once, by `generateTerm()` in the request rather than a queued pass, with the quick request as a source of its own. The board's "tasks generated" reads the latest pass of each term (`latestRun()`, `src/modules/tasks`), which `/framework` shows its publisher.
 
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
@@ -1202,6 +1218,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - BeUI here: tabs (the work list's filters), preview rail (the weeks) and morphing tabs (the section page).
 
+**Note from Step 20 (ADR-0025):** a person's work is the tasks they are the assignee of (`tasks.assignee_id`), with `cancelled_at` empty. Each task has its week and its due day (`due_on`), and a section's task its section (`section_ref`). A task waiting for a trainer not on the platform has no assignee, only their employee number (`assignee_number`). Finished work of a section transferred away stays with whoever did it; "until week N" is the transfer's week, read from `section_transfers`.
+
 > **Checkpoint: Audit 8.** Run `/audit 22-24`.
 
 #### Step 25. Evidence pipeline (L)
@@ -1229,6 +1247,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - The end-to-end upload test runs on a minimal task page, which Step 26 turns into the card.
 
 **Note from Step 7:** the size limit and the accepted extensions are settings already (`files.maxSizeMb`, 20, and `files.acceptedTypes`); a framework item's own types narrow them.
+
+**Note from Step 20 (ADR-0025):** the engine moves and cancels only tasks not started. A task's first evidence starts it, so a new version of the framework or plan never cancels work with evidence.
 
 #### Step 26. The task card and the done flow (L)
 

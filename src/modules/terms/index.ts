@@ -14,11 +14,14 @@ export {
 export {
   calendarOf,
   type DayRange,
+  dueDay,
+  eventWeeks,
   type TermCalendar,
   type TermWeek,
   termEndsOn,
   termWeeks,
   weekOf,
+  weekReached,
 } from "./domain/weeks.ts";
 export {
   estimateHolidays,
