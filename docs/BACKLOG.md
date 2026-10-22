@@ -44,8 +44,17 @@ Each one that the owner accepts gets an ADR and a note under its step before it 
 - 1. Sign-in opens the first page the person must see (`/change-password` or `/two-factor/setup`) instead of going through Today. About 1 h; no plan change.
 - 2. "Remember this device" ticked by default on phones and tablets (`auth.rememberByDefault`), for the metric "sign-ins per completed task". 45 min; ADR-0012.
 - 3. Decide ADR-0007: keep `cacheComponents` and `partialPrefetching` and record why in ADR-0001 (10 min), and cache the college and its settings in Step 7 (about 2 h). Pages now run 11 to 16 database statements. If the owner keeps the per-request read instead, remove both flags and the `connection()` calls (about 1 h). This settles the Audit 1 item on those flags.
-- 6. Give section 4's server budget a load level (for example 20 concurrent requests) and a one-minute load run in Step 41's CI smoke: reads take p95 23 to 30 ms one at a time, 291 to 310 ms at 10 at once. 1 h 15 min; extends ADR-0010.
-- 7. Replace the temporary password on the sign-in card itself: a new trainer's first sign-in goes from 4 page views to 2 and from 83 typed characters to 46 or 71. About 3 h; ADR-0012.
+- 6. Give section 4's server budget a load level (for example 20 concurrent requests) and a one-minute load run in Step 41's CI smoke: reads take p95 23 to 30 ms one at a time, 291 to 310 ms at 10 at once. 1 h 15 min; extends ADR-0010. Lead review B measured 16 of 20 pages over 300 ms at 10 at once.
+- 7. Replace the temporary password on the sign-in card itself: a new trainer's first sign-in goes from 4 page views to 2 and from 83 typed characters to 46 or 71. About 3 h; ADR-0012. Step 10's import hands out 40 temporary passwords at once, and each of those people meets the forced change (lead review B).
 - 9. Give the two sign-in limits different jobs (5 per identifier and address, 20 overall) and add a ceiling of failures per address, in Step 40. 1.5 h; amends ADR-0009.
-- 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011.
+- 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011. Lead review B found what a rollback to `v0.1-A`'s image would do on today's schema: its sign-in ignores `users.disabled_at`, so disabled accounts sign in again, and its access ignores `memberships.department_id`, so the heads' department keys count across the college.
 - 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change. (ADR-0014 removed the bounce: the setup's last step now sends the person on itself, with the router; the full page load there is what remains.)
+
+## Lead review B: proposals waiting for the owner (docs/reviews/lead-B.md)
+
+Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`). Proposals 2 and 3 were fixed in the review's pull request; 5 and 7 are notes under Steps 43 and 40.
+
+- 1. A notification opens from the bell, and a digest leaves the unread count once what it names is read: a trainer opening something new on a phone goes from 4 taps and 2 views to 2 taps and 1 view, and the bell stops counting a digest beside what it repeats. 1.5 h; ADR-0015 if accepted.
+- 4. One re-authentication helper for the actions: the password schema, `confirmPassword()` and `changeBy()` are copied in three action files. 30 min; take it with the next step that adds a sensitive action.
+- 6. Give a role from the person's page, through the same action, key, password step, event and notification as the role's page: making a trainer a head goes from 7 taps, a typed name and 2 pages to 5 taps on the page the admin is on. 1.5 h; ADR-0016 if accepted.
+- To watch: `e2e/people.spec.ts:488` (the account menu leads to changing the password) failed once in the review's full run, with no request after the press on the bloom menu's item, and passed 30 times since.

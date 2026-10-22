@@ -4,6 +4,14 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Lead review B: section B (Step 41, Steps 7 to 12)
+
+- One switch on the roles grid no longer hands a role the admins' accounts. A key held across the college reaches an account only when its holder holds, across the college, every key of that account that requires two-factor and, for an account with a role across the college, every key it holds: an admin still reaches everyone, and a vice-dean given temporary passwords helps trainers, never an admin or a head. Editing and disabling someone check the same reach, the person's page offers only what reaches, and the grid says whom each account key reaches (ADR-0014, decisions 3 and 4 amended).
+- A people import no longer stalls the college: the import, department changes and role names take one advisory lock per college instead of the college's row, which every sign-in, audited change and notification waited for, and the college's own edit takes its row without blocking them. The new accounts' temporary passwords are hashed four at a time, so 40 people take about a second rather than 3.8.
+- The log's and the notification center's pages read their indexes again: migration `0012` builds them in the order the queries ask, `desc()` with nulls first, where nulls last had left every first page sorting its whole table. The log's action filter gets an index of its own.
+- Finishing the required two-factor setup always lands on Today: the setup page, fetched again after the action, now sends a person whose setup was required where the action does, instead of to the profile in about one run in six. Giving and taking a role read the college's language before their transaction, which no longer waits for a second connection from the pool, and the settings screen keeps its group in the address through a save.
+- docs/reviews/lead-B.md holds the review and its resolution; proposals 1, 4 and 6 wait for the owner in docs/BACKLOG.md, with notes under Steps 40 and 43.
+
 ### Audit 4: steps 10-12
 
 - The college keeps an admin who can sign in when a role is taken away, as when an account is disabled: removing the system role counts only its members whose accounts are enabled, so the last of them stays, and a disabled member's role may go. The role's page marks a disabled member "حسابه معطّل" and keeps the "×" off only for the last admin who can sign in.

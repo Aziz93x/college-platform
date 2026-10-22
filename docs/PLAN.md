@@ -1414,6 +1414,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 7:** measured on the production build from a phone, the settings page loads about 304 KiB of script (Today 254 KiB): its BeUI controls with Motion's motion values, about 33 KiB, and Sonner, about 11 KiB. Zod stays off the client: `toLatinDigits` lives apart from the schema helpers in `src/platform/validation/digits.ts`. Decide whether the budget covers admin pages, or trim them here.
 
+**Note from lead review B:** `readTable()` (`src/platform/files/table.ts`) hands a workbook's bytes to read-excel-file, which inflates every entry into memory: a 0.9 MB file whose sheet inflates to about 900 MB held 1.1 GB for 3.4 s before it was refused. With this step's upload checks, read the archive's declared sizes first, or read the sheet with a byte budget of about 20 MB; a 2,000-row people file needs under 1 MB (docs/reviews/lead-B.md, proposal 7).
+
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
 
 #### Step 42. Logs, backups and a timed restore on your laptop (M)
@@ -1456,6 +1458,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 Every generated file carries a visible "بيانات تجريبية" watermark. The generator writes synthetic SS01, SF01 and SO01 files as XLSX on the headers in section 9, so demos and tests use the real import path. It refuses to run against the production database. `--profile alt` seeds a different college from data alone: other names, departments, roles, templates and a 16-week term.
 
 **Done when:** the seed finishes in under 2 minutes, a second run creates no duplicates, every screen shows meaningful data at weeks 1, 9 and 18, and the `alt` profile loads.
+
+**Note from lead review B:** at 2,000 people, `/people` took 581 ms one request at a time and sent 7.3 MB of HTML, and the trainer role's page 2.7 MB. With this step's larger seed, the people list and a role's members show the first hundred and search the rest on the server, and the log and the history panels name only the people on the page instead of reading the whole directory (`src/app/(app)/audit/lookups.ts`; docs/reviews/lead-B.md, proposal 5).
 
 **Note from ADR-0008:** `--week` exists since Step 13; this step completes the data it drives. Demo data stays synthetic.
 
