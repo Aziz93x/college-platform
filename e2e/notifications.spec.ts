@@ -161,9 +161,10 @@ test(
     );
     await expect(page).toHaveURL("/profile");
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 0 }));
+    // The center's rows, in the page: the bell's panel may still be fading out above them.
     await visit(page, "/notifications");
     await expect(
-      page.getByRole("link").filter({ hasText: told }),
+      page.locator("main").getByRole("link").filter({ hasText: told }),
     ).not.toContainText(text.unread);
   },
 );
@@ -201,6 +202,7 @@ test(
     // The foot read nothing; the center's row opens its page and reads it.
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 2 }));
     const item = page
+      .locator("main")
       .getByRole("link")
       .filter({ hasText: t("kinds.membershipAdded.title", firstRole) });
     await expect(item).toContainText(text.unread);

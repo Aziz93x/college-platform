@@ -66,13 +66,13 @@ function NotificationCardContent({ item }: { item: NotificationStackItem }) {
           {item.title}
         </span>
         {item.trailing ? (
-          <span className="shrink-0 text-muted-foreground text-xs">
+          <span className="shrink-0 text-muted-foreground text-xs transition-colors group-hover/card:text-foreground">
             {item.trailing}
           </span>
         ) : null}
       </span>
       {item.description ? (
-        <span className="text-muted-foreground text-xs leading-relaxed">
+        <span className="text-muted-foreground text-xs leading-relaxed transition-colors group-hover/card:text-foreground">
           {item.description}
         </span>
       ) : null}
@@ -258,7 +258,9 @@ export function NotificationStack({
                   href={item.href}
                   onClick={(event) => onOpen?.(item, event)}
                   className={cn(
-                    "block rounded-[inherit] px-3.5 text-start outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                    // The hover's tint takes the muted words to the foreground colour, as a row of
+                    // the center does: muted on it measures under 4.5:1.
+                    "group/card block rounded-[inherit] px-3.5 text-start outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                     hidden && "invisible",
                   )}
                 >
