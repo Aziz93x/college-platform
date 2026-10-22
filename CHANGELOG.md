@@ -72,7 +72,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - Migration `0013` adds the `announcements` table; the notifications carry the announcement's id. The shared dialog takes an overlay class, for the blur.
 - `seed:demo` publishes the head of Electrical's announcement and the dean's; the demo accounts the tests sign in as have read them, and the invited trainer meets the dean's at the first sign-in, which the production stack's smoke closes.
 - Tests: the input's tidying; the services on a real database (who is reached, refusals, withdrawal, the events); the actions' scopes and the permission matrix's rows; every action's audit event; the log's words; the seed; and end-to-end on the desktop and the iPhone, in a department the test makes: two announcements newest first over the page blurred, axe and 44 px targets on the dialog, closing for good, withdrawal from the center, the trainer refused the page, and the preferences' row.
-- Fixed: axe could check a page while the page header's eyebrow still faded in, so the dialog's check, made right after the trainer's sign-in, failed on that line's contrast at random, on `main` too. `seriousViolations()` now waits for the page's animations that end.
+- Fixed: axe could check a page while the page header's eyebrow still faded in, so the dialog's check, made right after the trainer's sign-in, failed on that line's contrast at random, on `main` too. `seriousViolations()` now waits for the page's animations that end. The 44 px check, `smallTargets()`, measures once the controls have stopped moving: on the phone, the bell's stack was measured while its cards still spread, and a card under its neighbour failed at random.
 
 ### Lead review B: section B (Step 41, Steps 7 to 12)
 
