@@ -1246,6 +1246,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
 
+**Note from Step 7:** the rate and the cap are settings already: `review.sampleRate` (20%) and `review.weeklyCap` (30 per reviewer a week).
+
 **Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
 
 #### Step 31. Portfolio builder (M)
@@ -1265,8 +1267,6 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 14:** the closing group (axes 12 and 13, code `closing` in `db/seed/base.ts`) is the optional one; nothing marks it optional yet, so this step adds that marker when it treats the group differently.
 
 > **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
-
-**Note from Step 7:** the rate and the cap are settings already: `review.sampleRate` (20%) and `review.weeklyCap` (30 per reviewer a week).
 
 #### Step 30. What is missing, portfolio approval and exam confidentiality (M)
 
