@@ -44,6 +44,8 @@ const permissions = {
   "plan.publish": { area: "planning", requiresTwoFactor: false },
   // Assignments and quick requests (Steps 21 and 22).
   "assignment.manage": { area: "planning", requiresTwoFactor: false },
+  // Transfer a section of the term from one trainer to another, from a week on (Step 17).
+  "sections.transfer": { area: "planning", requiresTwoFactor: false },
   // Complete one's own tasks and attach their evidence (Step 26).
   "task.complete": { area: "work", requiresTwoFactor: false },
   // Accept or return the tasks under review (Step 29).

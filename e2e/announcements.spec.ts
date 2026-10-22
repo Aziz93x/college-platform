@@ -91,6 +91,9 @@ test(
     const made = await department(account);
     try {
       const head = await signIn(browser, made.head);
+      // The shell offers the page: in the sidebar, or on a phone under More once five do not fit.
+      const more = head.getByRole("button", { name: messages.shell.more });
+      if (await more.isVisible()) await more.click();
       await expect(
         head.getByRole("link", { name: nav.announcements }).first(),
       ).toBeAttached();

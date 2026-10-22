@@ -1018,7 +1018,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 15:** the framework's preview counts each department's sections for items that reach "each section's trainer"; `src/app/(app)/framework/page.tsx` passes 0 until this step gives `countTasks()` each department's sections.
 
-**Note from Step 16:** each import keeps its records, never the file: `rayat_sections` (a section by its reference, with its meetings and every trainer number its rows name), `rayat_enrollments` and `rayat_absences` (`src/modules/rayat`). A term's version of a report is its import applied last and not rolled back, which `currentRayatRecords(collegeId, termId, kind)` reads. Build courses, sections and enrollments on the version in force; applying or rolling back a version is where a newer SS01 meets the transfers, so flag what it changes there.
+**Note from Step 16:** each import keeps its records, never the file: `rayat_sections` (a section by its reference, with its meetings and every trainer number its rows name), `rayat_enrollments` and `rayat_absences` (`src/modules/rayat`). A term's version of a report is its import applied last and not rolled back, which `rayatVersion(collegeId, termId, kind)` reads, with when it was applied. Build courses, sections and enrollments on the version in force; applying or rolling back a version is where a newer SS01 meets the transfers, so flag what it changes there.
 
 > **Checkpoint: Lead review C.** Run `/lead-review C`, then tag `v0.3-C`.
 
@@ -1065,6 +1065,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 15:** the preview's count is `countTasks()` (`src/modules/framework/domain/count.ts`): each item, in each department, once per holder or section it reaches and per time its rule is due (`occurrences()`). A rule is due only in the term's numbered weeks: "a week after each exam" counts no task for the finals in the term's last week, as week 19 of 18 counts none (Audit 5). The engine generates exactly those, so the two agree by construction. A published version never changes; the engine reads the latest published version of the term.
 
 **Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
+
+**Note from Step 17:** a section is SS01's in force, by its Rayat reference in the term; there is no table of sections (`listSections()`, `src/modules/academics`). Its trainers in a week are `trainersInWeek()`: Rayat's employee numbers, with each head's transfer in force by that week in place of the trainer it replaced; a number no person has is a trainer not on the platform, whose tasks wait for them. `transferTasks()` holds the rule for tasks: the replaced trainer's open tasks of the section move to the new trainer, and their completed work stays with them, marked with the last week they taught it. Apply it when a transfer is made, and generate a transfer's later weeks for the new trainer. Cancelling a transfer gives its open tasks back.
 
 > **Checkpoint: UX review 2.** Run `/ux-review 11-20` (audit log, notifications, term and framework, Rayat import, sections, templates, plan editor).
 

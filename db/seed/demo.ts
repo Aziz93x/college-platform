@@ -12,6 +12,7 @@ import { seedDemoHistory } from "./demo/history.ts";
 import { seedDemoNotifications } from "./demo/notifications.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoRayat } from "./demo/rayat.ts";
+import { seedDemoSections } from "./demo/sections.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
 import { DEMO_TERM_WEEKS, seedDemoTerms } from "./demo/terms.ts";
 
@@ -76,6 +77,7 @@ try {
     await seedDemoTerms(ctx, collegeId, week);
     await seedDemoFramework(ctx, collegeId);
     await seedDemoRayat(ctx, collegeId);
+    await seedDemoSections(ctx, collegeId, week);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,
     );

@@ -62,6 +62,11 @@ export const auditActions = [
   "rayatImport.apply",
   "rayatImport.discard",
   "rayatImport.rollback",
+  // A head's transfer of a section from one trainer to another, kept against a newer SS01 or
+  // cancelled (Step 17).
+  "sectionTransfer.create",
+  "sectionTransfer.keep",
+  "sectionTransfer.cancel",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -79,6 +84,7 @@ const auditEntities = [
   "axis",
   "framework",
   "rayatImport",
+  "sectionTransfer",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

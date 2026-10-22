@@ -8,6 +8,7 @@ import {
   Layers,
   type LucideIcon,
   Megaphone,
+  Presentation,
   ScrollText,
   Settings,
   UsersRound,
@@ -119,6 +120,13 @@ export const navigation = [
     href: "/rayat",
     icon: FileSpreadsheet,
     permission: "rayat.import",
+  },
+  // The term's sections as Rayat has them, which a head transfers in their department (Step 17).
+  {
+    id: "sections",
+    href: "/sections",
+    icon: Presentation,
+    permission: "sections.transfer",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

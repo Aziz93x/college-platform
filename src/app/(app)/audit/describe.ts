@@ -181,6 +181,19 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         ? `${report.toUpperCase()} · ${lookups.term(termId) ?? termId}`
         : id;
     }
+    // A section's transfer by the section and its term (Step 17).
+    case "sectionTransfer": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to)
+        ? diff.to
+        : isRecord(diff.from)
+          ? diff.from
+          : diff;
+      return typeof was.sectionRef === "string" &&
+        typeof was.termId === "string"
+        ? `${was.sectionRef} · ${lookups.term(was.termId) ?? was.termId}`
+        : id;
+    }
     // A portfolio axis by its title before the change (Step 14).
     case "axis": {
       const was = entry.diff?.from;

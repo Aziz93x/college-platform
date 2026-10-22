@@ -4,10 +4,10 @@ export { readRayatFile } from "./domain/read.ts";
 export { type RayatKind, rayatFields, rayatKinds } from "./domain/reports.ts";
 export {
   applyRayat,
-  currentRayatRecords,
   discardRayat,
   listRayatImports,
   type RayatImport,
+  rayatVersion,
   rollbackRayat,
   uploadRayat,
 } from "./server/imports.ts";

@@ -6,6 +6,7 @@ import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
+import { unmatchedTrainers } from "@/modules/academics";
 import {
   authorize,
   permittedDepartments,
@@ -57,10 +58,11 @@ export default async function RayatPage() {
     );
   }
 
-  const [messages, format, imports] = await Promise.all([
+  const [messages, format, imports, unmatched] = await Promise.all([
     getMessages(),
     getFormatter(),
     listRayatImports(viewer.collegeId, term.id),
+    unmatchedTrainers(viewer.collegeId, term.id),
   ]);
   const open = term.status !== "closed";
   const when = (at: Date) =>
@@ -155,6 +157,28 @@ export default async function RayatPage() {
                   </div>
                 ) : null}
               </div>
+
+              {kind === "ss01" && unmatched.length > 0 ? (
+                <div className="flex flex-col gap-2 px-5 py-4 sm:px-6">
+                  <h3 className="font-medium text-alert text-sm">
+                    {t("unmatched.title")}
+                  </h3>
+                  <p className="max-w-prose text-pretty text-muted-foreground text-sm">
+                    {t("unmatched.description")}
+                  </p>
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {unmatched.map(({ number, sections }) => (
+                      <li key={number}>
+                        {t("unmatched.line", {
+                          number,
+                          sections: sections.length,
+                          refs: format.list(sections),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               {pending ? (
                 <div className="flex flex-col gap-3 px-5 py-4 sm:px-6">

@@ -1,4 +1,4 @@
-export { countTasks } from "./domain/count.ts";
+export { countTasks, departmentsReached } from "./domain/count.ts";
 export {
   type DueRule,
   type FrameworkItemInput,

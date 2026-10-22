@@ -158,7 +158,7 @@ async function currentImport(
   kind: RayatKind,
 ) {
   const [current] = await db
-    .select({ id: rayatImports.id })
+    .select({ id: rayatImports.id, appliedAt: rayatImports.appliedAt })
     .from(rayatImports)
     .where(
       and(
@@ -173,15 +173,20 @@ async function currentImport(
   return current;
 }
 
-// The records of the version of a term's report in force; none before its first import is applied.
-export async function currentRayatRecords<K extends RayatKind>(
+// The version of a term's report in force: when it was applied, and its records; undefined before
+// its first import is applied.
+export async function rayatVersion<K extends RayatKind>(
   collegeId: string,
   termId: string,
   kind: K,
   db: Db = getDb(),
 ) {
   const current = await currentImport(db, collegeId, termId, kind);
-  return current ? recordsOf(db, kind, current.id) : [];
+  if (!current?.appliedAt) return undefined;
+  return {
+    appliedAt: current.appliedAt,
+    records: await recordsOf(db, kind, current.id),
+  };
 }
 
 // The column map that reads a kind of report, and its version; undefined while none is stored.

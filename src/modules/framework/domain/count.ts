@@ -6,6 +6,27 @@ export type Department = {
   sections: number;
 };
 
+// What each department holds that items reach, from how many hold each role in it and how many
+// sections it has in SS01 in force (Step 17): a department with sections and no one in it yet
+// counts too.
+export function departmentsReached(
+  members: readonly { departmentId: string; roleId: string; count: number }[],
+  sections: Readonly<Record<string, number>>,
+): Department[] {
+  const all: Record<
+    string,
+    { roles: Record<string, number>; sections: number }
+  > = {};
+  for (const [departmentId, count] of Object.entries(sections)) {
+    all[departmentId] = { roles: {}, sections: count };
+  }
+  for (const { departmentId, roleId, count } of members) {
+    all[departmentId] ??= { roles: {}, sections: 0 };
+    all[departmentId].roles[roleId] = count;
+  }
+  return Object.values(all);
+}
+
 // What the term holds that rules count on: its numbered weeks, and for each kind of day of its
 // calendar, the last numbered week of each such day.
 export type TermShape = {

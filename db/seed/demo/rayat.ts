@@ -246,6 +246,14 @@ export function demoRayatFiles(
   return files;
 }
 
+// A trainer Electrical's SS01 names who is not on the platform yet, a visitor whose sections the
+// unmatched report lists (Step 17).
+export const demoVisitor = {
+  employeeNumber: "209001",
+  name: "مدرب زائر",
+  department: demoDepartments[1].name,
+};
+
 // The demo term's three reports (Step 16), uploaded by the vice-dean and the head of Electrical
 // and applied by the vice-dean, and a newer SF01 the head uploaded, waiting to be applied: a few
 // trainees withdrawn and two registered late, the diff to review. The head imports because the
@@ -308,16 +316,20 @@ export async function seedDemoRayat(
       return {
         // The way Rayat writes it that is not the department's name.
         rayatValue: demo.rayatValues[1],
-        trainers: directory
-          .filter((person) =>
-            person.memberships.some(
-              (membership) =>
-                membership.roleId === trainer?.id &&
-                membership.departmentId === department?.id,
-            ),
-          )
-          .map(({ employeeNumber, name }) => ({ employeeNumber, name }))
-          .sort((a, b) => a.employeeNumber.localeCompare(b.employeeNumber)),
+        // The visitor first, so a section is theirs whatever the department's number of trainers.
+        trainers: [
+          ...(demo.name === demoVisitor.department ? [demoVisitor] : []),
+          ...directory
+            .filter((person) =>
+              person.memberships.some(
+                (membership) =>
+                  membership.roleId === trainer?.id &&
+                  membership.departmentId === department?.id,
+              ),
+            )
+            .map(({ employeeNumber, name }) => ({ employeeNumber, name }))
+            .sort((a, b) => a.employeeNumber.localeCompare(b.employeeNumber)),
+        ],
       };
     }),
   );

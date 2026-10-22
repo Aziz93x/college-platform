@@ -120,6 +120,7 @@ describe("listDirectory", () => {
         "plan.edit",
         "plan.publish",
         "assignment.manage",
+        "sections.transfer",
         "review.decide",
         "portfolio.approve",
         "accounts.resetPassword",

@@ -10,8 +10,10 @@ import {
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
+import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
+import { unmatchedTrainers } from "../../src/modules/academics/index.ts";
 import { settingsRegistry } from "../../src/modules/settings/index.ts";
 import {
   activeTerm,
@@ -325,6 +327,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       // The term's Rayat reports, and a newer SF01 waiting to be applied (Step 16).
       "rayatImport.upload",
       "rayatImport.apply",
+      // The head of Electrical's transfer of a section (Step 17).
+      "sectionTransfer.create",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -609,21 +613,56 @@ it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of
       counts: expect.objectContaining({ added: 2, removed: 0, changed: 3 }),
     },
   ]);
-  const { rows: departments } = await pool.query(`
-    select d.name, count(*)::int > 0 as sections,
-      bool_and(exists (
+  // Each section is taught by a trainer of its department, but Electrical's visitor (Step 17).
+  const { rows: departments } = await pool.query(
+    `select d.name, count(*)::int > 0 as sections,
+      bool_and(s.trainer_numbers = array[$1] or exists (
         select 1 from people p
         join memberships m on m.user_id = p.user_id
         join roles r on r.id = m.role_id and r.key = 'trainer'
         where m.department_id = s.department_id and p.employee_number = any(s.trainer_numbers)
       )) as taught
     from rayat_sections s join departments d on d.id = s.department_id
-    group by d.name order by d.name`);
+    group by d.name order by d.name`,
+    [demoVisitor.employeeNumber],
+  );
   expect(departments).toEqual(
     demoDepartments
       .map(({ name }) => ({ name, sections: true, taught: true }))
       .sort((a, b) => (a.name < b.name ? -1 : 1)),
   );
+});
+
+it("has the head of Electrical transfer a section to another trainer of the department from this week, and Electrical's visitor named as not on the platform (Step 17)", async () => {
+  const { db, pool } = await seededDatabase();
+  const { rows: transfers } = await pool.query(`
+    select d.name as department, u.email as by, t.week,
+      exists (select 1 from people p where p.employee_number = t.from_number) as "fromOnPlatform",
+      exists (
+        select 1 from memberships m join roles r on r.id = m.role_id and r.key = 'trainer'
+        where m.user_id = t.to_user_id and m.department_id = t.department_id
+      ) as "toTeachesThere"
+    from section_transfers t join departments d on d.id = t.department_id
+    join users u on u.id = t.created_by`);
+  expect(transfers).toEqual([
+    {
+      department: demoDepartments[1].name,
+      by: demoAccounts.head.email,
+      week: 9,
+      fromOnPlatform: true,
+      toTeachesThere: true,
+    },
+  ]);
+  const {
+    rows: [{ id: collegeId }],
+  } = await pool.query("select id from colleges");
+  const term = await activeTerm(collegeId, db);
+  if (!term) throw new Error("no active term");
+  const unmatched = await unmatchedTrainers(collegeId, term.id, db);
+  expect(unmatched.map(({ number }) => number)).toEqual([
+    demoVisitor.employeeNumber,
+  ]);
+  expect(unmatched[0].sections.length).toBeGreaterThan(0);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {
