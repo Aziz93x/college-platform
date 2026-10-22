@@ -131,7 +131,8 @@ test(
       `attachment; filename*=UTF-8''${encodeURIComponent(audit.exportFile)}`,
     );
 
-    await page.goto("/audit");
+    // Tests running beside this one add to the log, so it reads the exports only.
+    await page.goto("/audit?action=audit.export");
     await expect(events(page).first()).toContainText(
       audit.actions.audit.export,
     );
