@@ -870,6 +870,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 3:** `needsPassword()` asks for the password again for the settings of the `security` group only (`src/modules/settings/domain/registry.ts`). The retention setting decides how long history is kept, so it asks too: give the registry a `reauth` flag beside `permission`, set it on the security settings and on retention, and extend the settings actions' test to it.
 
+**Note from Audit 4:** retention never goes under 12 months. The setting's schema refuses less (`min(12)`), and so does `purge_audit_events()` (migration `0010`), the table owner's only way past the append-only triggers, so the app's own user cannot shorten history. If the data classification the General Administration approves asks for less than a year, that takes a migration. The default is 60 months.
+
 #### Step 12. Notifications foundation (M)
 
 **Goal:** people hear about what matters and nothing else.
@@ -938,7 +940,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - The membership's optional term is a nullable `term_id` on `memberships`; add it to `memberships_scope_unique`, so a person can hold a role in one term and not the next.
 - The keys of the steps ahead exist already (`src/modules/access/domain/permissions.ts`), each with its first step, and the default grid gives them to the vice-dean, the head, the trainer and the dean. A department's records check the key in their department: `ctx.requirePermission(key, { departmentId })`; a list keeps to `ctx.departmentsFor(key)` ("college" or the departments); a record of one's own adds `ownerId`. A new action gets its row in `tests/unit/permission-matrix.test.ts`, which fails until it has one, and a department-scoped action adds department rows there.
 
-**Note from Step 11:** the date range picker is `src/components/motion/date-range-picker`, controlled, with its words from `dateRange` in `messages/ar.json`; the log's filters build them (`useDateRangeWords` in `src/app/(app)/audit/audit-filters.tsx`), so move that to a shared place when holidays and exam weeks use it. Its days are calendar dates (YYYY-MM-DD): `startOfDay()` and `wallClock()` in `src/platform/i18n/time-zone.ts` turn them into instants on the college's clock and back.
+**Note from Step 11:** the date range picker is `src/components/motion/date-range-picker`, controlled, with its words from `dateRange` in `messages/ar.json`; `useDateRangeWords` (`src/components/use-date-range-words.ts`, shared with the design catalog since UX review 1) builds them. Its days are calendar dates (YYYY-MM-DD): `startOfDay()` and `wallClock()` in `src/platform/i18n/time-zone.ts` turn them into instants on the college's clock and back.
 
 #### Step 14. Portfolio axes catalog (S)
 
