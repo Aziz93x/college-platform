@@ -10,8 +10,8 @@ import { authorize, requireViewer } from "@/modules/access";
 import { parseEnv } from "@/platform/config/env";
 import { documentLocale } from "@/platform/i18n/language";
 import { paletteTokens, roleTokens } from "@/styles/token-names";
+import { Controls } from "./controls";
 import { isDesignCatalogEnabled } from "./gate";
-import { MotionDemos } from "./motion-demos";
 import { Overlays } from "./overlays";
 import { Primitives } from "./primitives";
 
@@ -78,12 +78,12 @@ export default async function DesignPage() {
     notFound();
   }
   // The catalog's client components read the design messages; other routes never receive them.
-  const { ui, design } = await getMessages();
+  const { ui, design, dateRange } = await getMessages();
   // Only the catalog shows toasts so far, so only it carries Sonner (Audit 2, the script budget).
   const { dir } = documentLocale(await getLocale());
   const t = await getTranslations("toast");
   return (
-    <NextIntlClientProvider messages={{ ui, design }}>
+    <NextIntlClientProvider messages={{ ui, design, dateRange }}>
       <Catalog />
       <Toaster dir={dir} containerAriaLabel={t("region")} />
     </NextIntlClientProvider>
@@ -203,10 +203,11 @@ function Catalog() {
       </Section>
 
       <Section id="primitives" title={t("primitives.title")}>
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <Primitives />
+        <p className="text-muted-foreground">{t("primitives.intro")}</p>
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <Controls />
           <Overlays />
-          <MotionDemos />
+          <Primitives />
         </div>
       </Section>
     </main>

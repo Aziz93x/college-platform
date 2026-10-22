@@ -17,7 +17,7 @@ function isTimeZoneName(value: string) {
 // The longest "remember this device" may last; Better Auth's session lifetime is set to it.
 export const REMEMBERED_DEVICE_DAYS_MAX = 90;
 
-// The days of the week, numbered from Sunday as JavaScript dates and react-day-picker count them.
+// The days of the week, numbered from Sunday as JavaScript dates and the date range picker count them.
 export const weekdays = [
   "sunday",
   "monday",

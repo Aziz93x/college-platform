@@ -1,18 +1,16 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { BookOpen } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { BottomSheet } from "@/components/motion/bottom-sheet";
+import { CommandPalette } from "@/components/motion/command-palette";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  type DateRange,
+  DateRangePickerDropdown,
+} from "@/components/motion/date-range-picker";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -24,68 +22,105 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Demo, Field } from "./demo";
+import { useDateRangeWords } from "@/components/use-date-range-words";
+import { firstDayOfWeek } from "@/platform/i18n/language";
+import { Demo } from "./demo";
 
-// A fixed sample day, so the calendar shows the same month and today on every run.
-const SAMPLE_DAY = new Date(2026, 9, 22);
+const SAMPLES = ["one", "two", "three"] as const;
+// A fixed sample day, so the picker opens on the same month and today on every run.
+const SAMPLE_DAY = "2026-10-22";
 
-const WEEKS = ["one", "two", "three"] as const;
-
-// The primitives that open over the page, each from a labelled trigger.
+// What opens over the page, each from a labelled trigger: the sheet that confirms, the page search,
+// the period picker, and the dialog, tooltip and toast.
 export function Overlays() {
   const t = useTranslations("design");
-  const [day, setDay] = useState<Date | undefined>(SAMPLE_DAY);
-  const [showDone, setShowDone] = useState(true);
+  const locale = useLocale();
+  const words = useDateRangeWords(t("period.label"));
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [chosen, setChosen] = useState<string>();
+  const [range, setRange] = useState<DateRange | null>(null);
 
   return (
     <TooltipProvider>
+      <Demo id="bottom-sheet" title={t("primitives.bottom-sheet")}>
+        <Button variant="outline" onClick={() => setSheetOpen(true)}>
+          {t("bottomSheet.trigger")}
+        </Button>
+        <BottomSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          snapPoints={["auto"]}
+          title={t("bottomSheet.title")}
+          description={t("bottomSheet.description")}
+          closeLabel={t("bottomSheet.close")}
+        >
+          <ul className="flex flex-col gap-2 pt-2">
+            {SAMPLES.map((sample) => (
+              <li key={sample}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => setSheetOpen(false)}
+                >
+                  {t(`bottomSheet.${sample}`)}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </BottomSheet>
+      </Demo>
+
+      <Demo id="command-palette" title={t("primitives.command-palette")}>
+        <Button variant="outline" onClick={() => setPaletteOpen(true)}>
+          {t("commandPalette.trigger")}
+        </Button>
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          items={SAMPLES.map((sample) => ({
+            id: sample,
+            label: t(`commandPalette.${sample}`),
+            icon: <BookOpen />,
+            onSelect: () => setChosen(t(`commandPalette.${sample}`)),
+          }))}
+          placeholder={t("commandPalette.placeholder")}
+          emptyMessage={t("commandPalette.empty")}
+          labels={{
+            dialog: t("commandPalette.dialog"),
+            list: t("commandPalette.list"),
+            close: t("commandPalette.close"),
+            escape: t("commandPalette.escape"),
+          }}
+        />
+        <output className="text-muted-foreground text-sm">
+          {chosen ? t("commandPalette.chosen", { name: chosen }) : null}
+        </output>
+      </Demo>
+
+      <Demo id="date-range" title={t("primitives.date-range")}>
+        <div className="flex w-full flex-col gap-1.5 sm:w-72">
+          {/* The trigger's name carries the label with the chosen period. */}
+          <span aria-hidden className="px-1 font-medium text-sm">
+            {t("period.label")}
+          </span>
+          <DateRangePickerDropdown
+            value={range}
+            onValueChange={setRange}
+            words={words}
+            locale={locale}
+            weekStartsOn={firstDayOfWeek(locale)}
+            today={SAMPLE_DAY}
+            className="w-full"
+          />
+        </div>
+      </Demo>
+
       <Demo id="dialog" title={t("primitives.dialog")}>
         <Dialog>
           <DialogTrigger asChild>
@@ -108,80 +143,6 @@ export function Overlays() {
         </Dialog>
       </Demo>
 
-      <Demo id="sheet" title={t("primitives.sheet")}>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline">{t("sheet.trigger")}</Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>{t("sheet.title")}</SheetTitle>
-              <SheetDescription>{t("sheet.description")}</SheetDescription>
-            </SheetHeader>
-          </SheetContent>
-        </Sheet>
-      </Demo>
-
-      <Demo id="drawer" title={t("primitives.drawer")}>
-        <Drawer>
-          <DrawerTrigger asChild>
-            <Button variant="outline">{t("drawer.trigger")}</Button>
-          </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>{t("drawer.title")}</DrawerTitle>
-              <DrawerDescription>{t("drawer.description")}</DrawerDescription>
-            </DrawerHeader>
-            <DrawerFooter>
-              <DrawerClose asChild>
-                <Button variant="outline">{t("dialog.cancel")}</Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      </Demo>
-
-      <Demo id="dropdown-menu" title={t("primitives.dropdown-menu")}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">{t("dropdown.trigger")}</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>{t("dropdown.label")}</DropdownMenuLabel>
-            <DropdownMenuItem>{t("dropdown.edit")}</DropdownMenuItem>
-            <DropdownMenuItem>{t("dropdown.copy")}</DropdownMenuItem>
-            <DropdownMenuCheckboxItem
-              checked={showDone}
-              onCheckedChange={setShowDone}
-            >
-              {t("dropdown.showDone")}
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive">
-              {t("dropdown.delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </Demo>
-
-      <Demo id="popover" title={t("primitives.popover")}>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">{t("popover.trigger")}</Button>
-          </PopoverTrigger>
-          <PopoverContent aria-labelledby="popover-title">
-            <PopoverHeader>
-              <PopoverTitle id="popover-title">
-                {t("popover.title")}
-              </PopoverTitle>
-              <PopoverDescription>
-                {t("popover.description")}
-              </PopoverDescription>
-            </PopoverHeader>
-          </PopoverContent>
-        </Popover>
-      </Demo>
-
       <Demo id="tooltip" title={t("primitives.tooltip")}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -189,78 +150,6 @@ export function Overlays() {
           </TooltipTrigger>
           <TooltipContent>{t("tooltip.content")}</TooltipContent>
         </Tooltip>
-      </Demo>
-
-      <Demo id="select" title={t("primitives.select")}>
-        <Field id="select-default" label={t("select.label")}>
-          <Select>
-            <SelectTrigger id="select-default" className="w-full">
-              <SelectValue placeholder={t("select.placeholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {WEEKS.map((week) => (
-                <SelectItem key={week} value={week}>
-                  {t(`select.${week}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field id="select-disabled" label={t("states.disabled")}>
-          <Select disabled>
-            <SelectTrigger id="select-disabled" className="w-full">
-              <SelectValue placeholder={t("select.placeholder")} />
-            </SelectTrigger>
-          </Select>
-        </Field>
-        <Field
-          id="select-invalid"
-          label={t("states.invalid")}
-          error={t("sample.required")}
-        >
-          <Select>
-            <SelectTrigger
-              id="select-invalid"
-              aria-invalid
-              aria-describedby="select-invalid-error"
-              className="w-full"
-            >
-              <SelectValue placeholder={t("select.placeholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {WEEKS.map((week) => (
-                <SelectItem key={week} value={week}>
-                  {t(`select.${week}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </Demo>
-
-      <Demo id="command" title={t("primitives.command")}>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">{t("command.trigger")}</Button>
-          </DialogTrigger>
-          <DialogContent className="overflow-hidden p-0">
-            <DialogHeader className="sr-only">
-              <DialogTitle>{t("command.title")}</DialogTitle>
-              <DialogDescription>{t("command.description")}</DialogDescription>
-            </DialogHeader>
-            <Command label={t("command.title")}>
-              <CommandInput placeholder={t("command.placeholder")} />
-              <CommandList label={t("command.results")}>
-                <CommandEmpty>{t("command.empty")}</CommandEmpty>
-                <CommandGroup heading={t("command.group")}>
-                  <CommandItem>{t("command.today")}</CommandItem>
-                  <CommandItem>{t("command.tasks")}</CommandItem>
-                  <CommandItem>{t("command.evidence")}</CommandItem>
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </DialogContent>
-        </Dialog>
       </Demo>
 
       <Demo id="sonner" title={t("primitives.sonner")}>
@@ -272,27 +161,6 @@ export function Overlays() {
         >
           {t("toast.trigger")}
         </Button>
-      </Demo>
-
-      <Demo id="calendar" title={t("primitives.calendar")}>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">{t("calendar.trigger")}</Button>
-          </PopoverTrigger>
-          <PopoverContent
-            aria-label={t("calendar.trigger")}
-            className="w-auto p-0"
-            align="start"
-          >
-            <Calendar
-              mode="single"
-              selected={day}
-              onSelect={setDay}
-              defaultMonth={SAMPLE_DAY}
-              today={SAMPLE_DAY}
-            />
-          </PopoverContent>
-        </Popover>
       </Demo>
     </TooltipProvider>
   );

@@ -61,7 +61,8 @@ export function Checkbox({
         transition={SPRING_PRESS}
         data-state={checked ? "checked" : "unchecked"}
         className={cn(
-          "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md border-2 outline-none transition-colors",
+          // 20 px drawn, with a hit area of 44 px.
+          "relative mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md border-2 outline-none transition-colors after:absolute after:-inset-3.5 after:content-['']",
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:cursor-not-allowed disabled:opacity-60",
           checked

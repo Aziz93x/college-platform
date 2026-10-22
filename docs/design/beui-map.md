@@ -86,7 +86,7 @@ buttons work the same with a finger, a mouse and the keyboard.
 | --- | --- |
 | Motion: table | The people list: each person's name and employee number, email (hidden on a phone), roles and where (hidden on a phone) and the account's state, sorted from a header; the import's preview, a row per line of the file with what it would do |
 | Motion: animated badge | An account's state: active, invited (pending), locked (alert) or disabled; each row's outcome in the import's preview |
-| Blocks: overflow actions | A person's row and page: a temporary password, disabling or enabling the account. The "…" rests quietly in each row and opens into the actions, bold while open |
+| Blocks: overflow actions | A person's row: a temporary password, turning two-factor off, disabling or enabling the account. The "…" rests quietly in each row and opens into the actions, bold while open. On the person's page the same actions are labelled buttons in an "Account actions" card (UX review 1) |
 | Motion: input, select, action swap, bottom sheet | Adding a person, correcting a person's name, email and employee number, and the sheet that confirms an account action and shows a temporary password once |
 
 Locking is no action: an account locks itself after failed attempts and a temporary password lifts
@@ -124,20 +124,35 @@ stack opens downward inside the panel, which grows with it, rather than over wha
 
 ## One component per job
 
-Where a BeUI piece serves a job, it is the component for that job everywhere; the Step 4 primitive for the same job stays only in the design catalog until the UX review of Steps 1 to 10 removes it, with its dependency where it has one (Audit 2, minor 7).
+Where a BeUI piece serves a job, it is the component for that job everywhere. The UX review of Steps 1 to 10 removed the Step 4 primitives that had lost their job, with their dependencies (Audit 2, minor 7; docs/reviews/ux-10.md, C7). The design catalog (`/design`) shows the components below in their states, then the primitives that no BeUI component replaces: the button, the text area, the label, the form, the radio group, the avatar, the skeleton, the progress bar, the separator, the scroll area, the dialog, the tooltip and the toast.
 
-| Job | The component | Leaves the catalog |
+| Job | The component | Left the catalog in UX review 1 |
 | --- | --- | --- |
 | Text field | Motion: input | `ui/input` |
 | Checkbox | Motion: checkbox | `ui/checkbox` |
 | Command palette | Blocks: command palette | `ui/command`, and cmdk |
 | Sheet and drawer | Motion: bottom sheet | `ui/sheet`, `ui/drawer`, and vaul |
-| The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu`, unless a step needs a plain menu |
+| The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu` |
 | Yes or no, a choice, groups | Motion: switch, select, tabs (Step 7) | `ui/switch`, `ui/select`, `ui/tabs` |
+| A list to choose from as you type | Motion: combobox (Step 9) | none |
 | A count, a percentage | Motion: adaptive stepper, range slider (Step 7) | none |
-| A period of days | Motion: date range picker (Step 11) | `ui/calendar`, and react-day-picker, unless a step needs a single day |
+| A list of records | Motion: table (Step 8) | `ui/table` |
+| A state | Motion: animated badge (Step 8) | `ui/badge` |
+| A period of days | Motion: date range picker (Step 11) | `ui/calendar`, `ui/popover`, and react-day-picker. A step that needs a single day asks the picker for a one-day range |
 
-The toast stays Sonner until the same review decides on BeUI's animated toast stack (docs/BACKLOG.md).
+The toast stays Sonner: it is tokenized, announced in its own region and loaded only by the layouts that toast; BeUI's toast stack would add script and a second stack beside the bell's (UX review 1, decision 8).
+
+## Patterns
+
+Built on the components above, alike on every screen (UX review 1, C2 to C5).
+
+| Job | The pattern |
+| --- | --- |
+| Editing a record | Nothing at the form's foot while the record is as saved. Once something changed, Save beside Discard; Save turns into "Saved" for 2 s (`src/components/save-actions.tsx`). A record saves with one button; independent values, such as the settings, save one at a time |
+| Creating a record | The primary button is always shown, with a "Cancel" ghost beside it that leads back to the list |
+| Searching a list | One field: its name for screen readers only, a clear button, Escape clears, the count announced politely, Arabic-Indic digits read as Latin. With no match, "No results for «…»" with a button that clears the search; the identity art is kept for a list with nothing in it yet (`src/components/search-field.tsx`) |
+| Changing someone's access | A bottom sheet that names the person and the change, asks for the password again when it is due, and has a visible Cancel beside the confirmation |
+| An account task the person chooses | Changing the password or turning two-factor on stays in the shell, under the profile. Only the forced steps (the first password, a required two-factor) use the sign-in layout |
 
 ## The rest, by the step that first uses each one
 

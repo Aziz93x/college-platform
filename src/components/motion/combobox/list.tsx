@@ -109,7 +109,10 @@ export function ComboboxItem({
       }}
       className={cn(
         "relative flex w-full items-center gap-2 rounded-md px-2 py-2 text-start text-sm outline-none transition-colors duration-150 pointer-coarse:min-h-11",
-        active ? "text-foreground" : "text-muted-foreground",
+        // On the highlighted row's ground, secondary text reads in the foreground colour too.
+        active
+          ? "text-foreground [&_.text-muted-foreground]:text-foreground"
+          : "text-muted-foreground",
         "disabled:pointer-events-none disabled:opacity-45",
         className,
       )}

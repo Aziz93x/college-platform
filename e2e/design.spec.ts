@@ -12,35 +12,39 @@ test.use({ storageState: STORAGE.admin });
 
 const design = messages.design;
 
+// What the screens use, then the primitives no BeUI component replaces (UX review 1, C7).
 const PRIMITIVES = [
-  "button",
   "input",
-  "textarea",
-  "label",
-  "form",
-  "select",
   "checkbox",
-  "radio-group",
   "switch",
-  "dialog",
-  "sheet",
-  "drawer",
-  "dropdown-menu",
-  "popover",
-  "tooltip",
+  "select",
+  "combobox",
+  "stepper",
+  "slider",
   "tabs",
   "table",
   "badge",
+  "action-swap",
+  "overflow-actions",
+  "alert",
+  "save-actions",
+  "search",
+  "bottom-sheet",
+  "command-palette",
+  "date-range",
+  "dialog",
+  "tooltip",
+  "sonner",
+  "button",
+  "textarea",
+  "label",
+  "form",
+  "radio-group",
   "avatar",
   "skeleton",
   "progress",
   "separator",
   "scroll-area",
-  "command",
-  "sonner",
-  "calendar",
-  "bottom-sheet",
-  "command-palette",
 ];
 
 // Each overlay: how to reach its trigger, how it opens, and the role and name it shows.
@@ -53,6 +57,9 @@ type Overlay = {
 };
 const button = (name: string) => (page: Page) =>
   page.getByRole("button", { name });
+// A trigger whose name carries the label, then what is chosen.
+const labelled = (label: string) => (page: Page) =>
+  page.getByRole("button", { name: new RegExp(`^${label}`) }).first();
 const OVERLAYS: Overlay[] = [
   {
     id: "dialog",
@@ -61,42 +68,18 @@ const OVERLAYS: Overlay[] = [
     name: design.dialog.title,
   },
   {
-    id: "sheet",
-    trigger: button(design.sheet.trigger),
-    role: "dialog",
-    name: design.sheet.title,
-  },
-  {
-    id: "drawer",
-    trigger: button(design.drawer.trigger),
-    role: "dialog",
-    name: design.drawer.title,
-  },
-  {
-    id: "dropdown",
-    trigger: button(design.dropdown.trigger),
-    role: "menu",
-    name: design.dropdown.trigger,
-  },
-  {
-    id: "popover",
-    trigger: button(design.popover.trigger),
-    role: "dialog",
-    name: design.popover.title,
-  },
-  {
     id: "select",
-    trigger: (page) =>
-      page.getByRole("combobox", { name: design.select.label }),
+    trigger: labelled(design.select.label),
     role: "listbox",
   },
   {
-    id: "command",
-    trigger: button(design.command.trigger),
+    id: "combobox",
+    trigger: (page) =>
+      page.getByRole("combobox", { name: design.combobox.label }),
     role: "listbox",
-    name: design.command.results,
+    name: design.combobox.list,
   },
-  { id: "calendar", trigger: button(design.calendar.trigger), role: "grid" },
+  { id: "date-range", trigger: labelled(design.period.label), role: "grid" },
   {
     id: "bottom-sheet",
     trigger: button(design.bottomSheet.trigger),
@@ -117,11 +100,6 @@ const OVERLAYS: Overlay[] = [
     open: (trigger) => trigger.focus(),
   },
 ];
-
-// Behind a menu or a listbox, Radix hides the page from assistive technology and keeps focus in
-// the overlay, but axe's aria-hidden-focus credits only a modal dialog with that. For these two
-// the test proves instead that Tab cannot leave the overlay.
-const FOCUS_KEPT = new Set(["dropdown", "select"]);
 
 // The catalog, not loading.tsx's skeleton, which stays in its place until after the load event.
 test.beforeEach(async ({ page }) => {
@@ -248,9 +226,10 @@ test("headings are Medium, and text uses only the two weights the identity ships
 });
 
 test.describe("axe", () => {
-  // Without motion, axe measures the overlays' final colors rather than a frame of their fade.
+  // Without motion, axe measures the overlays' final colors rather than a frame of their fade. The
+  // motion components read the preference once, as they mount, so the page loads with it.
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
   test.beforeEach(async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
     // Radix lets the scroll area scroll once it has measured its content; axe checks it then.
     await expect(page.locator('[data-slot="scroll-area-viewport"]')).toHaveCSS(
       "overflow-y",
@@ -267,21 +246,8 @@ test.describe("axe", () => {
   )) {
     test(`finds no serious issue with the ${id} open`, async ({ page }) => {
       await (open ?? ((t) => t.click()))(trigger(page));
-      const overlay = page.getByRole(role, { name });
-      await expect(overlay).toBeVisible();
-      if (!FOCUS_KEPT.has(id)) {
-        expect(await seriousViolations(page)).toEqual([]);
-        return;
-      }
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Shift+Tab");
-      await expect(overlay).toBeVisible();
-      expect(
-        await overlay.evaluate((element) =>
-          element.contains(document.activeElement),
-        ),
-      ).toBe(true);
-      expect(await seriousViolations(page, ["aria-hidden-focus"])).toEqual([]);
+      await expect(page.getByRole(role, { name })).toBeVisible();
+      expect(await seriousViolations(page)).toEqual([]);
     });
   }
 });
@@ -296,36 +262,25 @@ test("motion runs on the tokens and stops when the system asks for reduced motio
     );
   expect(await durations()).toEqual(["0.12s", "0.16s", "0.2s"]);
 
-  // Dialogs animate on the slow token, menus on the fast one.
-  for (const [trigger, role, duration] of [
-    [design.dialog.trigger, "dialog", "0.2s"],
-    [design.dropdown.trigger, "menu", "0.12s"],
-  ] as const) {
-    await button(trigger)(page).click();
-    const overlay = page.getByRole(role);
-    await expect(overlay).toBeVisible();
-    expect(
-      await overlay.evaluate(
-        (element) => getComputedStyle(element).animationDuration,
-      ),
-    ).toBe(duration);
-    await page.keyboard.press("Escape");
-    await expect(overlay).toBeHidden();
-  }
+  // The dialog animates on the slow token.
+  const trigger = button(design.dialog.trigger)(page);
+  const dialog = page.getByRole("dialog");
+  const timing = () =>
+    dialog.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.animationDuration, style.transitionDuration];
+    });
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  expect((await timing())[0]).toBe("0.2s");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await durations()).toEqual(["0s", "0s", "0s"]);
-
-  // The drawer's own styles set a 0.5 s transition and animation.
-  await button(design.drawer.trigger)(page).click();
-  const drawer = page.getByRole("dialog");
-  await expect(drawer).toBeVisible();
-  expect(
-    await drawer.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return [style.animationDuration, style.transitionDuration];
-    }),
-  ).toEqual(["0s", "0s"]);
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  expect(await timing()).toEqual(["0s", "0s"]);
 });
 
 test("the form reads Arabic-Indic digits as Latin ones", async ({ page }) => {
@@ -351,44 +306,86 @@ test("the overlays follow the document's direction and language", async ({
   ).toBeVisible();
   await page.keyboard.press("Escape");
 
-  // The sheet opens at the inline end: the left edge, right to left.
-  await button(design.sheet.trigger)(page).click();
-  const sheet = page.getByRole("dialog");
-  await expect(
-    sheet.getByRole("button", { name: messages.ui.close }),
-  ).toBeVisible();
-  await expect.poll(async () => (await sheet.boundingBox())?.x).toBe(0);
-  await page.keyboard.press("Escape");
+  // The period picker takes both too, so the left arrow moves to the next day.
+  await labelled(design.period.label)(page).click();
+  const grid = page.getByRole("grid");
+  await expect(grid).toBeVisible();
 
-  // The calendar takes both too, so the left arrow moves to the next day.
-  await button(design.calendar.trigger)(page).click();
-  const calendar = page.locator('[data-slot="calendar"]');
-  await expect(calendar).toHaveAttribute("dir", "rtl");
-  await expect(calendar).toHaveAttribute("lang", "ar");
-
-  // The previous month sits at the right edge, and both month arrows point outwards: DayPicker
-  // draws them for left to right, so each is turned around.
-  const previous = calendar.locator(".rdp-button_previous");
-  const next = calendar.locator(".rdp-button_next");
+  // The previous month sits at the right edge, and both month arrows point outwards.
+  const { dateRange } = messages;
+  const previous = page.getByRole("button", { name: dateRange.previous.month });
+  const next = page.getByRole("button", { name: dateRange.next.month });
   const [previousBox, nextBox] = [
     await previous.boundingBox(),
     await next.boundingBox(),
   ];
   expect(previousBox?.x).toBeGreaterThan(nextBox?.x ?? Infinity);
-  await expect(previous.locator("svg")).toHaveCSS("rotate", "180deg");
-  await expect(next.locator("svg")).toHaveCSS("rotate", "180deg");
+  await expect(previous.locator("svg")).toHaveCSS("scale", "-1 1");
+  await expect(next.locator("svg")).toHaveCSS("scale", "-1 1");
 
-  // The week starts on the college's first day (locale.weekStart, Sunday by default), not on the
-  // Saturday of react-day-picker's Arabic locale.
-  // DayPicker hides the row of day names from assistive technology, so it is found by its tag.
-  await expect(calendar.locator("thead th").first()).toHaveAttribute(
-    "aria-label",
-    "الأحد",
+  // The week starts on the college's first day (locale.weekStart, Sunday by default).
+  const sunday = new Intl.DateTimeFormat("ar", {
+    weekday: "long",
+    timeZone: "UTC",
+  }).format(Date.UTC(2026, 0, 4));
+  await expect(grid.locator("thead th").first()).toHaveAttribute(
+    "abbr",
+    sunday,
   );
 
-  await calendar.locator('[data-selected-single="true"]').focus();
+  await grid.locator('button[aria-current="date"]').focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(calendar.locator("button:focus")).toHaveText("23");
+  await expect(grid.locator("button:focus")).toHaveText("23");
+});
+
+test("a change brings Save and Discard, and Discard puts back what was saved", async ({
+  page,
+}) => {
+  const section = page.locator('[data-primitive="save-actions"]');
+  const field = section.getByRole("textbox", { name: design.label.text });
+  const save = section.getByRole("button", { name: design.button.primary });
+  await expect(save).toHaveCount(0);
+  await field.fill(design.sample.placeholder);
+  await section.getByRole("button", { name: messages.ui.discard }).click();
+  await expect(field).toHaveValue(design.sample.value);
+  await expect(save).toHaveCount(0);
+});
+
+test("the search announces what it found, and offers to clear a search that found nothing", async ({
+  page,
+}) => {
+  const section = page.locator('[data-primitive="search"]');
+  const field = section.getByRole("searchbox", { name: design.search.label });
+  await field.fill("zzz");
+  await expect(
+    section.getByText(messages.ui.search.none.replace("{query}", "zzz")),
+  ).toBeVisible();
+  await section
+    .getByRole("button", { name: messages.ui.search.clear })
+    .last()
+    .click();
+  await expect(field).toHaveValue("");
+  await expect(section.getByRole("listitem")).toHaveCount(
+    design.search.items.length,
+  );
+});
+
+test("the catalog never scrolls sideways on a 320 px phone", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "measured on the phone");
+  await page.setViewportSize({ width: 320, height: 700 });
+  // The stepper measures its new width before it draws its shapes again.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    )
+    .toBe(0);
 });
 
 test("a progress bar exposes its value", async ({ page }) => {
@@ -401,16 +398,17 @@ test("a progress bar exposes its value", async ({ page }) => {
 
 // Where an overlay's controls are, when its role above names only part of it.
 const TOUCH_SCOPES: Record<string, (page: Page) => Locator> = {
-  calendar: (page) => page.locator('[data-slot="calendar"]'),
-  command: (page) => page.getByRole("dialog", { name: design.command.title }),
+  "date-range": (page) =>
+    page.getByRole("dialog", { name: new RegExp(`^${design.period.label}`) }),
 };
 
 test.describe("touch targets", () => {
   test.skip(({ hasTouch }) => !hasTouch, "measured on the touch phone");
-  // Without motion, a sheet is measured where it stops, not while it slides in. The dev server's
-  // indicator (absent from the standalone build CI tests) covers the page's bottom corner.
+  // Without motion, a sheet is measured where it stops, not while it slides in: the page loads with
+  // the preference, which the motion components read as they mount. The dev server's indicator
+  // (absent from the standalone build CI tests) covers the page's bottom corner.
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
   test.beforeEach(async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.evaluate(() =>
       document.querySelector("nextjs-portal")?.remove(),
     );

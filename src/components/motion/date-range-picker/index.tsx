@@ -53,8 +53,9 @@ const monthVariants = {
   }),
 };
 
+// 32 px, and 44 px on a touch screen, as the month and year buttons and the days are.
 const iconClass =
-  "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30";
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-lg pointer-coarse:size-11 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30";
 
 /** Range state and popover root. Without children, renders the inline calendar. */
 function DateRangePicker({
@@ -98,7 +99,8 @@ function DateRangePickerCalendar({
       {...props}
       aria-label={props["aria-label"] ?? ctx.label}
       className={cn(
-        "w-80 max-w-full rounded-2xl border border-border bg-background p-3.5",
+        // On a touch screen, wide enough for seven 44 px days on a phone of 360 px or more.
+        "w-80 max-w-full rounded-2xl border border-border bg-background p-3.5 pointer-coarse:w-96 pointer-coarse:p-2.5",
         className,
       )}
     >
@@ -213,7 +215,7 @@ function DateRangePickerHeader({
           disabled={disabled}
           onClick={() => openChoices("months")}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+            "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold transition-colors pointer-coarse:min-h-11 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
             view === "years" && "hidden",
           )}
         >
@@ -235,7 +237,7 @@ function DateRangePickerHeader({
           aria-controls={view === "years" ? choicesId : undefined}
           disabled={disabled}
           onClick={() => openChoices("years")}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium tabular-nums text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium tabular-nums text-muted-foreground transition-colors pointer-coarse:min-h-11 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
         >
           {view === "years"
             ? `${numberFormat.format(yearPage)}–${numberFormat.format(yearPageEnd)}`
@@ -768,7 +770,10 @@ function DateRangePickerContent({
       radius={16}
       shadow={false}
       {...props}
-      className={cn("w-80 max-w-[calc(100vw-1.5rem)]", className)}
+      className={cn(
+        "w-80 max-w-[calc(100vw-1.5rem)] pointer-coarse:w-96",
+        className,
+      )}
       onOpenAutoFocus={(content) => {
         ctx.content.current = content;
         if (autoFocus) focusCalendarDate(content);
