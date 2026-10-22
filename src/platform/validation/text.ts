@@ -20,3 +20,15 @@ export function paragraph(value: string) {
 export function foldCase(value: string) {
   return value.toLowerCase();
 }
+
+// A value as one text whatever the order of its objects' keys, which a jsonb column does not keep,
+// so two values compare the same however they were stored.
+export function canonical(value: unknown): string {
+  return JSON.stringify(value, (_, inner) =>
+    inner && typeof inner === "object" && !Array.isArray(inner)
+      ? Object.fromEntries(
+          Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1)),
+        )
+      : inner,
+  );
+}

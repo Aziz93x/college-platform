@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { lockCollege } from "../../../platform/db/college-lock.ts";
+import { canonical } from "../../../platform/validation/text.ts";
 import { roles } from "../../access/index.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
 import { calendarEventKinds, terms } from "../../terms/index.ts";
@@ -26,16 +27,6 @@ const itemColumns = {
   evidence: frameworkItems.evidence,
   notes: frameworkItems.notes,
 };
-
-// A value as text with its keys in order, so two items compare the same however jsonb kept them.
-const canonical = (value: unknown): string =>
-  JSON.stringify(value, (_, each) =>
-    each && typeof each === "object" && !Array.isArray(each)
-      ? Object.fromEntries(
-          Object.entries(each).sort(([a], [b]) => a.localeCompare(b)),
-        )
-      : each,
-  );
 
 const audit = (
   tx: Tx,

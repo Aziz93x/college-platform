@@ -1,5 +1,6 @@
 import { and, asc, eq, max, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { canonical } from "../../../platform/validation/text.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
 import {
   offersItem,
@@ -27,16 +28,6 @@ const templateColumns = {
   evidence: sectionTemplates.evidence,
   notes: sectionTemplates.notes,
 };
-
-// A value as text with its keys in order, so two templates compare the same however jsonb kept them.
-const canonical = (value: unknown): string =>
-  JSON.stringify(value, (_, each) =>
-    each && typeof each === "object" && !Array.isArray(each)
-      ? Object.fromEntries(
-          Object.entries(each).sort(([a], [b]) => a.localeCompare(b)),
-        )
-      : each,
-  );
 
 const audit = (
   tx: Tx,

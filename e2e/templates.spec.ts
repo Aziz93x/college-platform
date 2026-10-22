@@ -6,13 +6,13 @@ import { joinRole } from "../src/modules/access/index.ts";
 import { findCollegeId, listDepartments } from "../src/modules/org/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
 import { test } from "./support/accounts.ts";
-import { demo } from "./support/auth.ts";
+import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 import { signedIn } from "./support/pages.ts";
 import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
-const { templates: text, framework } = messages;
+const { templates: text, framework, nav, pages } = messages;
 // Tests that write to the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 
@@ -173,3 +173,86 @@ test(
     }
   },
 );
+
+test(
+  "a head reads a closed term's templates, with nothing to add, correct or take out (Step 18)",
+  DATABASE,
+  async ({ browser, account, hasTouch }) => {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
+    const { db, pool } = createDb(url);
+    const person = await account();
+    // A closed term of the test's own, with a template of General Studies from before it closed.
+    const collegeId = (await findCollegeId(db)) ?? "";
+    const {
+      rows: [term],
+    } = await pool.query(
+      "insert into terms (college_id, name, starts_on, weeks, status) values ($1, $2, '2021-01-03', 18, 'closed') returning id",
+      [collegeId, `فصل منتهٍ ${randomInt(100_000, 999_999)}`],
+    );
+    try {
+      const general = (await listDepartments(collegeId, db)).find(
+        ({ name }) => name === demoDepartments[0].name,
+      );
+      if (!general) throw new Error("e2e: run pnpm seed:demo first");
+      await pool.query(
+        `insert into section_templates
+           (college_id, term_id, department_id, position, title, axis_id, kind, applies_to, due, evidence)
+         select $1, $2, $3, 0, 'عينات الواجبات', id, 'homework', '{"type": "eachSection"}',
+           '{"type": "week", "week": 3}',
+           '{"required": true, "types": ["pdf"], "maxFiles": 1, "requiresApproval": false}'
+         from axes where college_id = $1 limit 1`,
+        [collegeId, term.id, general.id],
+      );
+      // A head alone: a closed term shows to everyone (Step 13).
+      await joinRole(
+        {
+          userId: person.userId,
+          collegeId,
+          role: { key: "head" },
+          departmentId: general.id,
+        },
+        db,
+      );
+      const page = await signedIn(browser, {
+        identifier: person.employeeNumber,
+        password: person.password,
+      });
+      await page
+        .context()
+        .addCookies([
+          { name: "term", value: term.id, url: new URL(page.url()).origin },
+        ]);
+      await page.goto("/templates");
+      const own = page.getByRole("region", { name: text.own.title });
+      await expect(own).toContainText(text.closed);
+      await expect(own.getByRole("listitem")).toContainText("عينات الواجبات");
+      await expect(own.getByRole("button")).toHaveCount(0);
+      expect(await seriousViolations(page)).toEqual([]);
+      if (hasTouch) {
+        // The check wrote the page's Arabic in Latin letters.
+        await page.reload();
+        expect(await smallTargets(page.locator("main"))).toEqual([]);
+      }
+    } finally {
+      await pool.query("delete from terms where id = $1", [term.id]);
+      await pool.end();
+    }
+  },
+);
+
+test.describe("without the key", () => {
+  test.use({ storageState: STORAGE.trainer });
+
+  test("a trainer is refused the templates page, and the shell offers none", async ({
+    page,
+  }) => {
+    await page.goto("/templates");
+    await expect(
+      page.getByRole("heading", { name: pages.forbidden.title }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: nav.templates })).toHaveCount(
+      0,
+    );
+  });
+});

@@ -32,8 +32,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // The section templates of the term on view (Step 18), one department at a time: the framework's
-// items for each section's trainer, the college's, and the department's own, which whoever holds
-// plan.edit there adds and corrects. A closed term's are shown, and nothing changes them.
+// items for each section's or each course's trainer, the college's, and the department's own, which
+// whoever holds plan.edit there adds and corrects. A closed term's are shown, and nothing changes
+// them.
 export default async function TemplatesPage({
   searchParams,
 }: PageProps<"/templates">) {
