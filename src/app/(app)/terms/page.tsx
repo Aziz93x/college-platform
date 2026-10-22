@@ -23,6 +23,7 @@ import {
   holidaysFrom,
   listTerms,
   termEndsOn,
+  umAlQuraYear,
 } from "@/modules/terms";
 import { wallClock } from "@/platform/i18n/time-zone";
 import { dayWords } from "./days.ts";
@@ -35,8 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// The college's terms, the latest first, each with its status and days; and its Eid breaks of the
-// years ahead, estimated until the vice-dean adjusts them (ADR-0018). The vice-dean's page.
+// The college's terms, the latest first, each with its status and days; and its holidays of this
+// Umm al-Qura year, estimated until the vice-dean approves or adjusts them (ADR-0018). The other
+// years' stay out of sight until their year. The vice-dean's page.
 export default async function TermsPage() {
   await connection();
   const viewer = await requireViewer();
@@ -55,10 +57,12 @@ export default async function TermsPage() {
     ]);
   const today = wallClock(new Date(), timeZone).slice(0, 10);
   const days = dayWords(locale, hijri);
-  const [calendars, breaks] = await Promise.all([
+  const thisYear = umAlQuraYear(today);
+  const [calendars, upcoming] = await Promise.all([
     Promise.all(terms.map((term) => findTerm(viewer.collegeId, term.id))),
     holidaysFrom(viewer.collegeId, today),
   ]);
+  const breaks = upcoming.filter((range) => range.hijriYear === thisYear);
   const year = new Intl.NumberFormat(locale, { useGrouping: false });
   const add = (label: string) => (
     <Button asChild>
@@ -130,6 +134,7 @@ export default async function TermsPage() {
         >
           <HolidayBreaks
             today={today}
+            year={year.format(thisYear)}
             breaks={breaks.map((range) => ({
               id: range.id,
               name: range.name,

@@ -8,8 +8,21 @@ import {
 
 // The averages measured on past Saudi calendars (docs/reviews/eid-breaks.md); the base seed keeps
 // them as data, and these tests take the same numbers.
-const EID_AL_FITR = { month: 10, day: 1, before: 12, after: 5 };
-const EID_AL_ADHA = { month: 12, day: 10, before: 7, after: 6 };
+const EID_AL_FITR = {
+  calendar: "umalqura",
+  month: 10,
+  day: 1,
+  before: 12,
+  after: 5,
+} as const;
+const EID_AL_ADHA = {
+  calendar: "umalqura",
+  month: 12,
+  day: 10,
+  before: 7,
+  after: 6,
+} as const;
+const FOUNDING_DAY = { calendar: "gregory", month: 2, day: 22 } as const;
 const FRIDAY_SATURDAY = weekend(0, 5);
 
 it("reads the Umm al-Qura calendar both ways", () => {
@@ -58,7 +71,7 @@ describe("the averaged estimate against the calendars it was measured on", () =>
       startsOn: "2026-05-22",
       endsOn: "2026-05-30",
     });
-    expect(estimateBreak(EID_AL_ADHA, 1443, FRIDAY_SATURDAY).startsOn).toBe(
+    expect(estimateBreak(EID_AL_ADHA, 1443, FRIDAY_SATURDAY)?.startsOn).toBe(
       "2022-07-01",
     );
   });
@@ -67,11 +80,30 @@ describe("the averaged estimate against the calendars it was measured on", () =>
 it("fits every break of the next ten years to whole weeks, around its Eid", () => {
   for (let year = 1448; year <= 1457; year++) {
     for (const rule of [EID_AL_FITR, EID_AL_ADHA]) {
-      const { startsOn, endsOn } = estimateBreak(rule, year, FRIDAY_SATURDAY);
+      const { startsOn = "", endsOn = "" } =
+        estimateBreak(rule, year, FRIDAY_SATURDAY) ?? {};
       const feast = umAlQuraDay(year, rule.month, rule.day);
       expect(new Date(startsOn).getUTCDay()).toBe(5);
       expect(new Date(endsOn).getUTCDay()).toBe(6);
       expect(startsOn < feast && feast < endsOn).toBe(true);
     }
   }
+});
+
+it("keeps Founding Day in the Umm al-Qura year it falls in, moved off the weekend as the official rule says", () => {
+  // A Monday stays; a Friday gives the Thursday before it, and a Saturday the Sunday after it.
+  expect(estimateBreak(FOUNDING_DAY, 1448, FRIDAY_SATURDAY)).toEqual({
+    startsOn: "2027-02-22",
+    endsOn: "2027-02-22",
+  });
+  expect(estimateBreak(FOUNDING_DAY, 1451, FRIDAY_SATURDAY)).toEqual({
+    startsOn: "2030-02-21",
+    endsOn: "2030-02-21",
+  });
+  expect(estimateBreak(FOUNDING_DAY, 1452, FRIDAY_SATURDAY)).toEqual({
+    startsOn: "2031-02-23",
+    endsOn: "2031-02-23",
+  });
+  // 1458 runs from 29 February 2036 to 16 February 2037: it holds no 22 February.
+  expect(estimateBreak(FOUNDING_DAY, 1458, FRIDAY_SATURDAY)).toBeUndefined();
 });

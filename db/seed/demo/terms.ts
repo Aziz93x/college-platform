@@ -27,20 +27,18 @@ import { demoAccounts } from "./accounts.ts";
 import { demoDepartments } from "./departments.ts";
 
 // The demo college's active term (Step 13): 18 weeks from the first day of a week, so that today
-// falls in week N (seed:demo --week, 9 by default), counted past the college's Eid breaks that fall
+// falls in week N (seed:demo --week, 9 by default), counted past the college's holidays that fall
 // in it. Its calendar holds a meeting to open the term, the midterm week, an extra holiday as the
-// technical colleges' calendars give, National Day or Founding Day where it falls in the term, the
+// technical colleges' calendars give, National Day where it falls in the term, the
 // final exams over the last two weeks and the grades due on the last working day. The vice-dean
 // enters it all, in the log. One trainer of Electrical is the department's secretary for this term
 // only, the role a term-limited membership gives. Written once, while the college has no term.
 
 export const DEMO_TERM_WEEKS = 18;
 
-// Days of the year the kingdom keeps, by month and day, as the term's own holidays.
-const NATIONAL_DAYS = [
-  { title: "اليوم الوطني", month: 9, day: 23 },
-  { title: "يوم التأسيس", month: 2, day: 22 },
-];
+// Days of the year the kingdom keeps, by month and day, as the term's own holidays. Founding Day is
+// the college's (ADR-0018).
+const NATIONAL_DAYS = [{ title: "اليوم الوطني", month: 9, day: 23 }];
 
 // The term's name as Rayat writes it: first, second or summer, by the month it starts in.
 function termName(startsOn: string) {

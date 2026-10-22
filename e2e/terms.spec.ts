@@ -1,10 +1,12 @@
 import { randomInt } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
+import { holidayRules } from "../db/seed/base.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { joinRole } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
 import { settingsRegistry } from "../src/modules/settings/index.ts";
+import { umAlQuraYear } from "../src/modules/terms/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
 import { addDays } from "../src/platform/i18n/time-zone.ts";
 import { type TestAccount, test } from "./support/accounts.ts";
@@ -21,6 +23,10 @@ const today = createTranslator({ locale, messages, namespace: "today" });
 const shell = createTranslator({ locale, messages, namespace: "shell" });
 // Tests that write to the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
+// This Umm al-Qura year, and as the page writes it.
+const thisYear = umAlQuraYear(new Date().toISOString().slice(0, 10));
+const yearWords = (year: number) =>
+  new Intl.NumberFormat(locale, { useGrouping: false }).format(year);
 
 // The name a day of the date picker goes by.
 const dayName = (day: string) =>
@@ -119,7 +125,9 @@ test(
         page.getByRole("heading", { level: 1, name: text.title }),
       ).toBeVisible();
       await expect(
-        page.getByRole("region", { name: text.breaks.title }),
+        page.getByRole("region", {
+          name: t("breaks.title", { year: yearWords(thisYear) }),
+        }),
       ).toBeVisible();
       expect(await seriousViolations(page)).toEqual([]);
       await page.reload();
@@ -209,17 +217,23 @@ test(
 );
 
 test(
-  "the Eid breaks of the years ahead are estimates the vice-dean adjusts to the days announced",
+  "the vice-dean sees this year's holidays only, and approves an estimate as it is or adjusts its days (ADR-0018)",
   DATABASE,
   async ({ browser, account }) => {
     const made = await viceDean(account);
-    // The last break of the ten years: no term of the demo reaches it.
-    const {
-      rows: [last],
-    } = await made.pool.query(
-      `select id, name, hijri_year, to_char(starts_on, 'YYYY-MM-DD') as starts_on,
-         to_char(ends_on, 'YYYY-MM-DD') as ends_on
-       from holidays order by starts_on desc limit 1`,
+    // A holiday of the test's own on the coming Friday and Saturday's weekend, so no term's weeks
+    // move whatever today is.
+    const number = randomInt(100_000, 999_999);
+    const name = `إجازة الاختبار ${number}`;
+    const today = new Date().toISOString().slice(0, 10);
+    const friday = addDays(
+      today,
+      (5 - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7 || 7,
+    );
+    await made.pool.query(
+      `insert into holidays (college_id, key, name, hijri_year, starts_on, ends_on)
+       select college_id, $1, $2, $3, $4, $4 from holidays limit 1`,
+      [`e2e-${number}`, name, thisYear, friday],
     );
     try {
       const page = await signedIn(browser, {
@@ -227,36 +241,47 @@ test(
         password: made.person.password,
       });
       await page.goto("/terms");
-      await expect(
-        page.getByRole("heading", { level: 1, name: text.title }),
-      ).toBeVisible();
-      const breaks = page.getByRole("region", { name: text.breaks.title });
-      const year = String(last.hijri_year);
+      const breaks = page.getByRole("region", {
+        name: t("breaks.title", { year: yearWords(thisYear) }),
+      });
+      const year = yearWords(thisYear);
       const row = breaks
         .getByRole("listitem")
-        .filter({ hasText: t("breaks.name", { name: last.name, year }) });
+        .filter({ hasText: t("breaks.name", { name, year }) });
       await expect(row).toContainText(text.breaks.estimated);
-      await row
-        .getByRole("button", {
-          name: t("breaks.edit", { name: last.name, year }),
-        })
-        .click();
-      const sheet = page.getByRole("dialog");
-      // A day longer: the announcement kept the college off one more Saturday.
-      await pick(page, sheet, text.breaks.days, [
-        last.starts_on,
-        addDays(last.ends_on, 7),
-      ]);
-      await sheet.getByRole("button", { name: text.breaks.save }).click();
+      // Next year's Eid al-Fitr break waits for its year.
       await expect(
-        page.getByText(t("breaks.saved", { name: last.name, year })),
+        breaks.getByText(
+          t("breaks.name", {
+            name: holidayRules[0].name,
+            year: yearWords(thisYear + 1),
+          }),
+        ),
+      ).toHaveCount(0);
+
+      // Approved as estimated.
+      await row
+        .getByRole("button", { name: t("breaks.approveLabel", { name, year }) })
+        .click();
+      await expect(
+        page.getByText(t("breaks.approved", { name, year })),
       ).toBeVisible();
       await expect(row).toContainText(text.breaks.adjusted);
+
+      // Then a day longer, as the announcement said.
+      await row
+        .getByRole("button", { name: t("breaks.edit", { name, year }) })
+        .click();
+      const sheet = page.getByRole("dialog");
+      await pick(page, sheet, text.breaks.days, [friday, addDays(friday, 1)]);
+      await sheet.getByRole("button", { name: text.breaks.save }).click();
+      await expect(
+        page.getByText(t("breaks.saved", { name, year })),
+      ).toBeVisible();
     } finally {
-      await made.pool.query(
-        "update holidays set starts_on = $2, ends_on = $3, adjusted = false where id = $1",
-        [last.id, last.starts_on, last.ends_on],
-      );
+      await made.pool.query("delete from holidays where key = $1", [
+        `e2e-${number}`,
+      ]);
       await made.remove([]);
     }
   },

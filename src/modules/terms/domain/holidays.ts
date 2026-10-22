@@ -61,23 +61,53 @@ function nearest(day: Day, target: number) {
   return addDays(day, ahead <= 3 ? ahead : ahead - 7);
 }
 
-// How a break is estimated around its feast (ADR-0018): the feast's Umm al-Qura month and day, and
-// how many days before and after it the break begins and ends on average.
-export type BreakRule = {
-  month: number;
-  day: number;
-  before: number;
-  after: number;
-};
+// How a holiday is estimated (ADR-0018): a break around its feast, by the feast's Umm al-Qura month
+// and day and how many days before and after it the break begins and ends on average; or a day of
+// the Gregorian year, such as Founding Day.
+export type BreakRule =
+  | {
+      calendar: "umalqura";
+      month: number;
+      day: number;
+      before: number;
+      after: number;
+    }
+  | { calendar: "gregory"; month: number; day: number };
 
-// A break around its feast in an Umm al-Qura year: from the first day of the weekend nearest its
-// average start to the last day of the weekend nearest its average end, so it runs whole weeks as
-// the calendars it was measured on did.
+// A day of the Gregorian year in an Umm al-Qura year, where that year holds it.
+function gregorianIn(year: number, month: number, day: number) {
+  const first = umAlQuraDay(year, 1, 1);
+  const next = umAlQuraDay(year + 1, 1, 1);
+  const from = Number(first.slice(0, 4));
+  return [from, from + 1]
+    .map(
+      (each) =>
+        `${each}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    )
+    .find((candidate) => first <= candidate && candidate < next);
+}
+
+// A holiday in an Umm al-Qura year. A break around its feast runs from the first day of the weekend
+// nearest its average start to the last day of the weekend nearest its average end, so it runs
+// whole weeks as the calendars it was measured on did. A day of the Gregorian year that falls on the
+// weekend's first day gives the working day before it instead, and on its last day the working day
+// after it, as the official rule does for a Friday and a Saturday.
 export function estimateBreak(
   rule: BreakRule,
   year: number,
   weekendDays: { first: number; last: number },
-): DayRange {
+): DayRange | undefined {
+  if (rule.calendar === "gregory") {
+    const date = gregorianIn(year, rule.month, rule.day);
+    if (!date) return undefined;
+    const off =
+      weekday(date) === weekendDays.first
+        ? addDays(date, -1)
+        : weekday(date) === weekendDays.last
+          ? addDays(date, 1)
+          : date;
+    return { startsOn: off, endsOn: off };
+  }
   const feast = umAlQuraDay(year, rule.month, rule.day);
   return {
     startsOn: nearest(addDays(feast, -rule.before), weekendDays.first),
