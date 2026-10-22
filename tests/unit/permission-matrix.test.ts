@@ -30,6 +30,21 @@ const DAY = {
   startsOn: "2026-03-15",
   endsOn: "2026-03-28",
 };
+// A framework item, as its actions take it.
+const ITEM = {
+  title: "Grade analysis",
+  axisId: ID,
+  kind: "grade_analysis",
+  appliesTo: { type: "eachSection" },
+  due: { type: "weekly" },
+  evidence: {
+    required: true,
+    types: ["pdf"],
+    maxFiles: 1,
+    requiresApproval: false,
+  },
+  notes: "",
+};
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -126,6 +141,15 @@ vi.mock("@/modules/terms", async (importOriginal) => ({
   updateCalendarEvent: async () => ({ status: "saved" }),
   removeCalendarEvent: async () => ({ status: "saved" }),
   updateHoliday: async () => ({ status: "saved" }),
+}));
+vi.mock("@/modules/framework", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/framework")>()),
+  startDraft: async () => ({ status: "created", id: ID }),
+  addItem: async () => ({ status: "saved", id: ID }),
+  updateItem: async () => ({ status: "saved" }),
+  removeItem: async () => ({ status: "saved" }),
+  endorseDraft: async () => ({ status: "endorsed" }),
+  publishDraft: async () => ({ status: "published" }),
 }));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
@@ -356,6 +380,26 @@ const checked: {
     permission: "term.manage" as const,
     input,
   })),
+  // The term's general framework, the vice-dean's across the college, and the dean's endorsement
+  // (Step 15).
+  ...[
+    ["startDraftAction", { termId: ID }],
+    ["addItemAction", { draftId: ID, ...ITEM }],
+    ["updateItemAction", { itemId: ID, ...ITEM }],
+    ["removeItemAction", { itemId: ID }],
+    ["publishDraftAction", { draftId: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/framework/actions.ts",
+    action: action as string,
+    permission: "framework.publish" as const,
+    input,
+  })),
+  {
+    module: "(app)/framework/actions.ts",
+    action: "endorseDraftAction",
+    permission: "framework.endorse",
+    input: { draftId: ID },
+  },
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {
     module: "(app)/axes/actions.ts",

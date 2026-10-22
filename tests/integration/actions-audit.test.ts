@@ -112,6 +112,12 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
   "(app)/terms/actions.ts#updateHolidayAction": ["holiday.update"],
   "(app)/axes/actions.ts#updateAxisAction": ["axis.update"],
+  "(app)/framework/actions.ts#startDraftAction": ["framework.create"],
+  "(app)/framework/actions.ts#addItemAction": ["frameworkItem.create"],
+  "(app)/framework/actions.ts#updateItemAction": ["frameworkItem.update"],
+  "(app)/framework/actions.ts#removeItemAction": ["frameworkItem.delete"],
+  "(app)/framework/actions.ts#endorseDraftAction": ["framework.endorse"],
+  "(app)/framework/actions.ts#publishDraftAction": ["framework.publish"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -440,6 +446,57 @@ describe("every server action writes its event", () => {
       termId: term.id,
       eventId,
     });
+
+    // The term's framework: a draft and its items, endorsed and published, then the next version
+    // without one of them (Step 15).
+    const framework = "(app)/framework/actions.ts";
+    const [{ id: axisId }] = await query(
+      "select id from axes where code = '3'",
+    );
+    const [{ id: roleId }] = await query(
+      "select id from roles where college_id = $1 and key = 'trainer'",
+      [collegeId],
+    );
+    const analysis = {
+      title: "Grade analysis",
+      axisId,
+      kind: "grade_analysis",
+      appliesTo: { type: "role", roleId },
+      due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+      evidence: {
+        required: true,
+        types: ["pdf"],
+        maxFiles: 2,
+        requiresApproval: false,
+      },
+      notes: "",
+    };
+    const draft = await expectWrites(`${framework}#startDraftAction`, {
+      termId: term.id,
+    });
+    const added = await expectWrites(`${framework}#addItemAction`, {
+      draftId: draft.id,
+      ...analysis,
+    });
+    await expectWrites(`${framework}#updateItemAction`, {
+      itemId: added.id,
+      ...analysis,
+      notes: "A week after each exam",
+    });
+    await expectWrites(`${framework}#endorseDraftAction`, {
+      draftId: draft.id,
+    });
+    await expectWrites(`${framework}#publishDraftAction`, {
+      draftId: draft.id,
+    });
+    const version = await expectWrites(`${framework}#startDraftAction`, {
+      termId: term.id,
+    });
+    const [copy] = await query(
+      "select id from framework_items where framework_id = $1",
+      [version.id],
+    );
+    await expectWrites(`${framework}#removeItemAction`, { itemId: copy.id });
     await expectWrites(`${terms}#activateTermAction`, { id: term.id });
     await expectWrites(`${terms}#closeTermAction`, { id: term.id });
     // The next Eid break, its last day a day later (ADR-0018).

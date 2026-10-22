@@ -244,6 +244,8 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "backup_codes",
     "disabled_at",
     "read_at",
+    "endorsed_at",
+    "published_at",
   ];
   // The log names its records by their ids, in its columns and in what changed, so each id reads
   // the same there.
@@ -304,6 +306,10 @@ it("writes three weeks of the college's history, every event in the past and by 
       "term.create",
       "calendarEvent.create",
       "term.activate",
+      // The vice-dean's framework for it (Step 15).
+      "framework.create",
+      "frameworkItem.create",
+      "framework.publish",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.

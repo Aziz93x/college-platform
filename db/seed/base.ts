@@ -31,7 +31,11 @@ export const defaultRoles: {
   {
     key: "dean",
     labels: { ar: "العميد" },
-    permissions: ["indicators.view.college", "announcements.publish"],
+    permissions: [
+      "indicators.view.college",
+      "announcements.publish",
+      "framework.endorse",
+    ],
   },
   {
     key: "vice-dean",

@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { viewerAction } from "@/modules/access";
+import { copyFrameworkInto } from "@/modules/framework";
 import { requestMeta } from "@/modules/identity";
 import { getSetting } from "@/modules/settings";
 import {
@@ -83,14 +84,18 @@ export const closeTermAction = viewerAction
 export const openNextTermAction = viewerAction
   .metadata({ name: "openNextTerm", permission: "term.manage" })
   .inputSchema(termInput.extend({ fromId: z.uuid() }))
-  .action(async ({ parsedInput: { fromId, ...input }, ctx: { viewer } }) =>
-    openNextTerm(
+  .action(async ({ parsedInput: { fromId, ...input }, ctx: { viewer } }) => {
+    const change = await changeBy(viewer);
+    // The new term starts with a draft of the framework of the term it opens from (Step 15).
+    return openNextTerm(
       fromId,
       input,
-      await changeBy(viewer),
+      change,
       await calendarSettings(viewer.collegeId),
-    ),
-  );
+      undefined,
+      (tx, from, to) => copyFrameworkInto(tx, from, to, change),
+    );
+  });
 
 export const addCalendarEventAction = viewerAction
   .metadata({ name: "addCalendarEvent", permission: "term.manage" })

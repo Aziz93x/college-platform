@@ -32,8 +32,10 @@ const permissions = {
   "axes.manage": { area: "organization", requiresTwoFactor: false },
   // Terms and their calendars (Step 13).
   "term.manage": { area: "term", requiresTwoFactor: false },
-  // Publish the term's general framework (Step 15).
+  // Edit and publish the term's general framework (Step 15).
   "framework.publish": { area: "term", requiresTwoFactor: false },
+  // Endorse the framework's draft before it is published, where the college asks for it (Step 15).
+  "framework.endorse": { area: "term", requiresTwoFactor: false },
   // Upload Rayat's reports (Step 16).
   "rayat.import": { area: "term", requiresTwoFactor: false },
   // Edit a department's plan, and publish it to generate its tasks (Steps 19 and 20).

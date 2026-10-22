@@ -4,6 +4,21 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 15: the general framework
+
+- The vice-dean, or whoever holds `framework.publish`, prepares the term's general framework on `/framework`: a draft of college-wide items that every department plan inherits. Migration `0016` adds `frameworks` and `framework_items`. Each item has:
+  - a title, an axis and a kind (`taskKinds`, the registry Step 18 builds on);
+  - whom it reaches: the holders of a role in each department, or each section's trainer;
+  - when it is due: a week, every week, every few weeks, or after each day of the calendar of a kind;
+  - what evidence it asks for: required or optional, the file types, how many, and whether the head approves it.
+- Publishing makes a version that never changes; the next version starts as a draft copied from it. The publish sheet says how many tasks the version creates in how many departments, from one counting function, `countTasks()`, that the Step 20 engine reuses. Sections count from Step 17.
+- Where the college asks for it (`framework.requireEndorsement`, off by default), the dean endorses the draft first, with the new key `framework.endorse`. A change to the draft takes the endorsement back. Since the dean now holds a key the vice-dean does not, the vice-dean's temporary passwords no longer reach the dean (ADR-0014's reach rule).
+- Everyone reads the published framework of the term on view. The page is in everyone's navigation, so a trainer's phone now has a tab bar and Today leads a trainer to it.
+- The term wizard copies the framework of the term it opens from into the new term as a draft.
+- The log names `framework.create`, `frameworkItem.create`, `.update` and `.delete`, `framework.endorse` and `framework.publish` by the term.
+- `seed:demo`: the vice-dean publishes a 10-item framework for the demo term.
+- Tests: the counting function on fixtures; the versions, publication, endorsement and the wizard's copy on a real database; the members each department holds; the permission matrix and every action's audit event; the seed; and end-to-end on the desktop and the iPhone, the vice-dean starting, filling and publishing a framework with axe and 44 px targets, and a trainer reading the demo's.
+
 ### Step 14: portfolio axes catalog
 
 - The portfolio's axes are data: migration `0015` adds `axis_groups` and `axes`, each found by its code, with its title, description and place. The base seed adds the 11 axes in 3 groups and the closing group (axes 12 and 13), and adds nothing that is already there. The titles are provisional until the owner gives the administration's list: the plan names axes 4 and 7 to 13, and the others are named after the work the plan files under them.

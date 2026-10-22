@@ -7,6 +7,7 @@ import {
   Layers,
   type LucideIcon,
   Megaphone,
+  ScrollText,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -103,6 +104,12 @@ export const navigation = [
     href: "/terms",
     icon: CalendarRange,
     permission: "term.manage",
+  },
+  // The term's general framework (Step 15): everyone reads the published version.
+  {
+    id: "framework",
+    href: "/framework",
+    icon: ScrollText,
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

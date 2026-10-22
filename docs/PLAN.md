@@ -1011,6 +1011,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Done when:** unit tests prove the transfer rules (completed work stays, open work moves), and the unmatched report lists trainers missing from people.
 
+**Note from Step 15:** the framework's preview counts each department's sections for items that reach "each section's trainer"; `src/app/(app)/framework/page.tsx` passes 0 until this step gives `countTasks()` each department's sections.
+
 > **Checkpoint: Lead review C.** Run `/lead-review C`, then tag `v0.3-C`.
 
 ### Section D. Department planning: the head's part (steps 18 to 22)
@@ -1028,6 +1030,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** payload validation is tested for every kind, a head creates section templates on the screen, every template points to an axis, and the Step 13 wizard copies templates as drafts.
 
 **Note from ADR-0008:** the kinds registry and the due-rule and evidence-policy shapes exist from Step 15. This step adds payloads, editors, read views and catalogs. Indicator mappings arrive with Step 34, their first use.
+
+**Note from Step 15:** the registry is `taskKinds`, and the shapes are `dueRule`, `evidencePolicy` and `appliesTo` (a role's holders in each department, or each section's trainer), all in `src/modules/framework/domain/inputs.ts`; export the shapes from the module when templates use them. A rule after a calendar day counts each day of that kind in the term ("after each exam week"). The wizard copies the framework through `openNextTerm()`'s last argument, which the templates' copy joins.
 
 > **Checkpoint: Audit 6.** Run `/audit 16-18`.
 
@@ -1050,6 +1054,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Do:** build the engine described in section 3: idempotent keys, the re-publish rules, section transfers and recurring due rules. A daily job handles recurring items. Generation runs in the worker and reports progress.
 
 **Done when:** property-based tests (fast-check) prove that generation is idempotent and never changes completed work; for every demo framework and plan, the published preview equals the tasks generated; and generation for the full demo data set takes under 10 s.
+
+**Note from Step 15:** the preview's count is `countTasks()` (`src/modules/framework/domain/count.ts`): each item, in each department, once per holder or section it reaches and per time its rule is due (`occurrences()`). The engine generates exactly those, so the two agree by construction. A published version never changes; the engine reads the latest published version of the term.
 
 **Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
 
