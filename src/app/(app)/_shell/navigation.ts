@@ -112,8 +112,8 @@ export const navigation = [
     href: "/framework",
     icon: ScrollText,
   },
-  // Rayat's reports for the term, uploaded and applied by the vice-dean and the heads (Step 16,
-  // ADR-0019).
+  // Rayat's reports for the term, uploaded and applied by the vice-dean, and by anyone the admin
+  // gives the key, such as a head (Step 16, ADR-0019).
   {
     id: "rayat",
     href: "/rayat",

@@ -1,5 +1,10 @@
 import { and, eq } from "drizzle-orm";
-import { listDirectory, roles } from "../../../src/modules/access/index.ts";
+import {
+  listDirectory,
+  listRoles,
+  roles,
+  setRolePermissions,
+} from "../../../src/modules/access/index.ts";
 import { users } from "../../../src/modules/identity/index.ts";
 import { listDepartments } from "../../../src/modules/org/index.ts";
 import {
@@ -242,9 +247,10 @@ export function demoRayatFiles(
 }
 
 // The demo term's three reports (Step 16), uploaded by the vice-dean and the head of Electrical
-// (ADR-0019) and applied by the vice-dean, and a newer SF01 the head uploaded, waiting to be applied:
-// a few trainees withdrawn and two registered late, the diff to review. Written once, while the term
-// has no import.
+// and applied by the vice-dean, and a newer SF01 the head uploaded, waiting to be applied: a few
+// trainees withdrawn and two registered late, the diff to review. The head imports because the
+// admin gave the head's role the key on the roles page (ADR-0019). Written once, while the term has
+// no import.
 export async function seedDemoRayat(
   { db, random }: { db: Db; random: () => number },
   collegeId: string,
@@ -272,6 +278,20 @@ export async function seedDemoRayat(
   };
   const viceDean = await changeBy(demoAccounts.viceDean);
   const head = await changeBy(demoAccounts.head);
+  const headRole = (await listRoles(collegeId, db)).find(
+    ({ key }) => key === "head",
+  );
+  if (!headRole) throw new Error("seed:demo: the head's role is missing");
+  await setRolePermissions(
+    headRole.id,
+    {
+      permissions: [
+        ...new Set([...headRole.permissions, "rayat.import" as const]),
+      ],
+    },
+    await changeBy(demoAccounts.admin),
+    db,
+  );
   const [trainer] = await db
     .select({ id: roles.id })
     .from(roles)

@@ -208,7 +208,7 @@ test(
 );
 
 test(
-  "the head of Electrical imports the college's reports too: their page, and a file checked for the term on view (ADR-0019)",
+  "the head of Electrical, whose role the admin gave the key, imports the college's reports too: their page, and a file checked for the term on view (ADR-0019)",
   DATABASE,
   async ({ browser }) => {
     const url = process.env.DATABASE_URL;

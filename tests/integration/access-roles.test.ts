@@ -110,7 +110,6 @@ describe("listRoles", () => {
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
-      "rayat.import",
       "plan.edit",
       "plan.publish",
       "assignment.manage",

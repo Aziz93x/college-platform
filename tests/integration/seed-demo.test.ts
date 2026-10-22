@@ -559,7 +559,7 @@ it("approves the coming holiday, and keeps the framework's version 2 as a draft 
   ]);
 });
 
-it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of Electrical, every section taught by its department's trainers, and leaves the head's newer SF01 to review (Step 16, ADR-0019)", async () => {
+it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of Electrical, whose role the admin gave the key, every section taught by its department's trainers, and leaves the head's newer SF01 to review (Step 16, ADR-0019)", async () => {
   const { pool } = await seededDatabase();
   const { rows: imports } = await pool.query(
     `select i.kind, i.status, u.email as "uploadedBy", a.email as "appliedBy",
@@ -570,6 +570,15 @@ it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of
   );
   const viceDean = demoAccounts.viceDean.email;
   const head = demoAccounts.head.email;
+  // The head imports because the admin gave the head's role the key on the roles page.
+  const { rows: grants } = await pool.query(
+    `select u.email from audit_events e
+     join users u on u.id::text = e.actor_id
+     join roles r on r.id::text = e.entity_id
+     where e.action = 'role.update' and r.key = 'head'
+       and e.diff->'to'->'permissions' ? 'rayat.import'`,
+  );
+  expect(grants).toEqual([{ email: demoAccounts.admin.email }]);
   expect(imports).toEqual([
     {
       kind: "ss01",

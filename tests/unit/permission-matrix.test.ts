@@ -409,8 +409,8 @@ const checked: {
     permission: "framework.endorse",
     input: { draftId: ID },
   },
-  // Rayat's reports for a term, the college's: the key held anywhere imports them, the vice-dean's
-  // across the college or a head's in a department (Step 16, ADR-0019).
+  // Rayat's reports for a term, the college's: the key held anywhere imports them, across the
+  // college or in a department, as the admin gives it to a head (Step 16, ADR-0019).
   ...[
     [
       "uploadRayatAction",

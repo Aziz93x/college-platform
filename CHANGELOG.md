@@ -7,7 +7,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 ### Step 16: Rayat import
 
 - The vice-dean, or whoever holds `rayat.import`, imports Rayat's reports for the term on view on `/rayat`: SS01, the sections' schedules; SF01, the trainees registered in them; and the optional SO01, absence by course. A file is XLSX as Rayat exports it, or CSV.
-- A head imports them too, at the owner's request (ADR-0019): `rayat.import` held in a department lets its holder upload, apply, discard and roll back as the vice-dean does, and a file is the whole college's either way. The base seed gives the key to the head; a college seeded before keeps its grid, where the admin gives it.
+- A head imports them too, at the owner's request (ADR-0019): `rayat.import` held in a department lets its holder upload, apply, discard and roll back as the vice-dean does, and a file is the whole college's either way. The head's role does not hold the key by default: the admin gives it on the roles page, to the head's role or to some people through a role of their own.
 - Each report shows when its version in force was last updated, who uploaded its file and, when someone else applied it, who applied it. An upload waiting names who uploaded it and when, and so does each earlier version.
 - Each report's columns are found by a column map, the settings `rayat.columns.ss01`, `.sf01` and `.so01`, which the admin edits on the settings screen's new Rayat tab, one header per field. The base seed writes the headers in section 9 and keeps a map an admin changed. An import records its map's version.
 - Only the mapped columns are read: SF01's trainee names, mobile numbers and grades never leave the reader, and no file is kept.
@@ -20,7 +20,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - Migration `0017` adds `rayat_imports` and each import's records: `rayat_sections`, `rayat_enrollments` and `rayat_absences`. Step 17 builds courses, sections and enrollments on the version in force (`currentRayatRecords()`).
 - A server action now takes up to 10 MB, a people file too (`src/platform/files/upload-limit.ts`). A file is read whole, not streamed (a note under Step 16).
 - The log names `rayatImport.upload`, `.apply`, `.discard` and `.rollback` by the report and the term.
-- `seed:demo`: the vice-dean imports synthetic SS01, SF01 and SO01 files for the demo term (32 sections, 765 registrations, 219 absences); the head of Electrical uploaded the SO01, which the vice-dean applied, and a newer SF01 waits with two late registrations and three withdrawals, uploaded by the head.
+- `seed:demo`: the vice-dean imports synthetic SS01, SF01 and SO01 files for the demo term (32 sections, 765 registrations, 219 absences); the admin gives the head's role the key, the head of Electrical uploaded the SO01, which the vice-dean applied, and a newer SF01 waits with two late registrations and three withdrawals, uploaded by the head.
 - Tests:
   - header-only fixtures of Rayat's headers in `tests/fixtures/rayat/`, read with the seeded maps;
   - reading, checking, merging and diffing on synthetic rows;

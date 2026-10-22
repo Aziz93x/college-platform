@@ -60,7 +60,7 @@ describe("loadAccess", () => {
 
     const access = await loadAccess(userId, collegeId);
     // The viewer role across the college, the head's keys in the department.
-    expect(access.grants).toHaveLength(10);
+    expect(access.grants).toHaveLength(9);
     expect(access.grants).toEqual(
       expect.arrayContaining([
         { permission: "design.view", departmentId: null },
@@ -72,7 +72,6 @@ describe("loadAccess", () => {
         { permission: "accounts.resetPassword", departmentId },
         { permission: "accounts.linkEmployeeNumber", departmentId },
         { permission: "announcements.publish", departmentId },
-        { permission: "rayat.import", departmentId },
       ]),
     );
     expect(access.permissions).toEqual(
@@ -86,7 +85,6 @@ describe("loadAccess", () => {
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",
         "announcements.publish",
-        "rayat.import",
       ]),
     );
     expect(access.roleKeys.sort()).toEqual(["head", "viewer"]);
