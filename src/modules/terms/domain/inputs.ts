@@ -2,7 +2,7 @@ import { z } from "zod";
 import { oneLine } from "../../../platform/validation/text.ts";
 
 // A term moves from draft to active to closed; a college has one active term at most.
-export const termStatuses = ["draft", "active", "closed"] as const;
+const termStatuses = ["draft", "active", "closed"] as const;
 export type TermStatus = (typeof termStatuses)[number];
 
 // What a day of a term's calendar is: a holiday, an exam week, the deadline for submitting grades,

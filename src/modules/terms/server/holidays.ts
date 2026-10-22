@@ -6,16 +6,6 @@ import { type BreakRule, estimateBreak, weekend } from "../domain/holidays.ts";
 import type { Day } from "../domain/weeks.ts";
 import { holidays } from "./schema.ts";
 
-export type Holiday = {
-  id: string;
-  key: string;
-  name: string;
-  hijriYear: number;
-  startsOn: Day;
-  endsOn: Day;
-  adjusted: boolean;
-};
-
 const columns = {
   id: holidays.id,
   key: holidays.key,
