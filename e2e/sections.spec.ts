@@ -79,14 +79,15 @@ test("the vice-dean, who imports Rayat, reads each department's sections without
     .click();
   await expect(page).toHaveURL(/department=/);
   await expect(main).toContainText(text.noTrainer);
-  const heading = await main.getByRole("article").last().getAttribute("aria-labelledby");
+  const heading = await main
+    .getByRole("article")
+    .last()
+    .getAttribute("aria-labelledby");
   const ref = heading?.replace("section-", "") ?? "";
   await main.getByRole("searchbox", { name: text.filters.search }).fill(ref);
   await expect(page).toHaveURL(new RegExp(`q=${ref}`));
   await expect(main.getByRole("article")).toHaveCount(1);
-  await expect(main.getByRole("article")).toContainText(
-    t("section", { ref }),
-  );
+  await expect(main.getByRole("article")).toContainText(t("section", { ref }));
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) {
     // The check wrote the page's Arabic in Latin letters.
