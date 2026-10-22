@@ -1,7 +1,7 @@
 # ADR-0013: Personal data protection
 
 - Status: proposed
-- Date: 2026-10-21, revised on 2026-10-22 for Steps 10 to 12, ADR-0014 and ADR-0017 as merged (#21 to #24, #29 and #30)
+- Date: 2026-10-21, revised on 2026-10-22 for Steps 10 to 12 and 16, ADR-0014 and ADR-0017 as merged (#21 to #24, #29, #30 and #42)
 - Source: the owner's review. The plan never named the PDPL, SDAIA, the NCA or the NDMO, and it had no privacy notice, no retention periods and no breach procedure. The record that answers it is `docs/privacy/data-protection.md`.
 - Builds on:
   - ADR-0004: the public repository.
@@ -14,8 +14,7 @@
 ## Context
 
 The platform keeps personal data in stages:
-- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge. Step 12 added in-app notifications, and ADR-0017 announcements with how many have read each, all kept with no end date.
-- **Step 16:** Rayat's data under trainee numbers. That includes absence and "barred for absence".
+- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge. Step 12 added in-app notifications, and ADR-0017 announcements with how many have read each, all kept with no end date. Step 16 added Rayat's data under trainee numbers, which includes absence and "barred for absence": every import keeps its records, applied or rolled back, and its diff keeps up to 50 of their keys per kind of change.
 - **Step 25:** evidence photos, which may show a trainee's face, name or grade.
 - **Step 36:** a per-person log of events with their durations, for the pilot measurement.
 
@@ -30,6 +29,7 @@ The plan named none of them. Some gaps are already in the code:
 - **Audit events:** they keep the IP address and user agent as long as the event. Step 11's daily purge deletes whole events after `audit.retentionMonths`, 60 months by default. It is the only way past the append-only triggers, and it clears nothing earlier.
 - **Leavers:** disabling an account (Step 10) ends its sessions, but keeps its password hash and two-factor secrets.
 - **Failed sign-ins:** one leaves a durable record only when it locks an existing account (`account.lock`).
+- **Trainee numbers:** Step 16 keeps them in every import of SF01 and SO01, applied or rolled back, and in each import's diff, with no end date.
 
 Better Auth already deletes expired verification values whenever anyone checks a two-factor code. The rules and the full inventory are in `docs/privacy/data-protection.md`.
 
@@ -43,7 +43,7 @@ Better Auth already deletes expired verification values whenever anyone checks a
    - enrolled, withdrawn, dismissed and barred for absence, per section (Step 34);
    - unexcused absence, per course.
 
-   So Steps 16 and 17 count SF01 and SO01 per section and course while parsing, and store no trainee number:
+   So SF01 and SO01 are counted per section and course while parsing, and no trainee number is stored. Step 16 (#42) stores the numbers today, in `rayat_enrollments`, `rayat_absences` and each import's diff, so this decision changes it, and Step 17 builds on the counts:
    - **Kept:** status counts per section, and absence bands and averages per course.
    - **Imports:** the import's diff and its rollback work on the counts.
    - **Later need:** if a step needs a row per trainee, it stores a keyed hash of the number (HMAC-SHA-256, with a key outside the database), and amends this ADR.
@@ -80,7 +80,7 @@ Better Auth already deletes expired verification values whenever anyone checks a
    - **Retention periods shown:** read from the settings that enforce them, so the page and the behavior never disagree. The backup period is deployment configuration, not a setting: the page reads it from that configuration, and a test checks that the two match.
 6. **Leavers, imports and photos.**
    - **Leavers:** disabling an account already deletes its sessions (Step 10). It also deletes the password hash and the two-factor secrets, in the same transaction. The person and their records stay. Enabling the account again then starts from Step 10's reset, and two-factor is set up again.
-   - **People files:** Step 10 already reads them in memory and stores nothing of them, as Steps 16 and 17 will do with Rayat files.
+   - **People files:** Step 10 already reads them in memory and stores nothing of them, as Step 16 does with Rayat files.
    - **Photos (Step 25):** the browser removes all metadata, not only the location, when it applies the orientation. The upload screen carries one line: photograph the work, not the people, and cover what the task does not need.
 7. **Security events wait for Steps 40 and 42.**
    - **Step 40 chooses:**
@@ -127,10 +127,10 @@ Not decided here: these belong to the controller and its DPO, and the checklist 
   - their tests: a unit test for the hash, an integration test for each retention rule and for disabling, and an end-to-end test that `/privacy` opens signed out.
 
   They wait until the step in progress has merged, because they touch the same files.
-- **Decision 2:** it changes Steps 16 and 17 before they are built, so it costs nothing now. Section 3's `enrollments` become section counts. Step 16's test that no name, mobile or grade column exists extends to trainee numbers. Step 43's demo enrollments, "by trainee number only", become counts too.
+- **Decision 2:** Step 16 merged before it (#42), so it now changes built code: SF01's and SO01's records and the keys in each import's diff become counts, and a migration drops the trainee numbers already stored. Step 17 is not built yet, so section 3's `enrollments` become section counts at no cost. Step 16's test that no name, mobile or grade column exists extends to trainee numbers. The demo's registrations (Step 16) and Step 43's demo enrollments, "by trainee number only", become counts too.
 - **On acceptance, the plan gains notes for:**
   - Steps 10 and 11: merged, so the PR that implements this ADR changes their code, and each gets a note of what changed.
-  - Steps 16 and 17: counts.
+  - Steps 16 and 17: counts. Step 16 merged, so its note says what changed in its code.
   - Step 25: metadata; the upload line.
   - Steps 33, 36 and 38: their rows in the record.
   - Step 40: failed sign-ins; the network split.

@@ -1,7 +1,7 @@
 # Data protection: the platform's record of personal data
 
 - Status: draft, for the controller and its data protection officer to confirm
-- Date: 2026-10-21, updated on 2026-10-22 for Steps 10 to 15, ADR-0014 and ADR-0017 as merged (#21 to #24, #29, #30, #32, #35 and #36)
+- Date: 2026-10-21, updated on 2026-10-22 for Steps 10 to 16, ADR-0014 and ADR-0017 as merged (#21 to #24, #29, #30, #32, #35, #36 and #42)
 - Decisions: ADR-0013 (proposed)
 - Related: `docs/privacy/privacy-notice.md` (the notice, in Arabic), `docs/ops/breach-response.md` (the incident runbook, in Arabic), `docs/ops/hosting-options.md` (the request to the General Administration)
 
@@ -29,7 +29,7 @@ The law was issued by Royal Decree M/19 (1443H) and amended by Royal Decree M/14
 
 | What it asks | Where | How this platform answers |
 | --- | --- | --- |
-| Collect only what the purpose needs | PDPL Art. 11 | The inventory below. From Rayat, trainee names, mobile numbers and grades are dropped while parsing (Step 16). ADR-0013 proposes storing no trainee number at all. |
+| Collect only what the purpose needs | PDPL Art. 11 | The inventory below. From Rayat, only the columns the college maps are read, so trainee names, mobile numbers and grades never leave the reader, and a test checks that no table holds them (Step 16). ADR-0013 proposes storing no trainee number either. |
 | A privacy policy available before collection | PDPL Art. 12 | `/privacy`, open without signing in and linked from the sign-in page. Draft text: `docs/privacy/privacy-notice.md`. |
 | Inform people when collecting from them | PDPL Art. 13 | The same page, plus a line on the sign-in card. |
 | Inform people whose data came from another source, within 30 days | Implementing Regulations | Trainees, through Rayat. **To confirm:** how the college tells them (its website, the trainee guide, Rayat's notices). |
@@ -88,7 +88,7 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 
 ## What the platform keeps
 
-### Today (Steps 1 to 15)
+### Today (Steps 1 to 16)
 
 | Data | About | Where | Why | Who sees it |
 | --- | --- | --- | --- | --- |
@@ -107,6 +107,10 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 | Which kinds each person receives | Staff | `notification_prefs` (Step 12) | The same | The person |
 | What a head, the dean or the vice-dean announced: a title and a short text, its author, the department or the whole college it went to, and when it was published and withdrawn | Staff: the author, and anyone the text names | `announcements` (ADR-0017) | Telling a department or the college something at once | Everyone it reached, as a notification until it is withdrawn. On `/announcements`, while it is live, whoever announces to its scope. A withdrawn one keeps its row, which no screen shows. |
 | Who endorsed the draft of a term's general framework, who published each version, and when. A change to the draft's items clears its endorsement. | Staff: the dean and the vice-dean as seeded (`framework.endorse`, `framework.publish`) | `frameworks` (Step 15) | Accountability for the version every department's plan inherits | No screen names them. Everyone in the college reads the published version and its date; whoever prepares or endorses the draft sees that it is endorsed. The audit events of both name the person. |
+| Each section of the term from SS01: its course, reference, schedule, capacity and enrolled count, and the employee numbers of the trainers it names | Staff: trainers | `rayat_sections` (Step 16) | Building the term's sections and matching each to its trainer (Step 17) | No screen lists them yet. `/rayat` shows how many sections an upload adds, removes and changes, with up to 50 references of each. |
+| A trainee's registration in a section from SF01: the trainee number, the registration status and the trainee's status | Trainees | `rayat_enrollments` (Step 16) | Each section's trainees, for the tasks and the indicators (Steps 17 and 34) | No screen lists them. `/rayat` shows how many an upload adds, removes and changes, with up to 50 section and trainee-number pairs of each, to the holders of `rayat.import`: the vice-dean as seeded, and the system role. |
+| A trainee's standing in a course from SO01, when the college uploads it: the trainee number, the course status, such as barred for absence, and unexcused absence in percent and hours | Trainees | `rayat_absences` (Step 16) | Absence by course in the indicators (Step 34) | As for SF01, with course and trainee-number pairs |
+| Each import of a Rayat report: its term and report, how many rows and records it read, its diff, and who uploaded, applied and rolled it back, and when. The diff counts the records added, removed and changed, and keeps up to 50 keys of each, which for SF01 and SO01 hold trainee numbers. | Staff who import; trainees, in the diff's keys | `rayat_imports` (Step 16) | Versions of each report, rollback, and showing what an upload changes before it applies | Holders of `rayat.import`, on `/rayat`: who uploaded each version and when, and the diff of an upload still waiting. Their audit events name the term and the report, with an upload's counts, never a trainee number. |
 
 Colleges, departments, roles, settings, terms, their calendars and the Eid breaks (Step 13, ADR-0018), the portfolio axes (Step 14) and the framework's items (Step 15) hold no personal data. Their audit events name whoever changed them.
 
@@ -116,8 +120,7 @@ Each step updates its row when it is built. The data is listed here now so the c
 
 | Data | About | Step | Notes |
 | --- | --- | --- | --- |
-| Trainee number, registration status and trainee status per section (SF01) | Trainees | 16, 17 | Names, mobile numbers and grades are dropped while parsing. ADR-0013 proposes per-section counts instead of trainee numbers. |
-| Trainee number, course status such as barred for absence, unexcused absence in percent and hours (SO01, optional) | Trainees | 16 | Same proposal: per-course counts and bands |
+| Courses, sections linked to their trainers by employee number, enrollments, and section transfers with their reason and week, built from the Rayat version in force | Trainees by number; trainers | 17 | ADR-0013's counts would replace the trainee numbers here too |
 | Evidence: photos and files from trainers' phones | Trainers, and trainees who appear in them | 25 | May show a trainee's face, name or grade, as on a homework sample or a grade sheet. The browser removes location; ADR-0013 removes all metadata. |
 | The upload queue in each trainer's browser (IndexedDB) | Same | 25 | Photos wait on the phone until they upload; the queue empties as each one does |
 | Professional profile: qualifications, experience, development, goals | Trainers | 28 | |
@@ -162,8 +165,9 @@ The schedule follows a few rules:
 | Error reports | 90 days | Step 42's job | Step 42 |
 | Logs | Security events 12 months, the rest 30 days | Rotation | Step 42 |
 | Backups | About 15 days today: a daily dump on the same server, and each day's run deletes the dumps more than 14 full days old | Rotation, which bounds every deletion above | Deployment configuration, not a setting. Step 42 replaces it with encrypted backups and states its periods here. |
-| Rayat files and people files | Never stored | Read in memory and discarded | People files: Step 10, as built. Rayat files: Step 16. |
-| Trainee rows from SF01 and SO01 | None, if counts replace them (ADR-0013). Otherwise until the term closes, plus one term. | | Step 16 |
+| Rayat files and people files | Never stored | Read in memory and discarded | People files: Step 10; Rayat files: Step 16; both as built |
+| Trainee rows from SF01 and SO01, and the trainee numbers in each import's diff | Proposed: none, if counts replace them (ADR-0013). Otherwise until the term closes, plus one term. | Not planned yet. Deleting a term's imports would take their records and diffs with them. | Step 16 keeps every import, applied or rolled back, with its records and its diff, with no end date. An upload still waiting goes when the next one replaces it, when it is discarded, or when the version it was diffed against is rolled back. |
+| SS01's sections, and who uploaded, applied and rolled back each import | Proposed: as the trainee rows, until the term closes, plus one term. The sections Step 17 builds from them follow the records schedule. | Not planned yet | Step 16 keeps them with no end date |
 | A staff member who leaves | Sign-in ends the day they leave. The name and employee number stay with their records. | Step 10 disables the account and deletes its sessions. ADR-0013 adds the password hash and the two-factor secrets. | Step 10; ADR-0013 |
 | Each term's frameworks with who endorsed and published them (Step 15); evidence, reviews, approvals, portfolios, indicators and minutes | The college's records schedule for training records | | **To confirm** with the corporation's records office |
 
@@ -174,7 +178,7 @@ The schedule follows a few rules:
 3. **Record and answer:** every request is recorded with its date, and answered within 30 days. Once, the period can extend by 30 more days, with notice.
 4. **What the platform can produce:**
    - **Staff:** whatever exists of their profile, tasks, evidence, reviews, portfolio PDFs (Step 32) and the audit events about them.
-   - **Trainees:** the rows under their trainee number, if any are kept.
+   - **Trainees:** the rows under their trainee number in each import of SF01 and SO01, and the diffs' keys that name it (Step 16).
    - **Limit:** photos cannot be searched by face. Finding a trainee in evidence means a manual search of their sections' evidence by the trainer or the head.
 5. **Correction:**
    - Staff details: an admin (Step 10).
@@ -202,7 +206,7 @@ The repository is public (ADR-0004), so it never holds real data:
 - no screenshot of a real screen
 - no database dump, log, error report, backup or incident file
 
-The demo data is synthetic, uses `.example` addresses and carries a visible watermark. Rayat fixtures are headers only (Step 16).
+The demo data is synthetic, uses `.example` addresses and carries a visible watermark. Rayat fixtures are headers only (Step 16). The demo's Rayat files are generated with invented names, mobile numbers and grades, which the import drops.
 
 What guards it:
 - **gitleaks** scans every push, but for secrets only: it does not recognize personal data. That rule rests on people.
