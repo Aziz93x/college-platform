@@ -57,6 +57,11 @@ export const auditActions = [
   "frameworkItem.delete",
   "framework.endorse",
   "framework.publish",
+  // A Rayat report uploaded for a term, then applied or discarded; a version rolled back (Step 16).
+  "rayatImport.upload",
+  "rayatImport.apply",
+  "rayatImport.discard",
+  "rayatImport.rollback",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -73,6 +78,7 @@ const auditEntities = [
   "holiday",
   "axis",
   "framework",
+  "rayatImport",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

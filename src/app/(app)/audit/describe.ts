@@ -79,6 +79,9 @@ function format(
         );
       case "termId":
         return lookups.term(value) ?? value;
+      // A Rayat report, by the name everyone gives it (Step 16).
+      case "report":
+        return value.toUpperCase();
       case "startsOn":
       case "endsOn":
         return lookups.day(value);
@@ -169,6 +172,13 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
       const was = isRecord(diff.to) ? diff.to : diff.from;
       return isRecord(was) && typeof was.termId === "string"
         ? (lookups.term(was.termId) ?? id)
+        : id;
+    }
+    // A Rayat import by its report and term (Step 16).
+    case "rayatImport": {
+      const { report, termId } = entry.diff ?? {};
+      return typeof report === "string" && typeof termId === "string"
+        ? `${report.toUpperCase()} · ${lookups.term(termId) ?? termId}`
         : id;
     }
     // A portfolio axis by its title before the change (Step 14).

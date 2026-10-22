@@ -1,0 +1,233 @@
+import { randomInt } from "node:crypto";
+import type { Locator, Page } from "@playwright/test";
+import { createTranslator } from "next-intl";
+import writeExcelFile from "write-excel-file/node";
+import { demoDepartments } from "../db/seed/demo/departments.ts";
+import { createRandom } from "../db/seed/demo/random.ts";
+import { demoRayatFiles } from "../db/seed/demo/rayat.ts";
+import { rayatColumns, rayatHeaders } from "../db/seed/rayat-columns.ts";
+import messages from "../messages/ar.json" with { type: "json" };
+import { joinRole } from "../src/modules/access/index.ts";
+import { findCollegeId } from "../src/modules/org/index.ts";
+import type { RayatKind } from "../src/modules/rayat/index.ts";
+import { settingsRegistry } from "../src/modules/settings/index.ts";
+import { createDb } from "../src/platform/db/client.ts";
+import { type TestAccount, test } from "./support/accounts.ts";
+import { STORAGE } from "./support/auth.ts";
+import { seriousViolations } from "./support/axe.ts";
+import { signedIn } from "./support/pages.ts";
+import { expect } from "./support/test.ts";
+import { smallTargets } from "./support/touch.ts";
+
+const { rayat: text, pages } = messages;
+const t = createTranslator({
+  locale: `ar-u-nu-${settingsRegistry["locale.digits"].default}`,
+  messages,
+  namespace: "rayat",
+});
+// Tests that write to the database, which the stack's smoke cannot reach.
+const DATABASE = { tag: "@database" };
+const XLSX =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+// Where SS01 writes a row's section reference.
+const REF = rayatHeaders.ss01.indexOf(rayatColumns.ss01.sectionRef);
+
+// A vice-dean of the test's own, a draft term of its own on view, and its imports, taken away
+// afterwards: the desktop and the phone run side by side.
+async function viceDeanWithTerm(account: () => Promise<TestAccount>) {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
+  const { db, pool } = createDb(url);
+  const collegeId = (await findCollegeId(db)) ?? "";
+  const person = await account();
+  await joinRole(
+    { userId: person.userId, collegeId, role: { key: "vice-dean" } },
+    db,
+  );
+  const name = `فصل رايات ${randomInt(100_000, 999_999)}`;
+  const {
+    rows: [term],
+  } = await pool.query(
+    "insert into terms (college_id, name, starts_on, weeks) values ($1, $2, '2032-01-04', 18) returning id",
+    [collegeId, name],
+  );
+  return {
+    person,
+    name,
+    termId: term.id as string,
+    pool,
+    remove: async () => {
+      await pool.query("delete from rayat_imports where term_id = $1", [
+        term.id,
+      ]);
+      await pool.query("delete from terms where id = $1", [term.id]);
+      await pool.end();
+    },
+  };
+}
+
+// A report as Rayat exports it, in XLSX.
+const xlsx = async (kind: RayatKind, table: string[][]) => ({
+  name: `${kind}.xlsx`,
+  mimeType: XLSX,
+  buffer: await writeExcelFile(table).toBuffer(),
+});
+
+// Sends a report's file from its section of the page and checks it.
+async function check(report: Locator, file: Awaited<ReturnType<typeof xlsx>>) {
+  await report.getByLabel(text.upload.file).setInputFiles(file);
+  await report.getByRole("button", { name: text.upload.check }).click();
+}
+
+const region = (page: Page, kind: RayatKind) =>
+  page.getByRole("region", { name: text.reports[kind].title });
+
+test(
+  "the vice-dean imports a term's SS01, SF01 and SO01 from XLSX files, reviewing each diff, then rolls back a newer SS01 (Step 16)",
+  DATABASE,
+  async ({ browser, account, hasTouch }) => {
+    const made = await viceDeanWithTerm(account);
+    try {
+      const files = demoRayatFiles(
+        createRandom(16),
+        { name: made.name, code: "14531" },
+        [
+          {
+            rayatValue: demoDepartments[1].rayatValues[0],
+            trainers: [{ employeeNumber: "200004", name: "مدرب" }],
+          },
+        ],
+      );
+      const page = await signedIn(browser, {
+        identifier: made.person.employeeNumber,
+        password: made.person.password,
+      });
+      await page
+        .context()
+        .addCookies([
+          { name: "term", value: made.termId, url: new URL(page.url()).origin },
+        ]);
+      await page.goto("/rayat");
+      await expect(
+        page.getByRole("heading", { level: 1, name: text.title }),
+      ).toBeVisible();
+      for (const kind of ["ss01", "sf01", "so01"] as const) {
+        await expect(region(page, kind)).toContainText(text.current.none);
+      }
+      expect(await seriousViolations(page)).toEqual([]);
+      if (hasTouch) {
+        expect(await smallTargets(page.locator("main"))).toEqual([]);
+      }
+      // The check wrote the page's Arabic in Latin letters.
+      await page.reload();
+
+      // A file of another term is refused, and nothing of it kept.
+      const ss01 = region(page, "ss01");
+      await check(
+        ss01,
+        await xlsx(
+          "ss01",
+          files.ss01.map((row, at) =>
+            at === 0
+              ? row
+              : row.map((cell) => (cell === made.name ? "فصل آخر" : cell)),
+          ),
+        ),
+      );
+      await expect(ss01.getByRole("alert")).toContainText(
+        t("upload.otherTerm", { term: "فصل آخر", viewed: made.name }),
+      );
+
+      const sections = new Set(files.ss01.slice(1).map((row) => row[REF])).size;
+      const counts: Record<RayatKind, number> = {
+        ss01: sections,
+        sf01: files.sf01.length - 1,
+        so01: files.so01.length - 1,
+      };
+      for (const kind of ["ss01", "sf01", "so01"] as const) {
+        const report = region(page, kind);
+        await check(report, await xlsx(kind, files[kind]));
+        await expect(report).toContainText(text.pending.title);
+        await expect(report).toContainText(
+          t("diff.added", { count: counts[kind] }),
+        );
+        if (kind === "ss01") {
+          expect(await seriousViolations(page)).toEqual([]);
+          if (hasTouch) {
+            expect(await smallTargets(page.locator("main"))).toEqual([]);
+          }
+          await page.reload();
+        }
+        await report.getByRole("button", { name: text.pending.apply }).click();
+        await expect(report).toContainText(
+          t(`records.${kind}`, { count: counts[kind] }),
+        );
+        await expect(report).not.toContainText(text.pending.title);
+      }
+
+      // A newer SS01 without its last section, applied, then rolled back.
+      const last = files.ss01.at(-1)?.[REF];
+      await check(
+        ss01,
+        await xlsx(
+          "ss01",
+          files.ss01.filter((row) => row[REF] !== last),
+        ),
+      );
+      await expect(ss01).toContainText(t("diff.removed", { count: 1 }));
+      await ss01.getByRole("button", { name: text.pending.apply }).click();
+      await expect(ss01).toContainText(
+        t("records.ss01", { count: sections - 1 }),
+      );
+      await ss01.getByRole("button", { name: text.rollback.button }).click();
+      const sheet = page.getByRole("dialog", {
+        name: t("rollback.title", { report: text.reports.ss01.title }),
+      });
+      await sheet.getByRole("button", { name: text.rollback.confirm }).click();
+      await expect(page.getByText(text.rollback.done)).toBeVisible();
+      await expect(ss01).toContainText(t("records.ss01", { count: sections }));
+      await expect(ss01).toContainText(text.history.rolledBack);
+
+      // Nothing but the columns the import reads was kept.
+      const { rows } = await made.pool.query(
+        `select count(*)::int as kept from rayat_enrollments e
+         join rayat_imports i on i.id = e.import_id where i.term_id = $1`,
+        [made.termId],
+      );
+      expect(rows).toEqual([{ kept: counts.sf01 }]);
+    } finally {
+      await made.remove();
+    }
+  },
+);
+
+test.describe("the admin", () => {
+  test.use({ storageState: STORAGE.admin });
+
+  test("sees the demo term's reports applied, and a newer SF01 waiting with what it changes", async ({
+    page,
+  }) => {
+    await page.goto("/rayat");
+    for (const kind of ["ss01", "sf01", "so01"] as const) {
+      await expect(region(page, kind)).toContainText(text.current.title);
+      await expect(region(page, kind)).not.toContainText(text.current.none);
+    }
+    const sf01 = region(page, "sf01");
+    await expect(sf01).toContainText(text.pending.title);
+    await expect(sf01).toContainText(t("diff.added", { count: 2 }));
+    await sf01.getByText(text.diff.samples).click();
+    await expect(sf01.getByText(/^تغيّر حالة التسجيل/).first()).toBeVisible();
+    expect(await seriousViolations(page)).toEqual([]);
+  });
+});
+
+test.describe("without the Rayat key", () => {
+  test.use({ storageState: STORAGE.trainer });
+
+  test("a trainer is refused the Rayat page", async ({ page }) => {
+    await page.goto("/rayat");
+    await expect(
+      page.getByRole("heading", { name: pages.forbidden.title }),
+    ).toBeVisible();
+  });
+});

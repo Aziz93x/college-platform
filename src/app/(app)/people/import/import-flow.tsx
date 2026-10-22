@@ -1,28 +1,19 @@
 "use client";
 
-import {
-  Copy,
-  Download,
-  FileSpreadsheet,
-  FileUp,
-  LoaderCircle,
-  Upload,
-} from "lucide-react";
+import { Copy, Download, FileUp, LoaderCircle, Upload } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { FileField } from "@/components/file-field";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { Table, type TableColumn } from "@/components/motion/table";
 import { usePasswordStep } from "@/components/password-step";
 import { Button } from "@/components/ui/button";
 import type { ImportResult, PeopleRow, PlannedRow } from "@/modules/access";
+import { MAX_UPLOAD_BYTES } from "@/platform/files/upload-limit";
 import { importPeopleAction, previewPeopleAction } from "../actions.ts";
-
-// Next.js takes a server action's body up to 1 MB (its default bodySizeLimit): a bigger file is
-// refused here, with the reason, rather than by the server without one.
-const MAX_FILE_BYTES = 1024 * 1024;
 
 const OUTCOME_BADGE = {
   new: "success",
@@ -50,12 +41,12 @@ export function ImportFlow({ columns }: { columns: string[] }) {
   const [running, setRunning] = useState(false);
   const [, startTransition] = useTransition();
   const step = usePasswordStep();
-  const id = useId();
 
   const preview = () => {
     if (!file) return;
-    if (file.size > MAX_FILE_BYTES) {
-      setProblem(t("tooBig"));
+    // A bigger file is refused here, with the reason, rather than by the server without one.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setProblem(t("tooBig", { megabytes: MAX_UPLOAD_BYTES / 1024 / 1024 }));
       return;
     }
     startTransition(async () => {
@@ -209,36 +200,19 @@ export function ImportFlow({ columns }: { columns: string[] }) {
       }}
       className="flex flex-col gap-4 rounded-xl border bg-card px-5 py-5 shadow-xs sm:px-6"
     >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={`${id}-file`} className="px-1 font-medium text-sm">
-          {t("file")}
-        </label>
-        {/* The browser's own chooser speaks the browser's language: it lies invisible over a zone
-            in the page's, where a click opens it and a dropped file lands in it. */}
-        <div className="relative flex min-h-28 flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-background px-4 py-5 text-center transition-colors hover:border-primary has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background">
-          <input
-            id={`${id}-file`}
-            type="file"
-            accept=".xlsx,.csv"
-            aria-describedby={`${id}-hint`}
-            onChange={(event) => {
-              setFile(event.target.files?.[0]);
-              setProblem(undefined);
-            }}
-            className="absolute inset-0 size-full cursor-pointer opacity-0"
-          />
-          <FileSpreadsheet aria-hidden className="mb-1 size-6 text-primary" />
-          <span className="font-medium text-sm">
-            {file ? <bdi>{file.name}</bdi> : t("choose")}
-          </span>
-          <span
-            id={`${id}-hint`}
-            className="text-pretty text-muted-foreground text-xs"
-          >
-            {file ? t("change") : t("fileHint")}
-          </span>
-        </div>
-      </div>
+      <FileField
+        label={t("file")}
+        file={file}
+        onFile={(chosen) => {
+          setFile(chosen);
+          setProblem(undefined);
+        }}
+        words={{
+          choose: t("choose"),
+          change: t("change"),
+          hint: t("fileHint"),
+        }}
+      />
       {alert}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button

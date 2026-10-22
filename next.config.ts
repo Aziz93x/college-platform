@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { MAX_UPLOAD_BYTES } from "./src/platform/files/upload-limit.ts";
 
 // Sent with every response, static files included. The Content Security Policy, which needs a new
 // nonce for each page, comes from src/proxy.ts.
@@ -26,6 +27,8 @@ const nextConfig: NextConfig = {
     // Every page reads the college's locale per request (docs/ADR/0007-locale-read-per-request.md),
     // so no navigation is instant yet: development checks only the segments that set `instant`.
     instantInsights: { validationLevel: "manual-warning" },
+    // A people file or a Rayat report arrives in a server action's body (Steps 10 and 16).
+    serverActions: { bodySizeLimit: MAX_UPLOAD_BYTES },
   },
   // The identity art is line drawing on transparency, which AVIF keeps at about half WebP's size.
   images: { formats: ["image/avif", "image/webp"] },

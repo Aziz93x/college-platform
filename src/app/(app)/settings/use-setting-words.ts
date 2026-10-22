@@ -47,6 +47,10 @@ export function useSettingWords() {
         return withUnit(setting.unit, Number(value));
       case "list":
         return format.list(value as string[]);
+      case "columns":
+        return format.list(
+          Object.values((value ?? {}) as Record<string, string>),
+        );
       case "text": {
         const fallback = catalogDefaults[setting.key];
         if (value === null && fallback)
@@ -64,6 +68,8 @@ export function useSettingWords() {
     describe,
     // Typed by key: a setting without its label or description fails the type check.
     label: (setting: SettingView) => t(`fields.${setting.key}.label`),
+    // A field of a columns control, such as a Rayat report's term column.
+    column: (field: string) => t(`columns.${field}` as "columns.term"),
     description: (setting: SettingView) =>
       t(`fields.${setting.key}.description`),
     fallback: (setting: SettingView) => {

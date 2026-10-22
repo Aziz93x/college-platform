@@ -6,6 +6,7 @@ import {
   seedBase,
   systemRole,
 } from "../../db/seed/base.ts";
+import { rayatColumns } from "../../db/seed/rayat-columns.ts";
 import { createTestDatabase } from "./support/database.ts";
 
 const databases: Awaited<ReturnType<typeof createTestDatabase>>[] = [];
@@ -81,6 +82,38 @@ it("gives the college the 11 axes in 3 groups and the closing group, once, and k
   expect(
     (await pool.query("select title from axes where code = '7'")).rows,
   ).toEqual([{ title: "محور معدّل" }]);
+});
+
+it("gives the college Rayat's column maps, once, and keeps a map an admin changed (Step 16)", async () => {
+  const { db, pool } = await freshDatabase();
+  const collegeId = await seedBase(db, college);
+  const maps = async () =>
+    (
+      await pool.query(
+        "select key, value, version from settings where key like 'rayat.%' order by key",
+      )
+    ).rows;
+  expect(await maps()).toEqual(
+    Object.entries(rayatColumns)
+      .map(([kind, value]) => ({
+        key: `rayat.columns.${kind}`,
+        value,
+        version: 1,
+      }))
+      .sort((a, b) => (a.key < b.key ? -1 : 1)),
+  );
+  const sf01 = "rayat.columns.sf01";
+  const changed = { ...rayatColumns.sf01, traineeStatus: "حالة المتدرب الآن" };
+  await pool.query(
+    "update settings set value = $2, version = 2 where college_id = $1 and key = $3",
+    [collegeId, changed, sf01],
+  );
+  await seedBase(db, college);
+  expect(await maps()).toContainEqual({
+    key: sf01,
+    value: changed,
+    version: 2,
+  });
 });
 
 it("leaves a default role's keys as the admins set them when it runs again", async () => {

@@ -4,6 +4,7 @@ import type {
   SettingKey,
   SettingUnit,
 } from "@/modules/settings";
+import { foldCase, oneLine } from "@/platform/validation/text";
 
 // What the screen draws of one setting the viewer may change. Its words come from the message
 // catalog by key: settings.fields.<key>.label and .description.
@@ -28,3 +29,27 @@ export const catalogDefaults: Partial<Record<SettingKey, string>> = {
 
 export const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
+
+// Whether a setting has a default to go back to: a value, or the catalog's words for an empty text.
+// A Rayat column map has neither until the base seed writes Rayat's own.
+export const resettable = (setting: SettingView) =>
+  setting.defaultValue !== null || catalogDefaults[setting.key] !== undefined;
+
+// A columns control's texts as the value they stand for: each on one line, every field given one,
+// and no two the same in any case of their Latin letters; or what is wrong with them.
+export function readColumns(
+  fields: readonly string[],
+  shown: Readonly<Record<string, string>>,
+):
+  | { value: Record<string, string>; error?: undefined }
+  | { value?: undefined; error: "columnsEmpty" | "columnsRepeated" } {
+  const value = Object.fromEntries(
+    fields.map((field) => [field, oneLine(shown[field] ?? "")]),
+  );
+  const texts = Object.values(value);
+  if (texts.includes("")) return { error: "columnsEmpty" };
+  if (new Set(texts.map(foldCase)).size < texts.length) {
+    return { error: "columnsRepeated" };
+  }
+  return { value };
+}

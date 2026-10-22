@@ -65,7 +65,10 @@ async function withValues(
 }
 
 // The college's departments, active or not, by name.
-export async function listDepartments(collegeId: string, db: Db = getDb()) {
+export async function listDepartments(
+  collegeId: string,
+  db: Db | Tx = getDb(),
+) {
   const rows = await db
     .select(columns)
     .from(departments)
