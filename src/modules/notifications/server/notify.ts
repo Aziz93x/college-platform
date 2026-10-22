@@ -60,7 +60,9 @@ export async function notifyAll<K extends NotificationKind>(
   db: Db | Tx = getDb(),
 ) {
   if (isOptional(notice.kind)) {
-    throw new Error(`notifyAll: ${notice.kind} may be turned off; use notify()`);
+    throw new Error(
+      `notifyAll: ${notice.kind} may be turned off; use notify()`,
+    );
   }
   if (notice.userIds.length === 0) return 0;
   const added = await db
