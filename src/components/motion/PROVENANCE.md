@@ -227,7 +227,7 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 
 ## Local changes from lead review C
 
-- `select.tsx`: the open list is bounded to the room on the side it opens to, less an 8 px margin, and scrolls past it, at least about three options tall. A long list opened upward in a bottom sheet ran off the top of the screen, where neither a finger nor a mouse could reach its first options (the framework item's kinds, a transfer's weeks). The option focus follows, as before, scrolls into view.
+- `select.tsx`: the open list is bounded to the room on the side it opens to, within the viewport and every ancestor that clips its overflow (a sheet's scrolling body), less an 8 px margin, and scrolls past it, at least about three options tall. A long list opened upward in a bottom sheet ran off the top of the screen, where neither a finger nor a mouse could reach its first options (the framework item's kinds, a transfer's weeks). The option focus follows, as before, scrolls into view.
 
 ## Local changes from UX review 1 (docs/reviews/ux-10.md)
 

@@ -49,6 +49,20 @@ const LIP = 8;
 const MARGIN = 8;
 const EDGE = 2;
 const MIN_LIST = 136;
+
+// The part of the screen a panel opened from this trigger can show in: the viewport, within every
+// ancestor that clips what overflows it, such as a sheet's scrolling body.
+function roomAround(trigger: HTMLElement) {
+  let top = 0;
+  let bottom = window.innerHeight;
+  for (let node = trigger.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowY === "visible") continue;
+    const rect = node.getBoundingClientRect();
+    top = Math.max(top, rect.top);
+    bottom = Math.min(bottom, rect.bottom);
+  }
+  return { top, bottom };
+}
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const ITEM_VARIANTS: Variants = {
@@ -384,20 +398,22 @@ export function SelectContent({
   }, [present]);
 
   // On open, flip upward when there isn't room below and there's more above, and bound the list to
-  // the room on that side, so a long list scrolls instead of running off the screen (lead review C).
+  // the room on that side, so a long list scrolls instead of running off the screen or out of a
+  // sheet's body, where neither a finger nor a mouse reaches it (lead review C).
   useLayoutEffect(() => {
     if (!open) return;
     const trigger = document.getElementById(ctx.triggerId);
     const list = listRef.current;
     if (!trigger || !list) return;
     const rect = trigger.getBoundingClientRect();
+    const room = roomAround(trigger);
     const h = list.scrollHeight + EDGE;
-    const below = window.innerHeight - rect.bottom - GAP - MARGIN;
-    const above = rect.top - GAP - MARGIN;
+    const below = room.bottom - rect.bottom - GAP - MARGIN;
+    const above = rect.top - room.top - GAP - MARGIN;
     const top = below < h && above > below;
-    const room = Math.max(top ? above : below, MIN_LIST) - EDGE;
+    const fits = Math.max(top ? above : below, MIN_LIST) - EDGE;
     setPlacement(top ? "top" : "bottom");
-    setLimit(h - EDGE > room ? room : undefined);
+    setLimit(h - EDGE > fits ? fits : undefined);
   }, [open, ctx.triggerId, setPlacement]);
 
   const isTop = ctx.placement === "top";
