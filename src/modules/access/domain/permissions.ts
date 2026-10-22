@@ -28,6 +28,8 @@ const permissions = {
   // Announce to everyone in a department, or held across the college, to the college, and
   // withdraw what was announced there (ADR-0017). It changes no one's access.
   "announcements.publish": { area: "organization", requiresTwoFactor: false },
+  // The portfolio's axes, the administration's catalog: their titles and descriptions (Step 14).
+  "axes.manage": { area: "organization", requiresTwoFactor: true },
   // Terms and their calendars (Step 13).
   "term.manage": { area: "term", requiresTwoFactor: false },
   // Publish the term's general framework (Step 15).

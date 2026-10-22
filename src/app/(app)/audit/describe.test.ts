@@ -256,6 +256,31 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "axis",
+          entityId: "x1",
+          action: "axis.update",
+          diff: {
+            from: { title: "التدريب الإلكتروني", description: "" },
+            to: {
+              title: "التدريب الإلكتروني",
+              description: "المقررات على المنصة",
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "تعديل محور",
+      subject: "التدريب الإلكتروني",
+      changes: [{ field: "الوصف", before: "", after: "المقررات على المنصة" }],
+    });
+  });
+
   it("names a term, the kind and days of what its calendar gained, its status, and the term a role is held in (Step 13)", () => {
     const term = { entityType: "term", entityId: SPRING };
     expect(
