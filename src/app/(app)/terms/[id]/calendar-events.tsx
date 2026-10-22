@@ -217,7 +217,7 @@ export function CalendarEvents({
             >
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground text-xs">
+                  <span className="rounded-full border px-2 py-0.5 font-medium text-xs">
                     {event.college ? t("collegeBreak") : kinds(event.kind)}
                   </span>
                   <span className="font-medium text-sm">{event.title}</span>

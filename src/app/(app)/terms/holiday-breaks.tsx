@@ -121,7 +121,7 @@ export function HolidayBreaks({
                   <span className="font-medium text-sm">
                     {t("name", { name: each.name, year: each.year })}
                   </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground text-xs">
+                  <span className="rounded-full border px-2 py-0.5 font-medium text-xs">
                     {each.adjusted ? t("adjusted") : t("estimated")}
                   </span>
                 </p>

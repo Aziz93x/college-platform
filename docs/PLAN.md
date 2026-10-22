@@ -973,6 +973,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** this step creates the kinds registry with the kind keys its items use, and Step 18 adds each kind's payload, editor and view. The due-rule and evidence-policy shapes are defined here, and Step 18 reuses them. The counting function is unit-tested on fixtures; per-section counts come from real sections once Step 17 has created them.
 
+**Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
+
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
 #### Step 16. Rayat import: SS01, SF01 and SO01 (L)
@@ -996,6 +998,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 8:** match the department column against `department_rayat_values` after `oneLine()`, the tidying a value gets before it is stored, and through `foldCase()` (both in `src/platform/validation/text.ts`), the folding the departments' own check uses (Audit 3). A value belongs to one department of the college, in any case of its Latin letters, so a match is never ambiguous; a value that matches none is a row error that points to the departments screen, where an admin adds it to its department.
 
 **Note from Step 10:** `readTable()` (`src/platform/files/table.ts`) reads an XLSX or CSV file into rows of text with read-excel-file and Papa Parse, and reads a CSV that is not UTF-8 as Windows-1256, which Arabic Excel saves. The people import is this step's shape on a small scale: a header row matched through `foldCase()`, a plan per row that writes nothing (the preview and the dry run in one), and one transaction under the college's lock that plans again before it writes.
+
+**Note from Step 13:** a term's name is unique in its college, so a file's `الفصل التدريبي` finds its term by name. The demo term's name, "الفصل التدريبي الأول 1448", is a guess at Rayat's wording, and terms have no code column yet.
 
 #### Step 17. Courses, sections, enrollments and transfers (M)
 
@@ -1044,6 +1048,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Do:** build the engine described in section 3: idempotent keys, the re-publish rules, section transfers and recurring due rules. A daily job handles recurring items. Generation runs in the worker and reports progress.
 
 **Done when:** property-based tests (fast-check) prove that generation is idempotent and never changes completed work; for every demo framework and plan, the published preview equals the tasks generated; and generation for the full demo data set takes under 10 s.
+
+**Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
 
 > **Checkpoint: UX review 2.** Run `/ux-review 11-20` (audit log, notifications, term and framework, Rayat import, sections, templates, plan editor).
 
@@ -1114,6 +1120,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 7:** the settings screen draws its controls from the schemas and has no "token reference" control yet, since no setting names a token. If the ADR keeps the alert color a setting, its schema names the allowed tokens and the screen gets that control here.
 
 **Note from Audit 3:** Step 9 seeded no page order, so every role follows the order the code lists the pages in (`navigation.order` is `{}`). Where a role's home first needs its pages in another order, seed that role's order under its key, merged into the setting with `setSetting`'s updater, and give existing colleges the same order in the step's migration.
+
+**Note from Step 13:** Today already shows the week of the term on view. Pages that show a term's work read that term with `viewedTerm()` (`src/app/(app)/_shell/term.ts`), which follows the header's switcher.
 
 #### Step 24. My work and my sections (M)
 
@@ -1362,6 +1370,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 3:** the secretary's keys for meetings go to the default role in `db/seed/base.ts` and, for colleges that exist already, in this step's migration (the note from Audit 3 under Step 10).
 
+**Note from Step 13:** a membership can be limited to one term, and it grants its keys only while that term is active. `seed:demo` makes one Electrical trainer the department's secretary for the demo term.
+
 #### Step 38. Improvement plans, documents and directory (S)
 
 **Note from ADR-0008. You:** before this step, decide whether the department document library and the contact directory are built now or wait for the General Administration's Microsoft 365 decision. They overlap SharePoint and the college's Microsoft 365 directory, and no later step depends on them. Improvement plans are built either way. If the two wait, section 1's secretary row and `docs/BACKLOG.md` say so.
@@ -1410,6 +1420,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 41:** the worker starts Chromium with `--no-sandbox` (`worker/print-check.ts`, then Step 32's renderer). Keep it, since Chromium prints only the platform's own pages from disk with no route out, or give the worker a seccomp profile that lets the sandbox run, and record the choice in `docs/ops/asvs.md`.
 
 **Note from Step 12:** measured with Moto G4 emulation as the demo trainer, Today loaded 274,901 bytes of script in all before Step 12 and 279,435 after it, the bell's share; the stack loads when the bell is first reached for. Both are above the 250 KiB of ADR-0010's option B, before and after the load event together; Motion's feature bundle lands on either side of it.
+
+**Note from Step 13:** measured the same way, Today loads 310,322 bytes of script in all. The announcements' dialog (ADR-0017) and the header's term switcher have joined the shell since Step 12.
 
 **Note from ADR-0014:** two-factor is off by default (`auth.requireTwoFactor`). The ASVS level 2 checklist asks for multi-factor on administrative interfaces: record in `docs/ops/asvs.md` whether the pilot runs with the setting on, and if it stays off, the owner's reason.
 
@@ -1470,6 +1482,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 **Note from lead review B:** at 2,000 people, `/people` took 581 ms one request at a time and sent 7.3 MB of HTML, and the trainer role's page 2.7 MB. With this step's larger seed, the people list and a role's members show the first hundred and search the rest on the server, and the log and the history panels name only the people on the page instead of reading the whole directory (`src/app/(app)/audit/lookups.ts`; docs/reviews/lead-B.md, proposal 5).
 
 **Note from ADR-0008:** `--week` exists since Step 13; this step completes the data it drives. Demo data stays synthetic.
+
+**Note from Step 13:** `seedDemoTerms()` (`db/seed/demo/terms.ts`) makes the active 18-week term and writes nothing once the college has a term; the closed previous term goes there.
 
 **Note from Step 10:** the people exist since Step 10: `demoAccounts` names the ones the tests and guides use, and `demoCast()` draws the rest from the seed (`db/seed/demo/people.ts`). Whoever holds a key that requires two-factor gets it seeded, with the admin's authenticator secret and backup codes of their own (`DEMO_HEAD_BACKUP_CODES` in demo mode). Each account's password is hashed once per run, about 5 s of the seed's 2 minutes.
 

@@ -4,6 +4,51 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 13: terms and calendar
+
+- The vice-dean, or whoever holds `term.manage`, enters the college's terms, and their dates follow from them. Migration `0014` adds `terms`, `calendar_events` and `holidays`, and a term on `memberships`.
+  - `terms` holds the name as Rayat writes it, the first day, the number of weeks and the status (draft, active or closed). A name is unique in its college, and only one term is active.
+  - `calendar_events` holds a term's holidays, exam weeks, grade deadlines and the college's own events. Each is one day or a range inside the term.
+  - `holidays` holds the college's Eid breaks (ADR-0018, below).
+- Weeks are counted from the term's first day, seven days each (`src/modules/terms/domain/weeks.ts`, pure and unit-tested).
+  - A week whose working days are all holidays is marked as a holiday. While `calendar.skipHolidayWeeks` is on (the default), it gets no number and the term runs a week longer.
+  - The working days are the first `calendar.workingDays` days (5) from `locale.weekStart`.
+  - `weekOf()` gives the week a day falls in, and `termEndsOn()` the term's last day.
+  - Settings has a new calendar group with these two settings and `calendar.termWeeks`, 18, the new term form's default.
+- `/terms` lists the college's terms, newest first.
+  - A new term takes a name, a first day from the date picker (now with a one-day mode) and its weeks on the stepper.
+  - A term's page shows its status, its calendar and its weeks, with this week marked, and a history panel for managers. The calendar is edited in a sheet: kind, title and days. Anyone signed in may open an active or closed term's page; only managers see drafts and the controls.
+  - Activating a term closes the active one in the same transaction. A closed term no longer changes. A change that would leave a calendar event outside its term is refused.
+  - "فتح الفصل التالي" makes the next term and copies the calendar, except the holidays, to the same places in its weeks. Steps 15, 18 and 19 add their copies to it.
+  - The log names `term.create`, `term.update`, `term.activate`, `term.close` and `calendarEvent.create`, `.update` and `.delete` by the term's name, with their days and kinds in words.
+- The header's term switcher, BeUI's morph popover used as a select, sits before the bell. It shows the term on view with today's week, and lists the terms the viewer may see (drafts only for managers) with a link to the term's calendar.
+  - The choice is kept in a cookie, and `viewedTerm()` (`src/app/(app)/_shell/term.ts`) reads it for every page.
+  - Today says "الأسبوع 9 من 18", a holiday week, or the day the term begins.
+  - On a phone, Today now loads 310,322 bytes of script, up from 279,435 after Step 12. That covers both the announcements' dialog and the switcher.
+- A role may be given for one term from the role's page. Such a membership grants its keys only while its term is active. A system role is given for every term, and a closed term is not offered.
+- `seed:demo --week N` (default 9, from 1 to 18) makes an 18-week active term in which today falls in week N, counted past the Eid breaks. `pnpm local:up --demo --week N` passes it on.
+  - The vice-dean enters the term's calendar: a meeting to open the term in week 1, the midterm exams in week 8, an extra holiday in week 11, the final exams in weeks 17 and 18, the grade deadline on the last working day, and National Day or Founding Day where they fall in the term.
+  - One trainer of Electrical is the department's secretary for this term only.
+- Tests:
+  - Unit tests for the weeks across Ramadan and the Eid breaks, on the dates of the second term of 1447, and for the break estimates.
+  - Integration tests for the services: each refusal, activating and closing, the calendar, the next term's copy, and a term counting a break and following its adjustment. The seed's term in week 9 and with `--week 3`.
+  - Every action's audit event and its rows in the permission matrix.
+  - End-to-end on the desktop and the iPhone:
+    - The vice-dean makes an 18-week term with a week of holiday and an exam week, then opens the next term from it.
+    - The vice-dean adjusts an Eid break.
+    - A trainer sees the term and its week in the header and on Today, opens the calendar from the switcher, and is refused `/terms`.
+    - axe and 44 px targets throughout.
+
+### ADR-0018: the Eid breaks, ten years ahead (the owner's request)
+
+- The base seed adds the college's Eid al-Fitr and Eid al-Adha breaks for the current Hijri year and the nine after it. It adds nothing that is already there.
+- Each break is estimated from past Saudi calendars (docs/reviews/eid-breaks.md) and fitted to whole weeks.
+  - Eid al-Fitr runs from 12 days before Eid to 5 after it, which covers the last third of Ramadan. Eid al-Adha runs from 7 days before to 6 after.
+  - Each Eid's date comes from the Umm al-Qura calendar that Intl carries, so nothing is fetched.
+  - Checked against the announced breaks, the estimate is exact in most years and at most two days off.
+- `/terms` lists the breaks as estimated or adjusted. The vice-dean sets each one to its announced days in a sheet, which writes `holiday.update`. A break that has begun no longer changes.
+- Every term counts the breaks that fall in it with its own holidays. One adjustment moves the weeks of every term it touches, and the term's page lists the breaks with its calendar, marked as the college's.
+
 ### ADR-0017: announcements (the owner's request)
 
 - A head announces to everyone in their department, and the dean and the vice-dean to the college or one department, with a new scoped key, `announcements.publish`, which the roles grid moves like any other. An announcement is a title and a short text whose paragraphs are kept.
