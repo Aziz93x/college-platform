@@ -286,10 +286,14 @@ test("the vice-dean keeps the catalogs: a training method added is there after a
     password: demo.password,
   });
   await open(page, "catalogs");
-  // Only the groups whose settings the vice-dean's keys edit.
-  await expect(
-    page.getByRole("tablist", { name: text.groupsLabel }).getByRole("tab"),
-  ).toHaveText([text.groups.calendar, text.groups.catalogs]);
+  // Only the groups whose settings the vice-dean's keys edit. A tab writes its label twice, once
+  // under the mask that colors the chosen one, so its name is what counts.
+  const tabs = page
+    .getByRole("tablist", { name: text.groupsLabel })
+    .getByRole("tab");
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.first()).toHaveAccessibleName(text.groups.calendar);
+  await expect(tabs.last()).toHaveAccessibleName(text.groups.catalogs);
   const methods = row(page, text.fields.catalogs.trainingMethods.label);
   const list = methods.getByRole("list", {
     name: text.fields.catalogs.trainingMethods.label,

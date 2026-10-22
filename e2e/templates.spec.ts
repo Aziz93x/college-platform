@@ -97,6 +97,8 @@ test(
       expect(await seriousViolations(page)).toEqual([]);
       if (hasTouch)
         expect(await smallTargets(page.locator("main"))).toEqual([]);
+      // The check wrote the page's Arabic in Latin letters.
+      await page.reload();
 
       await own.getByRole("button", { name: text.add }).click();
       const sheet = page.getByRole("dialog", { name: text.addTitle });
