@@ -8,13 +8,13 @@ import {
   setRolePermissions,
 } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
-import { createTestDatabase } from "./support/database.ts";
+import { createSharedTestDatabase } from "./support/database.ts";
 
 // Lead review B's probe: one switch on the roles grid gave the vice-dean temporary passwords across
 // the college, and with them the system admin's account. What the database gives each person now
 // decides whose account such a key reaches: no one holding a power its holder lacks.
 
-let database: Awaited<ReturnType<typeof createTestDatabase>>;
+let database: Awaited<ReturnType<typeof createSharedTestDatabase>>;
 let collegeId: string;
 const people: Record<string, string> = {};
 
@@ -22,7 +22,8 @@ const query = async (text: string, values: unknown[] = []) =>
   (await database.pool.query(text, values)).rows;
 
 beforeAll(async () => {
-  database = await createTestDatabase();
+  // Shared: the directory reads the lockout settings through getDb().
+  database = await createSharedTestDatabase();
   collegeId = await seedBase(database.db, {
     name: "Test College",
     shortName: "TC",
