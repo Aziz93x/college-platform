@@ -39,6 +39,30 @@ export async function seriousViolations(
       );
     }
   });
+  // Axe measures colors as they are drawn, so a fade still running lowers a text's contrast: the page
+  // header's eyebrow fades in over 500 ms, and a check made that soon after a page opened failed on
+  // it at random. Wait for the running animations that end in time. One that repeats forever, one
+  // paused, and one that follows the scroll (a sticky bar's shadow, `raise-on-scroll`) never finish,
+  // so they are left as they are, and 5 s is the longest the wait lasts.
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => {
+            const endTime = animation.effect?.getComputedTiming().endTime;
+            return (
+              animation.timeline === document.timeline &&
+              animation.playState === "running" &&
+              typeof endTime === "number" &&
+              Number.isFinite(endTime)
+            );
+          })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]),
+  );
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .disableRules(disabledRules)
