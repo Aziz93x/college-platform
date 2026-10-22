@@ -4,6 +4,14 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 18: Task kinds and section templates
+
+- Each kind's payload is a list of fields (`kindFields`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`): an exam copy names its exam type and day; a grade analysis counts trainees in each grade band, with its pass rate, average and follow-up, and no names; homework a title and week; e-learning a checklist; a training practice its methods and description; an advising log its sessions; and the others their own. `fromCatalogs()` checks a payload's choices against the college's catalogs. The task card puts the editor before the evidence (Step 26).
+- The catalogs are data: four settings in a new "القوائم" tab, the vice-dean's (`framework.publish`). Exam types, training methods and kinds of professional development are word lists the base seed writes from today's app (five exam types, eleven methods, four kinds); the grade bands are each band's lower bound in percent (90, 80, 70 and 60 by default). The settings list control reads extensions, words or percentages.
+- Section templates (`section_templates`, migration `0020`): a department's items for each trainer of each of its sections, by term, each on one of the college's axes. A head adds, corrects and takes them out on `/templates` (`plan.edit`), one department at a time, below the framework's items for each section's trainer, which are the college's. They are the per-section part of the department's plan and stay drafts until Step 19 publishes it. A closed term's change no more, each change is in the log, and the Step 13 wizard copies each department's templates into the next term, recorded on the department.
+- The framework's item sheet, its words and its choices are shared by `/framework` and `/templates` (`src/app/(app)/_items`), and the department chooser by `/sections` and `/templates`.
+- `seed:demo`: the head of Electrical adds the plan's examples (the midterm and final exam copies with the head's approval, quizzes, three homework samples, a grade analysis a week after each exam, the e-learning course and the training practices), and the head of Mechanical its exam copies and analysis.
+
 ### Lead review C: the term, the framework and Rayat (docs/reviews/lead-C.md)
 
 - A long select's list is bounded to the room on the side it opens to, and scrolls. On a phone or a desktop the framework item's kinds "نسخة اختبار" and "تحليل نتائج" and a transfer's first weeks ran off the screen, out of a finger's or a mouse's reach (M1).

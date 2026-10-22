@@ -4,6 +4,7 @@ import messages from "../messages/ar.json" with { type: "json" };
 import { createDb } from "../src/platform/db/client.ts";
 import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { signedIn } from "./support/pages.ts";
 import { expect, test } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -271,6 +272,54 @@ test.describe("touch targets", () => {
       expect(await smallTargets(page.getByRole("tabpanel")), group).toEqual([]);
     }
   });
+});
+
+test("the vice-dean keeps the catalogs: a training method added is there after a reload, and taken out again (Step 18)", async ({
+  browser,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "desktop",
+    "one catalog, changed by one project",
+  );
+  const page = await signedIn(browser, {
+    identifier: demoAccounts.viceDean.employeeNumber,
+    password: demo.password,
+  });
+  await open(page, "catalogs");
+  // Only the groups whose settings the vice-dean's keys edit.
+  await expect(
+    page.getByRole("tablist", { name: text.groupsLabel }).getByRole("tab"),
+  ).toHaveText([text.groups.calendar, text.groups.catalogs]);
+  const methods = row(page, text.fields.catalogs.trainingMethods.label);
+  const list = methods.getByRole("list", {
+    name: text.fields.catalogs.trainingMethods.label,
+  });
+  await expect(list).toContainText("دراسة الحالة");
+  await methods
+    .getByRole("textbox", { name: text.list.word.placeholder })
+    .fill("  التعلم   باللعب ");
+  await methods.getByRole("button", { name: text.list.add }).click();
+  await expect(list).toContainText("التعلم باللعب");
+  await methods.getByRole("button", { name: text.save }).click();
+  const label = text.fields.catalogs.trainingMethods.label;
+  await expect(
+    page.getByText(text.toast.saved.replace("{label}", label)),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(list).toContainText("التعلم باللعب");
+  await methods
+    .getByRole("button", {
+      name: text.list.remove.replace("{item}", "التعلم باللعب"),
+    })
+    .click();
+  await methods.getByRole("button", { name: text.save }).click();
+  await expect(
+    page.getByText(text.toast.saved.replace("{label}", label)),
+  ).toBeVisible();
+  await page.reload();
+  await expect(list).not.toContainText("التعلم باللعب");
+  expect(await seriousViolations(page)).toEqual([]);
 });
 
 test.describe("without settings.manage", () => {

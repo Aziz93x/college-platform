@@ -1057,6 +1057,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Done when:** a scripted usability run builds a 50-item plan in under 30 minutes, publish previews use the shared counting function, versions cannot be edited, and the Step 13 wizard copies the plan as a draft.
 
+**Note from Step 18:** a department's section templates are the per-section part of its plan (`section_templates`, `src/modules/planning`): the head edits them on `/templates` with `plan.edit`, each with a framework item's fields but whom it reaches (`sectionTemplateInput`), and they stay drafts until the plan is published. Take them into the plan's version when it publishes, and count them in its preview for each trainer of each section of the department (the owner's rule under Step 20). The framework's items for each section's trainer are the college's templates, which `/templates` shows read-only. The wizard copies a term's templates into the next (`copyTemplatesInto()`), but a draft term shows only to whoever holds `term.manage` (Step 13), so a head edits the next term's templates once it is active: decide here whether `plan.edit` shows the next term while it is a draft. The item sheet, its words and its choices are shared in `src/app/(app)/_items`.
+
 #### Step 20. Generation engine (L)
 
 **Goal:** tasks appear for the right person, section and week, every time.
@@ -1210,6 +1212,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - The head's note on returned work moves to Step 29, which records it.
 - **You (added to Done when):** with Step 41's stack in demo mode, open a demo task on a real iPhone and on an Android phone, add camera evidence and mark it done. Do it once through `pnpm local:share` on cellular, and once on the college Wi-Fi with the exported root trusted. Claude Code records what emulation missed in `docs/ops/ios.md`, which Step 39 completes, and fixes it in this step's pull request.
 
+**Note from Step 18:** each kind's payload is a list of fields (`kindFields`, `src/modules/framework/domain/payloads.ts`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`, both in `src/app/(app)/_kinds`). The card puts the editor before the evidence, and its action checks a payload with `payloadSchema(kind)` and with `fromCatalogs()` against the college's catalogs (settings `catalogs.*`, the vice-dean's) as they stand when it saves. A payload keeps the words it chose, so a catalog's change reaches later tasks only. Files are the task's evidence, not its payload: an exam copy's paper and key, homework samples.
+
 #### Step 27. Notifications in the work loop (S)
 
 **Goal:** few messages, all useful.
@@ -1296,6 +1300,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** Step 31 runs first, so the approval snapshot, the change view and the trainer-by-axis grid read its portfolio view by axis, curation included.
 
+**Note from Step 18:** an exam copy's payload names its exam's day (`examOn`), which the confidentiality rule reads.
+
 > **Checkpoint: UX review 3.** Run `/ux-review 21-30` (Today, My work, section page, task card, uploads, review inbox, missing grid).
 
 #### Step 32. PDF generation (L)
@@ -1359,6 +1365,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** every metric has a fixture test, and a full refresh takes under 5 s on demo data.
 
 **Note from ADR-0008:** indicator mappings per task kind are added here (moved from Step 18), and the improvement-plan count joins with Step 38.
+
+**Note from Step 18:** a grade analysis counts its trainees in each of the college's grade bands (payload `bands`, by each band's lower bound in `catalogs.gradeBands`), the grade distribution's source; a training practice names its methods from `catalogs.trainingMethods`.
 
 #### Step 35. Indicator screens (M)
 
