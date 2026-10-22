@@ -1694,6 +1694,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | When to go online (Section K) | you | after the product-manager gate |
 | Where the platform runs for staff: a server inside the college (a Dell QCT1250 is bought but not yet delivered) or hosting in a cloud region inside the Kingdom; options in `docs/ops/hosting-options.md` | the General Administration, as part of the approval request | before Section K |
 | Data classification, and the platform, data and technical owners | the General Administration, in the same request | before any real staff or trainee data is loaded; demo data stays synthetic until then |
+| Personal data protection under the PDPL, the NCA's ECC-2:2024 and DCC-1:2022, and the NDMO's rules. The college's part: the DPO, the legal basis, the retention schedule, the impact assessment, the privacy notice, registration, the processing agreement and how trainees are told. Yours: ADR-0013 (proposed). The record is `docs/privacy/data-protection.md`, and the breach runbook is `docs/ops/breach-response.md`. | the college's controller and its DPO; you for ADR-0013 | before any real staff or trainee data is loaded |
 | The three trial departments | the dean | go-live |
 | One alert color outside the identity palette (red) | you | Step 23, where task states first appear |
 | The department document library and contact directory, or Microsoft 365 for both | you | Step 38 |
