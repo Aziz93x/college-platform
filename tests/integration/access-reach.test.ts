@@ -95,11 +95,11 @@ const reaches = async (actor: string) => {
   );
 };
 
-it("lets a vice-dean given temporary passwords help the trainers and the dean, whose keys it holds, never the admin or a head", async () => {
+it("lets a vice-dean given temporary passwords help the trainers, whose keys it holds, never the admin, a head or the dean, who endorses the framework", async () => {
   expect(await reaches("viceDean")).toEqual({
     admin: false,
     viceDean: true,
-    dean: true,
+    dean: false,
     head: false,
     trainer: true,
   });

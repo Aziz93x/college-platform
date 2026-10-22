@@ -163,6 +163,14 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         ? `${was.name} ${was.hijriYear}`
         : id;
     }
+    // The term's framework, by the term (Step 15).
+    case "framework": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) && typeof was.termId === "string"
+        ? (lookups.term(was.termId) ?? id)
+        : id;
+    }
     // A portfolio axis by its title before the change (Step 14).
     case "axis": {
       const was = entry.diff?.from;

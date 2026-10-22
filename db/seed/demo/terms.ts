@@ -1,10 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   addMembership,
   listDirectory,
   roles,
 } from "../../../src/modules/access/index.ts";
-import { auditEvents } from "../../../src/modules/audit/index.ts";
 import { users } from "../../../src/modules/identity/index.ts";
 import { listDepartments } from "../../../src/modules/org/index.ts";
 import { getSetting, weekdays } from "../../../src/modules/settings/index.ts";
@@ -25,6 +24,7 @@ import type { Db } from "../../../src/platform/db/client.ts";
 import { addDays, wallClock } from "../../../src/platform/i18n/time-zone.ts";
 import { demoAccounts } from "./accounts.ts";
 import { demoDepartments } from "./departments.ts";
+import { deviceOf } from "./device.ts";
 
 // The demo college's active term (Step 13): 18 weeks from the first day of a week, so that today
 // falls in week N (seed:demo --week, 9 by default), counted past the college's holidays that fall
@@ -74,26 +74,10 @@ export async function seedDemoTerms(
       .where(eq(users.email, demoAccounts.viceDean.email)),
   ]);
   if (!viceDean) throw new Error("seed:demo: the vice-dean is missing");
-  // From the device of a person's last sign-in in the log, as the actions would record it.
-  const deviceOf = async (userId: string) => {
-    const [last] = await db
-      .select({ ip: auditEvents.ip, userAgent: auditEvents.userAgent })
-      .from(auditEvents)
-      .where(
-        and(
-          eq(auditEvents.collegeId, collegeId),
-          eq(auditEvents.actorId, userId),
-          eq(auditEvents.action, "session.signIn"),
-        ),
-      )
-      .orderBy(desc(auditEvents.createdAt))
-      .limit(1);
-    return last ?? {};
-  };
   const change = {
     collegeId,
     actorId: viceDean.id,
-    ...(await deviceOf(viceDean.id)),
+    ...(await deviceOf(db, collegeId, viceDean.id)),
   };
   const today = wallClock(new Date(), timeZone).slice(0, 10);
   const thisWeek = addDays(
@@ -236,7 +220,7 @@ export async function seedDemoTerms(
       departmentId: electrical.id,
       termId: created.id,
     },
-    { collegeId, actorId: giver, ...(await deviceOf(giver)) },
+    { collegeId, actorId: giver, ...(await deviceOf(db, collegeId, giver)) },
     db,
   );
 }

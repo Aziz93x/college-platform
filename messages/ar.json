@@ -141,6 +141,7 @@
     "audit": "سجل التدقيق",
     "axes": "محاور ملف الإنجاز",
     "terms": "الفصول التدريبية",
+    "framework": "الإطار العام",
     "groups": {
       "administration": "الإدارة"
     }
@@ -620,6 +621,12 @@
           "description": "أكبر عدد من الشواهد يُعرض على المراجع الواحد في الأسبوع، مهما بلغت النسبة."
         }
       },
+      "framework": {
+        "requireEndorsement": {
+          "label": "اعتماد العميد للإطار العام",
+          "description": "لا يُنشر الإطار العام حتى يعتمد العميد مسودته."
+        }
+      },
       "reminders": {
         "digestDay": {
           "label": "يوم الملخص الأسبوعي",
@@ -893,7 +900,11 @@
       "framework": {
         "publish": {
           "label": "الإطار العام",
-          "description": "ينشر الإطار العام للفصل على الأقسام."
+          "description": "يُعدّ مسودة الإطار العام للفصل وينشرها على الأقسام."
+        },
+        "endorse": {
+          "label": "اعتماد الإطار العام",
+          "description": "يعتمد مسودة الإطار العام قبل نشرها، إذا اشترطت الكلية ذلك."
         }
       },
       "rayat": {
@@ -1355,6 +1366,16 @@
       },
       "axis": {
         "update": "تعديل محور"
+      },
+      "framework": {
+        "create": "بدء نسخة من الإطار العام",
+        "endorse": "اعتماد الإطار العام",
+        "publish": "نشر الإطار العام"
+      },
+      "frameworkItem": {
+        "create": "إضافة بند إلى الإطار العام",
+        "update": "تعديل بند في الإطار العام",
+        "delete": "حذف بند من الإطار العام"
       }
     },
     "groups": {
@@ -1372,7 +1393,9 @@
       "term": "الفصول التدريبية",
       "calendarEvent": "الفصول التدريبية",
       "holiday": "الفصول التدريبية",
-      "axis": "محاور ملف الإنجاز"
+      "axis": "محاور ملف الإنجاز",
+      "framework": "الإطار العام",
+      "frameworkItem": "الإطار العام"
     },
     "fields": {
       "name": "الاسم",
@@ -1410,7 +1433,9 @@
       "from": "منقول من",
       "copied": "أيام التقويم المنقولة",
       "termId": "الفصل التدريبي",
-      "hijriYear": "السنة الهجرية"
+      "hijriYear": "السنة الهجرية",
+      "version": "النسخة",
+      "items": "البنود"
     },
     "twoFactor": {
       "totp": "رمز التطبيق",
@@ -1706,5 +1731,112 @@
     "saving": "جارٍ الحفظ",
     "saved": "حُفظ المحور {code}.",
     "gone": "لم يعد هذا المحور موجودًا."
+  },
+  "framework": {
+    "title": "الإطار العام",
+    "description": "بنود الكلية التي ترثها خطط الأقسام في الفصل: لكل بند محوره ونوعه ومن يشمله وموعده وما يُطلب له من شواهد.",
+    "noTerm": {
+      "title": "لا فصل بعد",
+      "description": "يظهر الإطار العام بعد أن يُدخل وكيل التدريب الفصل التدريبي."
+    },
+    "empty": {
+      "title": "لا إطار عام لهذا الفصل بعد",
+      "description": "ابدأ مسودة الإطار العام، ثم أضف بنوده وانشره على الأقسام.",
+      "action": "بدء الإطار العام"
+    },
+    "notPublished": {
+      "title": "لم يُنشر الإطار العام بعد",
+      "description": "يظهر هنا حين ينشره وكيل التدريب."
+    },
+    "published": "الإطار المنشور",
+    "publishedVersion": "النسخة {version}، نُشرت {date}",
+    "draft": "مسودة النسخة {version}",
+    "draftDescription": "لا يراها المدربون ورؤساء الأقسام حتى تُنشر.",
+    "newVersion": "تعديل كنسخة جديدة",
+    "add": "إضافة بند",
+    "addTitle": "إضافة بند",
+    "editTitle": "تعديل البند",
+    "sheetDescription": "يرث كل قسم هذا البند في خطته.",
+    "edit": "تعديل {title}",
+    "remove": "حذف {title}",
+    "removed": "حُذف البند.",
+    "saved": "حُفظ البند.",
+    "noItems": "لا بنود في المسودة بعد.",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ",
+    "fields": {
+      "title": "العنوان",
+      "axis": "المحور",
+      "kind": "النوع",
+      "appliesTo": "يشمل",
+      "due": "الموعد",
+      "week": "رقم الأسبوع",
+      "every": "كل كم أسبوع",
+      "event": "بعد كل",
+      "after": "بعدها بأسابيع",
+      "required": "الشواهد مطلوبة",
+      "types": "أنواع الملفات",
+      "maxFiles": "أقصى عدد للملفات",
+      "approval": "يعتمدها رئيس القسم",
+      "notes": "ملاحظات"
+    },
+    "titleRequired": "اكتب عنوان البند.",
+    "typesRequired": "اختر نوع ملف واحدًا على الأقل.",
+    "fewer": "أقل",
+    "more": "أكثر",
+    "count": "{count}",
+    "axisOption": "المحور {code}: {title}",
+    "eachSection": "مدرب كل شعبة",
+    "dueTypes": {
+      "week": "في أسبوع محدد",
+      "weekly": "كل أسبوع",
+      "everyWeeks": "كل عدة أسابيع",
+      "afterEvent": "بعد أيام من التقويم"
+    },
+    "dueText": {
+      "week": "الأسبوع {week}",
+      "weekly": "كل أسبوع",
+      "everyWeeks": "كل {every} أسابيع",
+      "afterEvent": "{weeks, plural, =0 {في أسبوع كل {event}} one {بعد كل {event} بأسبوع} two {بعد كل {event} بأسبوعين} other {بعد كل {event} بـ# أسابيع}}"
+    },
+    "kinds": {
+      "general": "بند عام",
+      "exam_copy": "نسخة اختبار",
+      "grade_analysis": "تحليل نتائج",
+      "homework": "واجبات",
+      "e_learning": "تدريب إلكتروني",
+      "training_practice": "ممارسات تدريبية",
+      "advising_log": "سجل إرشاد",
+      "meeting_minutes": "محضر اجتماع",
+      "initiative": "مبادرة",
+      "professional_development": "تطوير مهني",
+      "profile_section": "الملف المهني"
+    },
+    "evidenceTypes": {
+      "pdf": "PDF",
+      "image": "صورة",
+      "word": "Word",
+      "excel": "Excel",
+      "powerpoint": "PowerPoint"
+    },
+    "evidenceText": "{required, select, true {شواهد مطلوبة} other {شواهد اختيارية}}: {types}، حتى {max, plural, one {ملف واحد} two {ملفين} few {# ملفات} other {# ملفًا}}",
+    "approvalText": "يعتمدها رئيس القسم",
+    "publish": "نشر الإطار",
+    "publishTitle": "نشر النسخة {version}",
+    "publishDescription": "لا تتغير النسخة بعد نشرها، وأي تعديل لاحق يكون في نسخة جديدة.",
+    "impact": "ينشئ {tasks, plural, =0 {لا مهام} one {مهمة واحدة} two {مهمتين} few {# مهام} many {# مهمة} other {# مهمة}} في {departments, plural, =0 {أي قسم} one {قسم واحد} two {قسمين} few {# أقسام} many {# قسمًا} other {# قسم}}",
+    "publishConfirm": "نشر",
+    "publishedToast": "نُشرت النسخة {version} من الإطار العام.",
+    "endorse": "اعتماد المسودة",
+    "endorsedBadge": "اعتمدها العميد",
+    "endorsedToast": "اعتُمدت المسودة.",
+    "awaiting": "تنتظر اعتماد العميد قبل نشرها.",
+    "refusals": {
+      "notDraft": "نُشرت هذه النسخة، فلا تتغير.",
+      "empty": "أضف بندًا واحدًا على الأقل.",
+      "notEndorsed": "تنتظر المسودة اعتماد العميد.",
+      "closed": "أُغلق هذا الفصل، فلا يتغير إطاره.",
+      "notFound": "لم يعد هذا البند موجودًا."
+    }
   }
 }

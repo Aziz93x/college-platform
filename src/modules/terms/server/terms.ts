@@ -473,6 +473,9 @@ export async function openNextTerm(
   change: Change,
   settings: CalendarSettings,
   db: Db = getDb(),
+  // What the modules built on terms copy into the new term, in the same transaction: the
+  // framework (Step 15), then the templates and plans (Steps 18 and 19).
+  also?: (tx: Tx, fromId: string, toId: string) => Promise<unknown>,
 ): Promise<
   | { status: "notFound" | "nameTaken" }
   | { status: "created"; id: string; copied: number }
@@ -515,6 +518,7 @@ export async function openNextTerm(
     await audit(tx, change, "term.create", id, {
       to: { ...input, from: source.name, copied: copies.length },
     });
+    await also?.(tx, fromId, id);
     return { status: "created", id, copied: copies.length };
   });
 }

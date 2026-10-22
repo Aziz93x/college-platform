@@ -56,6 +56,7 @@ export const axes = pgTable(
       columns: [table.collegeId, table.groupId],
       foreignColumns: [axisGroups.collegeId, axisGroups.id],
     }),
+    unique("axes_college_id_id_unique").on(table.collegeId, table.id),
     unique("axes_code_unique").on(table.collegeId, table.code),
   ],
 );

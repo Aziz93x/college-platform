@@ -337,6 +337,15 @@ export const settingsRegistry = {
     default: 30,
     unit: "items",
   },
+  // Whether the term's framework waits for the dean's endorsement before the vice-dean publishes it
+  // (Step 15).
+  "framework.requireEndorsement": {
+    scope: "college",
+    group: "review",
+    permission: MANAGE,
+    schema: z.boolean(),
+    default: false,
+  },
   // The in-app reminder rules (Steps 12 and 27): the weekly digest's day and hour on the college's
   // clock, the due-tomorrow reminder for required evidence, and "nothing uploaded this week" for heads.
   "reminders.digestDay": {

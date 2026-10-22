@@ -85,11 +85,14 @@ describe("visibleNavigation", () => {
     ).toEqual(["today"]);
   });
 
-  it("opens today's page to everyone in the real registry, and the departments, the roles and the settings to whoever manages them", () => {
-    expect(ids(visibleNavigation(navigation, new Set()))).toEqual(["today"]);
+  it("opens today's page and the term's framework to everyone in the real registry, and the departments, the roles and the settings to whoever manages them", () => {
+    expect(ids(visibleNavigation(navigation, new Set()))).toEqual([
+      "today",
+      "framework",
+    ]);
     expect(
       ids(visibleNavigation(navigation, new Set(["settings.manage"]))),
-    ).toEqual(["today", "settings"]);
+    ).toEqual(["today", "settings", "framework"]);
     expect(
       ids(
         visibleNavigation(
@@ -97,7 +100,7 @@ describe("visibleNavigation", () => {
           new Set(["departments.manage", "roles.manage", "settings.manage"]),
         ),
       ),
-    ).toEqual(["today", "departments", "roles", "settings"]);
+    ).toEqual(["today", "departments", "roles", "settings", "framework"]);
   });
 });
 

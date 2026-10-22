@@ -31,12 +31,12 @@ test("the address opens the shell on today's page for someone signed in, right t
   await expect(
     page.getByRole("heading", { name: today.empty.title }),
   ).toBeVisible();
-  // Today is the trainer's only page, so it leads nowhere else.
+  // With nothing for the trainer yet, Today leads to their next page: the term's framework.
   await expect(
     page.locator("main").getByRole("link", {
-      name: today.empty.next.replace("{page}", ""),
+      name: today.empty.next.replace("{page}", nav.framework),
     }),
-  ).toHaveCount(0);
+  ).toHaveAttribute("href", "/framework");
 });
 
 // Sonner loads only where toasts show (ADR-0010, the script budget); design.spec.ts checks the
@@ -66,10 +66,14 @@ test("the current page is marked in the navigation of the device", async ({
   await page.goto("/today");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(today.title);
   if (isMobile) {
-    // The trainer's one page leaves nowhere to go, so a phone shows no tab bar (UX review 1); the
-    // admin's phone below has one.
-    await expect(tabBar(page)).toHaveCount(0);
+    // The trainer's two pages, Today and the term's framework, sit in the phone's tab bar.
     await expect(sidebar(page)).toBeHidden();
+    await expect(
+      tabBar(page).getByRole("link", { name: nav.today }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      tabBar(page).getByRole("link", { name: nav.framework }),
+    ).toBeVisible();
     return;
   }
   await expect(sidebar(page)).toBeVisible();

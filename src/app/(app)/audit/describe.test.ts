@@ -256,6 +256,29 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names the framework by its term, and what an item became (Step 15)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "framework",
+          entityId: "f1",
+          action: "framework.publish",
+          diff: { to: { termId: SPRING, version: 2, items: 14 } },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "نشر الإطار العام",
+      subject: "الفصل الثاني 1447",
+      changes: [
+        { field: "الفصل التدريبي", after: "الفصل الثاني 1447" },
+        { field: "النسخة", after: "2" },
+        { field: "البنود", after: "14" },
+      ],
+    });
+  });
+
   it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
     expect(
       describeEvent(

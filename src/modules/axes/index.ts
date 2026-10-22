@@ -5,3 +5,4 @@ export {
   seedAxes,
   updateAxis,
 } from "./server/axes.ts";
+export { axes } from "./server/schema.ts";

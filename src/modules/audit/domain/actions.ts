@@ -49,6 +49,14 @@ export const auditActions = [
   "holiday.approve",
   // A portfolio axis's title or description corrected by the admin (Step 14).
   "axis.update",
+  // The term's general framework: a version started, its items, the dean's endorsement and its
+  // publication (Step 15).
+  "framework.create",
+  "frameworkItem.create",
+  "frameworkItem.update",
+  "frameworkItem.delete",
+  "framework.endorse",
+  "framework.publish",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -64,6 +72,7 @@ const auditEntities = [
   "term",
   "holiday",
   "axis",
+  "framework",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];
