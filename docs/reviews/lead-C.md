@@ -569,3 +569,35 @@ I did not read GitHub.
 | Proposal 9 | **The budget** (ADR-0023, a row in section 4). rayat.test.ts uploads an XLSX SF01 of 25,000 rows, every column filled, through `readTable()` and `uploadRayat()`, and fails past 5 s: 3.2 to 3.4 s here. The worker alternative stays in docs/BACKLOG.md. |
 | Smaller items | **Fixed:** the framework's preview only for whoever prepares the draft; `/sections` and `/framework` share the header's reading of the term's calendar (`termCalendar()`); migrations `0017` and `0018` state their inverse; a role held only for a term that is not active no longer reaches an announcement or a transfer's candidates (announcements.test.ts failed before); `updateHoliday()` takes the college's lock (terms.test.ts shows it waiting); a new item starts on each section's trainer. **docs/BACKLOG.md:** the vice-dean's phone tabs (for UX review 2) and the trainee numbers' digits check. |
 | Lead reviews A and B's proposals | Unchanged in docs/BACKLOG.md, with this report's evidence beside them. |
+
+### Re-run results (local, on the final tree)
+
+| Command | Result |
+| --- | --- |
+| `pnpm check:all` against an empty default database (`ci_empty`), as CI's checks job has it | exit 0 in 129 s · `Checked 602 files in 638ms. No fixes applied.` · `Test Files  107 passed (107)` · `Tests  807 passed (807)` · `check:hardcode passed.` · `✔ no dependency violations found (519 modules, 2310 dependencies cruised)`. One `DeprecationWarning` from pg, the pg-boss one audit-12 lists among its known limits |
+| `pnpm check:unused` · `drizzle-kit generate` on a copy of HEAD (`git archive`) | knip exit 0 · after `0019`: `No schema changes, nothing to migrate` |
+| `pnpm build` with empty `APP_URL`, `DATABASE_URL` and `AUTH_SECRET` as in CI, the static files and `public` copied into `.next/standalone`, then the dev database `college` dropped and rebuilt (`db:migrate`, `db:seed`, `seed:demo`) | `✓ Compiled successfully in 1811ms` · `✓ Generating static pages using 3 workers (37/37) in 860ms` · `seed:demo finished with --seed 42 --week 9` |
+| `CI=1 pnpm exec playwright test -c e2e/dev.local.config.ts --grep-invert @visual` on the ten specs whose screens this branch changes: sections, rayat, framework, terms, settings, people, notifications, audit, shell and announcements | `Running 138 tests using 2 workers` · `125 passed (4.3m)` · `13 skipped`, each by its spec's condition: touch targets measured on the phone, tests for the phone's or the desktop's own navigation, and two settings tests that one project runs · no flaky test |
+
+**Mutation checks.** I applied each change, ran only the named test, then restored the file.
+
+| Mutation | Result |
+| --- | --- |
+| `readTable()` without the inflate budget | table.test.ts's workbook: the reader was still inflating it when the test timed out at 50 s |
+| `sections.spec.ts` left out of `e2e/stack.config.ts` | stack-specs.test.ts names it |
+| A role held for a term that is not active, reached as before | announcements.test.ts: the announcement reaches its holder |
+| The select's list bounded by the window alone (`1c3dfda`, a build) | framework.spec.ts fails on the desktop and the iPhone, and sections.spec.ts on the desktop: the sheet's backdrop, or its header's description, `intercepts pointer events` over "تحليل نتائج" and "الأسبوع 1", which the list had placed past the sheet's body |
+
+### Known limits
+
+- The production stack's smoke did not run here: there are no images of this build. CI's "Production stack" job runs it on this pull request, now with `sections.spec.ts` (M4).
+- The import budget is a wall-clock test on a shared runner: 3.2 to 3.4 s here against 5 s. A runner much slower than this 4 vCPU machine would fail it with no change in the code; ADR-0023 says what to do then.
+- A transfer's state is read against SS01's upload time, as ADR-0020 decides, the best proxy the platform has for when the file left Rayat. A file exported before a transfer but uploaded after it puts the transfer in conflict until the head keeps it.
+
+### Hand-off
+
+- **docs/ADR/0020 to 0023:** proposals 3, 5, 2 and 9, accepted and built.
+- **docs/PLAN.md:** notes from lead review C under Steps 17, 20 and 40, and the import budget's row in section 4.
+- **docs/BACKLOG.md:** proposals 7 and 8, the worker alternative to the budget, the vice-dean's phone tabs (for UX review 2) and the trainee numbers' digits check.
+- **CHANGELOG.md:** the lead review C entry.
+- **Owner:** once this pull request merges, tag `v0.3-C` on `main`, which this session cannot push. `v0.1-A` and `v0.2-B` still wait.
