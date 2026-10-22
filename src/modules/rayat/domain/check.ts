@@ -29,7 +29,7 @@ export type RayatSection = {
   meetings: { day: string; time: string; building: string; room: string }[];
   trainerNumbers: string[];
 };
-export type RayatEnrollment = {
+type RayatEnrollment = {
   departmentId: string;
   courseCode: string;
   sectionRef: string;
@@ -37,7 +37,7 @@ export type RayatEnrollment = {
   registrationStatus: string;
   traineeStatus: string;
 };
-export type RayatAbsence = {
+type RayatAbsence = {
   departmentId: string;
   subjectCode: string;
   courseNumber: string;

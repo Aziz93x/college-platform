@@ -32,7 +32,7 @@ type Change = {
 
 // The most problems an upload's report lists; it counts them all. A guard on the page's length, not
 // a policy anyone sets.
-export const REPORTED_PROBLEMS = 100;
+const REPORTED_PROBLEMS = 100;
 
 // Records written per insert, well under PostgreSQL's limit on a statement's parameters.
 const INSERT_CHUNK = 1000;

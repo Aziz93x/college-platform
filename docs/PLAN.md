@@ -1004,6 +1004,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 13:** a term's name is unique in its college, so a file's `الفصل التدريبي` finds its term by name. The demo term's name, "الفصل التدريبي الأول 1448", is a guess at Rayat's wording, and terms have no code column yet.
 
+**Note from Step 16:** a file is read whole, not streamed: Rayat's reports are a few megabytes, read-excel-file reads a workbook whole, and a streaming XLSX reader is a new dependency. A server action takes up to 10 MB (`MAX_UPLOAD_BYTES` in `src/platform/files/upload-limit.ts`, the body size `next.config.ts` gives server actions, as large as Next.js's proxy reads of any request already), and the page refuses a larger file with the reason. A file is imported for the term on view and must name it; with no code column on terms, SO01's term code is checked to be one per file. The column maps are edited on the settings screen's Rayat tab, one header per field.
+
 #### Step 17. Courses, sections, enrollments and transfers (M)
 
 **Goal:** every section has its trainer, schedule and numbers.
@@ -1013,6 +1015,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** unit tests prove the transfer rules (completed work stays, open work moves), and the unmatched report lists trainers missing from people.
 
 **Note from Step 15:** the framework's preview counts each department's sections for items that reach "each section's trainer"; `src/app/(app)/framework/page.tsx` passes 0 until this step gives `countTasks()` each department's sections.
+
+**Note from Step 16:** each import keeps its records, never the file: `rayat_sections` (a section by its reference, with its meetings and every trainer number its rows name), `rayat_enrollments` and `rayat_absences` (`src/modules/rayat`). A term's version of a report is its import applied last and not rolled back, which `currentRayatRecords(collegeId, termId, kind)` reads. Build courses, sections and enrollments on the version in force; applying or rolling back a version is where a newer SS01 meets the transfers, so flag what it changes there.
 
 > **Checkpoint: Lead review C.** Run `/lead-review C`, then tag `v0.3-C`.
 
@@ -1497,6 +1501,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 **Note from ADR-0008:** `--week` exists since Step 13; this step completes the data it drives. Demo data stays synthetic.
 
 **Note from Step 13:** `seedDemoTerms()` (`db/seed/demo/terms.ts`) makes the active 18-week term and writes nothing once the college has a term; the closed previous term goes there.
+
+**Note from Step 16:** `demoRayatFiles()` (`db/seed/demo/rayat.ts`) builds synthetic SS01, SF01 and SO01 tables in Rayat's columns, names, mobile numbers and grades included, and `seedDemoRayat()` imports them for the demo term as the vice-dean, through the same services as the page, writing nothing once the term has an import. The demo departments' courses are there; a larger college's courses and sections go there too.
 
 **Note from Step 10:** the people exist since Step 10: `demoAccounts` names the ones the tests and guides use, and `demoCast()` draws the rest from the seed (`db/seed/demo/people.ts`). Whoever holds a key that requires two-factor gets it seeded, with the admin's authenticator secret and backup codes of their own (`DEMO_HEAD_BACKUP_CODES` in demo mode). Each account's password is hashed once per run, about 5 s of the seed's 2 minutes.
 

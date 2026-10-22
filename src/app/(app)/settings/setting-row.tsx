@@ -14,11 +14,11 @@ import { Input } from "@/components/motion/input";
 import { SaveActions } from "@/components/save-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
-import { foldCase, oneLine } from "@/platform/validation/text";
 import { resetSettingAction, saveSettingAction } from "./actions.ts";
 import { parseWhole, SettingField } from "./setting-field.tsx";
 import {
-  catalogDefaults,
+  readColumns,
+  resettable,
   type SettingView,
   sameValue,
 } from "./setting-view.ts";
@@ -70,18 +70,8 @@ function readField(
     return { error: words.t("errors.empty") };
   }
   if (control.kind === "columns") {
-    const map = Object.fromEntries(
-      control.fields.map((field) => [
-        field,
-        oneLine((shown as Record<string, string>)[field]),
-      ]),
-    );
-    const headers = Object.values(map);
-    if (headers.includes("")) return { error: words.t("errors.columnsEmpty") };
-    if (new Set(headers.map(foldCase)).size < headers.length) {
-      return { error: words.t("errors.columnsRepeated") };
-    }
-    return { value: map };
+    const read = readColumns(control.fields, shown as Record<string, string>);
+    return read.error ? { error: words.t(`errors.${read.error}`) } : read;
   }
   return { value: shown };
 }
@@ -114,11 +104,9 @@ export function SettingRow({
   const dirty =
     editing &&
     (read.error !== undefined || !sameValue(read.value, setting.value));
-  // A setting whose default is no value, with no words in the catalog to stand for it (a Rayat
-  // column map, which the base seed writes), has no default to go back to.
+  // A setting with no default to go back to offers neither its default nor a reset.
   const atDefault =
-    sameValue(setting.value, setting.defaultValue) ||
-    (setting.defaultValue === null && !catalogDefaults[setting.key]);
+    sameValue(setting.value, setting.defaultValue) || !resettable(setting);
 
   const [saved, setSaved] = useState(false);
   const [asking, setAsking] = useState<Action | null>(null);
