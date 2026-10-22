@@ -110,12 +110,7 @@ describe("listRoles", () => {
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
-      "plan.edit",
-      "plan.publish",
-      "assignment.manage",
       "sections.transfer",
-      "review.decide",
-      "portfolio.approve",
     ]);
   });
 });

@@ -4,6 +4,14 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### The trial's size: the settings and keys nothing used (the owner's notes, docs/PLAN.md section 0)
+
+- Five settings and six permission keys that nothing read or checked are gone from the registries, the base seed, the catalog and the tests: `files.maxSizeMb`, `reminders.dueTomorrow`, `reminders.nothingUploaded`, `review.sampleRate` and `review.weeklyCap`; `plan.edit`, `plan.publish`, `assignment.manage`, `review.decide`, `portfolio.approve` and `indicators.view.college`. The settings screen and the roles grid no longer offer them, and the grid's indicators area goes with its only key. The step that first reads or checks each adds it back, Steps 19 to 35.
+- A database seeded before keeps their rows and nothing changes for anyone: `loadAccess()` ignores a stored key the code no longer knows, and settings are read only by their registered keys. A stored value applies again when its setting comes back.
+- `task.complete` stays: Step 17 reads it, a section moving only to someone who holds it.
+- The plan: section 0's note now records what came out and the step that adds each back, and the Step 7 notes under Steps 25, 27 and 29 say that each of those steps adds its own settings back.
+- Tests: the fixtures that used them use `sections.transfer`, `announcements.publish`, `rayat.import` and `reminders.digestHour`, and the reach test's dean holds the framework's endorsement, as the seeded dean has since Step 15. On the settings screen, the end-to-end count test runs on the phone with the digest hour, and the slider's test leaves with the sample rate, its only percentage; Step 29 brings both back.
+
 ### Lead review C: the term, the framework and Rayat (docs/reviews/lead-C.md)
 
 - A long select's list is bounded to the room on the side it opens to, and scrolls. On a phone or a desktop the framework item's kinds "نسخة اختبار" and "تحليل نتائج" and a transfer's first weeks ran off the screen, out of a finger's or a mouse's reach (M1).

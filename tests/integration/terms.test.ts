@@ -480,7 +480,8 @@ describe("a role held in one term", () => {
     const holds = async () =>
       (await loadAccess(people.hind, collegeId, database.db)).grants.some(
         (grant) =>
-          grant.permission === "plan.edit" && grant.departmentId === electrical,
+          grant.permission === "sections.transfer" &&
+          grant.departmentId === electrical,
       );
     // A draft term gives nothing yet; the active term, its keys; closed, nothing again.
     expect(await holds()).toBe(false);

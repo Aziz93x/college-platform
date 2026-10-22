@@ -117,12 +117,7 @@ describe("listDirectory", () => {
     expect(admin.permissions.has("people.manage")).toBe(true);
     expect(head.permissions).toEqual(
       new Set([
-        "plan.edit",
-        "plan.publish",
-        "assignment.manage",
         "sections.transfer",
-        "review.decide",
-        "portfolio.approve",
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",
         "announcements.publish",
