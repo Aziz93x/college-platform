@@ -45,6 +45,8 @@ const ITEM = {
   },
   notes: "",
 };
+// A section template: a framework item but whom it reaches (Step 18).
+const { appliesTo: _, ...TEMPLATE } = ITEM;
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -172,6 +174,14 @@ vi.mock("@/modules/academics", async (importOriginal) => ({
   // Applying or rolling back SS01 tells the heads of what it breaks (ADR-0020).
   transferStates: async () => new Map(),
   tellTransferConflicts: async () => 0,
+}));
+// A section template of the matrix's department, each change answered as done (Step 18).
+vi.mock("@/modules/planning", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/planning")>()),
+  findTemplate: async () => ({ id: ID, termId: ID, departmentId: DEPARTMENT }),
+  addTemplate: async () => ({ status: "saved", id: ID }),
+  updateTemplate: async () => ({ status: "saved" }),
+  removeTemplate: async () => ({ status: "saved" }),
 }));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
@@ -458,6 +468,21 @@ const checked: {
     module: "(app)/sections/actions.ts",
     action: action as string,
     permission: "sections.transfer" as const,
+    input,
+    inDepartment: true as const,
+  })),
+  // A department's section templates, the head's in their department (Step 18).
+  ...[
+    [
+      "addTemplateAction",
+      { termId: ID, departmentId: DEPARTMENT, ...TEMPLATE },
+    ],
+    ["updateTemplateAction", { templateId: ID, ...TEMPLATE }],
+    ["removeTemplateAction", { templateId: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/templates/actions.ts",
+    action: action as string,
+    permission: "plan.edit" as const,
     input,
     inDepartment: true as const,
   })),

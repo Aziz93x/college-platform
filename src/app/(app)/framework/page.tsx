@@ -20,25 +20,23 @@ import {
 import { listAxes } from "@/modules/axes";
 import {
   countTasks,
-  type DueRule,
   departmentsReached,
   type FrameworkItemInput,
   frameworkLimits,
-  taskKinds,
   termFramework,
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
-import { calendarEventKinds, termWeeks } from "@/modules/terms";
+import { termWeeks } from "@/modules/terms";
+import { ItemWords } from "../_items/item-words.tsx";
+import { itemVocabulary } from "../_items/vocabulary.ts";
 import { termCalendar, viewedTerm } from "../_shell/term.ts";
-import { FrameworkDraft, ItemWords } from "./framework-draft.tsx";
+import { FrameworkDraft } from "./framework-draft.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
   const t = await getTranslations("framework");
   return { title: t("title") };
 }
-
-const DUE_TYPES = ["week", "weekly", "everyWeeks", "afterEvent"] as const;
 
 // The general framework of the term on view (Step 15): the version published, which everyone reads;
 // and for whoever prepares it, or endorses it where the college asks for that, its draft.
@@ -89,57 +87,17 @@ export default async function FrameworkPage() {
     getSetting("files.acceptedTypes", scope),
   ]);
   const language = locale.split("-")[0];
-  const axes = groups.flatMap((group) => group.axes);
-  const axisWords = new Map(
-    axes.map((axis) => [
-      axis.id,
-      t("axisOption", { code: axis.code, title: axis.title }),
-    ]),
-  );
-  const roleWords = new Map(
-    roles
-      .filter((role) => !role.system)
-      .map((role) => [role.id, roleLabel(role.labels, language)]),
-  );
-  // The items' services take only a calendar's kinds (Audit 5).
-  const eventWords = (kind: string) =>
-    calendarWords(kind as (typeof calendarEventKinds)[number]);
-  // A file type as people know it: its extension in capitals.
-  const typeWords = (type: string) => type.toUpperCase();
-  const dueWords = (due: DueRule) => {
-    switch (due.type) {
-      case "week":
-        return t("dueText.week", { week: due.week });
-      case "weekly":
-        return t("dueText.weekly");
-      case "everyWeeks":
-        return t("dueText.everyWeeks", { every: due.every });
-      case "afterEvent":
-        return t("dueText.afterEvent", {
-          event: eventWords(due.eventKind),
-          weeks: due.weeks,
-        });
-    }
-  };
-  const view = (item: FrameworkItemInput & { id: string }) => ({
-    ...item,
-    words: {
-      axis: axisWords.get(item.axisId) ?? "",
-      kind: t(`kinds.${item.kind}`),
-      appliesTo:
-        item.appliesTo.type === "eachSection"
-          ? t("eachSection")
-          : (roleWords.get(item.appliesTo.roleId) ?? ""),
-      due: dueWords(item.due),
-      evidence: [
-        t("evidenceText", {
-          required: String(item.evidence.required),
-          types: format.list(item.evidence.types.map(typeWords)),
-          max: item.evidence.maxFiles,
-        }),
-        ...(item.evidence.requiresApproval ? [t("approvalText")] : []),
-      ].join(" · "),
-    },
+  const { view, options } = itemVocabulary({
+    t,
+    calendarWords,
+    format,
+    axes: groups.flatMap((group) => group.axes),
+    roles: new Map(
+      roles
+        .filter((role) => !role.system)
+        .map((role) => [role.id, roleLabel(role.labels, language)]),
+    ),
+    accepted,
   });
 
   const { draft, published } = framework;
@@ -208,32 +166,7 @@ export default async function FrameworkPage() {
               needsEndorsement={needsEndorsement}
               impact={impact}
               limits={frameworkLimits}
-              options={{
-                axes: axes.map((axis) => ({
-                  value: axis.id,
-                  label: axisWords.get(axis.id) ?? "",
-                })),
-                kinds: taskKinds.map((kind) => ({
-                  value: kind,
-                  label: t(`kinds.${kind}`),
-                })),
-                roles: [...roleWords].map(([value, label]) => ({
-                  value,
-                  label,
-                })),
-                eventKinds: calendarEventKinds.map((kind) => ({
-                  value: kind,
-                  label: calendarWords(kind),
-                })),
-                evidenceTypes: accepted.map((type) => ({
-                  value: type,
-                  label: typeWords(type),
-                })),
-                dueTypes: DUE_TYPES.map((type) => ({
-                  value: type,
-                  label: t(`dueTypes.${type}`),
-                })),
-              }}
+              options={options}
             />
           </NextIntlClientProvider>
         ) : null}

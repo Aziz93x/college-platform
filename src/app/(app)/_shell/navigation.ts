@@ -2,6 +2,7 @@ import {
   Building2,
   CalendarCheck,
   CalendarRange,
+  ClipboardList,
   Contact,
   FileSpreadsheet,
   History,
@@ -128,6 +129,13 @@ export const navigation = [
     href: "/sections",
     icon: Presentation,
     permission: ["sections.transfer", "rayat.import"],
+  },
+  // The section templates a head prepares for their department's sections in the term (Step 18).
+  {
+    id: "templates",
+    href: "/templates",
+    icon: ClipboardList,
+    permission: "plan.edit",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { draftOf } from "./framework-draft.tsx";
+import { draftOf } from "./item-sheet.tsx";
 
 const option = (value: string) => ({ value, label: value.toUpperCase() });
 const options = {

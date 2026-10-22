@@ -2,15 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useTransition } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/motion/select";
+import { useEffect, useState, useTransition } from "react";
 import { NoResults, SearchField } from "@/components/search-field";
+import { DepartmentSelect } from "../_shell/department-select.tsx";
 
 // How long the search waits after the last key before it asks the page again.
 const SEARCH_DELAY = 300;
@@ -38,7 +32,6 @@ export function SectionsFilters({
   results: number;
 }) {
   const t = useTranslations("sections.filters");
-  const id = useId();
   const router = useRouter();
   const [search, setSearch] = useState(query);
   const [, startTransition] = useTransition();
@@ -57,30 +50,13 @@ export function SectionsFilters({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         {departments.length > 0 ? (
-          <div className="flex min-w-0 flex-col gap-1.5 sm:w-64">
-            <span id={`${id}-department`} className="px-1 font-medium text-sm">
-              {t("department")}
-            </span>
-            <Select
-              aria-labelledby={`${id}-department`}
-              value={department}
-              onValueChange={(value) => {
-                setSearch("");
-                startTransition(() => router.push(sectionsHref(value, "")));
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map((each) => (
-                  <SelectItem key={each.id} value={each.id}>
-                    {each.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DepartmentSelect
+            label={t("department")}
+            path="/sections"
+            departments={departments}
+            department={department}
+            onChange={() => setSearch("")}
+          />
         ) : null}
         <div className="min-w-0 flex-1 sm:max-w-sm">
           <SearchField

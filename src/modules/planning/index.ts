@@ -1,4 +1,3 @@
-export { sectionTemplates } from "./server/schema.ts";
 export {
   addTemplate,
   copyTemplatesInto,
