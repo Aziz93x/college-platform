@@ -17,6 +17,7 @@ import {
   unreadCount,
 } from "../../src/modules/notifications/index.ts";
 import { createTestDatabase } from "./support/database.ts";
+import { recording } from "./support/plans.ts";
 
 // What the platform tells a person in the platform: role changes as they happen, nothing of a kind
 // they turned off, and their own notifications only (docs/PLAN.md, Step 12).
@@ -341,7 +342,7 @@ describe("reading", () => {
           collegeId,
           userId: once,
           kind: "weeklyDigest",
-          params: { count: 1, latest: [] },
+          params: { count: 1, latest: [], ids: [] },
           onceKey: "weeklyDigest:2026-10-25",
         },
         database.db,
@@ -350,4 +351,23 @@ describe("reading", () => {
     expect(await send()).toBe("duplicate");
     expect(await unreadCount(reader(once), database.db)).toBe(1);
   });
+});
+
+it("reads a person's page and the bell's newest through their indexes, in their order, with nothing to sort (lead review B)", async () => {
+  const many = await person("Many", "2099");
+  await query(
+    `insert into notifications (college_id, user_id, kind, params, created_at)
+     select $1, $2, 'membershipAdded', '{}', timestamptz '2026-01-01' + n * interval '1 minute'
+     from generate_series(1, 20000) n`,
+    [collegeId, many],
+  );
+  await query("analyze notifications");
+  const recorder = recording(database.pool);
+  await listNotifications(reader(many), {}, recorder.db);
+  await latestUnread(reader(many), 3, recorder.db);
+  const [page, newest] = await recorder.plans();
+  expect(page).toEqual(["Limit", "notifications_user_time_idx"]);
+  expect(newest).toHaveLength(2);
+  expect(newest[0]).toBe("Limit");
+  expect(newest[1]).toMatch(/^notifications_(unread|user_time)_idx$/);
 });

@@ -311,7 +311,7 @@ it("writes three weeks of the college's history, every event in the past and by 
 it("tells each role's holder when the log shows it given, and sends each week's digest of what it left unread, on Sunday at 7:00 in Riyadh", async () => {
   const { pool } = await seededDatabase();
   const { rows } = await pool.query(`
-    select n.kind, n.user_id::text, n.params, n.once_key, n.created_at, n.read_at
+    select n.id::text, n.kind, n.user_id::text, n.params, n.once_key, n.created_at, n.read_at
     from notifications n order by n.created_at`);
   const { rows: given } = await pool.query(`
     select diff->'to'->>'userId' as user_id, created_at from audit_events
@@ -337,6 +337,19 @@ it("tells each role's holder when the log shows it given, and sends each week's 
     );
     expect(digest.params.count).toBeGreaterThan(0);
     expect(digest.params.latest.length).toBeLessThanOrEqual(3);
+    // It keeps which of its holder's notifications it counts, and is read with the last of them if
+    // not before (ADR-0015).
+    const counted = digest.params.ids.map((id: string) =>
+      rows.find((row) => row.id === id),
+    );
+    expect(counted).toHaveLength(digest.params.count);
+    for (const row of counted) expect(row?.user_id).toBe(digest.user_id);
+    const reads = counted.map((row: { read_at: Date | null }) => row.read_at);
+    if (reads.every(Boolean)) {
+      expect(digest.read_at?.getTime()).toBeLessThanOrEqual(
+        Math.max(...reads.map((read: Date) => read.getTime())),
+      );
+    }
   }
   // A notification is read after it came, and the invited trainer, who never signed in, read none.
   for (const row of rows) {

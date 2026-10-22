@@ -20,7 +20,13 @@ export default async function TwoFactorSetupPage() {
   if (!viewer) redirect("/");
   if (viewer.mustChangePassword) redirect("/change-password");
   if (!viewer.needsTwoFactorSetup) {
-    redirect(viewer.twoFactorEnabled ? "/profile" : "/profile/two-factor");
+    // Set up already: where the setup's own action sends them, Today when the college requires it.
+    // The browser fetches this page again after the action, and may follow this answer last, so
+    // both must lead to the same place (lead review B).
+    if (viewer.twoFactorEnabled) {
+      redirect(viewer.twoFactorRequired ? "/today" : "/profile");
+    }
+    redirect("/profile/two-factor");
   }
   const t = await getTranslations("auth.twoFactorSetup");
   return (

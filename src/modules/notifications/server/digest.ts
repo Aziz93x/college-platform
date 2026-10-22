@@ -6,7 +6,6 @@ import {
   digestOf,
   digestWeek,
 } from "../domain/digest.ts";
-import type { Sent } from "../domain/kinds.ts";
 import { notify } from "./notify.ts";
 import { notifications } from "./schema.ts";
 
@@ -22,6 +21,7 @@ export async function sendWeeklyDigests(
   const week = digestWeek(moment);
   const unread = await db
     .select({
+      id: notifications.id,
       userId: notifications.userId,
       kind: notifications.kind,
       params: notifications.params,
@@ -37,11 +37,11 @@ export async function sendWeeklyDigests(
       ),
     )
     .orderBy(desc(notifications.createdAt), desc(notifications.id));
-  const byPerson = new Map<string, Sent[]>();
-  for (const { userId, kind, params } of unread) {
-    const theirs = byPerson.get(userId) ?? [];
-    theirs.push({ kind, params });
-    byPerson.set(userId, theirs);
+  const byPerson = new Map<string, typeof unread>();
+  for (const notification of unread) {
+    const theirs = byPerson.get(notification.userId) ?? [];
+    theirs.push(notification);
+    byPerson.set(notification.userId, theirs);
   }
   let sent = 0;
   for (const [userId, theirs] of byPerson) {

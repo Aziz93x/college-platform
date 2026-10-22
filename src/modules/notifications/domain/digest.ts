@@ -52,7 +52,14 @@ export function digestKey(moment: DigestMoment) {
 const NAMED = 3;
 
 // What a person's digest says: how many of the week's notifications they left unread, and the
-// newest of them, given newest first.
-export function digestOf(unread: readonly Sent[]) {
-  return { count: unread.length, latest: unread.slice(0, NAMED) };
+// newest of them, given newest first. It keeps which they are, all it counts, so it is read with
+// the last of them (ADR-0015).
+export function digestOf(unread: readonly (Sent & { id: string })[]) {
+  return {
+    count: unread.length,
+    latest: unread
+      .slice(0, NAMED)
+      .map(({ kind, params }) => ({ kind, params })),
+    ids: unread.map(({ id }) => id),
+  };
 }

@@ -31,7 +31,8 @@ import { formFields, latinDigits } from "@/platform/validation/form";
 
 // The people of the college and their accounts (Step 10). Adding, importing, correcting and
 // disabling need people.manage; a temporary password and a corrected employee number need their own
-// keys where the person is (ctx.requireReach), so a head helps their own trainers. Every change to
+// keys where the person is (ctx.requireReach), so a head helps their own trainers. Every action on
+// someone's account reaches only those whose powers its holder has (lead review B). Every change to
 // an account asks for the password again when it was typed too long ago (reauthenticate()), and
 // the domain functions write the audit events.
 
@@ -214,7 +215,10 @@ export const updatePersonAction = viewerAction
       password,
     }),
   )
-  .action(async ({ parsedInput, ctx: { viewer } }) => {
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const person = await holder(viewer, parsedInput.userId);
+    if (!person) return { status: "notFound" as const };
+    requireReach("people.manage", person);
     const requestHeaders = await headers();
     const refused = await confirmPassword(
       parsedInput.password,
@@ -223,7 +227,7 @@ export const updatePersonAction = viewerAction
     );
     if (refused) return refused;
     const result = await updatePerson(
-      parsedInput.userId,
+      person.userId,
       { name: parsedInput.name, email: parsedInput.email },
       changeBy(viewer, requestHeaders),
     );
@@ -234,7 +238,10 @@ export const updatePersonAction = viewerAction
 export const disableAccountAction = viewerAction
   .metadata({ name: "disableAccount", permission: "people.manage" })
   .inputSchema(z.object({ userId: z.uuid(), disabled: z.boolean(), password }))
-  .action(async ({ parsedInput, ctx: { viewer } }) => {
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const person = await holder(viewer, parsedInput.userId);
+    if (!person) return { status: "notFound" as const };
+    requireReach("people.manage", person);
     const requestHeaders = await headers();
     const refused = await confirmPassword(
       parsedInput.password,
@@ -243,7 +250,7 @@ export const disableAccountAction = viewerAction
     );
     if (refused) return refused;
     const result = await disableAccount(
-      parsedInput.userId,
+      person.userId,
       parsedInput.disabled,
       changeBy(viewer, requestHeaders),
     );

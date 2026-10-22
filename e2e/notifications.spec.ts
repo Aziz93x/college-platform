@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 import { defaultRoles } from "../db/seed/base.ts";
@@ -72,6 +72,9 @@ const giveRole = (person: TestAccount, key: string) =>
     );
   });
 
+// What sendTo's notifications are sent with, for their words.
+const firstRole = { role: "first", scope: "college" } as const;
+
 const sendTo = (
   person: TestAccount,
   kind: "membershipAdded" | "membershipRemoved",
@@ -112,10 +115,14 @@ const asPerson = (
     password: person.password,
   });
 
+// A tap where the phone has a finger, a click elsewhere.
+const press = (target: Locator, touch: boolean) =>
+  touch ? target.tap() : target.click();
+
 test(
-  "a role the admin gives reaches its holder's bell, whose panel leads to the center, and opening it reads it",
+  "a role the admin gives reaches its holder's bell, where its card opens it and reads it (ADR-0015)",
   DATABASE,
-  async ({ browser, account }) => {
+  async ({ browser, account, hasTouch }) => {
     const person = await account();
     const page = await asPerson(browser, person);
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 0 }));
@@ -139,32 +146,134 @@ test(
       demo.adminPassword,
     );
 
-    // At the person's next page, the bell counts it and its panel shows it.
+    // At the person's next page, the bell counts it, and one tap on its card in the panel opens
+    // the page it is about, the profile, where roles show, and reads it.
     const told = t("kinds.membershipAdded.title", {
       role: reviewerRole,
       scope: "college",
     });
     await page.reload();
     await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 1 }));
-    await bell(page).click();
-    await expect(panel(page)).toContainText(told);
-    // A pointer opens the stack on its way in, a finger with the first tap; the next activation
-    // leads to the center.
-    const stack = panel(page).locator("button[aria-expanded]");
-    await expect(stack).toHaveAccessibleName(t("stack.expand", { count: 1 }));
+    await press(bell(page), hasTouch);
+    await press(
+      panel(page).getByRole("link").filter({ hasText: told }),
+      hasTouch,
+    );
+    await expect(page).toHaveURL("/profile");
+    await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 0 }));
+    // The center's rows, in the page: the bell's panel may still be fading out above them.
+    await visit(page, "/notifications");
+    await expect(
+      page.locator("main").getByRole("link").filter({ hasText: told }),
+    ).not.toContainText(text.unread);
+  },
+);
+
+test(
+  "the stack's foot opens the list of the newest, then leads to the center, whose row opens one and reads it",
+  DATABASE,
+  async ({ browser, account, hasTouch }) => {
+    const person = await account();
+    await sendTo(person, "membershipAdded", "first");
+    await sendTo(person, "membershipRemoved", "second");
+    const page = await asPerson(browser, person);
+    await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 2 }));
+    await press(bell(page), hasTouch);
+    const foot = panel(page).locator("button[aria-expanded]");
+    await expect(foot).toHaveAccessibleName(t("stack.expand", { count: 2 }));
+    // Closed, the card behind the newest shows only its edge.
+    const older = panel(page)
+      .getByRole("link")
+      .filter({ hasText: t("kinds.membershipAdded.title", firstRole) });
+    await expect(older).toBeHidden();
+
+    // A finger opens the list with a tap on the foot, a pointer on its way in.
+    if (hasTouch) await foot.tap();
+    else await foot.hover();
+    await expect(foot).toHaveAttribute("aria-expanded", "true");
+    await expect(foot).toHaveAccessibleName(t("stack.open", { count: 2 }));
+    await expect(older).toBeVisible();
+    if (hasTouch) expect(await smallTargets(panel(page))).toEqual([]);
     await expect(async () => {
-      await stack.click();
+      await press(foot, hasTouch);
       await expect(page).toHaveURL("/notifications", { timeout: 2000 });
     }).toPass({ timeout: 15_000 });
 
-    // The center shows it unread; opening it reads it and goes to the profile, where roles show.
-    const item = page.getByRole("link").filter({ hasText: told });
+    // The foot read nothing; the center's row opens its page and reads it.
+    await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 2 }));
+    const item = page
+      .locator("main")
+      .getByRole("link")
+      .filter({ hasText: t("kinds.membershipAdded.title", firstRole) });
     await expect(item).toContainText(text.unread);
     await item.click();
     await expect(page).toHaveURL("/profile");
-    await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 0 }));
-    await page.goto("/notifications");
-    await expect(item).not.toContainText(text.unread);
+    await expect(bell(page)).toHaveAccessibleName(t("bell", { count: 1 }));
+  },
+);
+
+test(
+  "the keyboard opens the stack as its focus comes in, and Escape closes the stack before the panel",
+  DATABASE,
+  async ({ browser, account, isMobile }) => {
+    test.skip(isMobile, "the desktop's keyboard");
+    const person = await account();
+    await sendTo(person, "membershipAdded", "first");
+    await sendTo(person, "membershipRemoved", "second");
+    const page = await asPerson(browser, person);
+    await bell(page).click();
+    const foot = panel(page).locator("button[aria-expanded]");
+    const card = (
+      kind: "membershipAdded" | "membershipRemoved",
+      role: string,
+    ) =>
+      panel(page)
+        .getByRole("link")
+        .filter({
+          hasText: t(`kinds.${kind}.title`, { role, scope: "college" }),
+        });
+    await expect(foot).toHaveAttribute("aria-expanded", "false");
+
+    // From the bell: "mark all read", then the newest card, which opens the list.
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(card("membershipRemoved", "second")).toBeFocused();
+    await expect(foot).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Tab");
+    await expect(card("membershipAdded", "first")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(foot).toHaveAttribute("aria-expanded", "false");
+    await expect(foot).toBeFocused();
+    await expect(panel(page)).toBeVisible();
+    // The foot opens the list, then leads to the center.
+    await page.keyboard.press("Enter");
+    await expect(foot).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL("/notifications");
+  },
+);
+
+test(
+  "the bell's stack has no serious accessibility issue, closed or open",
+  DATABASE,
+  async ({ browser, account }) => {
+    const person = await account();
+    await sendTo(person, "membershipAdded", "first");
+    await sendTo(person, "membershipRemoved", "second");
+    const page = await asPerson(browser, person);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await bell(page).click();
+    const foot = panel(page).locator("button[aria-expanded]");
+    await expect(foot).toHaveAttribute("aria-expanded", "false");
+    expect(await seriousViolations(page)).toEqual([]);
+    // Axe reads the page with its Arabic made Latin, so the page is opened again before it is used.
+    await page.reload();
+    await bell(page).click();
+    await foot.hover();
+    await expect(foot).toHaveAttribute("aria-expanded", "true");
+    // A card under the pointer is tinted, and its muted words keep their contrast on it.
+    await panel(page).getByRole("link").last().hover();
+    expect(await seriousViolations(page)).toEqual([]);
   },
 );
 

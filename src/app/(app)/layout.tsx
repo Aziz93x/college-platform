@@ -52,7 +52,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     getFormatter(),
   ]);
   const bellItems = (await notificationViews(latest)).map(
-    ({ id, title, description, ago }) => ({ id, title, description, ago }),
+    ({ id, title, description, ago, href }) => ({
+      id,
+      title,
+      description,
+      ago,
+      href,
+    }),
   );
   const links: ShellLink[] = items.map((item) => ({
     id: item.id,

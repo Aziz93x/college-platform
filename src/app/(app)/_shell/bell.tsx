@@ -6,10 +6,18 @@ import * as m from "motion/react-m";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useRef, useState, useTransition } from "react";
+import {
+  type MouseEvent,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { ActionSwapText } from "@/components/motion/action-swap";
 import { EASE_OUT, SPRING_SWAP } from "@/components/motion/lib/ease";
 import { useDismiss } from "@/components/motion/lib/use-dismiss";
+import type { NotificationStackItem } from "@/components/motion/notification-stack";
 import { markReadAction } from "../notifications/actions.ts";
 
 // The stack loads when the bell is first reached for, so no page pays for it before (ADR-0010).
@@ -19,12 +27,13 @@ const NotificationStack = dynamic(
   { ssr: false },
 );
 
-// A notification on the bell's stack: its words and how long ago it came.
+// A notification on the bell's stack: its words, how long ago it came and the page it opens.
 export type BellItem = {
   id: string;
   title: string;
   description?: string;
   ago: string;
+  href: string;
 };
 
 export type BellLabels = {
@@ -42,8 +51,9 @@ export type BellLabels = {
 };
 
 // The bell in the header, on every page and on a phone too (ADR-0008): the unread count on it, and
-// under it a panel of the newest unread notifications stacked, which leads to the notification
-// center. The panel hangs from the header, so it fits a phone's width.
+// under it a panel of the newest unread notifications stacked. Each card opens its notification and
+// reads it, as a row of the center does, and the stack's foot leads to the center (ADR-0015). The
+// panel hangs from the header, so it fits a phone's width.
 export function Bell({
   count,
   countText,
@@ -77,6 +87,21 @@ export function Bell({
   const viewAll = () => {
     setOpen(false);
     router.push("/notifications");
+  };
+  const [, startOpening] = useTransition();
+  const openItem = (
+    item: NotificationStackItem,
+    event: MouseEvent<HTMLAnchorElement>,
+  ) => {
+    // A new tab or window opens the page as it is; here, the notification is read first.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
+      return;
+    event.preventDefault();
+    close();
+    startOpening(async () => {
+      await markReadAction({ ids: [item.id] });
+      router.push(item.href);
+    });
   };
   return (
     <>
@@ -155,8 +180,10 @@ export function Bell({
                 title: item.title,
                 description: item.description,
                 trailing: item.ago,
+                href: item.href,
               }))}
               count={countText}
+              onOpen={openItem}
               onViewAll={viewAll}
               labels={labels.stack}
               className="mt-1"

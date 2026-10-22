@@ -7,13 +7,20 @@ import { cache } from "react";
 import { z } from "zod";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
-import { listDirectory, requireViewer } from "@/modules/access";
+import {
+  authorize,
+  listDirectory,
+  listRoles,
+  requireViewer,
+  roleLabel,
+} from "@/modules/access";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 import { HistoryPanel } from "../../audit/history-panel.tsx";
 import { auditHref } from "../../audit/href.ts";
 import { parseCursor } from "../../audit/query.ts";
 import { AccountActions } from "../account-actions.tsx";
+import { GiveRole } from "../give-role.tsx";
 import { PersonForms } from "../person-forms.tsx";
 import { peopleScope } from "../scope.ts";
 import { STATE_BADGE } from "../state-badge.ts";
@@ -21,7 +28,7 @@ import { personView } from "../view.ts";
 
 // The person the address names, when the viewer may see the people pages and reaches them: an
 // address that is no one of the college's, or someone outside the viewer's departments, finds
-// none. Read once for the title and the page.
+// none. Read once for the title and the page, with the college's departments and language.
 const personFor = cache(async (id: string) => {
   const viewer = await requireViewer();
   const reach = peopleScope(viewer);
@@ -41,7 +48,7 @@ const personFor = cache(async (id: string) => {
       departmentName: (departmentId) =>
         departments.find((department) => department.id === departmentId)?.name,
     });
-  return { allowed: true, person };
+  return { allowed: true, person, departments, language };
 });
 
 export async function generateMetadata({
@@ -52,26 +59,42 @@ export async function generateMetadata({
   return { title: person?.name };
 }
 
-// One person: their account and roles, and what the viewer may change of it: the account's actions
-// as buttons (a temporary password, two-factor, disabling), the name and email, and the employee
-// number. A value a form below edits is not shown above it too. Under it, for whoever may read the
-// log, what happened to the account and the roles it holds.
+// One person: their account and roles, and what the viewer may change of it: a role to give them
+// (ADR-0016), the account's actions as buttons (a temporary password, two-factor, disabling), the
+// name and email, and the employee number. A value a form below edits is not shown above it too.
+// Under it, for whoever may read the log, what happened to the account and the roles it holds.
 export default async function PersonPage({
   params,
   searchParams,
 }: PageProps<"/people/[id]">) {
   await connection();
-  const { allowed, person } = await personFor((await params).id);
+  const { allowed, person, departments, language } = await personFor(
+    (await params).id,
+  );
   if (!allowed) forbidden();
   if (!person) notFound();
 
-  const [t, ui, { ui: uiWords, actions, people, reauth }] = await Promise.all([
-    getTranslations("people"),
-    getTranslations("ui"),
-    getMessages(),
-  ]);
+  const viewer = await requireViewer();
+  const givesRoles = authorize(viewer, "roles.manage", {
+    collegeId: viewer.collegeId,
+  });
+  const [t, ui, { ui: uiWords, actions, people, reauth, roles }, collegeRoles] =
+    await Promise.all([
+      getTranslations("people"),
+      getTranslations("ui"),
+      getMessages(),
+      givesRoles ? listRoles(viewer.collegeId) : [],
+    ]);
   return (
-    <NextIntlClientProvider messages={{ ui: uiWords, actions, people, reauth }}>
+    <NextIntlClientProvider
+      messages={{
+        ui: uiWords,
+        actions,
+        people,
+        reauth,
+        roles: { members: roles.members },
+      }}
+    >
       <PageHeader
         title={person.name}
         description={[
@@ -132,6 +155,19 @@ export default async function PersonPage({
             </div>
           </dl>
         </section>
+        {givesRoles ? (
+          <GiveRole
+            person={{ userId: person.userId, name: person.name }}
+            roles={collegeRoles.map((role) => ({
+              id: role.id,
+              label: roleLabel(role.labels, language),
+              system: role.system,
+            }))}
+            departments={departments
+              .filter((department) => department.active)
+              .map(({ id, name }) => ({ id, name }))}
+          />
+        ) : null}
         <AccountActions person={person} card />
         <PersonForms person={person} />
       </div>

@@ -1,18 +1,17 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { foldCase, oneLine } from "../../../platform/validation/text.ts";
 import { writeAudit } from "../../audit/index.ts";
 import {
+  type Credential,
   createAccount,
   people,
   personInput,
+  temporaryCredential,
   users,
 } from "../../identity/index.ts";
-import {
-  colleges,
-  departmentRayatValues,
-  departments,
-} from "../../org/index.ts";
+import { departmentRayatValues, departments } from "../../org/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import { roleLabel } from "../domain/labels.ts";
 import type { PeopleRow } from "../domain/people-file.ts";
@@ -287,6 +286,9 @@ export type ImportResult = {
   skipped: PlannedRow[];
 };
 
+// Node's thread pool hashes four at a time, and a sign-in's own hash then waits for one batch at most.
+const HASHES_AT_ONCE = 4;
+
 // Imports a people file's rows: plans them again against the college as it is, then makes each new
 // person's account (account.create) and gives the rows' roles (membership.create). Rows with errors
 // are left out and returned. One import at a time per college, so two cannot make the same person.
@@ -297,12 +299,17 @@ export async function importPeople(
   db: Db = getDb(),
 ): Promise<ImportResult> {
   return db.transaction(async (tx) => {
-    await tx
-      .select({ id: colleges.id })
-      .from(colleges)
-      .where(eq(colleges.id, change.collegeId))
-      .for("update");
+    await lockCollege(tx, change.collegeId);
     const plan = await planPeopleImport(change.collegeId, rows, options, tx);
+    // The new accounts' temporary passwords, hashed a few at a time before the writes: one after
+    // another, 40 people took 3.8 s (lead review B).
+    const fresh = plan.filter((row) => row.outcome === "new");
+    const hashed: Credential[] = [];
+    for (let index = 0; index < fresh.length; index += HASHES_AT_ONCE) {
+      const batch = fresh.slice(index, index + HASHES_AT_ONCE);
+      hashed.push(...(await Promise.all(batch.map(temporaryCredential))));
+    }
+    const credentials = new Map(fresh.map((row, at) => [row, hashed[at]]));
     const result: ImportResult = {
       created: [],
       rolesAdded: 0,
@@ -328,7 +335,7 @@ export async function importPeople(
           email: row.email,
           employeeNumber: row.employeeNumber,
         };
-        const account = await createAccount(person, tx);
+        const account = await createAccount(person, tx, credentials.get(row));
         userId = account.userId;
         made.set(row.employeeNumber, userId);
         await writeAudit(

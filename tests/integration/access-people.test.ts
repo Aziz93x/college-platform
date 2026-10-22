@@ -449,6 +449,49 @@ describe("importing people", () => {
     ).toEqual([electrical, mechanical].sort());
   });
 
+  it("keeps no lock on the college while it imports: an event written meanwhile does not wait for it (lead review B)", async () => {
+    const rows = Array.from({ length: 40 }, (_, at) =>
+      row(at + 2, {
+        employeeNumber: String(930001 + at),
+        name: `Imported ${at + 1}`,
+        email: `imported.${at + 1}@college.example`,
+        department: "Electrical",
+        role: "trainer",
+      }),
+    );
+    const finished: string[] = [];
+    const importing = importPeople(
+      rows,
+      { canGiveRoles: true },
+      change(importer),
+    ).then((result) => {
+      finished.push("import");
+      return result;
+    });
+    // Once the import's transaction is open, between its writes.
+    await expect
+      .poll(
+        async () =>
+          (
+            await query(
+              `select count(*)::int as open from pg_stat_activity
+               where datname = current_database() and state = 'idle in transaction'`,
+            )
+          )[0].open,
+        { timeout: 10_000, interval: 20 },
+      )
+      .toBeGreaterThan(0);
+    // A sign-in's event, as every sign-in in the college writes one.
+    await query(
+      `insert into audit_events (college_id, actor_id, action, entity_type, entity_id)
+       values ($1, $2, 'session.signIn', 'user', $2)`,
+      [collegeId, importer],
+    );
+    finished.push("event");
+    expect((await importing).created).toHaveLength(40);
+    expect(finished).toEqual(["event", "import"]);
+  });
+
   it("runs one import at a time per college, so two at once make a person once (Audit 4)", async () => {
     const same = [
       row(2, {

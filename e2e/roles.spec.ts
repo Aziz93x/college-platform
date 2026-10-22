@@ -91,7 +91,10 @@ test(
         member.getByRole("heading", { level: 1, name: design.title }),
       ).toBeVisible();
 
-      // Taken back: closed at the next request.
+      // Taken back: closed at the next request. The pointer leaves the toast first: a toast waits
+      // while it is hovered, and on a phone the Save it was tapped from sits under it, where an
+      // emulated pointer stays and a finger does not.
+      await admin.mouse.move(0, 0);
       await expect(saved).toBeHidden();
       await key.click();
       await admin.getByRole("button", { name: text.grid.save }).click();

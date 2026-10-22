@@ -7,6 +7,7 @@ import { createAccount } from "../../src/modules/identity/index.ts";
 import {
   chooseNotification,
   describeNotification,
+  markRead,
   type Words,
 } from "../../src/modules/notifications/index.ts";
 import { notificationDigest } from "../../worker/jobs/notification-digest.ts";
@@ -187,5 +188,55 @@ describe("the weekly digest", () => {
       "weeklyDigest:2026-10-26",
       "weeklyDigest:2026-10-26",
     ]);
+  });
+
+  it("keeps which notifications it counts, and is read with the last of them, in the same reading (ADR-0015)", async () => {
+    const hind = { collegeId, actorId: people.هند };
+    const theirs = await query(
+      `select id from notifications where user_id = $1 and kind <> 'weeklyDigest' and read_at is null
+       and created_at >= '2026-10-19T06:00:00Z' order by created_at desc, id desc`,
+      [people.هند],
+    );
+    const digest = async (name: string) =>
+      (
+        await query(
+          "select params, read_at from notifications where user_id = $1 and kind = 'weeklyDigest' and params ? 'ids'",
+          [people[name]],
+        )
+      )[0];
+    expect((await digest("هند")).params.ids).toEqual(
+      theirs.map(({ id }) => id),
+    );
+    // A digest sent before it, which keeps no ids, stays as it was.
+    await query(
+      `insert into notifications (college_id, user_id, kind, params, created_at)
+       values ($1, $2, 'weeklyDigest', $3, '2026-10-18T04:00:00Z')`,
+      [
+        collegeId,
+        people.هند,
+        JSON.stringify({ count: 1, latest: [{ kind: "x", params: {} }] }),
+      ],
+    );
+
+    const [readLast, ...readFirst] = theirs.map(({ id }) => id as string);
+    expect(await markRead({ ids: readFirst }, hind, database.db)).toBe(3);
+    expect((await digest("هند")).read_at).toBeNull();
+    expect(await markRead({ ids: [readLast] }, hind, database.db)).toBe(2);
+    expect((await digest("هند")).read_at).not.toBeNull();
+    expect(
+      await query(
+        `select diff from audit_events where action = 'notification.read' and actor_id = $1
+         order by created_at, id`,
+        [people.هند],
+      ),
+    ).toEqual([{ diff: { count: 3 } }, { diff: { count: 2 } }]);
+    // Fahad's is his own, and the older digest is still unread.
+    expect((await digest("فهد")).read_at).toBeNull();
+    expect(
+      await query(
+        "select count(*)::int as n from notifications where user_id = $1 and read_at is null",
+        [people.هند],
+      ),
+    ).toEqual([{ n: 2 }]);
   });
 });

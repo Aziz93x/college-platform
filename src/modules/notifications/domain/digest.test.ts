@@ -72,11 +72,19 @@ it("a digest covers the seven days before its moment and is keyed by its day", (
   expect(digestKey(moment)).toBe("weeklyDigest:2026-10-25");
 });
 
-it("a digest counts every unread notification and names the newest three", () => {
+it("a digest counts every unread notification, names the newest three and keeps which they all are", () => {
   const sent = (n: number) => ({ kind: "membershipAdded", params: { n } });
-  expect(digestOf([sent(5), sent(4), sent(3), sent(2), sent(1)])).toEqual({
+  const unread = (n: number) => ({ id: `id-${n}`, ...sent(n) });
+  expect(
+    digestOf([unread(5), unread(4), unread(3), unread(2), unread(1)]),
+  ).toEqual({
     count: 5,
     latest: [sent(5), sent(4), sent(3)],
+    ids: ["id-5", "id-4", "id-3", "id-2", "id-1"],
   });
-  expect(digestOf([sent(1)])).toEqual({ count: 1, latest: [sent(1)] });
+  expect(digestOf([unread(1)])).toEqual({
+    count: 1,
+    latest: [sent(1)],
+    ids: ["id-1"],
+  });
 });

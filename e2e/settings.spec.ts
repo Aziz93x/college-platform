@@ -35,8 +35,16 @@ async function open(page: Page, group?: string) {
 // The desktop and the phone run side by side on one database, so each changes a setting of its own.
 const countFor = ({ project }: TestInfo) =>
   project.name === "desktop"
-    ? { group: "review", label: text.fields.review.weeklyCap.label, from: 30 }
-    : { group: "files", label: text.fields.files.maxSizeMb.label, from: 20 };
+    ? {
+        group: "review" as const,
+        label: text.fields.review.weeklyCap.label,
+        from: 30,
+      }
+    : {
+        group: "files" as const,
+        label: text.fields.files.maxSizeMb.label,
+        from: 20,
+      };
 
 test("the groups are tabs, the one on show is kept in the address, and search looks across them all", async ({
   page,
@@ -92,7 +100,13 @@ test("a count saved on the screen is what the next request reads, and reset to d
   page,
 }, testInfo) => {
   const { group, label, from } = countFor(testInfo);
-  await open(page, group);
+  // The group chosen on the screen, as an admin does: the address keeps it through the save, so
+  // the reload opens it again (lead review B).
+  await open(page);
+  await page
+    .getByRole("tablist", { name: text.groupsLabel })
+    .getByRole("tab", { name: text.groups[group] })
+    .click();
   const setting = row(page, label);
   await expect(setting.locator("output")).toContainText(String(from));
 
@@ -101,6 +115,7 @@ test("a count saved on the screen is what the next request reads, and reset to d
   await expect(
     page.getByText(text.toast.saved.replace("{label}", label)),
   ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`[?&]group=${group}\\b`));
 
   await page.reload();
   await expect(setting.locator("output")).toContainText(String(from + 1));

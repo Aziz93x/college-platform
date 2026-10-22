@@ -67,7 +67,9 @@ export function SettingsScreen({
     setGroup(next as SettingGroup);
     const url = new URL(window.location.href);
     url.searchParams.set("group", next);
-    window.history.replaceState(window.history.state, "", url);
+    // No state of its own: the router then keeps this address, and a save's refresh does not put
+    // the one before it back (lead review B).
+    window.history.replaceState(null, "", url);
   };
 
   const row = (setting: SettingView) => (

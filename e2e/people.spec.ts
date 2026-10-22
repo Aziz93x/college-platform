@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
 import writeExcelFile from "write-excel-file/node";
-import { defaultRoles } from "../db/seed/base.ts";
+import { defaultRoles, systemRole } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../db/seed/demo/departments.ts";
 import messages from "../messages/ar.json" with { type: "json" };
@@ -366,6 +366,61 @@ test(
     expect(await audited(person.userId)).toContainEqual({
       action: "account.disableTwoFactor",
     });
+  },
+);
+
+test(
+  "a role given from the person's page shows there at once, is recorded and tells its holder (ADR-0016)",
+  DATABASE,
+  async ({ page, account }) => {
+    const person = await account({ trainerIn: electrical });
+    const headRole =
+      defaultRoles.find(({ key }) => key === "head")?.labels.ar ?? "";
+    const systemLabel = systemRole.labels.ar;
+    await open(page, `/people/${person.userId}`);
+    const card = page.getByRole("region", { name: text.giveRole.title });
+    const scope = card.getByRole("button", {
+      name: messages.roles.members.scope,
+    });
+
+    // The system role is given across the college only, so it asks for no scope.
+    await card.getByRole("button", { name: text.giveRole.choose }).click();
+    await page.getByRole("option", { name: systemLabel, exact: true }).click();
+    await expect(scope).toHaveCount(0);
+    await card.getByRole("button", { name: systemLabel }).click();
+    await page.getByRole("option", { name: headRole, exact: true }).click();
+    await scope.click();
+    await page.getByRole("option", { name: electrical, exact: true }).click();
+    await card.getByRole("button", { name: text.giveRole.submit }).click();
+    await confirmIfAsked(
+      page,
+      page.getByText(
+        t("giveRole.toast", { name: person.name, role: headRole }),
+      ),
+      demo.adminPassword,
+    );
+    await expect(
+      page.getByText(`${headRole} · ${electrical}`, { exact: true }),
+    ).toBeVisible();
+    // The form is ready for the next role.
+    await expect(
+      card.getByRole("button", { name: text.giveRole.choose }),
+    ).toBeVisible();
+
+    const { rows } = await database().query(
+      `select r.key, d.name,
+         (select count(*)::int from audit_events e where e.entity_id = m.id::text
+          and e.action = 'membership.create') as events,
+         (select count(*)::int from notifications n where n.user_id = m.user_id
+          and n.kind = 'membershipAdded') as told
+       from memberships m join roles r on r.id = m.role_id
+       join departments d on d.id = m.department_id
+       where m.user_id = $1 and r.key = 'head'`,
+      [person.userId],
+    );
+    expect(rows).toEqual([
+      { key: "head", name: electrical, events: 1, told: 1 },
+    ]);
   },
 );
 
