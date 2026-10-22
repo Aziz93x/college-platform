@@ -1700,6 +1700,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | The department document library and contact directory, or Microsoft 365 for both | you | Step 38 |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
+| The platform beside TVTC's systems: Rayat's reports by scheduled mail, Microsoft 365 sign-in, and approved portfolios archived in EthaqPlus (ADR-0024, proposed) | you, then TVTC IT for each request | after the trial; the requests to TVTC IT before go-live |
 
 The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. Where the platform runs for staff is decided by the General Administration as part of the approval request: a server inside the college (a Dell QCT1250 was bought after the feasibility study of 14 October 2026 and has not arrived) or hosting in a cloud region inside the Kingdom (Oracle Cloud's sign-up was refused on 2026-10-20). `docs/ops/hosting-options.md` sets out both for that request. The platform runs in Docker Compose, so either works without code changes; Section K is revised for the chosen option.
 
