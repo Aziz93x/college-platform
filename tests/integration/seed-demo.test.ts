@@ -290,6 +290,7 @@ it("writes three weeks of the college's history, every event in the past and by 
       "audit.export",
       "notification.read",
       "notification.mute",
+      "announcement.publish",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -401,6 +402,45 @@ it("tells each role's holder when the log shows it given, and sends each week's 
       ),
     ).toEqual([]);
   }
+});
+
+it("announces as the head of Electrical and the dean did, to everyone enabled in each scope but its author, and only the invited trainer has one left to read (ADR-0017)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows: said } = await pool.query(`
+    select a.id::text, a.department_id::text, u.email as author
+    from announcements a join users u on u.id = a.author_id order by a.created_at`);
+  expect(said.map(({ author }) => author)).toEqual([
+    demoAccounts.head.email,
+    demoAccounts.dean.email,
+  ]);
+  for (const announcement of said) {
+    const { rows: told } = await pool.query(
+      `select user_id::text from notifications
+       where kind = 'announcement' and params->>'announcementId' = $1 order by user_id`,
+      [announcement.id],
+    );
+    const { rows: scope } = await pool.query(
+      `select p.user_id::text from people p join users u on u.id = p.user_id
+       where u.disabled_at is null and u.email <> $1 and ($2::uuid is null or exists (
+         select 1 from memberships m where m.user_id = p.user_id and m.department_id = $2))
+       order by p.user_id`,
+      [announcement.author, announcement.department_id],
+    );
+    expect(told.length, announcement.author).toBeGreaterThan(0);
+    expect(told).toEqual(scope);
+  }
+  const { rows: unread } = await pool.query(`
+    select distinct u.email from notifications n join users u on u.id = n.user_id
+    where n.kind = 'announcement' and n.read_at is null`);
+  const waiting = new Set(unread.map(({ email }) => email));
+  for (const [name, account] of Object.entries(demoAccounts)) {
+    expect(waiting.has(account.email), name).toBe(name === "invitedTrainer");
+  }
+  const { rows: published } = await pool.query(`
+    select entity_id from audit_events where action = 'announcement.publish' order by created_at`);
+  expect(published.map(({ entity_id }) => entity_id)).toEqual(
+    said.map(({ id }) => id),
+  );
 });
 
 it("refuses to run when APP_ENV is production or unset, and writes nothing", async () => {

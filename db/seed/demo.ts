@@ -4,6 +4,7 @@ import { parseDemoEnv } from "../../src/platform/config/env.ts";
 import { createDb } from "../../src/platform/db/client.ts";
 import { seedBase } from "./base.ts";
 import { demoSecrets, seedDemoAccounts } from "./demo/accounts.ts";
+import { seedDemoAnnouncements } from "./demo/announcements.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
 import { seedDemoDepartments } from "./demo/departments.ts";
 import { seedDemoHistory } from "./demo/history.ts";
@@ -51,6 +52,7 @@ try {
     await seedDemoAccounts(ctx, collegeId, env.AUTH_SECRET, demoSecrets(env));
     await seedDemoHistory(ctx, collegeId);
     await seedDemoNotifications(ctx, collegeId);
+    await seedDemoAnnouncements(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed}: college ${collegeId}.`,
     );
