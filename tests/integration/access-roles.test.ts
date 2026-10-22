@@ -3,6 +3,7 @@ import { defaultRoles, seedBase, systemRole } from "../../db/seed/base.ts";
 import {
   addMembership,
   createRole,
+  disableAccount,
   findRole,
   joinRole,
   listRoles,
@@ -414,5 +415,62 @@ describe("addMembership and removeMembership", () => {
     await expect(
       removeMembership(removed, change(), database.db),
     ).resolves.toEqual({ status: "notFound" });
+  });
+
+  it("keeps an admin who can sign in: a disabled member of the system role counts for nothing (Audit 4)", async () => {
+    const system = await roleId(systemRole.key);
+    const membershipOf = async (userId: string) =>
+      (
+        await query(
+          "select id from memberships where role_id = $1 and user_id = $2",
+          [system, userId],
+        )
+      )[0]?.id as string;
+    // Whoever the test before left in the role, and two more admins.
+    const [{ user_id: first }] = await query(
+      "select user_id from memberships where role_id = $1",
+      [system],
+    );
+    const second = await person("Second Admin", "1002");
+    const leaving = await person("Leaving Admin", "1003");
+    for (const userId of [second, leaving]) {
+      const added = await addMembership(
+        { userId, roleId: system, departmentId: null },
+        change(),
+        database.db,
+      );
+      expect(added.status).toBe("added");
+    }
+
+    // An admin who leaves is disabled, not removed; the role page marks them.
+    expect(
+      (await disableAccount(leaving, true, change(), database.db)).status,
+    ).toBe("saved");
+    const members = (await findRole(collegeId, system, database.db))?.members;
+    expect(
+      members?.map(({ userId, disabled }) => ({ userId, disabled })),
+    ).toEqual(
+      expect.arrayContaining([
+        { userId: leaving, disabled: true },
+        { userId: second, disabled: false },
+      ]),
+    );
+
+    // Two enabled admins: one may go. Then the other is the last who can sign in, and stays,
+    // though the disabled one still holds the role; the disabled one's role may go.
+    await expect(
+      removeMembership(await membershipOf(first), change(), database.db),
+    ).resolves.toEqual({ status: "removed" });
+    await expect(
+      removeMembership(await membershipOf(second), change(), database.db),
+    ).resolves.toEqual({ status: "lastAdmin" });
+    await expect(
+      removeMembership(await membershipOf(leaving), change(), database.db),
+    ).resolves.toEqual({ status: "removed" });
+    expect(
+      (await findRole(collegeId, system, database.db))?.members.map(
+        ({ userId }) => userId,
+      ),
+    ).toEqual([second]);
   });
 });

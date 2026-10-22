@@ -1,5 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { people, users } from "../../identity/index.ts";
@@ -44,6 +54,8 @@ export type Member = {
   name: string;
   employeeNumber: string;
   departmentId: string | null;
+  /** Their account is disabled: they hold the role but cannot sign in. */
+  disabled: boolean;
 };
 
 const roleColumns = {
@@ -130,6 +142,7 @@ export async function findRole(
       name: users.name,
       employeeNumber: people.employeeNumber,
       departmentId: memberships.departmentId,
+      disabled: sql<boolean>`${users.disabledAt} is not null`,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
@@ -420,8 +433,9 @@ export async function insertMembership(
   return row.id;
 }
 
-// Takes a role from a person in one scope and records membership.delete. The system role keeps at
-// least one member: its last one cannot be removed, by anyone, themselves included.
+// Takes a role from a person in one scope and records membership.delete. The college keeps an admin
+// who can sign in: the system role's last enabled member cannot be removed, by anyone, themselves
+// included, while a disabled member counts for nothing (Audit 4), as when disabling an account.
 export async function removeMembership(
   id: string,
   change: Change,
@@ -449,11 +463,19 @@ export async function removeMembership(
       .where(eq(roles.id, membership.roleId))
       .for("update");
     if (role.system) {
-      const [{ members }] = await tx
-        .select({ members: count() })
+      const admins = await tx
+        .select({ userId: memberships.userId })
         .from(memberships)
-        .where(eq(memberships.roleId, membership.roleId));
-      if (members <= 1) return { status: "lastAdmin" };
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(
+          and(
+            eq(memberships.roleId, membership.roleId),
+            isNull(users.disabledAt),
+          ),
+        );
+      if (admins.length === 1 && admins[0].userId === membership.userId) {
+        return { status: "lastAdmin" };
+      }
     }
     const [removed] = await tx
       .delete(memberships)
