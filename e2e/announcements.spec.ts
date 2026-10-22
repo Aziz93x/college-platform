@@ -129,11 +129,18 @@ test(
       await trainer.keyboard.press("Escape");
       await expect(older).toBeHidden();
 
-      // Closed is read: they do not come back, and the center keeps them.
+      // Closed is read: the bell counts them no more once the readings are in, they do not come
+      // back, and the center keeps them.
+      await expect(
+        trainer.locator("header").getByRole("button", {
+          name: new RegExp(`^${messages.notifications.title}`),
+        }),
+      ).toHaveAccessibleName(notices("bell", { count: 0 }));
       await trainer.reload();
       await expect(trainer.getByRole("dialog")).toHaveCount(0);
       await trainer.goto("/notifications");
       const rows = trainer
+        .locator("main")
         .getByRole("link")
         .filter({ hasText: "اجتماع القسم" });
       await expect(rows).toHaveCount(1);
@@ -154,7 +161,10 @@ test(
       await trainer.reload();
       await expect(rows).toHaveCount(0);
       await expect(
-        trainer.getByRole("link").filter({ hasText: "تسليم الخطط" }),
+        trainer
+          .locator("main")
+          .getByRole("link")
+          .filter({ hasText: "تسليم الخطط" }),
       ).toHaveCount(1);
 
       // A trainer announces nothing: the page is not theirs.
