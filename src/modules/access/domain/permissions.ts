@@ -39,21 +39,11 @@ const permissions = {
   // Upload, apply and roll back Rayat's reports (Step 16). A file is the whole college's, so the key
   // held in a department does what it does held across the college (ADR-0019).
   "rayat.import": { area: "term", requiresTwoFactor: false },
-  // Edit a department's plan, and publish it to generate its tasks (Steps 19 and 20).
-  "plan.edit": { area: "planning", requiresTwoFactor: false },
-  "plan.publish": { area: "planning", requiresTwoFactor: false },
-  // Assignments and quick requests (Steps 21 and 22).
-  "assignment.manage": { area: "planning", requiresTwoFactor: false },
   // Transfer a section of the term from one trainer to another, from a week on (Step 17).
   "sections.transfer": { area: "planning", requiresTwoFactor: false },
-  // Complete one's own tasks and attach their evidence (Step 26).
+  // Complete one's own tasks and attach their evidence (Step 26). Step 17 already reads it: a
+  // section moves only to someone who holds it, as trainers do.
   "task.complete": { area: "work", requiresTwoFactor: false },
-  // Accept or return the tasks under review (Step 29).
-  "review.decide": { area: "work", requiresTwoFactor: false },
-  // Approve trainers' portfolios (Step 30).
-  "portfolio.approve": { area: "work", requiresTwoFactor: false },
-  // The college's indicators across its departments (Step 35).
-  "indicators.view.college": { area: "indicators", requiresTwoFactor: false },
 } as const satisfies Record<
   string,
   { area: PermissionArea; requiresTwoFactor: boolean }
@@ -64,8 +54,7 @@ export type PermissionArea =
   | "organization"
   | "term"
   | "planning"
-  | "work"
-  | "indicators";
+  | "work";
 
 export type PermissionKey = keyof typeof permissions;
 

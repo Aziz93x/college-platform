@@ -27,12 +27,12 @@ const department = (
 
 describe("authorize", () => {
   it("allows a key held across the college, in the college and in each of its departments", () => {
-    const admin = actor(college("plan.edit"));
-    expect(authorize(admin, "plan.edit", { collegeId: "college-a" })).toBe(
-      true,
-    );
+    const admin = actor(college("sections.transfer"));
     expect(
-      authorize(admin, "plan.edit", {
+      authorize(admin, "sections.transfer", { collegeId: "college-a" }),
+    ).toBe(true);
+    expect(
+      authorize(admin, "sections.transfer", {
         collegeId: "college-a",
         departmentId: "electrical",
       }),
@@ -40,22 +40,22 @@ describe("authorize", () => {
   });
 
   it("keeps a key held in one department to that department", () => {
-    const head = actor(department("plan.edit", "electrical"));
+    const head = actor(department("sections.transfer", "electrical"));
     expect(
-      authorize(head, "plan.edit", {
+      authorize(head, "sections.transfer", {
         collegeId: "college-a",
         departmentId: "electrical",
       }),
     ).toBe(true);
     expect(
-      authorize(head, "plan.edit", {
+      authorize(head, "sections.transfer", {
         collegeId: "college-a",
         departmentId: "mechanical",
       }),
     ).toBe(false);
-    expect(authorize(head, "plan.edit", { collegeId: "college-a" })).toBe(
-      false,
-    );
+    expect(
+      authorize(head, "sections.transfer", { collegeId: "college-a" }),
+    ).toBe(false);
   });
 
   it("refuses a key the actor does not hold, and another college whatever the actor holds", () => {
@@ -91,24 +91,27 @@ describe("permittedDepartments", () => {
   it("names the whole college when the key is held across it", () => {
     expect(
       permittedDepartments(
-        actor(department("plan.edit", "electrical"), college("plan.edit")),
-        "plan.edit",
+        actor(
+          department("sections.transfer", "electrical"),
+          college("sections.transfer"),
+        ),
+        "sections.transfer",
       ),
     ).toBe("college");
   });
 
   it("lists each department the key is held in, once, and none without the key", () => {
     const head = actor(
-      department("plan.edit", "electrical"),
-      department("plan.edit", "mechanical"),
-      department("plan.edit", "electrical"),
-      department("review.decide", "general"),
+      department("sections.transfer", "electrical"),
+      department("sections.transfer", "mechanical"),
+      department("sections.transfer", "electrical"),
+      department("announcements.publish", "general"),
     );
-    expect(permittedDepartments(head, "plan.edit")).toEqual([
+    expect(permittedDepartments(head, "sections.transfer")).toEqual([
       "electrical",
       "mechanical",
     ]);
-    expect(permittedDepartments(head, "plan.publish")).toEqual([]);
+    expect(permittedDepartments(head, "rayat.import")).toEqual([]);
   });
 });
 

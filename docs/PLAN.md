@@ -53,9 +53,9 @@ Each step heading carries a size: S is about one session, M two or three, L four
 
 **Notes from the owner (22 October 2026): build at the trial's size.** The trial is about 40 trainers in three departments, with the dean and the vice-dean. From now on, these rules win over older text in this plan.
 
-- **A setting or permission key arrives with the step that first reads or checks it.** These five settings and seven keys change nothing yet, though the settings screen and the roles grid offer them. The next audit takes whichever of them still changes nothing out of the registries, the seeds, the messages and the tests, and the step named beside each adds it back:
+- **A setting or permission key arrives with the step that first reads or checks it.** Nothing read or checked the five settings and six keys below, though the settings screen and the roles grid offered them, so on 22 October they left the registries, the seeds, the messages and the tests. `task.complete`, a seventh key first listed here, stayed: Step 17 reads it, since a section moves only to someone who holds it. The step named beside each of the others adds it back:
   - settings: `files.maxSizeMb` (Step 25), `reminders.dueTomorrow` and `reminders.nothingUploaded` (Step 27), `review.sampleRate` and `review.weeklyCap` (Step 29);
-  - keys: `plan.edit` and `plan.publish` (Steps 19 and 20), `assignment.manage` (21 and 22), `task.complete` (26), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
+  - keys: `plan.edit` and `plan.publish` (Steps 19 and 20), `assignment.manage` (21 and 22), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
 - **No more animated components.** The BeUI components already in `src/components/motion/` stay. A new screen uses them, the shadcn/Radix components or native controls. A new BeUI component comes in only for something none of these can do, and its pull request says why.
 - **Review screenshots stay out of git.** Reviews still save them under `docs/reviews/<report>/` to look at, but git ignores those folders, and each report says in words what a screenshot showed. The screenshots already committed in `docs/reviews/ux-10/` stay.
 - **Measure and load-test at the trial's size.** Seeds, timings and load tests use the trial's numbers, as Step 43's seed and Step 45's k6 run already do. Runs at 2,000 people or 300,000 log events, and the paging that lead review B proposed for them (its note in Step 43), wait until the platform is to serve more than the trial.
@@ -1228,7 +1228,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Seeded files carry the visible demo watermark from this step on, not only from Step 43.
 - The end-to-end upload test runs on a minimal task page, which Step 26 turns into the card.
 
-**Note from Step 7:** the size limit and the accepted extensions are settings already (`files.maxSizeMb`, 20, and `files.acceptedTypes`); a framework item's own types narrow them.
+**Note from Step 7:** the accepted extensions are a setting already (`files.acceptedTypes`); a framework item's own types narrow them. The size limit was one too, until it came out because nothing read it (section 0): this step adds `files.maxSizeMb` back, 20 MB by default.
 
 #### Step 26. The task card and the done flow (L)
 
@@ -1265,7 +1265,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** every rule is an in-app item: the digest, the due-tomorrow reminder, and "nothing uploaded this week" with the head's one-tap reminder (moved from Step 23). Step 29 sends the instant notification on returned work, since it builds the return action. On option A, people see these items only when they open the app on the college Wi-Fi, so the week-2 return metric reads differently under each hosting option.
 
-**Note from Step 7:** the rules are settings already: `reminders.dueTomorrow` and `reminders.nothingUploaded` (both on), with the digest's day and hour from Step 12.
+**Note from Step 7:** the digest's day and hour are settings already (Step 12). The two rules' settings came out because nothing read them (section 0): this step adds `reminders.dueTomorrow` and `reminders.nothingUploaded` back, both on by default.
 
 **Note from Step 12:** the worker's `notification-digest` job looks every quarter of an hour and calls `sendWeeklyDigests()` (`src/modules/notifications/server/digest.ts`) within a day of each college's digest moment. Today a digest counts the week's unread notifications and names the newest three (`digestOf()`, words `notifications.kinds.weeklyDigest`); the work loop's parts join its params and its words here, and the snapshot test (`tests/integration/notification-digest.test.ts`) grows with them. A reminder that must reach a person once, such as due-tomorrow per task and day, passes a once key as the digest does per week, so a rerun sends nothing twice. The message count over a demo week can read the `notifications` table.
 
@@ -1304,7 +1304,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
 
-**Note from Step 7:** the rate and the cap are settings already: `review.sampleRate` (20%) and `review.weeklyCap` (30 per reviewer a week).
+**Note from Step 7:** the rate and the cap were settings, until they came out because nothing read them (section 0). This step adds them back: `review.sampleRate` (20%, the settings screen's only slider) and `review.weeklyCap` (30 per reviewer a week). The slider's end-to-end test, its arrow keys right to left, comes back with them (`e2e/settings.spec.ts` at 584319f).
 
 **Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
 

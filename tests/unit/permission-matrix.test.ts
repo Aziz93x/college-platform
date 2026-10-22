@@ -248,7 +248,7 @@ const checked: {
     module: "(app)/settings/actions.ts",
     action: "saveSettingAction",
     permission: "settings.manage",
-    input: { key: "review.weeklyCap", value: 31 },
+    input: { key: "reminders.digestHour", value: 8 },
   },
   {
     module: "(app)/settings/actions.ts",
@@ -260,7 +260,7 @@ const checked: {
     module: "(app)/settings/actions.ts",
     action: "resetSettingAction",
     permission: "settings.manage",
-    input: { key: "review.weeklyCap" },
+    input: { key: "reminders.digestHour" },
   },
   {
     module: "(app)/settings/actions.ts",

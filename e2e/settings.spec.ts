@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { createDb } from "../src/platform/db/client.ts";
@@ -32,19 +32,15 @@ async function open(page: Page, group?: string) {
   });
 }
 
-// The desktop and the phone run side by side on one database, so each changes a setting of its own.
-const countFor = ({ project }: TestInfo) =>
-  project.name === "desktop"
-    ? {
-        group: "review" as const,
-        label: text.fields.review.weeklyCap.label,
-        from: 30,
-      }
-    : {
-        group: "files" as const,
-        label: text.fields.files.maxSizeMb.label,
-        from: 20,
-      };
+// The desktop and the phone run side by side on one database, so one of them changes a count: the
+// phone, which the platform is built for first. The desktop's count, the file size limit, comes
+// back with Step 25 (docs/PLAN.md, section 0). The digest hour moves no test's data: the end-to-end
+// runs start no worker.
+const count = {
+  group: "reminders" as const,
+  label: text.fields.reminders.digestHour.label,
+  from: 7,
+};
 
 test("the groups are tabs, the one on show is kept in the address, and search looks across them all", async ({
   page,
@@ -99,7 +95,11 @@ test("the groups are tabs, the one on show is kept in the address, and search lo
 test("a count saved on the screen is what the next request reads, and reset to default puts it back", async ({
   page,
 }, testInfo) => {
-  const { group, label, from } = countFor(testInfo);
+  test.skip(
+    testInfo.project.name !== "iphone",
+    "only the phone changes the count (see count)",
+  );
+  const { group, label, from } = count;
   // The group chosen on the screen, as an admin does: the address keeps it through the save, so
   // the reload opens it again (lead review B).
   await open(page);
@@ -128,27 +128,6 @@ test("a count saved on the screen is what the next request reads, and reset to d
   await expect(setting.getByRole("button", { name: text.reset })).toHaveCount(
     0,
   );
-});
-
-test("the sample rate's slider moves with the arrow keys the way the page reads", async ({
-  page,
-}) => {
-  const label = text.fields.review.sampleRate.label;
-  await open(page, "review");
-  const setting = row(page, label);
-  const slider = setting.getByRole("slider", { name: label });
-  await expect(slider).toHaveAttribute("aria-valuenow", "20");
-  await slider.focus();
-  // Right to left, the track runs from the right: the left arrow raises the rate.
-  await page.keyboard.press("ArrowLeft");
-  await expect(slider).toHaveAttribute("aria-valuenow", "21");
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  await expect(slider).toHaveAttribute("aria-valuenow", "19");
-  await expect(slider).toHaveAttribute("aria-valuetext", /19/);
-  // Never saved: discarding brings back the stored rate.
-  await setting.getByRole("button", { name: messages.ui.discard }).click();
-  await expect(slider).toHaveAttribute("aria-valuenow", "20");
 });
 
 test("the Hijri date joins Today's date while its setting is on", async ({

@@ -77,18 +77,20 @@ describe("viewerAction", () => {
   });
 
   it("keeps a key held in one department to that department, for a check and for a list", async () => {
-    const plan = viewerAction
-      .metadata({ name: "plan" })
+    const transfer = viewerAction
+      .metadata({ name: "transfer" })
       .action(async ({ ctx }) => {
-        ctx.requirePermission("plan.edit", { departmentId: "electrical" });
-        return ctx.departmentsFor("plan.edit");
+        ctx.requirePermission("sections.transfer", {
+          departmentId: "electrical",
+        });
+        return ctx.departmentsFor("sections.transfer");
       });
-    request.viewer = viewer(["plan.edit"], {}, "electrical");
-    expect(await plan()).toEqual({ data: ["electrical"] });
-    request.viewer = viewer(["plan.edit"], {}, "mechanical");
-    expect(await plan()).toEqual({ serverError: "forbidden" });
-    request.viewer = viewer(["plan.edit"]);
-    expect(await plan()).toEqual({ data: "college" });
+    request.viewer = viewer(["sections.transfer"], {}, "electrical");
+    expect(await transfer()).toEqual({ data: ["electrical"] });
+    request.viewer = viewer(["sections.transfer"], {}, "mechanical");
+    expect(await transfer()).toEqual({ serverError: "forbidden" });
+    request.viewer = viewer(["sections.transfer"]);
+    expect(await transfer()).toEqual({ data: "college" });
   });
 
   it("refuses an action named with a permission to a viewer who holds it in one department only", async () => {

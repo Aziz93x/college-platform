@@ -23,8 +23,10 @@ export const systemRole = {
 };
 
 // The roles every college starts with and the keys each holds, as the brief describes them
-// (docs/PLAN.md, section 1). The secretary's and the quality reviewer's keys arrive with their
-// screens (Steps 33 and 37). Admins change all of it on the grid.
+// (docs/PLAN.md, section 1). A key arrives with the step that first checks it (section 0): the
+// head's plan, assignment, review and approval keys with Steps 19 to 30, the college's indicators
+// with Step 35, and the secretary's and the quality reviewer's with their screens (Steps 33 and
+// 37). Admins change all of it on the grid.
 export const defaultRoles: {
   key: string;
   labels: Record<string, string>;
@@ -33,11 +35,7 @@ export const defaultRoles: {
   {
     key: "dean",
     labels: { ar: "العميد" },
-    permissions: [
-      "indicators.view.college",
-      "announcements.publish",
-      "framework.endorse",
-    ],
+    permissions: ["announcements.publish", "framework.endorse"],
   },
   {
     key: "vice-dean",
@@ -46,7 +44,6 @@ export const defaultRoles: {
       "term.manage",
       "framework.publish",
       "rayat.import",
-      "indicators.view.college",
       "announcements.publish",
     ],
   },
@@ -54,12 +51,7 @@ export const defaultRoles: {
     key: "head",
     labels: { ar: "رئيس القسم" },
     permissions: [
-      "plan.edit",
-      "plan.publish",
-      "assignment.manage",
       "sections.transfer",
-      "review.decide",
-      "portfolio.approve",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
