@@ -14,7 +14,7 @@ import { parseArgs } from "node:util";
 // The production-like stack on this laptop (docs/ops/local.md): docker/compose.yml with the
 // production images, behind Caddy on https://localhost and on the laptop's LAN address.
 const USAGE = `usage:
-  pnpm local:up [--demo [--seed <n>]] [--images <folder>]
+  pnpm local:up [--demo [--seed <n>] [--week <n>]] [--images <folder>]
   pnpm local:down
   pnpm local:share
   pnpm local:run admin:create --name "<full name>" --email <email> --employee-number <number>`;
@@ -272,6 +272,8 @@ async function up(args: string[]) {
     options: {
       demo: { type: "boolean", default: false },
       seed: { type: "string", default: "42" },
+      // The week of the demo term today falls in, which seed:demo checks (Step 13).
+      week: { type: "string", default: "9" },
       images: { type: "string" },
     },
   });
@@ -316,6 +318,8 @@ async function up(args: string[]) {
         STACK_SCRIPTS["seed:demo"],
         "--seed",
         values.seed,
+        "--week",
+        values.week,
       ],
       env,
     );

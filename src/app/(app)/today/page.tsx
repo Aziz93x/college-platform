@@ -8,15 +8,18 @@ import {
   getTranslations,
 } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
+import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { requireViewer } from "@/modules/access";
 import { getSetting } from "@/modules/settings";
+import { wallClock } from "@/platform/i18n/time-zone";
 import {
   navigation,
   orderFor,
   visibleNavigation,
 } from "../_shell/navigation.ts";
+import { termOnDay, visibleTerms } from "../_shell/term.ts";
 import { greetingPeriod } from "./greeting.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,8 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// Each role's home. Step 23 fills it with the role's work; until then it greets, says what will
-// appear here, and leads to the viewer's next page, the first after Today in their navigation.
+// Each role's home. Step 23 fills it with the role's work; until then it greets, says where today
+// falls in the active term, says what will appear here, and leads to the viewer's next page, the
+// first after Today in their navigation.
 export default async function TodayPage() {
   // The greeting and the date are the request's, never a build's.
   await connection();
@@ -68,6 +72,28 @@ export default async function TodayPage() {
         }).format(now),
       })
     : gregorian;
+  // Where today falls in the college's active term: its week of how many, a week of holidays, or
+  // the day the term starts (Step 13).
+  const active = (await visibleTerms(viewer.collegeId, false)).find(
+    (term) => term.status === "active",
+  );
+  const day = wallClock(now, timeZone).slice(0, 10);
+  const onDay = active
+    ? await termOnDay(viewer.collegeId, active.id, day)
+    : undefined;
+  const termWords = onDay?.week
+    ? onDay.week.number === null
+      ? t("term.holiday")
+      : t("term.week", { number: onDay.week.number, weeks: onDay.term.weeks })
+    : active && day < active.startsOn
+      ? t("term.before", {
+          date: format.dateTime(new Date(`${active.startsOn}T00:00:00Z`), {
+            day: "numeric",
+            month: "long",
+            timeZone: "UTC",
+          }),
+        })
+      : undefined;
   const eyebrow = t("eyebrow", {
     greeting: t(`greeting.${greetingPeriod(now, timeZone)}`),
     date,
@@ -78,6 +104,11 @@ export default async function TodayPage() {
         eyebrow={eyebrow}
         title={t("title")}
         description={t("description")}
+        status={
+          termWords ? (
+            <AnimatedBadge status="neutral">{termWords}</AnimatedBadge>
+          ) : undefined
+        }
       />
       <EmptyState
         title={t("empty.title")}

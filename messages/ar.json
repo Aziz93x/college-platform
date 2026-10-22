@@ -175,7 +175,16 @@
         "enter": "↵"
       }
     },
-    "breadcrumbs": "مسار الصفحة"
+    "breadcrumbs": "مسار الصفحة",
+    "term": {
+      "open": "الفصل التدريبي: {name}. تغيير الفصل",
+      "openWithWeek": "الفصل التدريبي: {name}، {week}. تغيير الفصل",
+      "list": "الفصول التدريبية",
+      "calendar": "تقويم الفصل",
+      "choose": "اختر الفصل",
+      "week": "الأسبوع {number}",
+      "holiday": "أسبوع إجازة"
+    }
   },
   "today": {
     "title": "اليوم",
@@ -190,7 +199,12 @@
       "evening": "مساء الخير"
     },
     "eyebrow": "{greeting} · {date}",
-    "withHijri": "{gregorian} الموافق {hijri}"
+    "withHijri": "{gregorian} الموافق {hijri}",
+    "term": {
+      "week": "الأسبوع {number} من {weeks}",
+      "holiday": "أسبوع إجازة",
+      "before": "يبدأ الفصل {date}"
+    }
   },
   "pages": {
     "home": "العودة إلى الصفحة الرئيسية",
@@ -946,6 +960,10 @@
       "people": "منسوبو الكلية",
       "noPerson": "لا منسوب بهذا الاسم أو الرقم.",
       "scope": "النطاق",
+      "term": "الفصل",
+      "everyTerm": "في كل الفصول",
+      "systemEveryTerm": "يُحمل دور مدير النظام في كل الفصول.",
+      "termClosed": "هذا الفصل مغلق، فلا يُعطى فيه دور.",
       "college": "الكلية كلها",
       "add": "إضافة العضو",
       "adding": "جارٍ الإضافة",

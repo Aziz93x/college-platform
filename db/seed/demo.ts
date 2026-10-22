@@ -11,6 +11,7 @@ import { seedDemoHistory } from "./demo/history.ts";
 import { seedDemoNotifications } from "./demo/notifications.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
+import { DEMO_TERM_WEEKS, seedDemoTerms } from "./demo/terms.ts";
 
 const MAX_SEED = 2 ** 32 - 1;
 
@@ -24,7 +25,11 @@ try {
   }
 
   const { values } = parseArgs({
-    options: { seed: { type: "string", default: "42" } },
+    options: {
+      seed: { type: "string", default: "42" },
+      // The week of the demo term today falls in (Step 13).
+      week: { type: "string", default: "9" },
+    },
   });
   // Digits only: Number() would also read "", "0x10" and "1e3". The generator keeps 32 bits,
   // so a larger seed would build the same data as a smaller one.
@@ -41,6 +46,19 @@ try {
     process.exit(1);
   }
   const seed = parsedSeed.data;
+  const parsedWeek = z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().min(1).max(DEMO_TERM_WEEKS))
+    .safeParse(values.week);
+  if (!parsedWeek.success) {
+    console.error(
+      `seed:demo: --week must be a week of the term, 1 to ${DEMO_TERM_WEEKS}, got "${values.week}"`,
+    );
+    process.exit(1);
+  }
+  const week = parsedWeek.data;
 
   const { db, pool } = createDb(env.DATABASE_URL);
   try {
@@ -53,8 +71,9 @@ try {
     await seedDemoHistory(ctx, collegeId);
     await seedDemoNotifications(ctx, collegeId);
     await seedDemoAnnouncements(ctx, collegeId);
+    await seedDemoTerms(ctx, collegeId, week);
     console.log(
-      `seed:demo finished with --seed ${seed}: college ${collegeId}.`,
+      `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,
     );
   } finally {
     await pool.end();

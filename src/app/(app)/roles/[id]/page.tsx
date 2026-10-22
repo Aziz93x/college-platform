@@ -18,6 +18,7 @@ import {
 import { listPeople } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { listTerms } from "@/modules/terms";
 import { navigation, visibleNavigation } from "../../_shell/navigation.ts";
 import { HistoryPanel } from "../../audit/history-panel.tsx";
 import { parseCursor } from "../../audit/query.ts";
@@ -72,7 +73,7 @@ export default async function RolePage({
   if (!role) notFound();
 
   const scope = { collegeId: viewer.collegeId };
-  const [t, ui, nav, messages, departments, people, orders, twoFactor] =
+  const [t, ui, nav, messages, departments, people, orders, twoFactor, terms] =
     await Promise.all([
       getTranslations("roles"),
       getTranslations("ui"),
@@ -82,6 +83,7 @@ export default async function RolePage({
       listPeople(viewer.collegeId),
       getSetting("navigation.order", scope),
       getSetting("auth.requireTwoFactor", scope),
+      listTerms(viewer.collegeId),
     ]);
   const label = roleLabel(role.labels, language);
   const pages = visibleNavigation(
@@ -136,6 +138,10 @@ export default async function RolePage({
               name,
               active,
             }))}
+            // A role is held in a term that is to come or in force, not in a closed one.
+            terms={terms
+              .filter(({ status }) => status !== "closed")
+              .map(({ id, name }) => ({ id, name }))}
           />
           {pages.length > 1 ? (
             <PageOrder roleId={role.id} pages={pages} />
