@@ -950,7 +950,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0018 (the owner's request):** the Eid breaks, ten years ahead. The base seed adds the college's Eid al-Fitr and Eid al-Adha breaks for the current Hijri year and the nine after it, each estimated from the averages of past Saudi calendars (docs/reviews/eid-breaks.md) and fitted to whole weeks, with Eid's date from the Umm al-Qura calendar Intl carries. Every term counts the breaks that fall in it with its own holidays, and the vice-dean adjusts each year's break on `/terms` once it is announced (`holiday.update`); a break that has begun stays as it was. Amended the same day: Founding Day joins the ten years, moved off the weekend as the official rule says, and the Eid al-Fitr break is named for Ramadan too; `/terms` shows only the current Umm al-Qura year's holidays; and the vice-dean approves an estimate as it is (`holiday.approve`) or adjusts it.
 
-**Notes from the owner (21 October 2026): the term calendar in layers.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows the screens. Step 13 merged before these notes (#32): it keeps an exam week as a dated event with a title of its own, so the first bullet changes what it built.
+**Notes from the owner (21 October 2026): the term calendar in layers.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows the screens. Steps 13 and 15 merged before these notes (#32 and #36). Step 13 keeps an exam week as a dated event with a title of its own, and Step 15's "after an event" due rule counts so many weeks after each event of a kind, such as each exam. So the first bullet changes what both built.
 
 - **Exam periods by week number.** The vice-dean sets each exam period by week number, from week and to week, every term. No period is fixed, and none is computed from the term's end.
   - The types are a catalog in data, seeded with the first periodic, the second periodic, the practical final and the theoretical final.
@@ -983,7 +983,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
 
-**Note from the owner (21 October 2026):** the due-rule shape includes the anchored rule from section 3: before or after each period of an exam-period type by N weeks, on a weekday.
+**Note from the owner (21 October 2026):** the due-rule shape includes the anchored rule from section 3: before or after each period of an exam-period type by N weeks, on a weekday. Step 15 merged before this note (#36): its rule counts only after each event of a kind, with no weekday, so this note changes what it built.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
