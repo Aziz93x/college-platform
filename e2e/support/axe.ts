@@ -39,6 +39,20 @@ export async function seriousViolations(
       );
     }
   });
+  // Axe measures colors as they are drawn, so a fade still running lowers a text's contrast: the page
+  // header's eyebrow fades in over 500 ms, and a check made that soon after a page opened failed on
+  // it at random. Wait for every animation that ends; one that repeats forever is left running.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.effect?.getComputedTiming().endTime !== Infinity,
+        )
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .disableRules(disabledRules)
