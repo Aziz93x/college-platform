@@ -4,6 +4,11 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0023 amended: the Rayat upload's budget measured alone
+
+- The test of a 25,000-row upload in 5 s now runs in its own Vitest project, `budget` (`tests/budget/rayat-upload.test.ts`), after the unit and integration tests and one file at a time, on a PostgreSQL of its own. Beside the other test files it once took 5.5 s on CI; alone there, it takes 2.4 s. The budget is unchanged.
+- Each run notes the upload's time as a test annotation, which GitHub shows beside the run.
+
 ### Audit 6: steps 16-18
 
 - A task's payload starts as `blankPayload()`: each box unticked, a week field at the term's current week, each text and list empty. What the editor shows is then what the payload holds, so a homework left at its week, or a checklist with a box unticked, is an answer its kind's schema takes. The task card starts from it (a note under Step 26). Each advising session's day and notes, and each grade band's fields, are named by their number, and a band's trainees stop at 9,999, the most the field's four digits write.

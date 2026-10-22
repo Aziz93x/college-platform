@@ -30,6 +30,20 @@ export default defineConfig({
           server: { deps: { inline: ["better-auth"] } },
         },
       },
+      {
+        // Time budgets (ADR-0023), measured with nothing else running: after the projects above
+        // (a later group), one file at a time, on a PostgreSQL of their own. With a single
+        // worker, as on two cores, Vitest runs this group first instead; it is alone either way.
+        resolve: { tsconfigPaths: true },
+        test: {
+          name: "budget",
+          include: ["tests/budget/**/*.test.ts"],
+          globalSetup: ["tests/integration/global-setup.ts"],
+          sequence: { groupOrder: 1 },
+          fileParallelism: false,
+          hookTimeout: 120_000,
+        },
+      },
     ],
   },
 });
