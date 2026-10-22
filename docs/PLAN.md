@@ -844,6 +844,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 >
 > **From Step 10:** the people screens: a "…" in each row that rests quietly and opens into the account's actions, each confirmed in a bottom sheet; the import's three stages on one page (the file, the preview, the result with the passwords shown once); the person's page with two forms (name and email, employee number); and the profile. A phone leaves out the email and the roles, which the person's page shows.
 
+**Note from ADR-0016:** a person's page also gives them a role, across the college or in one active department, for whoever holds `roles.manage`, through the role page's own action (`addMembershipAction`): the same key, password step, event and notification. Taking a role away stays on the role's page.
+
 #### Step 11. Audit log and history (S)
 
 **Goal:** every change can be traced.
@@ -899,6 +901,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 > **Checkpoint: Audit 4.** Run `/audit 10-12`.
 >
 > **Checkpoint: Lead review B.** Run `/lead-review B`, then tag `v0.2-B`.
+
+**Note from ADR-0015:** each card on the bell's stack opens its notification and marks it read, as a row of the center does: with the stack closed, the newest opens with one tap, and the stack's foot opens the list, then leads to the center. A digest keeps the ids of what it names and is read with the last of them, in the same `notification.read` event. Step 27's reminders reach the trainer the same way.
 
 ### Section C. Term, framework and Rayat: the vice-dean's part (steps 13 to 17)
 
