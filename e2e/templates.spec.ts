@@ -33,9 +33,9 @@ test("the head of Electrical sees the framework's items for its trainers above t
   await expect(college).toContainText("نسخة الاختبار ونموذج الإجابة");
   await expect(college.getByRole("button")).toHaveCount(0);
   const own = page.getByRole("region", { name: text.own.title });
-  await expect(own.getByRole("listitem")).toHaveCount(7);
+  await expect(own.getByRole("listitem")).toHaveCount(4);
   await expect(own.getByRole("listitem").first()).toContainText(
-    "نسخة الاختبار الفصلي ونموذج إجابته",
+    "نسخة الاختبار العملي ونموذج تقييمه",
   );
   // An exam copy is a course's work: once for all its trainer's sections of it.
   await expect(own.getByRole("listitem").first()).toContainText(

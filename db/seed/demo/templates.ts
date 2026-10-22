@@ -20,30 +20,21 @@ const evidence = (
   requiresApproval = false,
 ) => ({ required: true, types, maxFiles, requiresApproval });
 
-// Electrical's section templates for the demo term (Step 18), as the plan's examples list them: the
-// midterm and final exam copies, each with the head's approval, quizzes, three homework samples, a
-// grade analysis a week after each exam, the course on the e-learning platform and the training
-// practices. Each names its axis by code. A course's work reaches each of its trainers once for all
-// their sections of it, and the grade analysis each section's trainer, section by section (the
-// owner's answers, 22 October 2026).
+// Electrical's own section templates for the demo term (Step 18): work the department asks of its
+// trainers that the college's framework does not (Audit 6). A course's work reaches each of its
+// trainers once for all their sections of it: the practical exam's copy, with the head's approval,
+// and the quizzes. The workshop's safety checklist and samples of the lab reports reach each
+// section's trainer, section by section (the owner's answers, 22 October 2026). Each names its axis
+// by code.
 const ELECTRICAL: Template[] = [
   {
     axis: "2",
-    title: "نسخة الاختبار الفصلي ونموذج إجابته",
+    title: "نسخة الاختبار العملي ونموذج تقييمه",
     kind: "exam_copy",
     appliesTo: { type: "eachCourse" },
-    due: { type: "week", week: 7 },
+    due: { type: "week", week: 15 },
     evidence: evidence(["pdf", "docx"], 2, true),
-    notes: "تُسلّم قبل أسبوع الاختبار الفصلي.",
-  },
-  {
-    axis: "2",
-    title: "نسخة الاختبار النهائي ونموذج إجابته",
-    kind: "exam_copy",
-    appliesTo: { type: "eachCourse" },
-    due: { type: "week", week: 16 },
-    evidence: evidence(["pdf", "docx"], 2, true),
-    notes: "",
+    notes: "تُسلّم قبل أسبوع الاختبار العملي.",
   },
   {
     axis: "2",
@@ -55,45 +46,28 @@ const ELECTRICAL: Template[] = [
     notes: "",
   },
   {
+    axis: "6",
+    title: "قائمة التحقق من السلامة في الورشة",
+    kind: "general",
+    appliesTo: { type: "eachSection" },
+    due: { type: "week", week: 1 },
+    evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic"], 2),
+    notes: "يوقّعها متدربو الشعبة قبل أول تدريب عملي.",
+  },
+  {
     axis: "5",
-    title: "ثلاث عينات من الواجبات",
+    title: "عينات من تقارير التجارب العملية",
     kind: "homework",
-    appliesTo: { type: "eachCourse" },
-    due: { type: "week", week: 10 },
+    appliesTo: { type: "eachSection" },
+    due: { type: "week", week: 12 },
     evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic"], 3),
     notes: "عينة مرتفعة وعينة متوسطة وعينة منخفضة.",
   },
-  {
-    axis: "3",
-    title: "تحليل نتائج الشعبة",
-    kind: "grade_analysis",
-    appliesTo: { type: "eachSection" },
-    due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
-    evidence: evidence(["xlsx", "pdf"], 2),
-    notes: "دون أسماء المتدربين.",
-  },
-  {
-    axis: "7",
-    title: "تجهيز المقرر على منصة التدريب الإلكتروني",
-    kind: "e_learning",
-    appliesTo: { type: "eachCourse" },
-    due: { type: "week", week: 2 },
-    evidence: evidence(["jpg", "jpeg", "png", "heic", "pdf"], 3),
-    notes: "",
-  },
-  {
-    axis: "6",
-    title: "الممارسات التدريبية في الشعبة",
-    kind: "training_practice",
-    appliesTo: { type: "eachCourse" },
-    due: { type: "week", week: 9 },
-    evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic", "docx"], 5),
-    notes: "",
-  },
 ];
 
-// Mechanical's: its exam copies and the analysis of each exam. General Studies has none yet.
-const MECHANICAL: Template[] = [ELECTRICAL[0], ELECTRICAL[1], ELECTRICAL[4]];
+// Mechanical's: the practical exam's copy and the workshop's safety checklist. General Studies has
+// none yet.
+const MECHANICAL: Template[] = [ELECTRICAL[0], ELECTRICAL[2]];
 
 // Each department's templates, added by its head. Written once, while the department has none for
 // the active term.
