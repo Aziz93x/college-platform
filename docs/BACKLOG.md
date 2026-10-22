@@ -50,11 +50,9 @@ Each one that the owner accepts gets an ADR and a note under its step before it 
 - 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011. Lead review B found what a rollback to `v0.1-A`'s image would do on today's schema: its sign-in ignores `users.disabled_at`, so disabled accounts sign in again, and its access ignores `memberships.department_id`, so the heads' department keys count across the college.
 - 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change. (ADR-0014 removed the bounce: the setup's last step now sends the person on itself, with the router; the full page load there is what remains.)
 
-## Lead review B: proposals waiting for the owner (docs/reviews/lead-B.md)
+## Lead review B: proposals (docs/reviews/lead-B.md)
 
-Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`). Proposals 2 and 3 were fixed in the review's pull request; 5 and 7 are notes under Steps 43 and 40.
+Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`). Proposals 2 and 3 were fixed in the review's pull request; 5 and 7 are notes under Steps 43 and 40. The owner accepted proposals 1 and 6 on 2026-10-22, and the review's pull request built them: ADR-0015 (a notification opens from the bell, and a digest is read with the last of what it counts) and ADR-0016 (a role given from the person's page).
 
-- 1. A notification opens from the bell, and a digest leaves the unread count once what it names is read: a trainer opening something new on a phone goes from 4 taps and 2 views to 2 taps and 1 view, and the bell stops counting a digest beside what it repeats. 1.5 h; ADR-0015 if accepted.
 - 4. One re-authentication helper for the actions: the password schema, `confirmPassword()` and `changeBy()` are copied in three action files. 30 min; take it with the next step that adds a sensitive action.
-- 6. Give a role from the person's page, through the same action, key, password step, event and notification as the role's page: making a trainer a head goes from 7 taps, a typed name and 2 pages to 5 taps on the page the admin is on. 1.5 h; ADR-0016 if accepted.
 - To watch: `e2e/people.spec.ts:488` (the account menu leads to changing the password) failed once in the review's full run, with no request after the press on the bloom menu's item, and passed 30 times since.

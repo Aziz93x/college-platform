@@ -455,7 +455,7 @@ Unchanged; I found none of them broken. GitHub was not reachable, so I could not
 | | **Tests.** `tests/integration/support/plans.ts` records the statements a reader sends and explains them. The 100,000-event test reads the plans of the first page, a deep page and the action filter: `["Limit", "audit_events_college_time_idx"]` twice, then `["Limit", "audit_events_action_idx"]`. The notifications test reads a 20,000-row person's page and the bell's newest. Without the migration, both fail with `Sort` over `Seq Scan` or `Bitmap Heap Scan`. | |
 | Proposal 3: an index for the action filter | **Applied** in migration `0012`: `audit_events_action_idx (college_id, action, created_at desc, id desc)`. | same commit |
 | Proposal 2: the settings group after a save | **Fixed.** This is a defect: the screen promised that a reload opens the group again. The group goes into the address with `history.replaceState(null, …)`, which the router keeps. With the router's own state passed instead, a save's refresh put the old address back. The save test now chooses its group by its tab and checks the address after the save. With the old line it fails on both projects (`Received string: "http://localhost:3000/settings"`). | `fix(settings): the group stays in the address through a save` |
-| Proposals 1, 4 and 6 | **docs/BACKLOG.md.** Proposals 1 and 6 change flows (ADR-0015 and ADR-0016 if accepted). Proposal 4 waits for the next step that adds a sensitive action. | `docs: lead review B report and resolution, plan notes, backlog and changelog` |
+| Proposals 1, 4 and 6 | **docs/BACKLOG.md.** Proposals 1 and 6 change flows (ADR-0015 and ADR-0016 if accepted). Proposal 4 waits for the next step that adds a sensitive action. The owner then accepted 1 and 6, built below. | `docs: lead review B report and resolution, plan notes, backlog and changelog` |
 | Proposals 5 and 7 | **Notes under Steps 43 and 40.** | same commit |
 | Lead review A's proposals 6, 7 and 10 | **Their backlog lines now carry this review's evidence:** 16 of 20 pages over 300 ms at 10 at once; 40 temporary passwords handed out at once; a rollback to `v0.1-A` would let disabled accounts sign in. | same commit |
 | Signed image archives (handed to this review) | **Left for Step 40**, as the review decided. | |
@@ -464,6 +464,19 @@ Unchanged; I found none of them broken. GitHub was not reachable, so I could not
 **Found while fixing.** M2's longer key descriptions grew the roles grid, which moved the iPhone's sticky Save under the place where the toast appears.
 - The roles test's emulated pointer then rested on the toast, which waits while it is hovered, and the test waited for it to close: 1 failed on the iPhone, on its retry too.
 - The test now moves the pointer away first, as a finger leaves the screen (`e2e/roles.spec.ts`). With the old descriptions it passed unchanged, and with the new ones `8 passed`, 3 runs on each project.
+
+### The owner's decisions (2026-10-22)
+
+- **M2's rule as built is accepted.** The owner keeps the refined rule ("this is good, no need for stricter one"): a vice-dean given temporary passwords helps the trainers, and the dean, whose one key the seeded vice-dean holds, never an admin or a head.
+- **Proposals 1 and 6 are accepted.** Each has its ADR and its note in docs/PLAN.md (under Steps 12 and 10) before its code, and both are built in this pull request.
+
+| Item | Disposition | Commit |
+| --- | --- | --- |
+| Proposal 1: a notification opens from the bell (ADR-0015) | **Built.** Each card on the bell's stack is a link to its page; opening it reads the notification first, as a row of the center does (`openItem` in `_shell/bell.tsx`). While the stack is closed the newest card opens with one tap, and the foot opens the list, then leads to the center. Only the keyboard's focus opens the list, so a browser that focuses on contact does not spread the cards under a finger mid-tap. | `feat(notifications): a notification opens from the bell, and a digest is read with what it counts` |
+| | **The digest.** It keeps the ids of every notification it counts (`digestOf`, the job, `seed:demo`), and `markRead` reads an unread digest whose counted notifications are all read, in the same transaction and the same `notification.read` event. Digests sent before keep no ids and stay. | same commit |
+| | **Tests.** The digest's integration test reads three of four counted notifications, then the last: `3`, then `2` with the digest, and the events say the same; an older digest without ids stays unread. Without the digest's update it fails with `expected 1 to be 2`. `seed-demo.test.ts` checks that each seeded digest names its holder's notifications and is read no later than the last of them; with the seed's old rule it fails. End-to-end, on the desktop and the iPhone (a finger's taps there): the card opens the profile and the bell reads 0; the foot opens the list, then leads to the center, which reads nothing; the keyboard's path (Tab opens the list, Escape closes it before the panel, Enter on the foot opens it, then the center); axe on the stack closed and open. | same commit |
+| Proposal 6: a role given from the person's page (ADR-0016) | **Built.** `people/give-role.tsx`, for whoever holds `roles.manage`: the role (with a placeholder, which `SelectValue` now takes), the scope (the college or an active department; none for the system role), the password step, then `addMembershipAction`, the role page's own. The empty roles line no longer sends the reader to the role pages. | `feat(people): a role given from the person's page` |
+| | **Test.** End-to-end on both projects: the system role asks for no scope; the head role in a department shows on the page at once, with one `membership.create` event and one `membershipAdded` notification. The people pages' axe and 44 px checks now cover the form. | same commit |
 
 ### Re-run results (local, on the final tree)
 
@@ -498,4 +511,5 @@ Unchanged; I found none of them broken. GitHub was not reachable, so I could not
 - **docs/PLAN.md:** notes from lead review B under Steps 40 and 43.
 - **docs/BACKLOG.md:** lead review B's proposals 1, 4 and 6 and the test to watch; this review's evidence on lead review A's proposals 6, 7 and 10.
 - **CHANGELOG.md:** the lead review B entry.
-- **Owner:** decide proposals 1 and 6, with lead review A's pending ones. Once #25, #26 and this pull request are merged, I tag `v0.2-B` on `main`.
+- **docs/ADR/0015 and 0016:** proposals 1 and 6, accepted and built; their notes under Steps 12 and 10.
+- **Owner:** lead review A's pending proposals. Once #25, #26 and this pull request are merged, I tag `v0.2-B` on `main`.
