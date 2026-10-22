@@ -525,7 +525,9 @@ test(
 test.describe("the account menu", () => {
   test.use({ storageState: undefined });
 
-  // Opens the menu that carries the person's name, once React owns it.
+  // Opens the menu that carries the person's name, once React owns it, and waits until it has
+  // opened: a press on an item while the menu still grows out of its button can press nothing
+  // (signOut in e2e/support/auth.ts).
   async function menu(page: Page, person: TestAccount) {
     const trigger = page.getByRole("button", {
       name: auth.account.open.replace("{name}", person.name),
@@ -538,6 +540,7 @@ test.describe("the account menu", () => {
       )
       .toBe(true);
     await trigger.click();
+    await expect(page.getByRole("menu")).toHaveCSS("clip-path", "inset(0%)");
   }
 
   test(
