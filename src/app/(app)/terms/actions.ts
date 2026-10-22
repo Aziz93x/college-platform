@@ -161,6 +161,7 @@ export const updateHolidayAction = viewerAction
       days,
       await changeBy(viewer),
       wallClock(new Date(), timeZone).slice(0, 10),
+      await calendarSettings(viewer.collegeId),
     );
     if (result.status === "saved" || result.status === "approved") refresh();
     return result;

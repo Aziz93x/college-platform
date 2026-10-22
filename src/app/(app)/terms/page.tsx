@@ -95,13 +95,14 @@ export default async function TermsPage() {
                 <li key={term.id}>
                   <Link
                     href={`/terms/${term.id}`}
-                    className="flex items-center justify-between gap-4 px-5 py-3.5 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6"
+                    className="group/row flex items-center justify-between gap-4 px-5 py-3.5 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6"
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">
                         {term.name}
                       </span>
-                      <span className="block text-muted-foreground text-sm tabular-nums">
+                      {/* Under the pointer the muted grey falls below 4.5:1 on the row's tint (Audit 5). */}
+                      <span className="block text-muted-foreground text-sm tabular-nums transition-colors group-hover/row:text-foreground">
                         {t("span", {
                           weeks: term.weeks,
                           from: days.day(term.startsOn),

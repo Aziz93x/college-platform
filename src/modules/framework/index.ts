@@ -1,7 +1,6 @@
 export { countTasks } from "./domain/count.ts";
 export {
   type DueRule,
-  evidenceTypes,
   type FrameworkItemInput,
   frameworkItemInput,
   frameworkLimits,

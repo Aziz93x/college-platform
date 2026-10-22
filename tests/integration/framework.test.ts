@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
 import { addMembership, countMembers } from "../../src/modules/access/index.ts";
@@ -34,6 +35,9 @@ const query = async (text: string, values: unknown[] = []) =>
   (await database.pool.query(text, values)).rows;
 const change = (who = "viceDean") => ({ collegeId, actorId: people[who] });
 
+// The file types the college accepts, as the item actions read them from files.acceptedTypes.
+const accepted = ["pdf", "xlsx", "docx"];
+
 const item = (title: string): FrameworkItemInput => ({
   title,
   axisId,
@@ -42,7 +46,7 @@ const item = (title: string): FrameworkItemInput => ({
   due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
   evidence: {
     required: true,
-    types: ["pdf", "excel"],
+    types: ["pdf", "xlsx"],
     maxFiles: 2,
     requiresApproval: false,
   },
@@ -104,18 +108,32 @@ describe("a framework's versions", () => {
       draft.id,
       item("تحليل نتائج الاختبار"),
       change(),
+      accepted,
       database.db,
     );
     if (added.status !== "saved") throw new Error(added.status);
-    await addItem(draft.id, item("ملف المقرر"), change(), database.db);
+    await addItem(
+      draft.id,
+      item("ملف المقرر"),
+      change(),
+      accepted,
+      database.db,
+    );
     await expect(
-      updateItem(added.id, item("تحليل نتائج الاختبار"), change(), database.db),
+      updateItem(
+        added.id,
+        item("تحليل نتائج الاختبار"),
+        change(),
+        accepted,
+        database.db,
+      ),
     ).resolves.toEqual({ status: "unchanged" });
     await expect(
       updateItem(
         added.id,
         { ...item("تحليل النتائج"), notes: "بعد أسبوع" },
         change(),
+        accepted,
         database.db,
       ),
     ).resolves.toEqual({ status: "saved" });
@@ -125,10 +143,10 @@ describe("a framework's versions", () => {
     ).resolves.toEqual({ status: "published" });
     // Published: its items stay as they were.
     await expect(
-      addItem(draft.id, item("بند متأخر"), change(), database.db),
+      addItem(draft.id, item("بند متأخر"), change(), accepted, database.db),
     ).resolves.toEqual({ status: "notDraft" });
     await expect(
-      updateItem(added.id, item("تغيير"), change(), database.db),
+      updateItem(added.id, item("تغيير"), change(), accepted, database.db),
     ).resolves.toEqual({ status: "notDraft" });
     await expect(removeItem(added.id, change(), database.db)).resolves.toEqual({
       status: "notDraft",
@@ -189,7 +207,13 @@ describe("a framework's versions", () => {
       endorseDraft(draft.id, change("dean"), database.db),
     ).resolves.toEqual({ status: "endorsed" });
     // An item added after the endorsement takes it back.
-    await addItem(draft.id, item("تقرير الواجبات"), change(), database.db);
+    await addItem(
+      draft.id,
+      item("تقرير الواجبات"),
+      change(),
+      accepted,
+      database.db,
+    );
     await expect(
       publishDraft(draft.id, change(), true, database.db),
     ).resolves.toEqual({ status: "notEndorsed" });
@@ -223,6 +247,77 @@ describe("a framework's versions", () => {
       "تقرير الواجبات",
     ]);
   });
+
+  it("takes only what the college offers, and nothing once its term has closed (Audit 5)", async () => {
+    const created = await createTerm(
+      { name: "الفصل الصيفي 1448", startsOn: "2027-06-13", weeks: 8 },
+      change(),
+      database.db,
+    );
+    if (created.status !== "created") throw new Error(created.status);
+    const draft = await startDraft(created.id, change(), database.db);
+    if (draft.status !== "created") throw new Error(draft.status);
+    const [{ id: system }] = await query(
+      "select id from roles where college_id = $1 and system",
+      [collegeId],
+    );
+    const base = item("ملف المقرر");
+    // A file type the college does not accept, a kind of day no calendar has, the system role, and
+    // a role of no college's.
+    for (const refused of [
+      { ...base, evidence: { ...base.evidence, types: ["mp4"] } },
+      { ...base, due: { type: "afterEvent", eventKind: "trip", weeks: 1 } },
+      { ...base, appliesTo: { type: "role", roleId: system } },
+      { ...base, appliesTo: { type: "role", roleId: randomUUID() } },
+    ] satisfies FrameworkItemInput[]) {
+      await expect(
+        addItem(draft.id, refused, change(), accepted, database.db),
+      ).resolves.toEqual({ status: "notOffered" });
+    }
+    const added = await addItem(
+      draft.id,
+      base,
+      change(),
+      accepted,
+      database.db,
+    );
+    if (added.status !== "saved") throw new Error(added.status);
+    await expect(
+      updateItem(
+        added.id,
+        { ...base, evidence: { ...base.evidence, types: ["pdf", "mp4"] } },
+        change(),
+        accepted,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "notOffered" });
+
+    // Its term closes with the draft unpublished: the draft changes no more.
+    await query("update terms set status = 'closed' where id = $1", [
+      created.id,
+    ]);
+    await expect(
+      addItem(draft.id, base, change(), accepted, database.db),
+    ).resolves.toEqual({ status: "closed" });
+    await expect(
+      updateItem(
+        added.id,
+        { ...base, notes: "متأخر" },
+        change(),
+        accepted,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "closed" });
+    await expect(removeItem(added.id, change(), database.db)).resolves.toEqual({
+      status: "closed",
+    });
+    await expect(
+      endorseDraft(draft.id, change("dean"), database.db),
+    ).resolves.toEqual({ status: "closed" });
+    await expect(
+      publishDraft(draft.id, change(), false, database.db),
+    ).resolves.toEqual({ status: "closed" });
+  });
 });
 
 it("counts the enabled holders of each role in each active department", async () => {
@@ -240,6 +335,20 @@ it("counts the enabled holders of each role in each active department", async ()
   await query("update users set disabled_at = now() where id = $1", [
     people.noura,
   ]);
+  // Hind also holds the role for the active term alone: still one person (Audit 5).
+  await query("update terms set status = 'active' where id = $1", [termId]);
+  await expect(
+    addMembership(
+      {
+        userId: people.hind,
+        roleId: trainerRole,
+        departmentId: electrical,
+        termId,
+      },
+      { collegeId, actorId: people.viceDean },
+      database.db,
+    ),
+  ).resolves.toMatchObject({ status: "added" });
   expect(await countMembers(collegeId, database.db)).toEqual([
     { departmentId: electrical, roleId: trainerRole, count: 1 },
   ]);

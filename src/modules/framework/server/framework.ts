@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { lockCollege } from "../../../platform/db/college-lock.ts";
+import { roles } from "../../access/index.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
-import { terms } from "../../terms/index.ts";
+import { calendarEventKinds, terms } from "../../terms/index.ts";
 import type { FrameworkItemInput } from "../domain/inputs.ts";
 import { frameworkItems, frameworks } from "./schema.ts";
 
@@ -162,7 +163,8 @@ export async function startDraft(
   });
 }
 
-// A draft of the college, locked until the change commits; nothing for a published version.
+// A draft of the college, locked with its term until the change commits. A published version
+// changes no more, and neither does the draft of a term that has closed (Audit 5).
 async function draftOf(tx: Tx, collegeId: string, id: string) {
   const [draft] = await tx
     .select({
@@ -171,11 +173,45 @@ async function draftOf(tx: Tx, collegeId: string, id: string) {
       version: frameworks.version,
       status: frameworks.status,
       endorsedAt: frameworks.endorsedAt,
+      termStatus: terms.status,
     })
     .from(frameworks)
+    .innerJoin(terms, eq(terms.id, frameworks.termId))
     .where(and(eq(frameworks.collegeId, collegeId), eq(frameworks.id, id)))
     .for("update");
-  return draft?.status === "draft" ? draft : undefined;
+  if (draft?.status !== "draft") return "notDraft" as const;
+  return draft.termStatus === "closed" ? ("closed" as const) : draft;
+}
+
+// Whether an item names only what the college offers: file types it accepts (files.acceptedTypes,
+// which the caller reads), a kind of day a calendar has, and one of its own roles (Audit 5).
+async function offered(
+  tx: Tx,
+  collegeId: string,
+  input: FrameworkItemInput,
+  accepted: string[],
+) {
+  if (input.evidence.types.some((type) => !accepted.includes(type))) {
+    return false;
+  }
+  if (
+    input.due.type === "afterEvent" &&
+    !(calendarEventKinds as readonly string[]).includes(input.due.eventKind)
+  ) {
+    return false;
+  }
+  if (input.appliesTo.type === "eachSection") return true;
+  const [role] = await tx
+    .select({ id: roles.id })
+    .from(roles)
+    .where(
+      and(
+        eq(roles.collegeId, collegeId),
+        eq(roles.id, input.appliesTo.roleId),
+        eq(roles.system, false),
+      ),
+    );
+  return Boolean(role);
 }
 
 // A change to a draft's items takes back the dean's endorsement: the dean endorsed other items.
@@ -190,11 +226,18 @@ export async function addItem(
   draftId: string,
   input: FrameworkItemInput,
   change: Change,
+  accepted: string[],
   db: Db = getDb(),
-): Promise<{ status: "notDraft" } | { status: "saved"; id: string }> {
+): Promise<
+  | { status: "notDraft" | "closed" | "notOffered" }
+  | { status: "saved"; id: string }
+> {
   return db.transaction(async (tx) => {
     const draft = await draftOf(tx, change.collegeId, draftId);
-    if (!draft) return { status: "notDraft" };
+    if (typeof draft === "string") return { status: draft };
+    if (!(await offered(tx, change.collegeId, input, accepted))) {
+      return { status: "notOffered" };
+    }
     const [{ last }] = await tx
       .select({ last: max(frameworkItems.position) })
       .from(frameworkItems)
@@ -229,7 +272,7 @@ async function draftItem(tx: Tx, collegeId: string, itemId: string) {
     );
   if (!item) return { refused: "notFound" as const };
   const draft = await draftOf(tx, collegeId, item.frameworkId);
-  return draft ? { item, draft } : { refused: "notDraft" as const };
+  return typeof draft === "string" ? { refused: draft } : { item, draft };
 }
 
 // Changes an item of a draft.
@@ -237,14 +280,26 @@ export async function updateItem(
   itemId: string,
   input: FrameworkItemInput,
   change: Change,
+  accepted: string[],
   db: Db = getDb(),
-): Promise<{ status: "notFound" | "notDraft" | "unchanged" | "saved" }> {
+): Promise<{
+  status:
+    | "notFound"
+    | "notDraft"
+    | "closed"
+    | "notOffered"
+    | "unchanged"
+    | "saved";
+}> {
   return db.transaction(async (tx) => {
     const found = await draftItem(tx, change.collegeId, itemId);
     if (found.refused) return { status: found.refused };
     const { id: _, frameworkId: __, ...before } = found.item;
     if (canonical(before) === canonical({ ...before, ...input })) {
       return { status: "unchanged" };
+    }
+    if (!(await offered(tx, change.collegeId, input, accepted))) {
+      return { status: "notOffered" };
     }
     await tx
       .update(frameworkItems)
@@ -264,7 +319,7 @@ export async function removeItem(
   itemId: string,
   change: Change,
   db: Db = getDb(),
-): Promise<{ status: "notFound" | "notDraft" | "saved" }> {
+): Promise<{ status: "notFound" | "notDraft" | "closed" | "saved" }> {
   return db.transaction(async (tx) => {
     const found = await draftItem(tx, change.collegeId, itemId);
     if (found.refused) return { status: found.refused };
@@ -291,10 +346,12 @@ export async function endorseDraft(
   draftId: string,
   change: Change,
   db: Db = getDb(),
-): Promise<{ status: "notDraft" | "empty" | "unchanged" | "endorsed" }> {
+): Promise<{
+  status: "notDraft" | "closed" | "empty" | "unchanged" | "endorsed";
+}> {
   return db.transaction(async (tx) => {
     const draft = await draftOf(tx, change.collegeId, draftId);
-    if (!draft) return { status: "notDraft" };
+    if (typeof draft === "string") return { status: draft };
     if (draft.endorsedAt) return { status: "unchanged" };
     if ((await itemCount(tx, draftId)) === 0) return { status: "empty" };
     await tx
@@ -320,11 +377,11 @@ export async function publishDraft(
   needsEndorsement: boolean,
   db: Db = getDb(),
 ): Promise<{
-  status: "notDraft" | "empty" | "notEndorsed" | "published";
+  status: "notDraft" | "closed" | "empty" | "notEndorsed" | "published";
 }> {
   return db.transaction(async (tx) => {
     const draft = await draftOf(tx, change.collegeId, draftId);
-    if (!draft) return { status: "notDraft" };
+    if (typeof draft === "string") return { status: draft };
     const items = await itemCount(tx, draftId);
     if (items === 0) return { status: "empty" };
     if (needsEndorsement && !draft.endorsedAt) return { status: "notEndorsed" };

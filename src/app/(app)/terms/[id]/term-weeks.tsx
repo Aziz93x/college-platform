@@ -41,6 +41,9 @@ export async function TermWeeks({
       <ol className="mt-4 divide-y border-t">
         {weeks.map((week) => {
           const now = week.startsOn === current;
+          // The muted grey measures 4.18:1 on this week's tint and 3.97:1 on a holiday week's
+          // (Audit 5), so a tinted row writes all its text in the foreground.
+          const tinted = now || week.number === null;
           return (
             <li
               key={week.startsOn}
@@ -59,7 +62,7 @@ export async function TermWeeks({
               <span className="text-sm tabular-nums">
                 {week.days}
                 {week.hijri ? (
-                  <span className="text-muted-foreground">
+                  <span className={cn(!tinted && "text-muted-foreground")}>
                     <span aria-hidden> · </span>
                     {week.hijri}
                   </span>
@@ -71,7 +74,12 @@ export async function TermWeeks({
                 </span>
               ) : null}
               {week.holds.length > 0 ? (
-                <span className="basis-full text-muted-foreground text-xs sm:basis-auto">
+                <span
+                  className={cn(
+                    "basis-full text-xs sm:basis-auto",
+                    !tinted && "text-muted-foreground",
+                  )}
+                >
                   {format.list(week.holds)}
                 </span>
               ) : null}

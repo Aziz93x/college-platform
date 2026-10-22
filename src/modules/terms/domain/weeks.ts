@@ -81,3 +81,33 @@ export function weekDays(term: TermCalendar, number: number) {
 export function termEndsOn(term: TermCalendar) {
   return termWeeks(term).at(-1)?.endsOn ?? term.startsOn;
 }
+
+// A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
+// (ADR-0018), with the college's settings.
+export function calendarOf(
+  term: { startsOn: Day; weeks: number },
+  events: readonly (DayRange & { kind: string })[],
+  settings: Pick<TermCalendar, "skipHolidayWeeks" | "workingDays">,
+  breaks: readonly DayRange[] = [],
+): TermCalendar {
+  return {
+    startsOn: term.startsOn,
+    weeks: term.weeks,
+    holidays: [
+      ...events.filter((event) => event.kind === "holiday"),
+      ...breaks,
+    ],
+    ...settings,
+  };
+}
+
+// The events of a calendar that fall outside its term, before its first day or after its last.
+export function outside<T extends DayRange>(
+  calendar: TermCalendar,
+  events: readonly T[],
+) {
+  const last = termEndsOn(calendar);
+  return events.filter(
+    (event) => event.startsOn < calendar.startsOn || event.endsOn > last,
+  );
+}

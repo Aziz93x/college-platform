@@ -60,7 +60,9 @@ vi.mock("@/modules/settings", async (importOriginal) => ({
       ? "ar"
       : key === "locale.timeZone"
         ? "Asia/Riyadh"
-        : {},
+        : key === "files.acceptedTypes"
+          ? ["pdf"]
+          : {},
 }));
 vi.mock("@/modules/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/access")>()),

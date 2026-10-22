@@ -93,12 +93,15 @@ const textPairs = {
 };
 // Tinted grounds that carry text, as Tailwind paints `bg-primary/5`: the role mixed at its share
 // over the card. Muted text stays off them: on an unread notification's tint it measured 4.18:1
-// (Audit 4), so tinted rows and their hover use the foreground.
+// (Audit 4), and on a term's weeks 4.18:1 and 3.97:1 (Audit 5), so tinted rows and their hover use
+// the foreground.
 const tints: Record<string, [role: string, share: number]> = {
   // An unread notification, the pilot banner and an info alert.
   "primary/5": ["primary", 0.05],
   // A row under the pointer.
   "muted/60": ["muted", 0.6],
+  // A week of holidays in a term's weeks.
+  "muted/40": ["muted", 0.4],
   // An error alert.
   "alert/5": ["alert", 0.05],
 };
@@ -106,6 +109,7 @@ const tintedText = [
   ["foreground", "primary/5"],
   ["primary", "primary/5"],
   ["foreground", "muted/60"],
+  ["foreground", "muted/40"],
   ["alert", "alert/5"],
 ];
 function tinted(ground: string) {

@@ -107,7 +107,11 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#updateCalendarEventAction": ["calendarEvent.update"],
   "(app)/terms/actions.ts#removeCalendarEventAction": ["calendarEvent.delete"],
   // The next term, a draft with what it took from the term's calendar.
-  "(app)/terms/actions.ts#openNextTermAction": ["term.create"],
+  // The wizard copies the term's framework into the new term as a draft (Step 15).
+  "(app)/terms/actions.ts#openNextTermAction": [
+    "term.create",
+    "framework.create",
+  ],
   "(app)/terms/actions.ts#activateTermAction": ["term.activate"],
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
   "(app)/terms/actions.ts#updateHolidayAction": ["holiday.update"],
@@ -406,8 +410,8 @@ describe("every server action writes its event", () => {
       { id: published.id },
     );
 
-    // A term and its calendar, the next term opened from it, and the term made active, then
-    // closed (Step 13).
+    // A term and its calendar, the next term opened from it once its framework is published, and
+    // the term made active, then closed (Step 13).
     const terms = "(app)/terms/actions.ts";
     const spring = { name: "Spring 1447", startsOn: "2026-01-04", weeks: 18 };
     const term = await expectWrites(`${terms}#createTermAction`, spring);
@@ -435,12 +439,6 @@ describe("every server action writes its event", () => {
       eventId,
       ...midterms,
       title: "Midterm exams",
-    });
-    await expectWrites(`${terms}#openNextTermAction`, {
-      fromId: term.id,
-      name: "Autumn 1448",
-      startsOn: "2026-08-23",
-      weeks: 18,
     });
     await expectWrites(`${terms}#removeCalendarEventAction`, {
       termId: term.id,
@@ -488,6 +486,12 @@ describe("every server action writes its event", () => {
     });
     await expectWrites(`${framework}#publishDraftAction`, {
       draftId: draft.id,
+    });
+    await expectWrites(`${terms}#openNextTermAction`, {
+      fromId: term.id,
+      name: "Autumn 1448",
+      startsOn: "2026-08-23",
+      weeks: 18,
     });
     const version = await expectWrites(`${framework}#startDraftAction`, {
       termId: term.id,

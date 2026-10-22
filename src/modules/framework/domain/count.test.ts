@@ -4,8 +4,8 @@ import type { AppliesTo, DueRule } from "./inputs.ts";
 
 const TRAINER = "0199b2a4-0000-7000-8000-000000000001";
 const HEAD = "0199b2a4-0000-7000-8000-000000000002";
-// An 18-week term with a midterm and a final exam week.
-const TERM = { weeks: 18, events: { exam: 2, holiday: 1 } };
+// An 18-week term with its midterms in week 8 and its finals in week 18.
+const TERM = { weeks: 18, events: { exam: [8, 18], holiday: [4] } };
 const trainers: AppliesTo = { type: "role", roleId: TRAINER };
 const heads: AppliesTo = { type: "role", roleId: HEAD };
 
@@ -15,7 +15,9 @@ describe("occurrences", () => {
     [{ type: "week", week: 19 }, 0],
     [{ type: "weekly" }, 18],
     [{ type: "everyWeeks", every: 4 }, 4],
-    [{ type: "afterEvent", eventKind: "exam", weeks: 1 }, 2],
+    [{ type: "afterEvent", eventKind: "exam", weeks: 0 }, 2],
+    // A week after the finals is past the term (Audit 5).
+    [{ type: "afterEvent", eventKind: "exam", weeks: 1 }, 1],
     [{ type: "afterEvent", eventKind: "gradeDeadline", weeks: 0 }, 0],
   ])("counts %j %i times in 18 weeks", (due, times) => {
     expect(occurrences(due, TERM)).toBe(times);
@@ -30,7 +32,8 @@ describe("countTasks", () => {
     expect(
       countTasks(
         [
-          // A grade analysis after each exam week, for every trainer: 2 × (12 + 8).
+          // A grade analysis a week after each exam, for every trainer: the midterms' only, as the
+          // finals end the term: 1 × (12 + 8).
           {
             appliesTo: trainers,
             due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
@@ -46,7 +49,7 @@ describe("countTasks", () => {
         [electrical, mechanical, general],
         TERM,
       ),
-    ).toEqual({ tasks: 48, departments: 2 });
+    ).toEqual({ tasks: 28, departments: 2 });
   });
 
   it("counts nothing for no items, and sections once there are some", () => {

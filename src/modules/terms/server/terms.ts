@@ -12,10 +12,10 @@ import type {
   TermStatus,
 } from "../domain/inputs.ts";
 import {
+  calendarOf,
   type Day,
-  type DayRange,
+  outside,
   type TermCalendar,
-  termEndsOn,
   weekDays,
   weekOf,
   workingDays,
@@ -80,36 +80,6 @@ export async function calendarSettings(collegeId: string, db?: Db) {
 }
 
 export type CalendarSettings = Awaited<ReturnType<typeof calendarSettings>>;
-
-// A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
-// (ADR-0018), with the college's settings.
-export function calendarOf(
-  term: Pick<Term, "startsOn" | "weeks">,
-  events: readonly Dated[],
-  settings: CalendarSettings,
-  breaks: readonly DayRange[] = [],
-): TermCalendar {
-  return {
-    startsOn: term.startsOn,
-    weeks: term.weeks,
-    holidays: [
-      ...events.filter((event) => event.kind === "holiday"),
-      ...breaks,
-    ],
-    ...settings,
-  };
-}
-
-// The events of a calendar that fall outside its term, before its first day or after its last.
-function outside<T extends Dated>(
-  calendar: TermCalendar,
-  events: readonly T[],
-) {
-  const last = termEndsOn(calendar);
-  return events.filter(
-    (event) => event.startsOn < calendar.startsOn || event.endsOn > last,
-  );
-}
 
 // The college's terms, the latest first.
 export async function listTerms(collegeId: string, db: Db = getDb()) {

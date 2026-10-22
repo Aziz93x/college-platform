@@ -7,15 +7,18 @@ import {
   publishDraft,
   startDraft,
   termFramework,
+  updateItem,
 } from "../../../src/modules/framework/index.ts";
 import { users } from "../../../src/modules/identity/index.ts";
+import { getSetting } from "../../../src/modules/settings/index.ts";
 import { activeTerm } from "../../../src/modules/terms/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
 import { demoAccounts } from "./accounts.ts";
 import { deviceOf } from "./device.ts";
 
 // The demo term's general framework (Step 15): ten college-wide items under the axes, entered and
-// published by the vice-dean, in the log. Each names its axis by code and its audience by role key.
+// published by the vice-dean, in the log. Each names its axis by code, its audience by role key, and
+// its evidence by the extensions the college accepts.
 // Written once, while the active term has no framework.
 const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
   axis: string;
@@ -29,7 +32,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "week", week: 2 },
     evidence: {
       required: true,
-      types: ["pdf", "word"],
+      types: ["pdf", "docx"],
       maxFiles: 3,
       requiresApproval: false,
     },
@@ -57,7 +60,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
     evidence: {
       required: true,
-      types: ["excel", "pdf"],
+      types: ["xlsx", "pdf"],
       maxFiles: 2,
       requiresApproval: false,
     },
@@ -71,7 +74,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "week", week: 3 },
     evidence: {
       required: false,
-      types: ["pdf", "image"],
+      types: ["pdf", "jpg", "jpeg", "png", "heic"],
       maxFiles: 3,
       requiresApproval: false,
     },
@@ -85,7 +88,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "everyWeeks", every: 4 },
     evidence: {
       required: true,
-      types: ["pdf", "image"],
+      types: ["pdf", "jpg", "jpeg", "png", "heic"],
       maxFiles: 3,
       requiresApproval: false,
     },
@@ -99,7 +102,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "week", week: 6 },
     evidence: {
       required: true,
-      types: ["pdf", "image", "word"],
+      types: ["pdf", "jpg", "jpeg", "png", "heic", "docx"],
       maxFiles: 5,
       requiresApproval: false,
     },
@@ -113,7 +116,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "week", week: 1 },
     evidence: {
       required: true,
-      types: ["image", "pdf"],
+      types: ["jpg", "jpeg", "png", "heic", "pdf"],
       maxFiles: 3,
       requiresApproval: false,
     },
@@ -141,7 +144,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "everyWeeks", every: 4 },
     evidence: {
       required: true,
-      types: ["word", "pdf"],
+      types: ["docx", "pdf"],
       maxFiles: 1,
       requiresApproval: false,
     },
@@ -155,7 +158,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     due: { type: "week", week: 12 },
     evidence: {
       required: false,
-      types: ["pdf", "image"],
+      types: ["pdf", "jpg", "jpeg", "png", "heic"],
       maxFiles: 5,
       requiresApproval: false,
     },
@@ -197,22 +200,56 @@ export async function seedDemoFramework({ db }: { db: Db }, collegeId: string) {
       `seed:demo: the framework was not started (${draft.status})`,
     );
   }
+  const accepted = await getSetting("files.acceptedTypes", { collegeId }, db);
   for (const { axis, role, ...item } of ITEMS) {
     const axisId = axes.get(axis);
     const roleId = roleIds.get(role);
     if (!axisId || !roleId)
       throw new Error(`seed:demo: no axis ${axis} or role ${role}`);
-    await addItem(
+    const added = await addItem(
       draft.id,
       { ...item, axisId, appliesTo: { type: "role", roleId } },
       change,
+      accepted,
       db,
     );
+    if (added.status !== "saved") {
+      throw new Error(
+        `seed:demo: «${item.title}» was not added (${added.status})`,
+      );
+    }
   }
   const published = await publishDraft(draft.id, change, false, db);
   if (published.status !== "published") {
     throw new Error(
       `seed:demo: the framework was not published (${published.status})`,
     );
+  }
+
+  // Version 2 waits as a draft: the grade analysis two weeks after each exam, which the finals in
+  // the term's last week then no longer ask for (Audit 5).
+  const next = await startDraft(term.id, change, db);
+  if (next.status !== "created") {
+    throw new Error(`seed:demo: version 2 was not started (${next.status})`);
+  }
+  const { draft: version } = await termFramework(collegeId, term.id, db);
+  const analysis = version?.items.find(
+    (each) => each.kind === "grade_analysis",
+  );
+  if (!analysis) throw new Error("seed:demo: no grade analysis to change");
+  const { id, frameworkId: _, ...item } = analysis;
+  const changed = await updateItem(
+    id,
+    {
+      ...item,
+      due: { type: "afterEvent", eventKind: "exam", weeks: 2 },
+      notes: "بعد أسبوعين من كل اختبار، ليتسع لمراجعة رئيس القسم.",
+    },
+    change,
+    accepted,
+    db,
+  );
+  if (changed.status !== "saved") {
+    throw new Error(`seed:demo: version 2 was not changed (${changed.status})`);
   }
 }
