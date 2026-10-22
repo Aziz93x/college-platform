@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { languages } from "../../../platform/i18n/language.ts";
+import { foldCase, oneLine } from "../../../platform/validation/text.ts";
 
 // An IANA time zone name, canonical or alias (UTC, Europe/Kyiv), that Intl can format with.
 // Intl.supportedValuesOf lists only the names ICU treats as canonical, and those change between versions.
@@ -39,6 +40,7 @@ export const settingGroups = [
   "calendar",
   "security",
   "files",
+  "rayat",
   "review",
   "reminders",
 ] as const;
@@ -64,6 +66,29 @@ export type SettingUnit =
 // vice-dean's for how a term's weeks are counted (Step 13).
 const MANAGE = "settings.manage";
 const TERM = "term.manage";
+
+// A Rayat report's column map: the header of each column the platform reads, by what it reads it
+// as (src/modules/rayat, which a unit test keeps these fields in step with), no two the same in any
+// spacing or case. Null until the base seed writes Rayat's own (docs/PLAN.md, section 9).
+function columnMap<F extends string>(fields: readonly F[]) {
+  const header = z.string().trim().min(1).max(100);
+  return z
+    .object(
+      Object.fromEntries(fields.map((field) => [field, header])) as Record<
+        F,
+        typeof header
+      >,
+    )
+    .refine(
+      (map) =>
+        new Set(
+          Object.values(map as Record<string, string>).map((text) =>
+            foldCase(oneLine(text)),
+          ),
+        ).size === fields.length,
+    )
+    .nullable();
+}
 
 // Every setting the code reads: its scope, the screen's group, the permission that edits it, the
 // schema a stored value must pass, the default used while none is stored, and the unit of a number.
@@ -318,6 +343,63 @@ export const settingsRegistry = {
       .max(30)
       .refine((types) => new Set(types).size === types.length),
     default: ["pdf", "jpg", "jpeg", "png", "heic", "docx", "xlsx", "pptx"],
+  },
+  // How the Rayat import finds each column of SS01, SF01 and SO01 (Step 16). The mapping version an
+  // import records is the stored value's version.
+  "rayat.columns.ss01": {
+    scope: "college",
+    group: "rayat",
+    permission: MANAGE,
+    schema: columnMap([
+      "term",
+      "department",
+      "courseCode",
+      "courseName",
+      "creditHours",
+      "sectionRef",
+      "deliveryMode",
+      "day",
+      "time",
+      "building",
+      "room",
+      "capacity",
+      "enrolled",
+      "remaining",
+      "trainerNumber",
+    ]),
+    default: null,
+  },
+  "rayat.columns.sf01": {
+    scope: "college",
+    group: "rayat",
+    permission: MANAGE,
+    schema: columnMap([
+      "term",
+      "department",
+      "courseCode",
+      "sectionRef",
+      "traineeNumber",
+      "registrationStatus",
+      "traineeStatus",
+    ]),
+    default: null,
+  },
+  "rayat.columns.so01": {
+    scope: "college",
+    group: "rayat",
+    permission: MANAGE,
+    schema: columnMap([
+      "termCode",
+      "term",
+      "department",
+      "subjectCode",
+      "courseNumber",
+      "traineeNumber",
+      "courseStatus",
+      "absencePercent",
+      "absenceHours",
+    ]),
+    default: null,
   },
   // The share of submitted evidence the weekly review sample takes, and the most it takes per
   // reviewer in a week (Step 29).

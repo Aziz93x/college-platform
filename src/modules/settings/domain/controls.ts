@@ -14,7 +14,9 @@ export type SettingControl =
   | { kind: "slider" | "stepper" | "number"; min: number; max: number }
   // A nullable text is left empty for the default (the message catalog's words).
   | { kind: "text"; maxLength: number; nullable: boolean }
-  | { kind: "list" };
+  | { kind: "list" }
+  // A text for each of the fields, such as the header of each column of a Rayat report.
+  | { kind: "columns"; fields: readonly string[]; maxLength: number };
 
 // The widest range a stepper walks through; taking 1 to 1,440 minutes one press at a time is not
 // a control anyone wants.
@@ -45,6 +47,21 @@ export function controlFor(
   }
   if (inner instanceof z.ZodArray && inner.element instanceof z.ZodString) {
     return { kind: "list" };
+  }
+  if (inner instanceof z.ZodObject) {
+    const fields = Object.values<z.ZodType>(inner.shape);
+    if (
+      fields.length > 0 &&
+      fields.every((field) => field instanceof z.ZodString)
+    ) {
+      return {
+        kind: "columns",
+        fields: Object.keys(inner.shape),
+        maxLength: Math.min(
+          ...(fields as z.ZodString[]).map((field) => field.maxLength ?? 1000),
+        ),
+      };
+    }
   }
   return undefined;
 }

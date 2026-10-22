@@ -163,6 +163,29 @@ export function SettingField({
           className="w-full lg:w-80"
         />
       );
+    case "columns": {
+      const map = value as Record<string, string>;
+      return (
+        <div className="flex w-full flex-col gap-3 lg:w-[34rem]">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {control.fields.map((field) => (
+              <Input
+                key={field}
+                label={words.column(field)}
+                value={map[field]}
+                onChange={(text) => onChange({ ...map, [field]: text })}
+                maxLength={control.maxLength}
+              />
+            ))}
+          </div>
+          {error ? (
+            <p role="alert" className="px-1 text-alert text-sm">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
     case "list":
       return (
         <ListField

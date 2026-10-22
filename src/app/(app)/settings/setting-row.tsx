@@ -14,15 +14,26 @@ import { Input } from "@/components/motion/input";
 import { SaveActions } from "@/components/save-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
+import { foldCase, oneLine } from "@/platform/validation/text";
 import { resetSettingAction, saveSettingAction } from "./actions.ts";
 import { parseWhole, SettingField } from "./setting-field.tsx";
-import { type SettingView, sameValue } from "./setting-view.ts";
+import {
+  catalogDefaults,
+  type SettingView,
+  sameValue,
+} from "./setting-view.ts";
 import { type SettingWords, useSettingWords } from "./use-setting-words.ts";
 
 // What a field holds while it is edited: a number field the text typed, in the page's digits.
 function fieldValue(setting: SettingView, value: unknown, words: SettingWords) {
   if (setting.control.kind === "number") return words.number(Number(value));
   if (setting.control.kind === "text") return value ?? "";
+  if (setting.control.kind === "columns") {
+    return (
+      value ??
+      Object.fromEntries(setting.control.fields.map((field) => [field, ""]))
+    );
+  }
   return value;
 }
 
@@ -58,6 +69,20 @@ function readField(
   if (control.kind === "list" && (shown as string[]).length === 0) {
     return { error: words.t("errors.empty") };
   }
+  if (control.kind === "columns") {
+    const map = Object.fromEntries(
+      control.fields.map((field) => [
+        field,
+        oneLine((shown as Record<string, string>)[field]),
+      ]),
+    );
+    const headers = Object.values(map);
+    if (headers.includes("")) return { error: words.t("errors.columnsEmpty") };
+    if (new Set(headers.map(foldCase)).size < headers.length) {
+      return { error: words.t("errors.columnsRepeated") };
+    }
+    return { value: map };
+  }
   return { value: shown };
 }
 
@@ -89,7 +114,11 @@ export function SettingRow({
   const dirty =
     editing &&
     (read.error !== undefined || !sameValue(read.value, setting.value));
-  const atDefault = sameValue(setting.value, setting.defaultValue);
+  // A setting whose default is no value, with no words in the catalog to stand for it (a Rayat
+  // column map, which the base seed writes), has no default to go back to.
+  const atDefault =
+    sameValue(setting.value, setting.defaultValue) ||
+    (setting.defaultValue === null && !catalogDefaults[setting.key]);
 
   const [saved, setSaved] = useState(false);
   const [asking, setAsking] = useState<Action | null>(null);
