@@ -18,10 +18,12 @@ export default defineConfig({
   ...config,
   testDir: ".",
   testMatch: [
+    "audit.spec.ts",
     "auth.setup.ts",
     "auth.spec.ts",
     "departments.spec.ts",
     "health.spec.ts",
+    "notifications.spec.ts",
     "people.spec.ts",
     "roles.spec.ts",
     "security.spec.ts",
