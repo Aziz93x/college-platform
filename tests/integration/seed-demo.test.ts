@@ -288,6 +288,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "person.update",
       "account.disable",
       "audit.export",
+      "notification.read",
+      "notification.mute",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -347,6 +349,45 @@ it("tells each role's holder when the log shows it given, and sends each week's 
   );
   expect(Number(invited[0].told)).toBeGreaterThan(0);
   expect(Number(invited[0].read)).toBe(0);
+
+  // The demo trainer, whom the end-to-end tests sign in as, has read everything, whatever day the
+  // seed runs (Audit 4).
+  const { rows: trainer } = await pool.query(
+    `select count(*) filter (where n.read_at is null) as unread, count(*) as told
+     from notifications n join people p on p.user_id = n.user_id where p.employee_number = $1`,
+    [demoAccounts.trainer.employeeNumber],
+  );
+  expect(Number(trainer[0].told)).toBeGreaterThan(0);
+  expect(Number(trainer[0].unread)).toBe(0);
+
+  // Each reading is in the log, with how many it read.
+  const {
+    rows: [{ read, logged }],
+  } = await pool.query(`
+    select (select count(*) from notifications where read_at is not null) as read,
+      (select coalesce(sum((diff->>'count')::int), 0) from audit_events
+       where action = 'notification.read') as logged`);
+  expect(Number(read)).toBeGreaterThan(0);
+  expect(Number(logged)).toBe(Number(read));
+
+  // Two trainers turned the digest off, as the log records, and were sent none after.
+  const { rows: off } = await pool.query(`
+    select user_id::text, updated_at from notification_prefs
+    where kind = 'weeklyDigest' and not enabled`);
+  expect(off).toHaveLength(2);
+  const { rows: mutes } = await pool.query(`
+    select actor_id from audit_events where action = 'notification.mute'`);
+  expect(mutes.map(({ actor_id }) => actor_id).sort()).toEqual(
+    off.map(({ user_id }) => user_id).sort(),
+  );
+  for (const { user_id, updated_at } of off) {
+    expect(
+      digests.filter(
+        (digest) =>
+          digest.user_id === user_id && digest.created_at > updated_at,
+      ),
+    ).toEqual([]);
+  }
 });
 
 it("refuses to run when APP_ENV is production or unset, and writes nothing", async () => {
