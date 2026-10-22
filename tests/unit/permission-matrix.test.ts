@@ -156,6 +156,7 @@ vi.mock("@/modules/framework", async (importOriginal) => ({
 vi.mock("@/modules/rayat", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/rayat")>()),
   uploadRayat: async () => ({ status: "pending", importId: ID }),
+  findRayatImport: async () => ({ termId: ID, kind: "ss01" }),
   applyRayat: async () => ({ status: "applied" }),
   discardRayat: async () => ({ status: "discarded" }),
   rollbackRayat: async () => ({ status: "rolledBack" }),
@@ -168,6 +169,9 @@ vi.mock("@/modules/academics", async (importOriginal) => ({
   transferSection: async () => ({ status: "transferred", id: ID }),
   keepTransfer: async () => ({ status: "kept" }),
   cancelTransfer: async () => ({ status: "cancelled" }),
+  // Applying or rolling back SS01 tells the heads of what it breaks (ADR-0020).
+  transferStates: async () => new Map(),
+  tellTransferConflicts: async () => 0,
 }));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),

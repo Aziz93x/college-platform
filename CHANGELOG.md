@@ -4,6 +4,27 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Lead review C: the term, the framework and Rayat (docs/reviews/lead-C.md)
+
+- A long select's list is bounded to the room on the side it opens to, and scrolls. On a phone or a desktop the framework item's kinds "نسخة اختبار" and "تحليل نتائج" and a transfer's first weeks ran off the screen, out of a finger's or a mouse's reach (M1).
+- A transfer reads one of four ways against the SS01 in force (M2): it holds while Rayat's file was uploaded before it was made or last kept; it is confirmed when Rayat names the new trainer and not the one replaced, and the weeks before it stay the replaced trainer's; it is in conflict while a file uploaded after it still names the replaced trainer, and applies until the head keeps or cancels it; and it changes nothing once the replaced trainer no longer teaches the section by its week, where the head may cancel it but not keep it. `readTransfers()` gives a section's statuses and its trainers in a week, and replaces `trainersInWeek()` and `transferStatus()`.
+- `/terms` reads every term's calendar in three statements, and `/sections` reads the transfer candidates of every department it shows in one (M3). The sections spec joins the production stack's smoke, and a unit test now fails on any spec that is neither there nor named with why it stays out (M4, Audit 5's enhancement 1).
+- An XLSX upload is refused when its archive inflates past 50 MB, counted as it inflates, not as it declares: a 9.6 MB workbook took the reader past 8 GB (lead review B's proposal 7, which Step 16's 10 MB uploads made urgent).
+- The owner's rule (proposal 1): an item for each section's trainer makes a task for each trainer of a section, and none for a section without one, which the framework's preview names apart. `sectionCounts()` counts each department's section trainers and untaught sections.
+- A transfer in conflict reaches the head (ADR-0020): the SS01 waiting to be applied lists the transfers it would change on `/rayat`; applying or rolling back SS01 tells the department's holders of `sections.transfer` of each transfer it puts in conflict or leaves changing nothing, with the new notification kind `transferConflict`; and `/sections` puts those sections first, with a line saying how many.
+- `/sections` for whoever imports Rayat, one department at a time (ADR-0021): it opens read-only for `rayat.import`, a viewer of several departments chooses one, kept in the address, and a search filters by reference, course or trainer.
+- A trainer Rayat names who is not on the platform is added from the SS01 card's line (ADR-0022): for `people.manage`, a link opens `/people/new` with their number, department and the role that completes tasks filled in.
+- Rayat imports have a measured budget (ADR-0023): an upload of 25,000 rows takes at most 5 s from the file's bytes to its import kept, which an integration test measures (3.2 to 3.4 s here).
+- Smaller defects:
+  - an index for the announcements' read counts and withdrawal (migration `0019`);
+  - a calendar setting that counts weeks (`calendar.skipHolidayWeeks`, `calendar.workingDays`, `locale.weekStart`) refuses a value that would leave a term's events outside it, as a holiday's change does;
+  - an announcement and a transfer's candidates leave out a role held only for a term that is not active, as access does;
+  - a holiday's change takes the college's lock;
+  - `/framework` computes its preview for whoever prepares the draft only, and `/sections` and `/framework` share the header's reading of the term's calendar;
+  - a new framework item reaches each section's trainer by default;
+  - migrations `0017` and `0018` state their inverse.
+- `seed:demo`: a section of the third department is taught by two trainers and another by none; the framework's exam copy reaches each section's trainer; the head of Electrical's earlier transfer is in conflict with the next SS01, which the vice-dean applies, and the head is told.
+
 ### Step 17: Courses, sections, enrollments and transfers
 
 - A term's courses, sections and enrollments are read from Rayat's SS01 and SF01 in force (Step 16), not copied: a section is its reference in the term, and applying or rolling back a version changes them at once. `rayatVersion()` replaces `currentRayatRecords()` and gives when the version was applied.

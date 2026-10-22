@@ -55,6 +55,16 @@ Each one that the owner accepts gets an ADR and a note under its step before it 
 - 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011. Lead review B found what a rollback to `v0.1-A`'s image would do on today's schema: its sign-in ignores `users.disabled_at`, so disabled accounts sign in again, and its access ignores `memberships.department_id`, so the heads' department keys count across the college.
 - 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change. (ADR-0014 removed the bounce: the setup's last step now sends the person on itself, with the router; the full page load there is what remains.)
 
+## Lead review C: proposals (docs/reviews/lead-C.md)
+
+The owner chose on 2026-10-22, and the review's pull request built what was chosen: proposal 1 (a task for each trainer of a section, a note under Step 20), 2 (ADR-0022), 3 (ADR-0020), 5 (ADR-0021) and 9 as a measured budget (ADR-0023); proposals 4 and 6 and the smaller items it fixed as defects. Waiting:
+
+- 7. Tell the dean when a framework draft waits for endorsement, and the vice-dean when it is endorsed: two notification kinds. 1 h; an ADR. Not chosen now.
+- 8. One upload for Rayat's three reports, each recognised by its headers and applied by one button. 2 h. The owner kept one upload a report.
+- 9, its other half: Rayat's check and insert in the worker, with progress (3 to 4 h), if a college's files outgrow ADR-0023's budget.
+- The vice-dean's phone tabs give the settings a tab and put "استيراد رايات" under "المزيد": a `navigation.order` default for the role, which is data. For UX review 2.
+- A digits-only check of SF01's and SO01's trainee numbers, so a column map that pointed at another column could not keep names. Low; the admin who edits the maps is trusted.
+
 ## Lead review B: proposals (docs/reviews/lead-B.md)
 
 Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`). Proposals 2 and 3 were fixed in the review's pull request; 5 and 7 are notes under Steps 43 and 40. The owner accepted proposals 1 and 6 on 2026-10-22, and the review's pull request built them: ADR-0015 (a notification opens from the bell, and a digest is read with the last of what it counts) and ADR-0016 (a role given from the person's page).

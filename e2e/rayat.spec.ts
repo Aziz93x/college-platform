@@ -286,6 +286,20 @@ test.describe("the admin", () => {
     await sf01.getByText(text.diff.samples).click();
     await expect(sf01.getByText(/^تغيّر حالة التسجيل/).first()).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
+
+    // The admin adds the visitor from their line, their number, department and role filled in
+    // (ADR-0022).
+    await page.reload();
+    await region(page, "ss01")
+      .getByRole("link", {
+        name: t("unmatched.add", { number: demoVisitor.employeeNumber }),
+      })
+      .click();
+    await expect(page).toHaveURL(/\/people\/new\?/);
+    await expect(
+      page.getByLabel(messages.people.person.employeeNumber),
+    ).toHaveValue(demoVisitor.employeeNumber);
+    await expect(page.locator("main")).toContainText(demoVisitor.department);
   });
 });
 

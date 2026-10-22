@@ -84,6 +84,21 @@ test(
       await draft.getByRole("button", { name: text.add }).click();
       const sheet = page.getByRole("dialog", { name: text.addTitle });
       await sheet.getByLabel(text.fields.title).fill("تحليل نتائج الاختبار");
+      // A kind far down the long list, chosen by a finger on a phone: the list scrolls within the
+      // room it has (lead review C, M1).
+      const kind = sheet.getByRole("button", {
+        name: new RegExp(`^${text.fields.kind}`),
+      });
+      await kind.click();
+      const analysis = page.getByRole("option", {
+        name: text.kinds.grade_analysis,
+        exact: true,
+      });
+      if (hasTouch) await analysis.tap();
+      else await analysis.click();
+      await expect(kind).toHaveAccessibleName(
+        `${text.fields.kind} ${text.kinds.grade_analysis}`,
+      );
       await sheet.getByRole("button", { name: text.save }).click();
       await expect(page.getByText(text.saved)).toBeVisible();
       await expect(draft.getByRole("listitem")).toHaveCount(1);

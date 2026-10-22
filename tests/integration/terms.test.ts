@@ -16,8 +16,10 @@ import {
   createTerm,
   estimateHolidays,
   findTerm,
+  listTermCalendars,
   openNextTerm,
   removeCalendarEvent,
+  strandedBySetting,
   termEndsOn,
   termWeeks,
   updateCalendarEvent,
@@ -25,7 +27,9 @@ import {
   updateTerm,
   weekOf,
 } from "../../src/modules/terms/index.ts";
+import { lockCollege } from "../../src/platform/db/college-lock.ts";
 import { createTestDatabase } from "./support/database.ts";
+import { recording } from "./support/plans.ts";
 
 // The vice-dean's terms (Step 13): an 18-week term with its holidays, exam weeks and grade deadline,
 // one active term per college, the next term opened from a term's calendar, and a role held in one
@@ -787,5 +791,77 @@ describe("the college's holidays (ADR-0018)", () => {
         },
       },
     ]);
+  });
+
+  it("are changed under the college's lock, as every change to a calendar is (lead review C)", async () => {
+    const adha = await breakOf("eid-al-adha");
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let locked = () => {};
+    const lockTaken = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    // A term's change, still running in another transaction.
+    const other = database.db.transaction(async (tx) => {
+      await lockCollege(tx, collegeId);
+      locked();
+      await held;
+    });
+    await lockTaken;
+    const update = updateHoliday(
+      adha.id,
+      { startsOn: adha.startsOn, endsOn: adha.endsOn },
+      change(),
+      "2026-10-22",
+      settings,
+      database.db,
+    );
+    await expect(
+      Promise.race([
+        update.then(() => "done"),
+        new Promise((resolve) => setTimeout(() => resolve("waiting"), 300)),
+      ]),
+    ).resolves.toBe("waiting");
+    release();
+    await other;
+    await expect(update).resolves.toEqual({ status: "unchanged" });
+  });
+
+  it("nor does a setting that counts a term's weeks change to a value that would leave its events outside it (lead review C)", async () => {
+    // The finals in the last week of the terms of 1448, counted past both breaks while weeks that
+    // holidays fill have no number: without that, a term ends four weeks sooner. The latest term
+    // it strands is named.
+    const left = await strandedBySetting(
+      collegeId,
+      "calendar.skipHolidayWeeks",
+      false,
+      database.db,
+    );
+    expect(left?.term).toMatch(/^الفصل الثاني 1448/);
+    expect(left?.events.length).toBeGreaterThan(0);
+    for (const [key, value] of [
+      ["calendar.skipHolidayWeeks", true],
+      ["platform.name", "Another name"],
+    ] as const) {
+      await expect(
+        strandedBySetting(collegeId, key, value, database.db),
+        key,
+      ).resolves.toBeUndefined();
+    }
+  });
+});
+
+describe("the terms' list", () => {
+  it("reads every term's calendar in the same statements however many terms the college has (lead review C)", async () => {
+    const recorder = recording(database.pool);
+    const listed = await listTermCalendars(collegeId, recorder.db);
+    expect(listed.length).toBeGreaterThan(2);
+    expect(await recorder.plans()).toHaveLength(3);
+    for (const term of listed) {
+      const found = await findTerm(collegeId, term.id, database.db);
+      expect(term, term.name).toEqual(found);
+    }
   });
 });

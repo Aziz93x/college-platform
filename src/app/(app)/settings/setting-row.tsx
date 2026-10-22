@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   useEffect,
   useId,
@@ -94,6 +94,7 @@ export function SettingRow({
   const { t } = words;
   const refusals = useTranslations("actions");
   const reauth = useTranslations("reauth");
+  const format = useFormatter();
   const id = useId();
   const ids = { label: `${id}-label`, description: `${id}-description` };
   const label = words.label(setting);
@@ -168,6 +169,14 @@ export function SettingRow({
           return;
         case "invalid":
           setRefusal(t("errors.invalid"));
+          return;
+        case "eventsOutside":
+          setRefusal(
+            t("errors.eventsOutside", {
+              term: outcome.term,
+              events: format.list(outcome.events),
+            }),
+          );
           return;
       }
       setAsking(null);

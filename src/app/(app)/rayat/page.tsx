@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { forbidden } from "next/navigation";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
@@ -6,9 +7,15 @@ import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
-import { unmatchedTrainers } from "@/modules/academics";
+import { Button } from "@/components/ui/button";
+import {
+  pendingTransferChanges,
+  type Trainer,
+  unmatchedTrainers,
+} from "@/modules/academics";
 import {
   authorize,
+  listRoles,
   permittedDepartments,
   requireViewer,
 } from "@/modules/access";
@@ -58,12 +65,35 @@ export default async function RayatPage() {
     );
   }
 
-  const [messages, format, imports, unmatched] = await Promise.all([
-    getMessages(),
-    getFormatter(),
-    listRayatImports(viewer.collegeId, term.id),
-    unmatchedTrainers(viewer.collegeId, term.id),
-  ]);
+  // Whoever manages the people adds a trainer Rayat names from its line (ADR-0022), as the role
+  // that completes tasks when the college has one such role.
+  const addsPeople = authorize(viewer, "people.manage", scope);
+  const [messages, format, sectionWords, imports, unmatched, roles] =
+    await Promise.all([
+      getMessages(),
+      getFormatter(),
+      getTranslations("sections"),
+      listRayatImports(viewer.collegeId, term.id),
+      unmatchedTrainers(viewer.collegeId, term.id),
+      addsPeople ? listRoles(viewer.collegeId) : [],
+    ]);
+  // The transfers a waiting SS01 would change (ADR-0020).
+  const changes = imports.some(
+    (each) => each.kind === "ss01" && each.status === "pending",
+  )
+    ? await pendingTransferChanges(viewer.collegeId, term.id)
+    : [];
+  const teaching = roles.filter(
+    (role) => !role.system && role.permissions.includes("task.complete"),
+  );
+  const addHref = (number: string, departmentId: string) =>
+    `/people/new?${new URLSearchParams({
+      number,
+      department: departmentId,
+      ...(teaching.length === 1 ? { role: teaching[0].key } : {}),
+    })}`;
+  const trainerName = (trainer: Trainer) =>
+    trainer.name ?? sectionWords("notOnPlatform", { number: trainer.number });
   const open = term.status !== "closed";
   const when = (at: Date) =>
     format.dateTime(at, { dateStyle: "long", timeStyle: "short" });
@@ -167,13 +197,25 @@ export default async function RayatPage() {
                     {t("unmatched.description")}
                   </p>
                   <ul className="flex flex-col gap-1 text-sm">
-                    {unmatched.map(({ number, sections }) => (
-                      <li key={number}>
-                        {t("unmatched.line", {
-                          number,
-                          sections: sections.length,
-                          refs: format.list(sections),
-                        })}
+                    {unmatched.map(({ number, sections, departmentId }) => (
+                      <li
+                        key={number}
+                        className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
+                      >
+                        <span>
+                          {t("unmatched.line", {
+                            number,
+                            sections: sections.length,
+                            refs: format.list(sections),
+                          })}
+                        </span>
+                        {addsPeople ? (
+                          <Button asChild variant="outline">
+                            <Link href={addHref(number, departmentId)}>
+                              {t("unmatched.add", { number })}
+                            </Link>
+                          </Button>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -200,6 +242,44 @@ export default async function RayatPage() {
                     />
                   </div>
                   <DiffView kind={kind} diff={pending.diff} />
+                  {kind === "ss01" && changes.length > 0 ? (
+                    <div>
+                      <h4 className="font-medium text-sm">
+                        {t("pending.transfers.title")}
+                      </h4>
+                      <p className="mt-1 max-w-prose text-pretty text-muted-foreground text-sm">
+                        {t("pending.transfers.description")}
+                      </p>
+                      <ul className="mt-2 flex flex-col gap-2 text-sm">
+                        {changes.map((change) => (
+                          <li
+                            key={change.id}
+                            className="flex flex-wrap items-center gap-x-3 gap-y-1"
+                          >
+                            <AnimatedBadge
+                              status={
+                                change.after === "confirmed"
+                                  ? "success"
+                                  : change.after === "holds"
+                                    ? "pending"
+                                    : "alert"
+                              }
+                            >
+                              {sectionWords(`transfers.status.${change.after}`)}
+                            </AnimatedBadge>
+                            <span>
+                              {t("pending.transfers.line", {
+                                ref: change.sectionRef,
+                                week: change.week,
+                                to: trainerName(change.to),
+                                from: trainerName(change.from),
+                              })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   {open ? <PendingButtons importId={pending.id} /> : null}
                 </div>
               ) : null}

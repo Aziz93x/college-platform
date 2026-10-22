@@ -19,9 +19,8 @@ import { getSetting } from "@/modules/settings";
 import {
   calendarOf,
   calendarSettings,
-  findTerm,
   holidaysFrom,
-  listTerms,
+  listTermCalendars,
   termEndsOn,
   umAlQuraYear,
 } from "@/modules/terms";
@@ -45,23 +44,20 @@ export default async function TermsPage() {
   const scope = { collegeId: viewer.collegeId };
   if (!authorize(viewer, "term.manage", scope)) forbidden();
 
-  const [t, messages, locale, timeZone, settings, hijri, terms] =
+  const timeZone = await getTimeZone();
+  const today = wallClock(new Date(), timeZone).slice(0, 10);
+  const [t, messages, locale, settings, hijri, terms, upcoming] =
     await Promise.all([
       getTranslations("terms"),
       getMessages(),
       getLocale(),
-      getTimeZone(),
       calendarSettings(viewer.collegeId),
       getSetting("locale.hijri", scope),
-      listTerms(viewer.collegeId),
+      listTermCalendars(viewer.collegeId),
+      holidaysFrom(viewer.collegeId, today),
     ]);
-  const today = wallClock(new Date(), timeZone).slice(0, 10);
   const days = dayWords(locale, hijri);
   const thisYear = umAlQuraYear(today);
-  const [calendars, upcoming] = await Promise.all([
-    Promise.all(terms.map((term) => findTerm(viewer.collegeId, term.id))),
-    holidaysFrom(viewer.collegeId, today),
-  ]);
   const breaks = upcoming.filter((range) => range.hijriYear === thisYear);
   const year = new Intl.NumberFormat(locale, { useGrouping: false });
   const add = (label: string) => (
@@ -86,8 +82,7 @@ export default async function TermsPage() {
             aria-label={t("list")}
             className="divide-y rounded-xl border bg-card shadow-xs"
           >
-            {calendars.flatMap((term) => {
-              if (!term) return [];
+            {terms.flatMap((term) => {
               const last = termEndsOn(
                 calendarOf(term, term.events, settings, term.breaks),
               );

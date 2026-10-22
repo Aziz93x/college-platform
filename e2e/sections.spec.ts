@@ -47,8 +47,53 @@ test("the head of Electrical sees the department's sections with their trainers,
   await expect(main).toContainText(
     t("notOnPlatform", { number: demoVisitor.employeeNumber }),
   );
+  // The earlier transfer, which the next SS01 is in conflict with, comes first (ADR-0020).
+  await expect(main).toContainText(t("needsHead", { count: 1 }));
+  await expect(main.getByRole("article").first()).toContainText(
+    text.transfers.status.conflict,
+  );
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) expect(await smallTargets(main)).toEqual([]);
+});
+
+test("the vice-dean, who imports Rayat, reads each department's sections without changing them, one department at a time, and finds one by its reference (ADR-0021)", async ({
+  browser,
+  hasTouch,
+}) => {
+  const page = await signedIn(browser, {
+    identifier: demoAccounts.viceDean.employeeNumber,
+    password: demo.password,
+  });
+  await page.goto("/sections");
+  const main = page.locator("main");
+  await expect(main.getByRole("article").first()).toBeVisible();
+  await expect(
+    main.getByRole("button", { name: text.transfer.button }),
+  ).toHaveCount(0);
+  // The third department has a section taught by two trainers and one with none yet.
+  await main
+    .getByRole("button", { name: new RegExp(`^${text.filters.department}`) })
+    .click();
+  await page
+    .getByRole("option", { name: demoDepartments[2].name, exact: true })
+    .click();
+  await expect(page).toHaveURL(/department=/);
+  await expect(main).toContainText(text.noTrainer);
+  const heading = await main
+    .getByRole("article")
+    .last()
+    .getAttribute("aria-labelledby");
+  const ref = heading?.replace("section-", "") ?? "";
+  await main.getByRole("searchbox", { name: text.filters.search }).fill(ref);
+  await expect(page).toHaveURL(new RegExp(`q=${ref}`));
+  await expect(main.getByRole("article")).toHaveCount(1);
+  await expect(main.getByRole("article")).toContainText(t("section", { ref }));
+  expect(await seriousViolations(page)).toEqual([]);
+  if (hasTouch) {
+    // The check wrote the page's Arabic in Latin letters.
+    await page.reload();
+    expect(await smallTargets(main)).toEqual([]);
+  }
 });
 
 test(
@@ -85,12 +130,14 @@ test(
       );
       const section =
         untouched[testInfo.project.name.includes("iphone") ? 1 : 0];
-      const to = (await transferCandidates(collegeId, electrical.id, db)).find(
-        (candidate) =>
-          !section.trainers.some(
-            (trainer) => trainer.number === candidate.employeeNumber,
-          ),
-      );
+      const to = (await transferCandidates(collegeId, [electrical.id], db))
+        .get(electrical.id)
+        ?.find(
+          (candidate) =>
+            !section.trainers.some(
+              (trainer) => trainer.number === candidate.employeeNumber,
+            ),
+        );
       if (!to) throw new Error("e2e: no trainer to transfer the section to");
 
       const page = await signedIn(browser, {
@@ -109,6 +156,21 @@ test(
         .getByRole("combobox", { name: text.transfer.to })
         .fill(to.employeeNumber);
       await page.getByRole("option", { name: to.name }).click();
+      // From the term's first week, chosen by a finger on a phone: the long list of weeks scrolls
+      // within the room it has (lead review C, M1).
+      const weeks = sheet.getByRole("button", {
+        name: new RegExp(`^${text.transfer.week}`),
+      });
+      await weeks.click();
+      const first = page.getByRole("option", {
+        name: t("transfer.weekOption", { week: 1 }),
+        exact: true,
+      });
+      if (hasTouch) await first.tap();
+      else await first.click();
+      await expect(weeks).toHaveAccessibleName(
+        `${text.transfer.week} ${t("transfer.weekOption", { week: 1 })}`,
+      );
       await sheet.getByLabel(text.transfer.reason).fill("إعادة توزيع الأنصبة");
       await sheet
         .getByRole("button", { name: text.transfer.submit, exact: true })
@@ -116,7 +178,13 @@ test(
       const done = page.getByText(t("transfer.done", { ref: section.ref }));
       await expect(done).toBeVisible();
       await expect(card).toContainText(text.transfers.status.holds);
-      await expect(card).toContainText(to.name);
+      await expect(card).toContainText(
+        t("transfers.line", {
+          week: 1,
+          to: to.name,
+          from: section.trainers[0]?.name ?? "",
+        }),
+      );
       // The toast lies over a phone's page while it shows: the checks look at the page drawn again.
       await page.reload();
       expect(await seriousViolations(page)).toEqual([]);

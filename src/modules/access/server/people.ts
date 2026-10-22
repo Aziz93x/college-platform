@@ -8,12 +8,14 @@ import {
   setAccountDisabled,
   users,
 } from "../../identity/index.ts";
+import { terms } from "../../terms/index.ts";
 import {
   isPermissionKey,
   type PermissionKey,
   permissionKeys,
 } from "../domain/permissions.ts";
 import type { AccountHolder } from "../domain/reach.ts";
+import { inForce } from "./members.ts";
 import { memberships, rolePermissions, roles } from "./schema.ts";
 
 type Change = {
@@ -44,7 +46,7 @@ export type PersonEntry = {
 };
 
 // Whom an announcement to a scope reaches (ADR-0017): the college's enabled accounts, or those of
-// them who hold a role in the department.
+// them who hold a role in force in the department, as access counts it.
 export async function enabledPeopleIn(
   collegeId: string,
   departmentId: string | null,
@@ -65,10 +67,12 @@ export async function enabledPeopleIn(
               db
                 .select({ userId: memberships.userId })
                 .from(memberships)
+                .leftJoin(terms, eq(terms.id, memberships.termId))
                 .where(
                   and(
                     eq(memberships.collegeId, collegeId),
                     eq(memberships.departmentId, departmentId),
+                    inForce,
                   ),
                 ),
             ),

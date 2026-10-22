@@ -81,8 +81,9 @@ export const draftOf = (
   title: item?.title ?? "",
   axisId: item?.axisId ?? options.axes[0]?.value ?? "",
   kind: item?.kind ?? (options.kinds[0]?.value as TaskKind),
+  // A new item reaches each section's trainer, as most of the framework's do (lead review C).
   applies: !item
-    ? (options.roles[0]?.value ?? EACH_SECTION)
+    ? EACH_SECTION
     : item.appliesTo.type === "eachSection"
       ? EACH_SECTION
       : item.appliesTo.roleId,
@@ -539,8 +540,8 @@ export function FrameworkDraft({
             {select("axisId", t("fields.axis"), options.axes)}
             {select("kind", t("fields.kind"), options.kinds)}
             {select("applies", t("fields.appliesTo"), [
-              ...options.roles,
               { value: EACH_SECTION, label: t("eachSection") },
+              ...options.roles,
             ])}
             {select("dueType", t("fields.due"), options.dueTypes)}
             {form.dueType === "week" ? stepper("week", 1, limits.weeks) : null}

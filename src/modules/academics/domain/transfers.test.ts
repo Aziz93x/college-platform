@@ -1,81 +1,112 @@
 import { describe, expect, it } from "vitest";
-import {
-  type TaskStatus,
-  trainersInWeek,
-  transferStatus,
-  transferTasks,
-} from "./transfers.ts";
+import { readTransfers, type TaskStatus, transferTasks } from "./transfers.ts";
 
-describe("trainersInWeek", () => {
+describe("readTransfers", () => {
+  // Rayat's file, and transfers made before it was uploaded and after.
+  const uploadedAt = new Date("2026-10-10T08:00:00Z");
+  const before = new Date("2026-10-05T08:00:00Z");
+  const after = new Date("2026-10-12T08:00:00Z");
+  const transfer = (
+    fromNumber: string,
+    toNumber: string,
+    week: number,
+    since = after,
+  ) => ({ fromNumber, toNumber, week, since });
+
   it("puts each transfer's new trainer in place of the one replaced, from its week on", () => {
-    const transfers = [{ fromNumber: "200101", toNumber: "200103", week: 6 }];
-    expect(trainersInWeek(["200101", "200102"], transfers, 5)).toEqual([
-      "200101",
-      "200102",
+    const read = readTransfers(["200101", "200102"], uploadedAt, [
+      transfer("200101", "200103", 6),
     ]);
-    expect(trainersInWeek(["200101", "200102"], transfers, 6)).toEqual([
-      "200103",
-      "200102",
-    ]);
+    expect(read.statuses).toEqual(["holds"]);
+    expect(read.trainersInWeek(5)).toEqual(["200101", "200102"]);
+    expect(read.trainersInWeek(6)).toEqual(["200103", "200102"]);
   });
 
   it("follows a section passed on twice, by the transfers' weeks", () => {
-    const transfers = [
-      { fromNumber: "200103", toNumber: "200104", week: 9 },
-      { fromNumber: "200101", toNumber: "200103", week: 6 },
-    ];
-    expect(trainersInWeek(["200101"], transfers, 8)).toEqual(["200103"]);
-    expect(trainersInWeek(["200101"], transfers, 9)).toEqual(["200104"]);
-  });
-});
-
-describe("transferStatus", () => {
-  const transfer = {
-    fromNumber: "200101",
-    toNumber: "200103",
-    since: new Date("2026-10-10T08:00:00Z"),
-  };
-  const ss01 = (appliedAt: string, trainers?: string[]) => ({
-    appliedAt: new Date(appliedAt),
-    trainers,
+    const read = readTransfers(["200101"], uploadedAt, [
+      transfer("200103", "200104", 9),
+      transfer("200101", "200103", 6),
+    ]);
+    expect(read.statuses).toEqual(["holds", "holds"]);
+    expect(read.trainersInWeek(8)).toEqual(["200103"]);
+    expect(read.trainersInWeek(9)).toEqual(["200104"]);
   });
 
-  it("holds until a version of SS01 is applied after it", () => {
-    expect(transferStatus(transfer, undefined)).toBe("holds");
-    expect(
-      transferStatus(transfer, ss01("2026-10-01T08:00:00Z", ["200101"])),
-    ).toBe("holds");
+  it("holds while Rayat's file was uploaded before it was made, though it is applied after", () => {
+    const read = readTransfers(["200101"], uploadedAt, [
+      transfer("200101", "200103", 6, after),
+    ]);
+    expect(read.statuses).toEqual(["holds"]);
   });
 
-  it("is confirmed by a newer SS01 that names the new trainer instead of the one replaced", () => {
-    expect(
-      transferStatus(
-        transfer,
-        ss01("2026-10-12T08:00:00Z", ["200103", "200102"]),
-      ),
-    ).toBe("confirmed");
+  it("is confirmed by Rayat naming the new trainer and not the one replaced, and leaves the weeks before it to the replaced trainer", () => {
+    const read = readTransfers(["200103", "200102"], uploadedAt, [
+      transfer("200101", "200103", 6, before),
+    ]);
+    expect(read.statuses).toEqual(["confirmed"]);
+    expect(read.trainersInWeek(3)).toEqual(["200101", "200102"]);
+    expect(read.trainersInWeek(6)).toEqual(["200103", "200102"]);
   });
 
-  it("is in conflict with a newer SS01 that names anyone else, or drops the section", () => {
-    for (const trainers of [
-      ["200101"],
-      ["200109"],
-      ["200101", "200103"],
-      [],
-      undefined,
-    ]) {
-      expect(
-        transferStatus(transfer, ss01("2026-10-12T08:00:00Z", trainers)),
-        String(trainers),
-      ).toBe("conflict");
+  it("is confirmed along a section passed on twice, once Rayat names its last trainer", () => {
+    const read = readTransfers(["200104"], uploadedAt, [
+      transfer("200101", "200103", 6, before),
+      transfer("200103", "200104", 9, before),
+    ]);
+    expect(read.statuses).toEqual(["confirmed", "confirmed"]);
+    expect(read.trainersInWeek(5)).toEqual(["200101"]);
+    expect(read.trainersInWeek(8)).toEqual(["200103"]);
+    expect(read.trainersInWeek(9)).toEqual(["200104"]);
+  });
+
+  it("is in conflict with a file uploaded after it that still names the replaced trainer, and applies until the head keeps or cancels it", () => {
+    for (const rayat of [["200101"], ["200101", "200103"]]) {
+      const read = readTransfers(rayat, uploadedAt, [
+        transfer("200101", "200103", 6, before),
+      ]);
+      expect(read.statuses, String(rayat)).toEqual(["conflict"]);
+      expect(read.trainersInWeek(5), String(rayat)).toEqual(rayat);
+      expect(read.trainersInWeek(6), String(rayat)).toEqual(["200103"]);
     }
   });
 
-  it("holds again once the head keeps it, until the next SS01", () => {
-    const kept = { ...transfer, since: new Date("2026-10-13T08:00:00Z") };
-    expect(transferStatus(kept, ss01("2026-10-12T08:00:00Z", ["200109"]))).toBe(
+  it("holds again once the head keeps it, until the next file", () => {
+    const kept = transfer("200101", "200103", 6, after);
+    expect(readTransfers(["200101"], uploadedAt, [kept]).statuses).toEqual([
       "holds",
-    );
+    ]);
+  });
+
+  it("changes nothing once Rayat no longer names the trainer it replaced, kept or not, the section's trainers gone too", () => {
+    for (const since of [before, after]) {
+      for (const rayat of [["200109"], []]) {
+        const read = readTransfers(rayat, uploadedAt, [
+          transfer("200101", "200103", 6, since),
+        ]);
+        expect(read.statuses, `${rayat} ${since}`).toEqual(["otherTrainer"]);
+        expect(read.trainersInWeek(9), `${rayat} ${since}`).toEqual(rayat);
+      }
+    }
+  });
+
+  it("changes nothing once an earlier transfer has replaced the same trainer", () => {
+    const read = readTransfers(["200101"], uploadedAt, [
+      transfer("200101", "200104", 9),
+      transfer("200101", "200103", 6),
+    ]);
+    expect(read.statuses).toEqual(["otherTrainer", "holds"]);
+    expect(read.trainersInWeek(9)).toEqual(["200103"]);
+  });
+
+  it("keeps a confirmed transfer in the place Rayat gave it, after an earlier transfer of the same trainer made since", () => {
+    const read = readTransfers(["200104"], uploadedAt, [
+      transfer("200101", "200104", 9, before),
+      transfer("200101", "200103", 6, after),
+    ]);
+    expect(read.statuses).toEqual(["confirmed", "holds"]);
+    expect(read.trainersInWeek(5)).toEqual(["200101"]);
+    expect(read.trainersInWeek(6)).toEqual(["200103"]);
+    expect(read.trainersInWeek(9)).toEqual(["200104"]);
   });
 });
 

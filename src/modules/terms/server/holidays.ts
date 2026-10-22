@@ -1,5 +1,6 @@
 import { and, asc, eq, gte, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { getSetting, weekdays } from "../../settings/index.ts";
 import { type BreakRule, estimateBreak, weekend } from "../domain/holidays.ts";
@@ -136,6 +137,8 @@ export async function updateHoliday(
   | { status: "eventsOutside"; term: string; events: string[] }
 > {
   return db.transaction(async (tx) => {
+    // As every change to a calendar: a term's change waits for this one, and this one for it.
+    await lockCollege(tx, change.collegeId);
     const [current] = await tx
       .select(columns)
       .from(holidays)

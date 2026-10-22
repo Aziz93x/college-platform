@@ -499,7 +499,7 @@ describe("every server action writes its event", () => {
     });
 
     // The term's SS01, applied: its section transferred to a trainer of Electrical, the transfer
-    // kept, then cancelled (Step 17).
+    // kept against a newer SS01 in conflict with it, then cancelled (Step 17, lead review C).
     const sections = "(app)/sections/actions.ts";
     const teacher = await person("An Electrical Trainer");
     await joinRole({
@@ -526,22 +526,25 @@ describe("every server action writes its event", () => {
       trainerNumber: trainer.employeeNumber,
     };
     const ss01Columns = Object.entries(rayatColumns.ss01);
-    const uploaded = await uploadRayat(
-      "ss01",
-      term.id as string,
-      [
-        rayatHeaders.ss01,
-        rayatHeaders.ss01.map(
-          (header) =>
-            meeting[
-              ss01Columns.find(([, name]) => name === header)?.[0] ?? ""
-            ] ?? "",
-        ),
-      ],
-      { collegeId, actorId: admin.userId },
-    );
-    if (uploaded.status !== "pending") throw new Error(uploaded.status);
-    await applyRayat(uploaded.importId, { collegeId, actorId: admin.userId });
+    const applySs01 = async (room: string) => {
+      const uploaded = await uploadRayat(
+        "ss01",
+        term.id as string,
+        [
+          rayatHeaders.ss01,
+          rayatHeaders.ss01.map(
+            (header) =>
+              ({ ...meeting, room })[
+                ss01Columns.find(([, name]) => name === header)?.[0] ?? ""
+              ] ?? "",
+          ),
+        ],
+        { collegeId, actorId: admin.userId },
+      );
+      if (uploaded.status !== "pending") throw new Error(uploaded.status);
+      await applyRayat(uploaded.importId, { collegeId, actorId: admin.userId });
+    };
+    await applySs01("101");
     const transferred = await expectWrites(
       `${sections}#transferSectionAction`,
       {
@@ -554,6 +557,8 @@ describe("every server action writes its event", () => {
       },
     );
     expect(transferred.status).toBe("transferred");
+    // A newer SS01 that still names the trainer replaced is in conflict with it, which the head keeps.
+    await applySs01("102");
     await expectWrites(`${sections}#keepTransferAction`, {
       id: transferred.id,
     });

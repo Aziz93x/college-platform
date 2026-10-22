@@ -10,6 +10,7 @@ import {
   requireViewer,
   roleLabel,
 } from "@/modules/access";
+import { employeeNumber } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 import { AddPersonForm } from "./add-person-form.tsx";
@@ -22,8 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // One new person, for whoever manages the people: their account, with a temporary password shown
 // once, and a role where they hold it when the viewer manages the roles too. The system role is
-// given on the roles page only.
-export default async function NewPersonPage() {
+// given on the roles page only. A trainer Rayat names comes with their number, department and
+// role filled in from the address (ADR-0022): only an active department, a role offered here, and a
+// number the form accepts.
+export default async function NewPersonPage({
+  searchParams,
+}: PageProps<"/people/new">) {
   await connection();
   const viewer = await requireViewer();
   const scope = { collegeId: viewer.collegeId };
@@ -37,6 +42,7 @@ export default async function NewPersonPage() {
     roles,
     departments,
     language,
+    params,
   ] = await Promise.all([
     getTranslations("people"),
     getTranslations("ui"),
@@ -44,7 +50,15 @@ export default async function NewPersonPage() {
     givesRoles ? listRoles(viewer.collegeId) : [],
     listDepartments(viewer.collegeId),
     getSetting("locale.language", scope),
+    searchParams,
   ]);
+  const offered = roles.filter((role) => !role.system);
+  const active = departments.filter((department) => department.active);
+  const one = (value: string | string[] | undefined) =>
+    typeof value === "string" ? value : "";
+  const number = employeeNumber.safeParse(one(params.number));
+  const role = offered.find(({ key }) => key === one(params.role));
+  const department = active.find(({ id }) => id === one(params.department));
   return (
     <>
       <PageHeader
@@ -57,15 +71,16 @@ export default async function NewPersonPage() {
         messages={{ ui: uiWords, actions, people, reauth }}
       >
         <AddPersonForm
-          roles={roles
-            .filter((role) => !role.system)
-            .map((role) => ({
-              key: role.key,
-              label: roleLabel(role.labels, language),
-            }))}
-          departments={departments
-            .filter((department) => department.active)
-            .map(({ name }) => name)}
+          roles={offered.map((each) => ({
+            key: each.key,
+            label: roleLabel(each.labels, language),
+          }))}
+          departments={active.map(({ name }) => name)}
+          filled={{
+            employeeNumber: number.success ? number.data : undefined,
+            role: role?.key,
+            department: department?.name,
+          }}
         />
       </NextIntlClientProvider>
     </>

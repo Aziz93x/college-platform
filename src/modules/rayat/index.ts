@@ -5,7 +5,9 @@ export { type RayatKind, rayatFields, rayatKinds } from "./domain/reports.ts";
 export {
   applyRayat,
   discardRayat,
+  findRayatImport,
   listRayatImports,
+  pendingRayat,
   type RayatImport,
   rayatVersion,
   rollbackRayat,

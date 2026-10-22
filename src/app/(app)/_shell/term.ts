@@ -17,19 +17,27 @@ export const visibleTerms = cache(async (collegeId: string, manage: boolean) =>
   ),
 );
 
+// A term with its calendar, its weeks counted by the college's calendar settings. Read once per
+// request: the header and the page that shows the term share it.
+export const termCalendar = cache(async (collegeId: string, termId: string) => {
+  const [term, settings] = await Promise.all([
+    findTerm(collegeId, termId),
+    calendarSettings(collegeId),
+  ]);
+  if (!term) return undefined;
+  return {
+    term,
+    settings,
+    calendar: calendarOf(term, term.events, settings, term.breaks),
+  };
+});
+
 // A term with where a day falls in it: its week, a week of holidays, or nothing outside it.
 export const termOnDay = cache(
   async (collegeId: string, termId: string, day: string) => {
-    const [term, settings] = await Promise.all([
-      findTerm(collegeId, termId),
-      calendarSettings(collegeId),
-    ]);
-    if (!term) return undefined;
-    const week = weekOf(
-      calendarOf(term, term.events, settings, term.breaks),
-      day,
-    );
-    return { term, week };
+    const found = await termCalendar(collegeId, termId);
+    if (!found) return undefined;
+    return { term: found.term, week: weekOf(found.calendar, day) };
   },
 );
 

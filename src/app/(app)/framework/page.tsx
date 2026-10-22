@@ -28,14 +28,8 @@ import {
   termFramework,
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
-import {
-  calendarEventKinds,
-  calendarOf,
-  calendarSettings,
-  findTerm,
-  termWeeks,
-} from "@/modules/terms";
-import { viewedTerm } from "../_shell/term.ts";
+import { calendarEventKinds, termWeeks } from "@/modules/terms";
+import { termCalendar, viewedTerm } from "../_shell/term.ts";
 import { FrameworkDraft, ItemWords } from "./framework-draft.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -81,12 +75,8 @@ export default async function FrameworkPage() {
     framework,
     groups,
     roles,
-    members,
-    sections,
-    calendar,
     needsEndorsement,
     accepted,
-    settings,
   ] = await Promise.all([
     getMessages(),
     getLocale(),
@@ -95,12 +85,8 @@ export default async function FrameworkPage() {
     termFramework(viewer.collegeId, term.id),
     listAxes(viewer.collegeId),
     listRoles(viewer.collegeId),
-    countMembers(viewer.collegeId),
-    sectionCounts(viewer.collegeId, term.id),
-    findTerm(viewer.collegeId, term.id),
     getSetting("framework.requireEndorsement", scope),
     getSetting("files.acceptedTypes", scope),
-    calendarSettings(viewer.collegeId),
   ]);
   const language = locale.split("-")[0];
   const axes = groups.flatMap((group) => group.axes);
@@ -156,33 +142,43 @@ export default async function FrameworkPage() {
     },
   });
 
-  // The tasks the draft would create: each department's holders of each role and its sections in
-  // Rayat's SS01 in force (Step 17), and the term's weeks and calendar.
-  const departments = departmentsReached(members, sections);
-  // Each day of the calendar by the last numbered week it falls in.
-  const weeks = calendar
-    ? termWeeks(
-        calendarOf(calendar, calendar.events, settings, calendar.breaks),
-      )
-    : [];
-  const events: Record<string, number[]> = {};
-  for (const event of calendar?.events ?? []) {
-    const last = weeks
-      .filter((week) => week.number !== null && week.startsOn <= event.endsOn)
-      .at(-1)?.number;
-    if (last) events[event.kind] = [...(events[event.kind] ?? []), last];
-  }
   const { draft, published } = framework;
-  const impact = draft
-    ? t(
-        "impact",
-        countTasks(draft.items, departments, { weeks: term.weeks, events }),
-      )
-    : undefined;
   // A closed term's framework changes no more (Audit 5), so there everyone only reads it.
   const open = term.status !== "closed";
   const preparing =
     open && (manage || (endorse && needsEndorsement && Boolean(draft)));
+
+  // The tasks the draft would create, for whoever prepares it: each department's holders of each
+  // role and its sections' trainers in Rayat's SS01 in force (Step 17), and the term's weeks and
+  // calendar; and the sections an item for each section's trainer misses, having none yet.
+  const draftImpact = async (items: readonly FrameworkItemInput[]) => {
+    const [members, sections, found] = await Promise.all([
+      countMembers(viewer.collegeId),
+      sectionCounts(viewer.collegeId, term.id),
+      termCalendar(viewer.collegeId, term.id),
+    ]);
+    // Each day of the calendar by the last numbered week it falls in.
+    const weeks = found ? termWeeks(found.calendar) : [];
+    const events: Record<string, number[]> = {};
+    for (const event of found?.term.events ?? []) {
+      const last = weeks
+        .filter((week) => week.number !== null && week.startsOn <= event.endsOn)
+        .at(-1)?.number;
+      if (last) events[event.kind] = [...(events[event.kind] ?? []), last];
+    }
+    const untaught = items.some((item) => item.appliesTo.type === "eachSection")
+      ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
+      : 0;
+    return t("impact", {
+      ...countTasks(items, departmentsReached(members, sections), {
+        weeks: term.weeks,
+        events,
+      }),
+      untaught,
+    });
+  };
+  const impact =
+    preparing && draft ? await draftImpact(draft.items) : undefined;
 
   return (
     <>

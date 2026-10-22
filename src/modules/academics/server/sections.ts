@@ -1,17 +1,15 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { lockCollege } from "../../../platform/db/college-lock.ts";
-import { listDirectory } from "../../access/index.ts";
+import { holdersIn } from "../../access/index.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { people, users } from "../../identity/index.ts";
-import { rayatVersion } from "../../rayat/index.ts";
+import { notify } from "../../notifications/index.ts";
+import { listDepartments } from "../../org/index.ts";
+import { pendingRayat, rayatVersion } from "../../rayat/index.ts";
 import { terms } from "../../terms/index.ts";
 import type { TransferInput } from "../domain/inputs.ts";
-import {
-  type TransferStatus,
-  trainersInWeek,
-  transferStatus,
-} from "../domain/transfers.ts";
+import { readTransfers, type TransferStatus } from "../domain/transfers.ts";
 import { sectionTransfers } from "./schema.ts";
 
 // Someone transferring a section, for the audit event.
@@ -68,7 +66,7 @@ async function peopleByNumber(collegeId: string, db: Db | Tx) {
 }
 
 // A term's transfers, or a section's, in the order they were made, with the new trainer's employee
-// number and who made each.
+// number, who made each, and when it was made or last kept.
 async function transfersOf(
   db: Db | Tx,
   collegeId: string,
@@ -88,7 +86,10 @@ async function transfersOf(
         string | null
       >`(select ${users.name} from ${users} where ${users.id} = ${sectionTransfers.createdBy})`,
       createdAt: sectionTransfers.createdAt,
-      keptAt: sectionTransfers.keptAt,
+      since:
+        sql<Date>`coalesce(${sectionTransfers.keptAt}, ${sectionTransfers.createdAt})`.mapWith(
+          sectionTransfers.createdAt,
+        ),
     })
     .from(sectionTransfers)
     .innerJoin(people, eq(people.userId, sectionTransfers.toUserId))
@@ -104,6 +105,46 @@ async function transfersOf(
     .orderBy(asc(sectionTransfers.createdAt), asc(sectionTransfers.id));
 }
 
+// Each transfer of the term read against a version of SS01: the section's trainers in its records,
+// from a file uploaded then (readTransfers()). A section the version does not have reads as having
+// no trainer, so its transfers change nothing.
+function readAll<
+  T extends {
+    sectionRef: string;
+    fromNumber: string;
+    toNumber: string;
+    week: number;
+    since: Date;
+  },
+>(
+  transfers: readonly T[],
+  ss01: {
+    uploadedAt: Date;
+    records: readonly { sectionRef: string; trainerNumbers: string[] }[];
+  },
+) {
+  const trainers = new Map(
+    ss01.records.map((section) => [section.sectionRef, section.trainerNumbers]),
+  );
+  const bySection = new Map<string, T[]>();
+  for (const transfer of transfers) {
+    bySection.set(transfer.sectionRef, [
+      ...(bySection.get(transfer.sectionRef) ?? []),
+      transfer,
+    ]);
+  }
+  const statuses = new Map<T, TransferStatus>();
+  const reads = new Map<string, ReturnType<typeof readTransfers>>();
+  for (const [ref, own] of bySection) {
+    const read = readTransfers(trainers.get(ref) ?? [], ss01.uploadedAt, own);
+    reads.set(ref, read);
+    own.forEach((transfer, index) => {
+      statuses.set(transfer, read.statuses[index]);
+    });
+  }
+  return { statuses, reads };
+}
+
 // The term's sections in these departments, or in all of them, by course code and reference, with
 // their trainers in this week of the term; and the transfers of sections SS01 in force no longer
 // has, for the head to see and cancel.
@@ -115,7 +156,7 @@ export async function listSections(
   db: Db = getDb(),
 ): Promise<{
   sections: Section[];
-  gone: (SectionTransfer & { sectionRef: string })[];
+  gone: (SectionTransfer & { sectionRef: string; departmentId: string })[];
 }> {
   const [ss01, sf01, transfers, byNumber] = await Promise.all([
     rayatVersion(collegeId, termId, "ss01", db),
@@ -123,16 +164,15 @@ export async function listSections(
     transfersOf(db, collegeId, termId),
     peopleByNumber(collegeId, db),
   ]);
+  if (!ss01) return { sections: [], gone: [] };
   const inScope = (departmentId: string) =>
     departments === "college" || departments.includes(departmentId);
   const trainer = (number: string): Trainer => ({
     number,
     ...byNumber.get(number),
   });
-  const view = (
-    transfer: (typeof transfers)[number],
-    trainers: readonly string[] | undefined,
-  ): SectionTransfer => ({
+  const { statuses, reads } = readAll(transfers, ss01);
+  const view = (transfer: (typeof transfers)[number]): SectionTransfer => ({
     id: transfer.id,
     from: trainer(transfer.fromNumber),
     to: trainer(transfer.toNumber),
@@ -140,10 +180,7 @@ export async function listSections(
     reason: transfer.reason,
     by: transfer.by,
     at: transfer.createdAt,
-    status: transferStatus(
-      { ...transfer, since: transfer.keptAt ?? transfer.createdAt },
-      ss01 && { appliedAt: ss01.appliedAt, trainers },
-    ),
+    status: statuses.get(transfer) ?? "otherTrainer",
   });
 
   const registrations = new Map<string, Map<string, number>>();
@@ -152,56 +189,157 @@ export async function listSections(
     counts.set(registrationStatus, (counts.get(registrationStatus) ?? 0) + 1);
     registrations.set(sectionRef, counts);
   }
-  const records = ss01?.records ?? [];
-  const sections = records
+  const sections = ss01.records
     .filter((section) => inScope(section.departmentId))
     .sort(
       (a, b) =>
         a.courseCode.localeCompare(b.courseCode) ||
         a.sectionRef.localeCompare(b.sectionRef),
     )
-    .map((section) => {
-      const own = transfers.filter(
-        (transfer) => transfer.sectionRef === section.sectionRef,
-      );
-      return {
-        ref: section.sectionRef,
-        departmentId: section.departmentId,
-        course: {
-          code: section.courseCode,
-          name: section.courseName,
-          hours: section.creditHours,
-        },
-        deliveryMode: section.deliveryMode,
-        capacity: section.capacity,
-        enrolled: section.enrolled,
-        meetings: section.meetings,
-        registrations: [
-          ...(registrations.get(section.sectionRef) ?? new Map()),
-        ].map(([status, count]) => ({ status, count })),
-        trainers: trainersInWeek(section.trainerNumbers, own, week).map(
-          trainer,
-        ),
-        transfers: own.map((transfer) =>
-          view(transfer, section.trainerNumbers),
-        ),
-      };
-    });
-  const refs = new Set(records.map((section) => section.sectionRef));
+    .map((section) => ({
+      ref: section.sectionRef,
+      departmentId: section.departmentId,
+      course: {
+        code: section.courseCode,
+        name: section.courseName,
+        hours: section.creditHours,
+      },
+      deliveryMode: section.deliveryMode,
+      capacity: section.capacity,
+      enrolled: section.enrolled,
+      meetings: section.meetings,
+      registrations: [
+        ...(registrations.get(section.sectionRef) ?? new Map()),
+      ].map(([status, count]) => ({ status, count })),
+      trainers: (
+        reads.get(section.sectionRef)?.trainersInWeek(week) ??
+        section.trainerNumbers
+      ).map(trainer),
+      transfers: transfers
+        .filter((transfer) => transfer.sectionRef === section.sectionRef)
+        .map(view),
+    }));
+  const refs = new Set(ss01.records.map((section) => section.sectionRef));
   const gone = transfers
     .filter(
       (transfer) =>
         !refs.has(transfer.sectionRef) && inScope(transfer.departmentId),
     )
     .map((transfer) => ({
-      ...view(transfer, undefined),
+      ...view(transfer),
       sectionRef: transfer.sectionRef,
+      departmentId: transfer.departmentId,
     }));
   return { sections, gone };
 }
 
+// Each transfer of the term whose state applying the SS01 waiting to be applied would change
+// (ADR-0020): its section and trainers, its state before and the one it would take after.
+export async function pendingTransferChanges(
+  collegeId: string,
+  termId: string,
+  db: Db = getDb(),
+) {
+  const [ss01, pending, transfers, byNumber] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    pendingRayat(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+    peopleByNumber(collegeId, db),
+  ]);
+  if (!pending || transfers.length === 0) return [];
+  const now = ss01 && readAll(transfers, ss01).statuses;
+  const then = readAll(transfers, pending).statuses;
+  const trainer = (number: string): Trainer => ({
+    number,
+    ...byNumber.get(number),
+  });
+  return transfers
+    .map((transfer) => ({
+      id: transfer.id,
+      sectionRef: transfer.sectionRef,
+      from: trainer(transfer.fromNumber),
+      to: trainer(transfer.toNumber),
+      week: transfer.week,
+      before: now?.get(transfer) ?? ("holds" as TransferStatus),
+      after: then.get(transfer) ?? ("otherTrainer" as TransferStatus),
+    }))
+    .filter((change) => change.before !== change.after);
+}
+
+// The state of each transfer of the term against SS01 in force, by its id: what a new version of
+// SS01 is compared with (ADR-0020).
+export async function transferStates(
+  collegeId: string,
+  termId: string,
+  db: Db = getDb(),
+) {
+  const [ss01, transfers] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+  ]);
+  const statuses = ss01 && readAll(transfers, ss01).statuses;
+  return new Map(
+    transfers.map((transfer) => [
+      transfer.id,
+      statuses?.get(transfer) ?? ("holds" as TransferStatus),
+    ]),
+  );
+}
+
+// Tells the holders of sections.transfer in a department of each transfer of the term that the
+// version of SS01 now in force puts in conflict, or leaves replacing a trainer who no longer teaches
+// the section, where it was not before (ADR-0020). Called after SS01 is applied or rolled back.
+export async function tellTransferConflicts(
+  collegeId: string,
+  termId: string,
+  before: ReadonlyMap<string, TransferStatus>,
+  db: Db = getDb(),
+) {
+  const [after, transfers, departments] = await Promise.all([
+    transferStates(collegeId, termId, db),
+    transfersOf(db, collegeId, termId),
+    listDepartments(collegeId, db),
+  ]);
+  const broken = transfers.flatMap((transfer) => {
+    const status = after.get(transfer.id);
+    return (status === "conflict" || status === "otherTrainer") &&
+      before.get(transfer.id) !== status
+      ? [{ ...transfer, status }]
+      : [];
+  });
+  if (broken.length === 0) return 0;
+  const heads = await holdersIn(
+    collegeId,
+    [...new Set(broken.map((transfer) => transfer.departmentId))],
+    "sections.transfer",
+    db,
+  );
+  let told = 0;
+  for (const transfer of broken) {
+    const department =
+      departments.find(({ id }) => id === transfer.departmentId)?.name ?? "";
+    for (const head of heads.get(transfer.departmentId) ?? []) {
+      const sent = await notify(
+        {
+          collegeId,
+          userId: head.userId,
+          kind: "transferConflict",
+          params: {
+            sectionRef: transfer.sectionRef,
+            department,
+            status: transfer.status,
+          },
+        },
+        db,
+      );
+      if (sent === "sent") told += 1;
+    }
+  }
+  return told;
+}
+
 // The trainers SS01 in force names who are not on the platform: each employee number no person of
-// the college has, with the sections it teaches (Step 17).
+// the college has, with the sections it teaches and the department of the first (Step 17).
 export async function unmatchedTrainers(
   collegeId: string,
   termId: string,
@@ -211,30 +349,45 @@ export async function unmatchedTrainers(
     rayatVersion(collegeId, termId, "ss01", db),
     peopleByNumber(collegeId, db),
   ]);
-  const missing = new Map<string, string[]>();
+  const missing = new Map<string, { ref: string; departmentId: string }[]>();
   for (const section of ss01?.records ?? []) {
     for (const number of section.trainerNumbers) {
       if (byNumber.has(number)) continue;
-      missing.set(number, [...(missing.get(number) ?? []), section.sectionRef]);
+      missing.set(number, [
+        ...(missing.get(number) ?? []),
+        { ref: section.sectionRef, departmentId: section.departmentId },
+      ]);
     }
   }
   return [...missing]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([number, sections]) => ({ number, sections: sections.sort() }));
+    .map(([number, taught]) => {
+      const sections = taught.sort((a, b) => a.ref.localeCompare(b.ref));
+      return {
+        number,
+        sections: sections.map(({ ref }) => ref),
+        departmentId: sections[0].departmentId,
+      };
+    });
 }
 
-// How many sections each department has in SS01 in force: what a framework's or a plan's items for
-// each section's trainer reach (Step 15).
+// What each department's sections in SS01 in force give a framework's or a plan's items for each
+// section's trainer (Step 15): a task for each trainer of each section, and none for a section with
+// no trainer yet, which the preview names apart (the owner's rule, lead review C).
 export async function sectionCounts(
   collegeId: string,
   termId: string,
   db: Db = getDb(),
 ) {
-  const counts: Record<string, number> = {};
-  for (const { departmentId } of (
+  const counts: Record<string, { trainers: number; untaught: number }> = {};
+  for (const { departmentId, trainerNumbers } of (
     await rayatVersion(collegeId, termId, "ss01", db)
   )?.records ?? []) {
-    counts[departmentId] = (counts[departmentId] ?? 0) + 1;
+    counts[departmentId] ??= { trainers: 0, untaught: 0 };
+    const count = counts[departmentId];
+    const trainers = new Set(trainerNumbers).size;
+    count.trainers += trainers;
+    if (trainers === 0) count.untaught += 1;
   }
   return counts;
 }
@@ -251,23 +404,14 @@ export async function findSection(
   );
 }
 
-// Whom a section of a department can be transferred to: the enabled people who hold a role in the
-// department and complete tasks, as its trainers do.
+// Whom a section of each of these departments can be transferred to: the enabled people who complete
+// tasks through a role in force in the department, as its trainers do. One read for them all.
 export async function transferCandidates(
   collegeId: string,
-  departmentId: string,
-  db: Db = getDb(),
+  departmentIds: readonly string[],
+  db: Db | Tx = getDb(),
 ) {
-  return (await listDirectory(collegeId, { departments: [departmentId] }, db))
-    .filter(
-      (person) =>
-        person.state !== "disabled" && person.permissions.has("task.complete"),
-    )
-    .map(({ userId, name, employeeNumber }) => ({
-      userId,
-      name,
-      employeeNumber,
-    }));
+  return holdersIn(collegeId, departmentIds, "task.complete", db);
 }
 
 // Transfers a section of the term from one of its trainers in that week to another, from the week
@@ -291,31 +435,31 @@ export async function transferSection(
     }
 > {
   const { collegeId } = change;
-  const section = await findSection(
-    collegeId,
-    input.termId,
-    input.sectionRef,
-    db,
-  );
-  if (!section) return { status: "notFound" };
-  // Read before the transaction: the directory reads outside one.
-  const candidate = (
-    await transferCandidates(collegeId, section.departmentId, db)
-  ).find((person) => person.userId === input.toUserId);
   return db.transaction(async (tx) => {
     await lockCollege(tx, collegeId);
-    const [term] = await tx
-      .select({ status: terms.status, weeks: terms.weeks })
-      .from(terms)
-      .where(and(eq(terms.collegeId, collegeId), eq(terms.id, input.termId)));
-    if (!term) return { status: "notFound" };
+    const [[term], ss01] = await Promise.all([
+      tx
+        .select({ status: terms.status, weeks: terms.weeks })
+        .from(terms)
+        .where(and(eq(terms.collegeId, collegeId), eq(terms.id, input.termId))),
+      rayatVersion(collegeId, input.termId, "ss01", tx),
+    ]);
+    const section = ss01?.records.find(
+      (record) => record.sectionRef === input.sectionRef,
+    );
+    if (!term || !ss01 || !section) return { status: "notFound" };
     if (term.status === "closed") return { status: "termClosed" };
     if (input.week > term.weeks) return { status: "week" };
-    const trainers = trainersInWeek(
+    const candidate = (
+      await transferCandidates(collegeId, [section.departmentId], tx)
+    )
+      .get(section.departmentId)
+      ?.find((person) => person.userId === input.toUserId);
+    const trainers = readTransfers(
       section.trainerNumbers,
+      ss01.uploadedAt,
       await transfersOf(tx, collegeId, input.termId, input.sectionRef),
-      input.week,
-    );
+    ).trainersInWeek(input.week);
     if (!trainers.includes(input.fromNumber)) return { status: "notTrainer" };
     if (!candidate) return { status: "notCandidate" };
     if (trainers.includes(candidate.employeeNumber)) {
@@ -407,16 +551,29 @@ async function openTransfer(tx: Tx, collegeId: string, id: string) {
 }
 
 // Keeps a transfer that a newer SS01 is in conflict with: it holds again until the next one
-// (sectionTransfer.keep).
+// (sectionTransfer.keep). Only while it is in conflict, Rayat still naming the trainer it replaced:
+// one that changes nothing is cancelled, or the section transferred again (lead review C).
 export async function keepTransfer(
   id: string,
   change: Change,
   db: Db = getDb(),
-): Promise<{ status: "kept" | "notFound" | "termClosed" }> {
+): Promise<{ status: "kept" | "notFound" | "termClosed" | "notConflict" }> {
   return db.transaction(async (tx) => {
     const found = await openTransfer(tx, change.collegeId, id);
     if (!found) return { status: "notFound" };
     if (found.termStatus === "closed") return { status: "termClosed" };
+    const [ss01, own] = await Promise.all([
+      rayatVersion(change.collegeId, found.termId, "ss01", tx),
+      transfersOf(tx, change.collegeId, found.termId, found.sectionRef),
+    ]);
+    const section = ss01?.records.find(
+      (record) => record.sectionRef === found.sectionRef,
+    );
+    const read =
+      ss01 &&
+      readTransfers(section?.trainerNumbers ?? [], ss01.uploadedAt, own);
+    const status = read?.statuses[own.findIndex((each) => each.id === id)];
+    if (status !== "conflict") return { status: "notConflict" };
     await tx
       .update(sectionTransfers)
       .set({ keptAt: sql`now()` })
