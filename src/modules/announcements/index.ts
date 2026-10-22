@@ -1,6 +1,7 @@
 export {
   type AnnouncementInput,
   announcementInput,
+  announcementLengths,
   paragraphs,
 } from "./domain/inputs.ts";
 export {

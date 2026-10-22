@@ -9,6 +9,7 @@ export {
   isNotificationKind,
   isOptional,
   type NotificationKind,
+  type NotificationParams,
   notificationKindKeys,
   notificationKinds,
 } from "./domain/kinds.ts";

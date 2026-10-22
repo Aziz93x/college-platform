@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/page-header";
 import { requireViewer } from "@/modules/access";
 import {
+  isOptional,
   notificationChoices,
   notificationKindKeys,
 } from "@/modules/notifications";
@@ -16,7 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // The kinds of notification the platform sends, each on or off for the signed-in person, in the
-// platform: the one channel until the hosting decision (ADR-0008).
+// platform: the one channel until the hosting decision (ADR-0008). Announcements always come
+// (ADR-0017), and the page says so instead of offering a switch.
 export default async function NotificationPreferencesPage() {
   await connection();
   const viewer = await requireViewer();
@@ -53,10 +55,12 @@ export default async function NotificationPreferencesPage() {
               key={kind}
               kind={kind}
               enabled={choices[kind]}
+              optional={isOptional(kind)}
               words={{
                 label: t(`kinds.${kind}.label`),
                 hint: t(`kinds.${kind}.hint`),
                 channel: t("preferences.channel"),
+                always: t("preferences.always"),
                 saved: t("preferences.saved", {
                   kind: t(`kinds.${kind}.label`),
                 }),

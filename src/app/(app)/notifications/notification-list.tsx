@@ -4,6 +4,7 @@ import {
   Bell,
   CalendarClock,
   type LucideIcon,
+  Megaphone,
   UserMinus,
   UserPlus,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const ICONS: Record<string, LucideIcon> = {
   membershipAdded: UserPlus,
   membershipRemoved: UserMinus,
   weeklyDigest: CalendarClock,
+  announcement: Megaphone,
 };
 
 // A person's notifications newest first, a day at a time. Opening one marks it read, then goes to

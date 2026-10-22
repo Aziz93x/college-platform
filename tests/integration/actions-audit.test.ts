@@ -95,6 +95,12 @@ const writes: Record<string, string[]> = {
   "(app)/profile/actions.ts#turnOffOwnTwoFactorAction": [
     "account.disableTwoFactor",
   ],
+  "(app)/announcements/actions.ts#publishAnnouncementAction": [
+    "announcement.publish",
+  ],
+  "(app)/announcements/actions.ts#withdrawAnnouncementAction": [
+    "announcement.withdraw",
+  ],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -372,6 +378,16 @@ describe("every server action writes its event", () => {
       { kind: "weeklyDigest", enabled: true },
     );
     expect(unmuted.written).toEqual(["notification.unmute"]);
+
+    // An announcement to the college, then taken back (ADR-0017).
+    const published = await expectWrites(
+      "(app)/announcements/actions.ts#publishAnnouncementAction",
+      { departmentId: null, title: "A holiday", body: "On Sunday." },
+    );
+    await expectWrites(
+      "(app)/announcements/actions.ts#withdrawAnnouncementAction",
+      { id: published.id },
+    );
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

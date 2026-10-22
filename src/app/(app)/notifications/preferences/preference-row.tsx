@@ -6,18 +6,22 @@ import { Switch } from "@/components/motion/switch";
 import { chooseNotificationAction } from "../actions.ts";
 
 // One kind of notification: what it is, when it comes, and whether it reaches the person in the
-// platform. The switch moves at once; a refusal moves it back and says why.
+// platform. The switch moves at once; a refusal moves it back and says why. A kind no one turns off
+// says that it always comes.
 export function PreferenceRow({
   kind,
   enabled,
+  optional,
   words,
 }: {
   kind: string;
   enabled: boolean;
+  optional: boolean;
   words: {
     label: string;
     hint: string;
     channel: string;
+    always: string;
     saved: string;
     refused: string;
   };
@@ -45,17 +49,21 @@ export function PreferenceRow({
           {words.hint}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="hidden text-muted-foreground text-xs sm:inline">
-          {words.channel}
-        </span>
-        <Switch
-          aria-labelledby={`${id}-label`}
-          aria-describedby={`${id}-hint`}
-          checked={shown}
-          onCheckedChange={choose}
-        />
-      </div>
+      {optional ? (
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="hidden text-muted-foreground text-xs sm:inline">
+            {words.channel}
+          </span>
+          <Switch
+            aria-labelledby={`${id}-label`}
+            aria-describedby={`${id}-hint`}
+            checked={shown}
+            onCheckedChange={choose}
+          />
+        </div>
+      ) : (
+        <span className="shrink-0 font-medium text-sm">{words.always}</span>
+      )}
     </li>
   );
 }

@@ -4,6 +4,7 @@ import {
   Contact,
   History,
   type LucideIcon,
+  Megaphone,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -82,6 +83,14 @@ export const navigation = [
     icon: History,
     permission: "audit.view",
     group: "administration",
+  },
+  // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
+  // Last, so Today still leads an admin setting the college up to its departments.
+  {
+    id: "announcements",
+    href: "/announcements",
+    icon: Megaphone,
+    permission: "announcements.publish",
   },
 ] as const satisfies readonly NavigationItem[];
 

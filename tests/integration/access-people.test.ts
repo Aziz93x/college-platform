@@ -124,6 +124,7 @@ describe("listDirectory", () => {
         "portfolio.approve",
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",
+        "announcements.publish",
       ]),
     );
     expect(

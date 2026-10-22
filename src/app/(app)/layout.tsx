@@ -5,9 +5,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { platformName } from "@/i18n/platform-name";
 import { requireViewer } from "@/modules/access";
-import { latestUnread, unreadCount } from "@/modules/notifications";
+import {
+  latestUnread,
+  type NotificationParams,
+  unreadAnnouncements,
+  unreadCount,
+} from "@/modules/notifications";
 import { findCollege } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { Announcements } from "./_shell/announcements.tsx";
 import { Bell } from "./_shell/bell.tsx";
 import { CommandMenu } from "./_shell/command-menu.tsx";
 import { Header } from "./_shell/header.tsx";
@@ -24,7 +30,7 @@ import { notificationViews } from "./notifications/view.ts";
 
 // The shell around every page of a signed-in role: the sidebar on desktop, open or on its icon rail
 // as the viewer left it, the tab bar on a phone, the header with the viewer's unread notifications
-// on its bell, and the command palette. Navigation is data: the pages the viewer's permissions open,
+// on its bell, what was announced to them and is not closed yet (ADR-0017), and the command palette. Navigation is data: the pages the viewer's permissions open,
 // in the order the navigation.order setting gives the viewer's role. Signed out, or with a password
 // to replace or two-factor to set up, the viewer is sent there first.
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -45,12 +51,27 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations("shell");
   const nav = await getTranslations("nav");
   const reader = { collegeId: viewer.collegeId, userId: viewer.userId };
-  const [unread, latest, notices, format] = await Promise.all([
-    unreadCount(reader),
-    latestUnread(reader, 3),
-    getTranslations("notifications"),
-    getFormatter(),
-  ]);
+  const [unread, latest, announced, notices, announcing, format] =
+    await Promise.all([
+      unreadCount(reader),
+      latestUnread(reader, 3),
+      unreadAnnouncements(reader, 10),
+      getTranslations("notifications"),
+      getTranslations("announcements.dialog"),
+      getFormatter(),
+    ]);
+  const now = new Date();
+  const announcements = announced.map(({ id, params, createdAt }) => {
+    const said = params as NotificationParams["announcement"];
+    return {
+      id,
+      title: said.title,
+      body: said.body,
+      from: `${said.author} · ${said.scope === "department" ? said.department : announcing("college")}`,
+      ago: format.relativeTime(createdAt, now),
+      iso: createdAt.toISOString(),
+    };
+  });
   const bellItems = (await notificationViews(latest)).map(
     ({ id, title, description, ago, href }) => ({
       id,
@@ -147,6 +168,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+      {announcements.length > 0 ? (
+        <Announcements
+          items={announcements}
+          labels={{
+            eyebrow: announcing("eyebrow"),
+            close: announcing("close"),
+          }}
+        />
+      ) : null}
       <TabBar
         links={links}
         labels={{

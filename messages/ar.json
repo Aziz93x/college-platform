@@ -1454,9 +1454,11 @@
     },
     "list": {
       "title": "المنشورة الآن",
-      "empty": "لم يُنشر إعلان بعد. ما تنشره هنا يظهر في هذه القائمة، ويمكنك سحبه.",
+      "emptyTitle": "لا إعلانات منشورة الآن",
+      "emptyDescription": "ما تنشره يظهر هنا، ويمكنك سحبه متى شئت.",
       "college": "الكلية كلها",
-      "withdraw": "سحب «{title}»"
+      "withdraw": "سحب",
+      "withdrawLabel": "سحب «{title}»"
     },
     "withdraw": {
       "title": "سحب «{title}»",
@@ -1469,8 +1471,7 @@
     "dialog": {
       "eyebrow": "إعلان",
       "college": "الكلية كلها",
-      "close": "تم",
-      "position": "{current} من {total}"
+      "close": "تم"
     }
   }
 }

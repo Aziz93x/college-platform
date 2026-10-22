@@ -48,16 +48,19 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  overlayClassName,
   children,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** The page behind the dialog, such as blurred instead of dimmed. */
+  overlayClassName?: string;
   showCloseButton?: boolean;
 }) {
   const t = useTranslations("ui");
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
