@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PersonEntry } from "@/modules/access";
+import { type PersonEntry, permissionKeys } from "@/modules/access";
 import { personView } from "./view.ts";
 
 const ELECTRICAL = "0199b2a4-6c1e-7d3a-9f00-000000000001";
@@ -31,6 +31,9 @@ const admin = {
     { permission: "accounts.linkEmployeeNumber", departmentId: null },
   ] as const,
 };
+
+// Whoever an admin gave the people keys across the college, without the system role.
+const deputy = { ...admin, userId: "deputy" };
 
 const head = {
   userId: "head",
@@ -72,6 +75,29 @@ describe("personView", () => {
       disable: false,
     });
     expect(view(trainer("t", MECHANICAL), head, false)).toEqual({
+      reset: false,
+      turnOffTwoFactor: false,
+      link: false,
+      edit: false,
+      disable: false,
+    });
+  });
+
+  it("offers nothing on the account of someone whose powers the viewer lacks: an admin (lead review B)", () => {
+    const systemAdmin: PersonEntry = {
+      ...trainer("system-admin", ELECTRICAL),
+      memberships: [
+        {
+          id: "m",
+          roleId: "r",
+          roleLabels: {},
+          system: true,
+          departmentId: null,
+        },
+      ],
+      permissions: new Set(permissionKeys),
+    };
+    expect(view(systemAdmin, deputy, true)).toEqual({
       reset: false,
       turnOffTwoFactor: false,
       link: false,

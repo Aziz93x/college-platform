@@ -41,6 +41,7 @@ export function personView(
   const reset =
     person.userId !== viewer.userId &&
     reachesAccount(viewer, "accounts.resetPassword", person);
+  const managed = manages && reachesAccount(viewer, "people.manage", person);
   return {
     userId: person.userId,
     name: person.name,
@@ -59,8 +60,8 @@ export function personView(
       reset,
       turnOffTwoFactor: reset && person.twoFactor,
       link: reachesAccount(viewer, "accounts.linkEmployeeNumber", person),
-      edit: manages,
-      disable: manages && person.userId !== viewer.userId,
+      edit: managed,
+      disable: managed && person.userId !== viewer.userId,
     },
   };
 }
