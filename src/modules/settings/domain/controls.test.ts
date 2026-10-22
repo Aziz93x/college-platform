@@ -79,11 +79,6 @@ it("reads each setting's own schema and unit", () => {
     min: 1,
     max: 1440,
   });
-  expect(settingControl("review.sampleRate")).toEqual({
-    kind: "slider",
-    min: 0,
-    max: 100,
-  });
   expect(settingControl("platform.name")).toEqual({
     kind: "text",
     maxLength: 80,

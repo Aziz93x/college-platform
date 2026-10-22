@@ -127,7 +127,7 @@ export function BreadcrumbLink({
     ...props,
     className: cn(
       // 44 px tall on a touch screen, like every other control.
-      "inline-flex min-h-8 min-w-0 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-coarse:min-h-11 [&>svg]:size-3.5 [&>svg]:shrink-0",
+      "inline-flex min-h-8 min-w-0 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors duration-(--duration-fast) hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-coarse:min-h-11 [&>svg]:size-3.5 [&>svg]:shrink-0",
       className,
     ),
   };

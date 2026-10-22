@@ -316,11 +316,11 @@ describe("every server action writes its event", () => {
     });
 
     await expectWrites("(app)/settings/actions.ts#saveSettingAction", {
-      key: "review.weeklyCap",
-      value: 31,
+      key: "reminders.digestHour",
+      value: 8,
     });
     await expectWrites("(app)/settings/actions.ts#resetSettingAction", {
-      key: "review.weeklyCap",
+      key: "reminders.digestHour",
     });
 
     const role = await expectWrites("(app)/roles/actions.ts#createRoleAction", {

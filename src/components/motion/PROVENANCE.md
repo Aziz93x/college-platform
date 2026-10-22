@@ -253,3 +253,16 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `date-range-picker/`: `single` chooses one day, the term's first one: a tap completes the value,
   from and to that day, and announces it with the catalog's `dayChosen`. The trigger writes a value
   that starts and ends on one day as that day, a one-day holiday too.
+
+## Local changes from the design system audit (22 October 2026)
+
+- `date-range-picker/`: on the theme's scales. The panel's corners take `rounded-xl`, the largest
+  radius here; BeUI's `rounded-2xl` is no step of this theme, so the panel had square corners. The
+  month, the year and the month and year choices take `text-sm`, and the weekday letters `text-xs`,
+  where BeUI had 13 and 11 px. The month and today's date take the Medium weight: the identity has
+  no semibold, so `font-semibold` drew them Regular.
+- `combobox/content.tsx`: the list's words take `text-foreground`; `text-popover-foreground` names no
+  token here and did nothing.
+- `switch.tsx`, `breadcrumb.tsx`, `combobox/list.tsx`, `notification-stack.tsx` and
+  `animated-badge.tsx`: their transitions run on `--duration-fast` and `--duration-slow` (120 and
+  200 ms) instead of BeUI's 150, 200 and 300 ms.

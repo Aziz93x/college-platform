@@ -51,6 +51,15 @@ When several checkpoints land on the same step, run them in this order: audit, t
 
 Each step heading carries a size: S is about one session, M two or three, L four or more. A step that spans sessions continues on its branch.
 
+**Notes from the owner (22 October 2026): build at the trial's size.** The trial is about 40 trainers in three departments, with the dean and the vice-dean. From now on, these rules win over older text in this plan.
+
+- **A setting or permission key arrives with the step that first reads or checks it.** Nothing read or checked the five settings and six keys below, though the settings screen and the roles grid offered them, so on 22 October they left the registries, the seeds, the messages and the tests. `task.complete`, a seventh key first listed here, stayed: Step 17 reads it, since a section moves only to someone who holds it. The step named beside each of the others adds it back:
+  - settings: `files.maxSizeMb` (Step 25), `reminders.dueTomorrow` and `reminders.nothingUploaded` (Step 27), `review.sampleRate` and `review.weeklyCap` (Step 29);
+  - keys: `plan.edit` (Step 18, whose section templates it guards), `plan.publish` (Steps 19 and 20), `assignment.manage` (21 and 22), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
+- **No more animated components.** The BeUI components already in `src/components/motion/` stay. A new screen uses them, the shadcn/Radix components or native controls. A new BeUI component comes in only for something none of these can do, and its pull request says why.
+- **Review screenshots stay out of git.** Reviews still save them under `docs/reviews/<report>/` to look at, but git ignores those folders, and each report says in words what a screenshot showed. The screenshots already committed in `docs/reviews/ux-10/` stay.
+- **Measure and load-test at the trial's size.** Seeds, timings and load tests use the trial's numbers, as Step 43's seed and Step 45's k6 run already do. Runs at 2,000 people or 300,000 log events, and the paging that lead review B proposed for them (its note in Step 43), wait until the platform is to serve more than the trial.
+
 ## 1. Product brief
 
 **The goal is one loop that the whole college fills together, so each portfolio builds itself during the term instead of being assembled by hand at its end.** The vice-dean sets the term and its general framework. Each head builds the department plan on it. The platform generates every trainer's tasks per section with due weeks. Trainers complete them and attach evidence in place. Heads review a sample and approve each portfolio twice a term. Trainer, department and college portfolios and indicators stay current, and the dean and vice-dean follow execution.
@@ -165,7 +174,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | Identity | Better Auth tables (user, session, account, two-factor); `people` (profile, employee number) | admin, the person |
 | Organization | colleges; departments (with Rayat matching values); roles; permissions (keys from code); role\_permissions; memberships (person, role, scope, optional term) | admin |
 | Settings | settings (key, scope, value validated by the key's schema, version) | admin, by permission |
-| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday, exam week, grade deadline, custom) | vice-dean |
+| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday; exam period: a type from the exam-period catalog, from week, to week; grade deadline; custom) | vice-dean |
 | Portfolio catalog | axis\_groups; axes (code, title, order, locked) | admin |
 | Framework | frameworks (term, version, status); framework\_items | vice-dean |
 | Academics | courses; sections (term, department, course, Rayat reference, trainer, schedule, capacity, enrolled, delivery mode); enrollments (section, trainee number, status); section\_overrides (transfers) | Rayat import, head |
@@ -192,7 +201,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 - **Idempotent:** one task per source item, occurrence, assignee and section. Running it twice changes nothing.
 - **Re-publish:** add new tasks; move due dates of tasks not started; cancel removed tasks that have no evidence; never touch completed work.
-- **Due rules:** week N; weekly; every N weeks; or relative to a calendar event, for example one week after the midterm exam week. Dates skip holidays when the setting says so.
+- **Due rules:** week N; weekly; every N weeks; or relative to a calendar event, for example one week after the midterm exam week. A rule can name an exam-period type instead of one event: before or after each period of that type by N weeks, on a weekday. Such a rule moves with the periods when the vice-dean changes them, within the re-publish rule above. Dates skip holidays when the setting says so.
 - **Section transfer:** completed work stays with the trainer who did it, marked "until week N"; open tasks move to the new trainer. The transfer holds until the next SS01 import confirms it or flags a conflict.
 
 **Task status:** not started → in progress → submitted → done, plus returned (back to the trainer with a note) and not applicable (with a reason). Overdue is a flag on top of the status, not a status.
@@ -952,6 +961,14 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0018 (the owner's request):** the Eid breaks, ten years ahead. The base seed adds the college's Eid al-Fitr and Eid al-Adha breaks for the current Hijri year and the nine after it, each estimated from the averages of past Saudi calendars (docs/reviews/eid-breaks.md) and fitted to whole weeks, with Eid's date from the Umm al-Qura calendar Intl carries. Every term counts the breaks that fall in it with its own holidays, and the vice-dean adjusts each year's break on `/terms` once it is announced (`holiday.update`); a break that has begun stays as it was. Amended the same day: Founding Day joins the ten years, moved off the weekend as the official rule says, and the Eid al-Fitr break is named for Ramadan too; `/terms` shows only the current Umm al-Qura year's holidays; and the vice-dean approves an estimate as it is (`holiday.approve`) or adjusts it.
 
+**Notes from the owner (21 October 2026): the term calendar in layers.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows the screens. Steps 13 and 15 merged before these notes (#32 and #36). Step 13 keeps an exam week as a dated event with a title of its own, and Step 15's "after an event" due rule counts so many weeks after each event of a kind, such as each exam. So the first bullet changes what both built.
+
+- **Exam periods by week number.** The vice-dean sets each exam period by week number, from week and to week, every term. No period is fixed, and none is computed from the term's end.
+  - The types are a catalog in data, seeded with the first periodic, the second periodic, the practical final and the theoretical final.
+  - The "open next term" wizard copies the periods as a draft.
+  - Shortening the term never moves a period. A period past the term's last week, or two periods in one week, is an error on the screen and at publish.
+- **One calendar in three layers.** This step builds the college's layer: the vice-dean's term start, holidays, exam periods and grade deadlines, which every role sees. Steps 18 and 19 add the department's layer, and Step 24 the trainer's own.
+
 #### Step 14. Portfolio axes catalog (S)
 
 **Goal:** the administration's axes are data, protected from accidental change.
@@ -978,6 +995,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 14:** the axes are `axes` and `axis_groups` (`src/modules/axes`), found by their code (`axes_code_unique`); `listAxes()` gives the groups in order with their axes. An item that points at an axis needs `unique(college_id, id)` on `axes` for its composite foreign key, added with the first such table. Every axis is the administration's, so `axes.manage`, the admin's key, guards them all and no per-axis `locked` column is stored; add one only if a college may add axes of its own.
 
 **Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
+
+**Note from the owner (21 October 2026):** the due-rule shape includes the anchored rule from section 3: before or after each period of an exam-period type by N weeks, on a weekday. Step 15 merged before this note (#36): its rule counts only after each event of a kind, with no weekday, so this note changes what it built.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
@@ -1056,6 +1075,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Drafts; publish with an impact preview and a review-load preview ("about N reviews a week"); versions; copy from the previous term.
 
 **Done when:** a scripted usability run builds a 50-item plan in under 30 minutes, publish previews use the shared counting function, versions cannot be edited, and the Step 13 wizard copies the plan as a draft.
+
+**Note from the owner (21 October 2026):** the head's department deadlines are anchored to exam-period types, not to dates.
+- **Examples:** exam questions on the Thursday of the week before each exam period; the grade analysis in the week after it.
+- **The editor:** previews the weeks each anchored item lands in, and flags one that falls past the term's end.
+- **On the calendar:** these items form the department's layer, which its trainers see in the department's color (Step 24).
 
 **Note from Step 18:** a department's section templates are the per-section part of its plan (`section_templates`, `src/modules/planning`): the head edits them on `/templates` with `plan.edit`, each with a framework item's fields but whom it reaches (`sectionTemplateInput`), and they stay drafts until the plan is published. Take them into the plan's version when it publishes, and count them in its preview for each trainer of each section of the department (the owner's rule under Step 20). The framework's items for each section's trainer are the college's templates, which `/templates` shows read-only. The wizard copies a term's templates into the next (`copyTemplatesInto()`), but a draft term shows only to whoever holds `term.manage` (Step 13), so a head edits the next term's templates once it is active: decide here whether `plan.edit` shows the next term while it is a draft. The item sheet, its words and its choices are shared in `src/app/(app)/_items`.
 
@@ -1147,11 +1171,32 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 13:** Today already shows the week of the term on view. Pages that show a term's work read that term with `viewedTerm()` (`src/app/(app)/_shell/term.ts`), which follows the header's switcher.
 
+**Note from the owner (21 October 2026): the calendar's layers start here.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows them.
+- **The trainer's Today shows:**
+  - this week's days, each day's items marked by layer;
+  - the term's weeks, with its exam periods;
+  - each item in the color of whoever asked for it (Step 24).
+- **Three layer roles join the tokens beside the status roles:**
+  - the college: from the identity's blue;
+  - the department: from its teal;
+  - the trainer's own: from its green.
+
+  The teal and the green have almost the same lightness, so each layer also differs in fill: solid, tinted with an edge, or white with a mark. Each also carries its own icon and is named in a legend, and any text on it passes 4.5:1. Red stays for what is overdue.
+
 #### Step 24. My work and my sections (M)
 
 **Goal:** all work in one list, and each section on one page.
 
 **Do:** one work list with filters (this week, overdue, plan, sections, assignments) kept in the URL; "My sections" as cards with progress; a section page with a header (course, reference, enrolled, schedule) and its tasks grouped by week.
+
+**Notes from the owner (21 October 2026): the calendar page.** One page for every role. On a phone it lists the term by week; on a wide screen it lays the term out in lanes, one per layer, with a selected week's details.
+- **The trainer's three layers.** Each item takes the color of whoever asked for it:
+  - the college's: the vice-dean;
+  - the department's: the head, even when the trainer does the work;
+  - the trainer's own: his sections' tasks, his assignments and his own notes, which only he sees.
+- **Red** stays for what is overdue.
+- **The look:** the layer roles and their fills, icons and legend come from Step 23's note.
+- **Toggles** show or hide each layer.
 
 **Done when:** filters survive a reload and a shared link, and the section page shows the generated tasks with the right due dates.
 
@@ -1185,7 +1230,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Seeded files carry the visible demo watermark from this step on, not only from Step 43.
 - The end-to-end upload test runs on a minimal task page, which Step 26 turns into the card.
 
-**Note from Step 7:** the size limit and the accepted extensions are settings already (`files.maxSizeMb`, 20, and `files.acceptedTypes`); a framework item's own types narrow them.
+**Note from Step 7:** the accepted extensions are a setting already (`files.acceptedTypes`); a framework item's own types narrow them. The size limit was one too, until it came out because nothing read it (section 0): this step adds `files.maxSizeMb` back, 20 MB by default.
 
 #### Step 26. The task card and the done flow (L)
 
@@ -1224,7 +1269,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** every rule is an in-app item: the digest, the due-tomorrow reminder, and "nothing uploaded this week" with the head's one-tap reminder (moved from Step 23). Step 29 sends the instant notification on returned work, since it builds the return action. On option A, people see these items only when they open the app on the college Wi-Fi, so the week-2 return metric reads differently under each hosting option.
 
-**Note from Step 7:** the rules are settings already: `reminders.dueTomorrow` and `reminders.nothingUploaded` (both on), with the digest's day and hour from Step 12.
+**Note from Step 7:** the digest's day and hour are settings already (Step 12). The two rules' settings came out because nothing read them (section 0): this step adds `reminders.dueTomorrow` and `reminders.nothingUploaded` back, both on by default.
 
 **Note from Step 12:** the worker's `notification-digest` job looks every quarter of an hour and calls `sendWeeklyDigests()` (`src/modules/notifications/server/digest.ts`) within a day of each college's digest moment. Today a digest counts the week's unread notifications and names the newest three (`digestOf()`, words `notifications.kinds.weeklyDigest`); the work loop's parts join its params and its words here, and the snapshot test (`tests/integration/notification-digest.test.ts`) grows with them. A reminder that must reach a person once, such as due-tomorrow per task and day, passes a once key as the digest does per week, so a rerun sends nothing twice. The message count over a demo week can read the `notifications` table.
 
@@ -1263,7 +1308,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
 
-**Note from Step 7:** the rate and the cap are settings already: `review.sampleRate` (20%) and `review.weeklyCap` (30 per reviewer a week).
+**Note from Step 7:** the rate and the cap were settings, until they came out because nothing read them (section 0). This step adds them back: `review.sampleRate` (20%, the settings screen's only slider) and `review.weeklyCap` (30 per reviewer a week). The slider's end-to-end test, its arrow keys right to left, comes back with them (`e2e/settings.spec.ts` at 584319f).
 
 **Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
 
@@ -1713,6 +1758,7 @@ A rebuild is part of the plan, not a failure of it. The bar is the best product 
 | The department document library and contact directory, or Microsoft 365 for both | you | Step 38 |
 | The college logo before sign-in | the dean, in writing | go-live; off until then |
 | The font license covers web use and PDF embedding | the employer | go-live |
+| The platform beside TVTC's systems: Rayat's reports by scheduled mail, Microsoft 365 sign-in, and approved portfolios archived in EthaqPlus (ADR-0024, proposed) | you, then TVTC IT for each request | after the trial; the requests to TVTC IT before go-live |
 
 The term itself is not a build decision: the vice-dean for training enters each term, its start date, its number of weeks and its general framework in the platform (Step 13). Hosting while building is your laptop. Where the platform runs for staff is decided by the General Administration as part of the approval request: a server inside the college (a Dell QCT1250 was bought after the feasibility study of 14 October 2026 and has not arrived) or hosting in a cloud region inside the Kingdom (Oracle Cloud's sign-up was refused on 2026-10-20). `docs/ops/hosting-options.md` sets out both for that request. The platform runs in Docker Compose, so either works without code changes; Section K is revised for the chosen option.
 

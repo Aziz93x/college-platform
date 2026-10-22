@@ -33,7 +33,8 @@ const lookups: Lookups = {
   role: (key) => (key === "head" ? "رئيس القسم" : undefined),
   roleById: () => "رئيس القسم",
   permission: (key) => `[${key}]`,
-  setting: (key) => (key === "review.weeklyCap" ? "الحد الأسبوعي" : undefined),
+  setting: (key) =>
+    key === "reminders.digestHour" ? "ساعة الملخص الأسبوعي" : undefined,
   notificationKind: (kind) =>
     kind === "weeklyDigest" ? "ملخص الأسبوع" : undefined,
   term: (id) => (id === SPRING ? "الفصل الثاني 1447" : undefined),
@@ -89,9 +90,12 @@ describe("describeEvent", () => {
       describeEvent(
         entry({
           diff: {
-            from: { permissions: ["plan.edit"], labels: { ar: "قديم" } },
+            from: {
+              permissions: ["sections.transfer"],
+              labels: { ar: "قديم" },
+            },
             to: {
-              permissions: ["plan.edit", "plan.publish"],
+              permissions: ["sections.transfer", "announcements.publish"],
               labels: { ar: "قديم" },
             },
           },
@@ -102,8 +106,8 @@ describe("describeEvent", () => {
     ).toEqual([
       {
         field: "الصلاحيات",
-        before: "[plan.edit]",
-        after: "[plan.edit] / [plan.publish]",
+        before: "[sections.transfer]",
+        after: "[sections.transfer] / [announcements.publish]",
       },
     ]);
   });
@@ -133,15 +137,15 @@ describe("describeEvent", () => {
         entry({
           action: "setting.update",
           entityType: "setting",
-          entityId: "review.weeklyCap",
-          diff: { from: 30, to: 25 },
+          entityId: "reminders.digestHour",
+          diff: { from: 7, to: 6 },
         }),
         lookups,
         words,
       ),
     ).toMatchObject({
-      subject: "الحد الأسبوعي",
-      changes: [{ field: "القيمة", before: "30", after: "25" }],
+      subject: "ساعة الملخص الأسبوعي",
+      changes: [{ field: "القيمة", before: "7", after: "6" }],
     });
     expect(
       describeEvent(

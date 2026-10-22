@@ -128,6 +128,30 @@ const RULES = [
     allow: (file) => file === TOKENS_FILE || !file.endsWith(".css"),
   },
   {
+    // The type scale is in src/styles/theme.css; a size used once gets a named step there, as
+    // text-display and text-badge have.
+    name: "font-size-off-scale",
+    message: "font sizes come from the scale in src/styles/theme.css",
+    pattern: /(?<![\w-])text-\[\s*-?[\d.]+(?:px|rem|em)\s*\]/,
+  },
+  {
+    // Motion runs 120 to 200 ms (docs/PLAN.md section 4). duration-0 stays allowed.
+    name: "duration-off-token",
+    message:
+      "durations are duration-(--duration-fast) or duration-(--duration-slow) (docs/PLAN.md section 4)",
+    pattern: /(?<![\w-])duration-(?:(?!0(?![\d.]))\d+(?![\w-])|\[[^\]]*\])/,
+  },
+  {
+    // A step the theme removed, or a color it never had: Tailwind generates nothing for it, so the
+    // class does nothing. The weights are 400 and 500, the radii xs to xl and the shadows xs to lg,
+    // and the colors are the roles in src/styles/tokens.css.
+    name: "class-without-token",
+    message:
+      "src/styles/theme.css and tokens.css have no such step or color, so the class does nothing",
+    pattern:
+      /(?<![\w-])(?:font-(?:thin|extralight|light|semibold|bold|extrabold|black)|text-[4-9]xl|rounded(?:-(?:s|e|t|b|l|r|ss|se|es|ee|tl|tr|bl|br))?-[2-4]xl|shadow-(?:xl|2xl)|(?:bg|text|border|ring|fill|stroke|outline|divide|from|via|to|decoration|caret|placeholder)-(?:card-foreground|popover-foreground|secondary-foreground|accent-foreground|destructive(?:-foreground)?))(?![\w-])/,
+  },
+  {
     name: "prefers-color-scheme",
     message:
       "dark tokens apply only under .dark, never through prefers-color-scheme",

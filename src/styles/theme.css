@@ -21,6 +21,8 @@
   /* One display size, for the status code on the not-found and no-permission pages. */
   --text-display: 4.5rem;
   --text-display--line-height: 1;
+  /* One badge size, for the unread count on the bell. */
+  --text-badge: 0.625rem;
 
   /* The identity ships two weights: Regular for body, Medium for headings. Any other weight would
      be synthesized by the browser. */

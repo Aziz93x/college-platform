@@ -370,15 +370,7 @@ export const settingsRegistry = {
     default: 60,
     unit: "months",
   },
-  // The largest evidence file, and the extensions a file may have (Step 25 checks its contents too).
-  "files.maxSizeMb": {
-    scope: "college",
-    group: "files",
-    permission: MANAGE,
-    schema: z.int().min(1).max(100),
-    default: 20,
-    unit: "megabytes",
-  },
+  // The extensions an evidence file may have (Step 25 checks its contents too).
   "files.acceptedTypes": {
     scope: "college",
     group: "files",
@@ -453,24 +445,6 @@ export const settingsRegistry = {
     ]),
     default: null,
   },
-  // The share of submitted evidence the weekly review sample takes, and the most it takes per
-  // reviewer in a week (Step 29).
-  "review.sampleRate": {
-    scope: "college",
-    group: "review",
-    permission: MANAGE,
-    schema: z.int().min(0).max(100),
-    default: 20,
-    unit: "percent",
-  },
-  "review.weeklyCap": {
-    scope: "college",
-    group: "review",
-    permission: MANAGE,
-    schema: z.int().min(1).max(100),
-    default: 30,
-    unit: "items",
-  },
   // Whether the term's framework waits for the dean's endorsement before the vice-dean publishes it
   // (Step 15).
   "framework.requireEndorsement": {
@@ -480,8 +454,7 @@ export const settingsRegistry = {
     schema: z.boolean(),
     default: false,
   },
-  // The in-app reminder rules (Steps 12 and 27): the weekly digest's day and hour on the college's
-  // clock, the due-tomorrow reminder for required evidence, and "nothing uploaded this week" for heads.
+  // The weekly digest's day and hour on the college's clock (Step 12).
   "reminders.digestDay": {
     scope: "college",
     group: "reminders",
@@ -496,20 +469,6 @@ export const settingsRegistry = {
     schema: z.int().min(0).max(23),
     default: 7,
     unit: "hourOfDay",
-  },
-  "reminders.dueTomorrow": {
-    scope: "college",
-    group: "reminders",
-    permission: MANAGE,
-    schema: z.boolean(),
-    default: true,
-  },
-  "reminders.nothingUploaded": {
-    scope: "college",
-    group: "reminders",
-    permission: MANAGE,
-    schema: z.boolean(),
-    default: true,
   },
 } as const satisfies Record<
   string,

@@ -46,12 +46,12 @@ export function SidebarNav({
               id={`${id}-${section.group}`}
               className="relative mb-1 flex h-6 items-center px-3 font-medium text-foreground/55 text-xs"
             >
-              <span className="whitespace-nowrap transition-opacity duration-200 group-data-[state=collapsed]/sidebar:opacity-0">
+              <span className="whitespace-nowrap transition-opacity duration-(--duration-slow) group-data-[state=collapsed]/sidebar:opacity-0">
                 {groups[section.group]}
               </span>
               <span
                 aria-hidden
-                className="absolute inset-x-3 top-1/2 h-px bg-foreground/20 opacity-0 transition-opacity duration-200 group-data-[state=collapsed]/sidebar:opacity-100"
+                className="absolute inset-x-3 top-1/2 h-px bg-foreground/20 opacity-0 transition-opacity duration-(--duration-slow) group-data-[state=collapsed]/sidebar:opacity-100"
               />
             </p>
           ) : null}
@@ -69,7 +69,7 @@ export function SidebarNav({
               return (
                 <li
                   key={link.id}
-                  className="fade-in slide-in-from-start-2 animate-in fill-mode-both duration-500"
+                  className="fade-in slide-in-from-start-2 animate-in fill-mode-both duration-(--duration-slow)"
                   style={{ animationDelay: `${links.indexOf(link) * 40}ms` }}
                 >
                   <Link
@@ -95,7 +95,7 @@ export function SidebarNav({
                     <span aria-hidden className="shrink-0 [&>svg]:size-5">
                       {link.icon}
                     </span>
-                    <span className="whitespace-nowrap transition-opacity duration-200 group-data-[state=collapsed]/sidebar:opacity-0">
+                    <span className="whitespace-nowrap transition-opacity duration-(--duration-slow) group-data-[state=collapsed]/sidebar:opacity-0">
                       {link.label}
                     </span>
                   </Link>

@@ -49,7 +49,7 @@ const view = (key: SettingView["key"], defaultValue: unknown): SettingView => ({
 it("offers a reset only where there is a default to go back to", () => {
   expect(resettable(view("rayat.columns.sf01", null))).toBe(false);
   expect(resettable(view("platform.name", null))).toBe(true);
-  expect(resettable(view("review.weeklyCap", 30))).toBe(true);
+  expect(resettable(view("reminders.digestHour", 7))).toBe(true);
 });
 
 it("reads a file extension in Latin letters and digits, without its dot", () => {

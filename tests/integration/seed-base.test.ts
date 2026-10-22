@@ -175,22 +175,33 @@ it("creates one college when several runs start at once", async () => {
   expect(new Set(ids).size).toBe(1);
 });
 
-// A college seeded before Step 10 has a head without the keys Step 10 gave it, and the base seed
-// never adds a key to a role it finds: migration 0009 adds them, once (Audit 3).
-it("gives the head of a college seeded before Step 10 its new keys through migration 0009, once", async () => {
+// A college seeded before a step gave the head a key has a head without it, and the base seed
+// never adds a key to a role it finds: the step's migration adds it, once (Audit 3). plan.edit was
+// out of the code for a day before Step 18 brought it back (docs/PLAN.md, section 0).
+it.each([
+  {
+    college: "seeded before Step 10 its new keys through migration 0009",
+    migration: "0009_people_and_accounts.sql",
+    added: ["accounts.linkEmployeeNumber", "accounts.resetPassword"],
+  },
+  {
+    college: "seeded while plan.edit was out the key through migration 0020",
+    migration: "0020_section_templates.sql",
+    added: ["plan.edit"],
+  },
+])("gives the head of a college $college, once", async ({
+  migration,
+  added,
+}) => {
   const { db, pool } = await freshDatabase();
   await seedBase(db, college);
-  const added = ["accounts.linkEmployeeNumber", "accounts.resetPassword"];
   await pool.query(
     `delete from role_permissions
      where permission = any($1) and role_id = (select id from roles where key = 'head')`,
     [added],
   );
   const inserts = readFileSync(
-    new URL(
-      "../../db/migrations/0009_people_and_accounts.sql",
-      import.meta.url,
-    ),
+    new URL(`../../db/migrations/${migration}`, import.meta.url),
     "utf8",
   )
     .split("--> statement-breakpoint")
