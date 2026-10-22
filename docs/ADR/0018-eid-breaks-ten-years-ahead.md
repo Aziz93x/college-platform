@@ -1,6 +1,6 @@
 # ADR-0018: The Eid breaks, ten years ahead
 
-- Status: accepted (2026-10-22: the owner asked for it)
+- Status: accepted (2026-10-22: the owner asked for it); amended the same day (decisions 6 to 8, the owner's request)
 - Date: 2026-10-22
 - Source: the owner's request; docs/PLAN.md, Step 13
 - Builds on: Step 13's terms, calendars and week counting
@@ -47,11 +47,21 @@ Sources: the press reports that the web search returned, among them Sabq ("إج�
 4. **Every term counts the breaks that fall in it.** A term's holidays are its own and the college's breaks inside it, so one adjustment reaches every term at once.
    - The term's page lists the breaks with its calendar, marked as the college's, and its weeks skip them.
    - The breaks are not copied into the term, and the term's calendar does not edit them.
-5. **Not now:** other holidays with a fixed Gregorian date, such as National Day and Founding Day. The vice-dean adds those to each term's calendar.
+5. **Not now:** National Day. The vice-dean adds it to the term's calendar.
+
+### Amended on 2026-10-22 (the owner's request)
+
+The owner asked: "إجازتا عيد الفطر وعيد الأضحى ورمضان ويوم التأسيس لعشر سنوات قادمة، تكون مخفية وتظهر فقط كل سنة بسنتها، والوكيل يعتمد أو يعدل". Asked what Ramadan's holiday is, the owner chose the part of the Eid al-Fitr break that falls in Ramadan.
+
+6. **Founding Day joins the ten years, and the Eid al-Fitr break is named for Ramadan too.**
+   - Founding Day is 22 February, in the Umm al-Qura year it falls in. On the weekend's first day, the working day before it is off instead; on the weekend's last day, the working day after it. With a Friday and Saturday weekend this is the official rule: Friday gives Thursday, Saturday gives Sunday.
+   - The Eid al-Fitr break starts in the last third of Ramadan, so it is named "إجازة رمضان وعيد الفطر". There is no separate Ramadan holiday.
+7. **`/terms` shows only the current Umm al-Qura year's holidays.** Each year's holidays appear when that year begins. The other years stay in the table, and every term still counts the ones that fall in it.
+8. **The vice-dean approves an estimate as it is, or adjusts its days.** Approving marks it approved and writes `holiday.approve`; adjusting writes `holiday.update` as before. Either way it is then shown as approved.
 
 ## Consequences
 
 - A table `holidays` (college, key, name, Hijri year, first and last days, adjusted); migration 0014 carries it with the terms.
 - `calendarOf` takes the college's breaks with the term's events, so the weeks, the header, Today and every check of an event against its term count them.
-- One action, `updateHolidayAction`, needs `term.manage` and writes `holiday.update`.
+- One action, `updateHolidayAction`, needs `term.manage`. It writes `holiday.update` for new days, and `holiday.approve` for the same days on a holiday not yet approved.
 - The estimates can be a few days off until the vice-dean adjusts them. Each one on `/terms` says that it is an estimate.

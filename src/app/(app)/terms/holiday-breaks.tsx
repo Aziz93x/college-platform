@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarRange, LoaderCircle, Pencil, Save } from "lucide-react";
+import { CalendarRange, Check, LoaderCircle, Pencil, Save } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -28,15 +28,18 @@ type BreakView = {
   begun: boolean;
 };
 
-// The college's Eid breaks of the years ahead (ADR-0018), each an estimate from past calendars
-// until the vice-dean sets the days announced for it, in a sheet. Every term counts those that fall
-// in it. A break that has begun stays as it was.
+// The college's holidays of this Umm al-Qura year (ADR-0018), each an estimate from past calendars
+// until the vice-dean approves it as it is, or sets the days announced for it in a sheet. Every term
+// counts those that fall in it. A holiday that has begun stays as it was.
 export function HolidayBreaks({
   breaks,
   today,
+  year,
 }: {
   breaks: BreakView[];
   today: string;
+  /** This Umm al-Qura year, written in the college's digits. */
+  year: string;
 }) {
   const t = useTranslations("terms.breaks");
   const ui = useTranslations("ui");
@@ -49,6 +52,7 @@ export function HolidayBreaks({
   );
   const [error, setError] = useState<string>();
   const [running, setRunning] = useState(false);
+  const [approving, setApproving] = useState<string>();
   const [, startTransition] = useTransition();
   const dateWords = useDateRangeWords(t("days"));
 
@@ -56,6 +60,27 @@ export function HolidayBreaks({
     setEditing(each);
     setRange({ from: each.startsOn, to: each.endsOn });
     setError(undefined);
+  };
+
+  // The estimate's own days, approved as they are.
+  const approve = (each: BreakView) => {
+    startTransition(async () => {
+      setApproving(each.id);
+      const result = await updateHolidayAction({
+        id: each.id,
+        startsOn: each.startsOn,
+        endsOn: each.endsOn,
+      });
+      setApproving(undefined);
+      const status = result?.data?.status;
+      if (status === "approved" || status === "unchanged") {
+        toast.success(t("approved", { name: each.name, year: each.year }));
+      } else if (status === "begun" || status === "notFound") {
+        toast.error(t(status === "begun" ? "begun" : "gone"));
+      } else {
+        toast.error(refusals(result?.serverError ?? "unexpected"));
+      }
+    });
   };
 
   const save = () => {
@@ -73,6 +98,7 @@ export function HolidayBreaks({
       setRunning(false);
       switch (result?.data?.status) {
         case "saved":
+        case "approved":
         case "unchanged":
           toast.success(t("saved", { name: current.name, year: current.year }));
           setEditing(undefined);
@@ -103,14 +129,17 @@ export function HolidayBreaks({
           className="flex items-center gap-2 font-medium text-base"
         >
           <CalendarRange aria-hidden className="size-4 text-muted-foreground" />
-          {t("title")}
+          {t("title", { year })}
         </h2>
         <p className="mt-1 max-w-prose text-pretty text-muted-foreground text-sm">
           {t("description")}
         </p>
       </div>
       {breaks.length > 0 ? (
-        <ul aria-label={t("title")} className="mt-4 divide-y border-t">
+        <ul
+          aria-label={t("title", { year })}
+          className="mt-4 divide-y border-t"
+        >
           {breaks.map((each) => (
             <li
               key={each.id}
@@ -133,15 +162,36 @@ export function HolidayBreaks({
                 ) : null}
               </div>
               {each.begun ? null : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("edit", { name: each.name, year: each.year })}
-                  onClick={() => open(each)}
-                >
-                  <Pencil aria-hidden />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  {each.adjusted ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={approving === each.id}
+                      aria-label={t("approveLabel", {
+                        name: each.name,
+                        year: each.year,
+                      })}
+                      onClick={() => approve(each)}
+                    >
+                      {approving === each.id ? (
+                        <LoaderCircle aria-hidden className="animate-spin" />
+                      ) : (
+                        <Check aria-hidden />
+                      )}
+                      {t("approve")}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("edit", { name: each.name, year: each.year })}
+                    onClick={() => open(each)}
+                  >
+                    <Pencil aria-hidden />
+                  </Button>
+                </div>
               )}
             </li>
           ))}

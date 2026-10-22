@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { breakYears, eidBreaks, seedBase } from "../../db/seed/base.ts";
+import { holidayRules, holidayYears, seedBase } from "../../db/seed/base.ts";
 import {
   addMembership,
   findRole,
@@ -534,7 +534,7 @@ describe("a role held in one term", () => {
   });
 });
 
-describe("the Eid breaks (ADR-0018)", () => {
+describe("the college's holidays (ADR-0018)", () => {
   const breaksOf = async (year: number) =>
     query(
       `select id, key, to_char(starts_on, 'YYYY-MM-DD') as "startsOn",
@@ -543,23 +543,37 @@ describe("the Eid breaks (ADR-0018)", () => {
       [collegeId, year],
     );
 
+  // 1448's holiday of a key.
+  const breakOf = async (key: string) => {
+    const found = (await breaksOf(1448)).find((each) => each.key === key);
+    if (!found) throw new Error(`no ${key}`);
+    return found;
+  };
+
   it("are seeded for this Hijri year and the nine after it, once", async () => {
-    expect(breakYears("2026-10-22")).toEqual([
+    expect(holidayYears("2026-10-22")).toEqual([
       1448, 1449, 1450, 1451, 1452, 1453, 1454, 1455, 1456, 1457,
     ]);
     const seeded = await query(
       "select distinct hijri_year from holidays where college_id = $1 order by 1",
       [collegeId],
     );
-    expect(seeded.map(({ hijri_year }) => hijri_year)).toEqual(breakYears());
+    expect(seeded.map(({ hijri_year }) => hijri_year)).toEqual(holidayYears());
     const before = await query("select count(*)::int as n from holidays");
     await seedBase(database.db, { name: "Test College", shortName: "TC" });
     expect(await query("select count(*)::int as n from holidays")).toEqual(
       before,
     );
     // 1448's, whatever today is: the estimate of each, in whole weeks.
-    await estimateHolidays(collegeId, eidBreaks, [1448], database.db);
+    await estimateHolidays(collegeId, holidayRules, [1448], database.db);
     expect(await breaksOf(1448)).toEqual([
+      {
+        id: expect.any(String),
+        key: "founding-day",
+        startsOn: "2027-02-22",
+        endsOn: "2027-02-22",
+        adjusted: false,
+      },
       {
         id: expect.any(String),
         key: "eid-al-fitr",
@@ -613,7 +627,7 @@ describe("the Eid breaks (ADR-0018)", () => {
   });
 
   it("are adjusted by the vice-dean, for every term at once, until they begin", async () => {
-    const [fitr] = await breaksOf(1448);
+    const fitr = await breakOf("eid-al-fitr");
     const today = "2026-10-22";
     await expect(
       updateHoliday(
@@ -624,7 +638,7 @@ describe("the Eid breaks (ADR-0018)", () => {
         database.db,
       ),
     ).resolves.toEqual({ status: "saved" });
-    expect((await breaksOf(1448))[0]).toMatchObject({
+    expect(await breakOf("eid-al-fitr")).toMatchObject({
       startsOn: "2027-02-19",
       adjusted: true,
     });
@@ -647,13 +661,13 @@ describe("the Eid breaks (ADR-0018)", () => {
       actor_id: people.viceDean,
       diff: {
         from: {
-          name: "إجازة عيد الفطر",
+          name: "إجازة رمضان وعيد الفطر",
           hijriYear: 1448,
           startsOn: "2027-02-26",
           endsOn: "2027-03-13",
         },
         to: {
-          name: "إجازة عيد الفطر",
+          name: "إجازة رمضان وعيد الفطر",
           hijriYear: 1448,
           startsOn: "2027-02-19",
           endsOn: "2027-03-13",
@@ -686,5 +700,32 @@ describe("the Eid breaks (ADR-0018)", () => {
         database.db,
       ),
     ).resolves.toEqual({ status: "notFound" });
+  });
+
+  it("are approved by the vice-dean as estimated, once, in the log", async () => {
+    const adha = await breakOf("eid-al-adha");
+    const days = { startsOn: adha.startsOn, endsOn: adha.endsOn };
+    await expect(
+      updateHoliday(adha.id, days, change(), "2026-10-22", database.db),
+    ).resolves.toEqual({ status: "approved" });
+    expect(await breakOf("eid-al-adha")).toMatchObject({
+      ...days,
+      adjusted: true,
+    });
+    await expect(
+      updateHoliday(adha.id, days, change(), "2026-10-22", database.db),
+    ).resolves.toEqual({ status: "unchanged" });
+    expect(
+      await query(
+        "select actor_id, diff from audit_events where action = 'holiday.approve'",
+      ),
+    ).toEqual([
+      {
+        actor_id: people.viceDean,
+        diff: {
+          to: { name: "إجازة عيد الأضحى", hijriYear: 1448, ...days },
+        },
+      },
+    ]);
   });
 });
