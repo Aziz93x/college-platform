@@ -29,9 +29,10 @@ function readNumber(text: string) {
 }
 
 // What a task asks its trainer, drawn from its kind's fields (Step 18): the task card puts it before
-// the evidence (Step 26). It holds the payload being filled; the service checks it with the kind's
-// schema when it is saved. The page passes the kind's fields (kindFields[kind]) and payloadLimits:
-// a client component takes no value from a module, whose index brings its server code.
+// the evidence (Step 26). It holds the payload being filled, which starts as blankPayload(), so what
+// it shows is what the payload holds; the service checks it with the kind's schema when it is saved.
+// The page passes the kind's fields (kindFields[kind]) and payloadLimits: a client component takes
+// no value from a module, whose index brings its server code.
 export function PayloadEditor({
   fields,
   limits,
@@ -104,13 +105,18 @@ function PayloadInput({
       {hint}
     </span>
   ) : null;
-  const day = (chosen: string | undefined, choose: (day: string) => void) => (
+  // A day the field holds, or one of its entries does, named by the entry it belongs to.
+  const day = (
+    chosen: string | undefined,
+    choose: (day: string) => void,
+    named?: string,
+  ) => (
     <DateRangePickerDropdown
       single
       closeOnSelect
       value={chosen ? { from: chosen, to: chosen } : null}
       onValueChange={(range) => choose(range?.from ?? "")}
-      words={dateWords}
+      words={named ? { ...dateWords, label: named } : dateWords}
       locale={locale}
       weekStartsOn={firstDayOfWeek(locale)}
       today={today}
@@ -345,13 +351,13 @@ function BandsField({
           </div>
           <div id={`${id}-${index}`} className="grid gap-2 sm:grid-cols-2">
             <CountField
-              label={t("bandFrom")}
+              label={t("bandFrom", { number: index + 1 })}
               digits={2}
               value={band.from}
               onChange={(from) => change(index, { from })}
             />
             <CountField
-              label={t("bandTrainees")}
+              label={t("bandTrainees", { number: index + 1 })}
               digits={String(limits.count).length}
               value={band.count}
               onChange={(count) => change(index, { count })}
@@ -418,10 +424,13 @@ function SessionsField({
   limits: PayloadLimits;
   value: Session[];
   onChange: (value: Session[]) => void;
-  day: (chosen: string | undefined, choose: (day: string) => void) => ReactNode;
+  day: (
+    chosen: string | undefined,
+    choose: (day: string) => void,
+    named: string,
+  ) => ReactNode;
 }) {
   const t = useTranslations("kinds");
-  const id = useId();
   const change = (index: number, next: Partial<Session>) =>
     onChange(
       value.map((session, at) =>
@@ -436,7 +445,7 @@ function SessionsField({
         // biome-ignore lint/suspicious/noArrayIndexKey: a session has no id until its task keeps it, so its place is its identity.
         <div key={index} className="flex flex-col gap-2 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-2">
-            <span id={`${id}-${index}`} className="font-medium text-sm">
+            <span className="font-medium text-sm">
               {t("session", { number: index + 1 })}
             </span>
             <Button
@@ -449,10 +458,13 @@ function SessionsField({
               <Trash2 aria-hidden />
             </Button>
           </div>
-          {day(session.on || undefined, (on) => change(index, { on }))}
+          {day(
+            session.on || undefined,
+            (on) => change(index, { on }),
+            t("sessionOn", { number: index + 1 }),
+          )}
           <Textarea
-            aria-labelledby={`${id}-${index}`}
-            aria-label={t("sessionNotes")}
+            aria-label={t("sessionNotes", { number: index + 1 })}
             maxLength={limits.paragraph}
             value={session.notes}
             onChange={(event) => change(index, { notes: event.target.value })}

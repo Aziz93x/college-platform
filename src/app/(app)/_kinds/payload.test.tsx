@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  blankPayload,
   kindFields,
   type Payload,
   payloadLimits,
@@ -74,7 +75,7 @@ describe("PayloadEditor", () => {
       <PayloadEditor
         fields={kindFields[kind]}
         limits={payloadLimits}
-        value={{}}
+        value={blankPayload(kindFields[kind], 9)}
         onChange={() => {}}
         today="2026-10-22"
         weeks={18}
@@ -137,7 +138,9 @@ describe("PayloadEditor", () => {
       />,
     );
     expect(empty).toContain(messages.kinds.addBand);
-    expect(empty).not.toContain(messages.kinds.bandTrainees);
+    expect(empty).not.toContain(
+      messages.kinds.bandTrainees.replace("{number}", "1"),
+    );
     const typing = render(
       <PayloadEditor
         fields={kindFields.grade_analysis}
@@ -180,6 +183,73 @@ describe("PayloadEditor", () => {
     );
     expect(sessions).toContain("الجلسة 2");
     expect(sessions).toContain("المتابعة المبكرة للمتعثرين.");
+  });
+
+  it("shows the week and the boxes its blank payload holds", () => {
+    const homework = render(
+      <PayloadEditor
+        fields={kindFields.homework}
+        limits={payloadLimits}
+        value={blankPayload(kindFields.homework, 9)}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    expect(homework).toContain(messages.kinds.week.replace("{week}", "9"));
+    const checklist = render(
+      <PayloadEditor
+        fields={kindFields.e_learning}
+        limits={payloadLimits}
+        value={{ ...blankPayload(kindFields.e_learning, 9), content: true }}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    expect(checklist.match(/aria-checked="true"/g)).toHaveLength(1);
+    expect(checklist.match(/aria-checked="false"/g)).toHaveLength(2);
+  });
+
+  // Each entry of a list repeats its fields, so each is named by its entry.
+  it("names each band's fields and each session's day and notes by their number", () => {
+    const analysis = render(
+      <PayloadEditor
+        fields={kindFields.grade_analysis}
+        limits={payloadLimits}
+        value={filled.grade_analysis}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    for (const number of ["1", "5"]) {
+      expect(analysis).toContain(
+        messages.kinds.bandFrom.replace("{number}", number),
+      );
+      expect(analysis).toContain(
+        messages.kinds.bandTrainees.replace("{number}", number),
+      );
+    }
+    const log = render(
+      <PayloadEditor
+        fields={kindFields.advising_log}
+        limits={payloadLimits}
+        value={filled.advising_log}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    for (const number of ["1", "2"]) {
+      expect(log).toContain(
+        `aria-label="${messages.kinds.sessionNotes.replace("{number}", number)}"`,
+      );
+      expect(log).toContain(
+        `aria-label="${messages.kinds.sessionOn.replace("{number}", number)}:`,
+      );
+    }
+    expect(log).not.toMatch(/<textarea[^>]*aria-labelledby/);
   });
 });
 

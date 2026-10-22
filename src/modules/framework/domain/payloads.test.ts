@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type TaskKind, taskKinds } from "./inputs.ts";
 import {
+  blankPayload,
   kindFields,
   type Payload,
   payloadLimits,
@@ -126,6 +127,64 @@ describe("payloadSchema", () => {
         provider: "  ",
       }).provider,
     ).toBe("");
+  });
+
+  // The editor takes as many digits for a band's trainees as their limit has
+  // (src/app/(app)/_kinds/payload-editor.tsx).
+  it("takes the most trainees a band's field can write", () => {
+    const most = 10 ** String(payloadLimits.count).length - 1;
+    expect(
+      payloadSchema("grade_analysis").safeParse({
+        ...filled.grade_analysis,
+        bands: [{ from: 0, count: most }],
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("blankPayload", () => {
+  it("unticks each box, puts a week at the one given, and leaves each text and list empty and each day and percentage out", () => {
+    expect(blankPayload(kindFields.e_learning, 9)).toEqual({
+      courseShell: false,
+      content: false,
+      activities: false,
+    });
+    expect(blankPayload(kindFields.homework, 9)).toEqual({
+      title: "",
+      week: 9,
+    });
+    expect(blankPayload(kindFields.grade_analysis, 9)).toEqual({
+      examType: "",
+      bands: [],
+      actions: "",
+    });
+    expect(blankPayload(kindFields.professional_development, 9)).toEqual({
+      developmentType: "",
+      title: "",
+      provider: "",
+    });
+  });
+
+  // A box, a week and an optional text are answers as they start; the trainer gives the rest.
+  it.each(
+    taskKinds,
+  )("is a %s its schema takes once the trainer gives what has no answer to start with", (kind) => {
+    const given = Object.fromEntries(
+      kindFields[kind]
+        .filter(
+          (field) =>
+            field.type !== "check" &&
+            field.type !== "week" &&
+            !("optional" in field),
+        )
+        .map(({ name }) => [name, filled[kind][name]]),
+    );
+    expect(
+      payloadSchema(kind).safeParse({
+        ...blankPayload(kindFields[kind], 3),
+        ...given,
+      }).success,
+    ).toBe(true);
   });
 });
 
