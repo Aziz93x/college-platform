@@ -1,12 +1,11 @@
 "use client";
 
-import { Check, LoaderCircle, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Input } from "@/components/motion/input";
 import { usePasswordStep } from "@/components/password-step";
+import { SaveActions, useSaveState } from "@/components/save-actions";
 import { toLatinDigits } from "@/platform/validation/digits";
 import { oneLine } from "@/platform/validation/text";
 import { linkEmployeeNumberAction, updatePersonAction } from "./actions.ts";
@@ -58,36 +57,6 @@ function Card({
   );
 }
 
-function SaveButton({
-  running,
-  asking,
-  disabled,
-  words,
-}: {
-  running: boolean;
-  asking: boolean;
-  disabled: boolean;
-  words: { save: string; saving: string; submit: string; confirming: string };
-}) {
-  return (
-    <ActionSwapButton
-      type="submit"
-      disabled={running || disabled}
-      className="self-end"
-      value={running ? "saving" : asking ? "confirm" : "save"}
-      items={[
-        { id: "save", label: words.save, icon: <Save /> },
-        {
-          id: "saving",
-          label: asking ? words.confirming : words.saving,
-          icon: <LoaderCircle className="animate-spin" />,
-        },
-        { id: "confirm", label: words.submit, icon: <Check /> },
-      ]}
-    />
-  );
-}
-
 function NameAndEmail({ person }: { person: PersonView }) {
   const t = useTranslations("people");
   const refusals = useTranslations("actions");
@@ -96,7 +65,7 @@ function NameAndEmail({ person }: { person: PersonView }) {
   const [email, setEmail] = useState(person.email);
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
   const [refusal, setRefusal] = useState<string>();
-  const [running, setRunning] = useState(false);
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
   const dirty =
     oneLine(name) !== person.name ||
@@ -104,7 +73,7 @@ function NameAndEmail({ person }: { person: PersonView }) {
 
   const save = (password?: string) =>
     startTransition(async () => {
-      setRunning(true);
+      setState("saving");
       setRefusal(undefined);
       const result = await updatePersonAction({
         userId: person.userId,
@@ -112,7 +81,7 @@ function NameAndEmail({ person }: { person: PersonView }) {
         email,
         password,
       });
-      setRunning(false);
+      setState("idle");
       const invalid = result?.validationErrors;
       if (invalid) {
         setErrors({
@@ -125,6 +94,7 @@ function NameAndEmail({ person }: { person: PersonView }) {
       if (step.handled(outcome, save)) return;
       switch (outcome?.status) {
         case "saved":
+          setState("saved");
           toast.success(t("person.edit.saved", { name: oneLine(name) }));
           return;
         case "unchanged":
@@ -178,14 +148,22 @@ function NameAndEmail({ person }: { person: PersonView }) {
           {refusal}
         </p>
       ) : null}
-      <SaveButton
-        running={running}
+      <SaveActions
+        dirty={dirty}
+        state={state}
         asking={step.asking}
-        disabled={!dirty && !step.asking}
+        onDiscard={() => {
+          setName(person.name);
+          setEmail(person.email);
+          setErrors({});
+          setRefusal(undefined);
+          step.cancel();
+        }}
         words={{
           save: t("person.edit.save"),
           saving: t("person.edit.saving"),
-          ...step.words,
+          confirm: step.words.submit,
+          confirming: step.words.confirming,
         }}
       />
     </Card>
@@ -199,21 +177,21 @@ function EmployeeNumber({ person }: { person: PersonView }) {
   const [number, setNumber] = useState(person.employeeNumber);
   const [error, setError] = useState<string>();
   const [refusal, setRefusal] = useState<string>();
-  const [running, setRunning] = useState(false);
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
   const dirty =
     toLatinDigits(number).replace(/\s+/g, "") !== person.employeeNumber;
 
   const save = (password?: string) =>
     startTransition(async () => {
-      setRunning(true);
+      setState("saving");
       setRefusal(undefined);
       const result = await linkEmployeeNumberAction({
         userId: person.userId,
         employeeNumber: number,
         password,
       });
-      setRunning(false);
+      setState("idle");
       if (result?.validationErrors) {
         setError(t("fields.employeeNumber"));
         return;
@@ -222,6 +200,7 @@ function EmployeeNumber({ person }: { person: PersonView }) {
       if (step.handled(outcome, save)) return;
       switch (outcome?.status) {
         case "saved":
+          setState("saved");
           toast.success(t("person.link.saved", { name: person.name }));
           return;
         case "unchanged":
@@ -264,14 +243,21 @@ function EmployeeNumber({ person }: { person: PersonView }) {
           {refusal}
         </p>
       ) : null}
-      <SaveButton
-        running={running}
+      <SaveActions
+        dirty={dirty}
+        state={state}
         asking={step.asking}
-        disabled={!dirty && !step.asking}
+        onDiscard={() => {
+          setNumber(person.employeeNumber);
+          setError(undefined);
+          setRefusal(undefined);
+          step.cancel();
+        }}
         words={{
           save: t("person.link.save"),
           saving: t("person.link.saving"),
-          ...step.words,
+          confirm: step.words.submit,
+          confirming: step.words.confirming,
         }}
       />
     </Card>

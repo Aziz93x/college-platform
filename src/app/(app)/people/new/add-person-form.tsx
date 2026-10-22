@@ -43,6 +43,7 @@ export function AddPersonForm({
   departments: string[];
 }) {
   const t = useTranslations("people");
+  const ui = useTranslations("ui");
   const refusals = useTranslations("actions");
   const id = useId();
   const step = usePasswordStep();
@@ -241,7 +242,7 @@ export function AddPersonForm({
         ) : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button asChild variant="ghost">
-            <Link href="/people">{t("import.result.back")}</Link>
+            <Link href="/people">{ui("cancel")}</Link>
           </Button>
           <ActionSwapButton
             type="submit"

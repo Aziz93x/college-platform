@@ -29,7 +29,7 @@ export default async function DepartmentsPage() {
   const manageCollege = authorize(viewer, "college.manage", scope);
   if (!manageDepartments && !manageCollege) forbidden();
 
-  const [t, { actions, departments: words }, departments, college] =
+  const [t, { ui, actions, departments: words }, departments, college] =
     await Promise.all([
       getTranslations("departments"),
       getMessages(),
@@ -53,7 +53,7 @@ export default async function DepartmentsPage() {
           manageDepartments && departments.length > 0 ? add(t("add")) : null
         }
       />
-      <NextIntlClientProvider messages={{ actions, departments: words }}>
+      <NextIntlClientProvider messages={{ ui, actions, departments: words }}>
         <div className="flex flex-col gap-6">
           {manageDepartments ? (
             departments.length > 0 ? (

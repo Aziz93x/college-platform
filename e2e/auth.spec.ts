@@ -294,7 +294,9 @@ test(
     await page.goto("/profile");
     await expect(page.getByText(profile.twoFactorOff)).toBeVisible();
     await page.getByRole("link", { name: profile.twoFactorTurnOn }).click();
-    await expect(page).toHaveURL("/two-factor/setup");
+    // Inside the shell, a task the person chose (UX review 1).
+    await expect(page).toHaveURL("/profile/two-factor");
+    await expect(page.getByRole("banner")).toBeVisible();
     await expect(
       page.getByText(twoFactorSetup.descriptionOptional),
     ).toBeVisible();
@@ -343,9 +345,6 @@ test(
       await page.goto("/today");
       await expect(page).toHaveURL("/two-factor/setup");
       await expect(page.getByText(twoFactorSetup.description)).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: twoFactorSetup.back }),
-      ).toHaveCount(0);
 
       const { backupCodes } = await setUpTwoFactor(page, admin.password);
       expect(backupCodes).toHaveLength(10);
@@ -383,7 +382,7 @@ test(
     await page.goto("/today");
     await expect(page).toHaveURL("/change-password");
     await expect(
-      page.getByRole("link", { name: changePassword.cancel }),
+      page.getByRole("link", { name: messages.ui.cancel }),
     ).toHaveCount(0);
 
     const fill = async (confirm: string) => {

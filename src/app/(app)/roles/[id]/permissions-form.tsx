@@ -1,12 +1,12 @@
 "use client";
 
-import { Check, LoaderCircle, Save, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Switch } from "@/components/motion/switch";
 import { usePasswordStep } from "@/components/password-step";
+import { SaveActions, useSaveState } from "@/components/save-actions";
 import { cn } from "@/components/ui/cn";
 import type { PermissionArea, PermissionKey } from "@/modules/access";
 import { setRolePermissionsAction } from "../actions.ts";
@@ -17,10 +17,13 @@ export type GridArea = {
 };
 
 // The role's column of the grid: a switch per key, grouped by area, saved together. The system role
-// holds every key, so its switches are on and cannot be changed.
+// holds every key, so its switches are on and cannot be changed. While the grid has changes, its
+// foot stays in view above the tab bar, with how many keys changed. A key that requires two-factor
+// says so only while the college requires it (ADR-0014).
 export function PermissionsForm({
   role,
   areas,
+  twoFactorRequired,
 }: {
   role: {
     id: string;
@@ -29,28 +32,24 @@ export function PermissionsForm({
     permissions: PermissionKey[];
   };
   areas: GridArea[];
+  twoFactorRequired: boolean;
 }) {
   const t = useTranslations("roles");
   const refusals = useTranslations("actions");
   const id = useId();
   const [held, setHeld] = useState(() => new Set(role.permissions));
   const [refusal, setRefusal] = useState<string>();
-  const [state, setState] = useState<"idle" | "running" | "done">("idle");
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
   const step = usePasswordStep();
-  const dirty =
-    held.size !== role.permissions.length ||
-    role.permissions.some((key) => !held.has(key));
-
-  useEffect(() => {
-    if (state !== "done") return;
-    const timer = setTimeout(() => setState("idle"), 2000);
-    return () => clearTimeout(timer);
-  }, [state]);
+  const changed =
+    [...held].filter((key) => !role.permissions.includes(key)).length +
+    role.permissions.filter((key) => !held.has(key)).length;
+  const dirty = changed > 0;
 
   const save = (password?: string) =>
     startTransition(async () => {
-      setState("running");
+      setState("saving");
       setRefusal(undefined);
       const result = await setRolePermissionsAction({
         id: role.id,
@@ -63,7 +62,7 @@ export function PermissionsForm({
         return;
       }
       if (outcome?.status === "saved" || outcome?.status === "unchanged") {
-        setState("done");
+        setState("saved");
         toast.success(t("grid.toast", { name: role.label }));
         return;
       }
@@ -113,7 +112,7 @@ export function PermissionsForm({
                 >
                   {t(`areas.${area}`)}
                 </p>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex max-w-3xl flex-col gap-1">
                   {keys.map(({ key, twoFactor }) => {
                     const labelId = `${id}-${key}`;
                     return (
@@ -130,7 +129,7 @@ export function PermissionsForm({
                             className="mt-0.5 text-pretty text-muted-foreground text-sm"
                           >
                             {t(`permissions.${key}.description`)}
-                            {twoFactor ? (
+                            {twoFactor && twoFactorRequired ? (
                               <span className="ms-1.5 inline-flex items-center gap-1 text-xs">
                                 <ShieldCheck aria-hidden className="size-3.5" />
                                 {t("grid.twoFactor")}
@@ -141,7 +140,7 @@ export function PermissionsForm({
                         <Switch
                           checked={held.has(key)}
                           onCheckedChange={(on) => toggle(key, on)}
-                          disabled={state === "running"}
+                          disabled={state === "saving"}
                           aria-labelledby={labelId}
                           aria-describedby={`${labelId}-description`}
                         />
@@ -155,46 +154,34 @@ export function PermissionsForm({
         )}
         {role.system ||
         !(dirty || state !== "idle" || step.asking || refusal) ? null : (
-          <div className="flex flex-col gap-3 border-t px-5 py-4 sm:px-6">
+          <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-10 flex flex-col gap-3 rounded-b-xl border-t bg-card px-5 py-4 shadow-sm sm:px-6 lg:bottom-4">
             {step.field(t("grid.reauth"))}
             {refusal ? (
               <p role="alert" className="text-alert text-sm">
                 {refusal}
               </p>
             ) : null}
-            {dirty || state !== "idle" || step.asking ? (
-              <div className="flex justify-end">
-                <ActionSwapButton
-                  type="submit"
-                  disabled={state === "running"}
-                  value={
-                    state === "running"
-                      ? "saving"
-                      : step.asking
-                        ? "confirm"
-                        : state === "done"
-                          ? "saved"
-                          : "save"
-                  }
-                  items={[
-                    { id: "save", label: t("grid.save"), icon: <Save /> },
-                    {
-                      id: "saving",
-                      label: step.asking
-                        ? step.words.confirming
-                        : t("grid.saving"),
-                      icon: <LoaderCircle className="animate-spin" />,
-                    },
-                    { id: "saved", label: t("grid.saved"), icon: <Check /> },
-                    {
-                      id: "confirm",
-                      label: step.words.submit,
-                      icon: <ShieldCheck />,
-                    },
-                  ]}
-                />
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p aria-live="polite" className="text-muted-foreground text-sm">
+                {dirty ? t("grid.changed", { count: changed }) : null}
+              </p>
+              <SaveActions
+                dirty={dirty}
+                state={state}
+                asking={step.asking}
+                onDiscard={() => {
+                  setHeld(new Set(role.permissions));
+                  step.cancel();
+                  setRefusal(undefined);
+                }}
+                words={{
+                  save: t("grid.save"),
+                  saving: t("grid.saving"),
+                  ...step.words,
+                  confirm: step.words.submit,
+                }}
+              />
+            </div>
           </div>
         )}
       </form>

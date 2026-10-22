@@ -149,14 +149,18 @@ test(
       const header = page.locator("main header");
       await expect(header.getByRole("heading", { level: 1 })).toHaveText(name);
       await expect(header).toContainText(text.status.active);
-      // Nothing changed yet: nothing to save.
-      await expect(
-        page.getByRole("button", { name: text.form.save }),
-      ).toBeDisabled();
+      // Nothing changed yet: nothing to save. A change brings Save and Discard, and Discard puts
+      // back what was saved (UX review 1).
+      const save = page.getByRole("button", { name: text.form.save });
+      await expect(save).toHaveCount(0);
+      await field(page, text.form.name).fill(renamed);
+      await page.getByRole("button", { name: ui.discard }).click();
+      await expect(field(page, text.form.name)).toHaveValue(name);
+      await expect(save).toHaveCount(0);
 
       await field(page, text.form.name).fill(renamed);
       await page.getByRole("switch", { name: text.form.active }).click();
-      await page.getByRole("button", { name: text.form.save }).click();
+      await save.click();
       await expect(
         page.getByText(text.form.toast.saved.replace("{name}", renamed)),
       ).toBeVisible();

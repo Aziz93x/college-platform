@@ -16,10 +16,13 @@ for (const role of roles) {
       test(`${role} ${route}`, async ({ page }, { project }) => {
         await page.goto(route);
         await settled(page);
+        // At CSS scale every width shares one scale, and a 44 px target measures 44 px in the
+        // image (UX review 1).
         await page.screenshot({
           path: screenPath(out, role, route, project.name),
           fullPage: true,
           animations: "disabled",
+          scale: "css",
         });
       });
     }

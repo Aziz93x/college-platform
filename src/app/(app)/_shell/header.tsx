@@ -17,18 +17,22 @@ export function Header({
   const t = useTranslations("shell");
   const accountLabels = useTranslations("auth.account");
   return (
-    <header className="raise-on-scroll sticky top-0 z-30 bg-background/80 backdrop-blur-md backdrop-saturate-150">
+    // Opaque, so nothing scrolled under it shows through (UX review 1). The college's name gives
+    // way first in a narrow header; the controls keep their size.
+    <header className="raise-on-scroll @container sticky top-0 z-30 bg-background">
       <div className="flex h-16 items-center gap-3 px-4 lg:px-8">
         {collegeName ? (
-          <p className="truncate font-medium lg:hidden">{collegeName}</p>
+          <p className="min-w-0 flex-1 truncate font-medium @max-2xs:hidden lg:hidden">
+            {collegeName}
+          </p>
         ) : null}
-        <div className="ms-auto lg:ms-0">
+        <div className="ms-auto shrink-0 lg:ms-0">
           <SearchButton
             label={t("search")}
             shortcuts={{ ctrl: t("shortcutCtrl"), meta: t("shortcutMeta") }}
           />
         </div>
-        <div className="lg:ms-auto">{bell}</div>
+        <div className="shrink-0 lg:ms-auto">{bell}</div>
         <AccountMenu
           name={account.name}
           email={account.email}

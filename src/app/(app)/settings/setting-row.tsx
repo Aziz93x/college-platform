@@ -1,6 +1,5 @@
 "use client";
 
-import { Check, LoaderCircle, Save, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   useEffect,
@@ -11,8 +10,8 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { ActionSwapButton } from "@/components/motion/action-swap";
 import { Input } from "@/components/motion/input";
+import { SaveActions } from "@/components/save-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import { resetSettingAction, saveSettingAction } from "./actions.ts";
@@ -189,7 +188,6 @@ export function SettingRow({
       words={words}
     />
   );
-  const showPrimary = dirty || saved || asking !== null || running !== null;
 
   return (
     <form
@@ -249,64 +247,36 @@ export function SettingRow({
             {refusal}
           </p>
         ) : null}
-        {showPrimary || (!atDefault && !dirty) ? (
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {!atDefault && !dirty && !asking && running === null && !saved ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => run("reset")}
-                className="text-muted-foreground"
-              >
-                {t("reset")}
-              </Button>
-            ) : null}
-            {dirty && running === null ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  onDraft(undefined);
-                  setAsking(null);
-                  setRefusal(undefined);
-                }}
-              >
-                {t("discard")}
-              </Button>
-            ) : null}
-            {showPrimary ? (
-              <ActionSwapButton
-                type="submit"
-                disabled={
-                  running !== null || (dirty && read.error !== undefined)
-                }
-                value={
-                  running !== null
-                    ? "saving"
-                    : asking
-                      ? "confirm"
-                      : saved
-                        ? "saved"
-                        : "save"
-                }
-                items={[
-                  { id: "save", label: t("save"), icon: <Save /> },
-                  {
-                    id: "saving",
-                    label: asking ? reauth("confirming") : t("saving"),
-                    icon: <LoaderCircle className="animate-spin" />,
-                  },
-                  { id: "saved", label: t("saved"), icon: <Check /> },
-                  {
-                    id: "confirm",
-                    label: reauth("submit"),
-                    icon: <ShieldCheck />,
-                  },
-                ]}
-              />
-            ) : null}
+        {!atDefault && !dirty && !asking && running === null && !saved ? (
+          <div className="flex lg:justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => run("reset")}
+              className="text-muted-foreground"
+            >
+              {t("reset")}
+            </Button>
           </div>
         ) : null}
+        <SaveActions
+          dirty={dirty}
+          state={running !== null ? "saving" : saved ? "saved" : "idle"}
+          asking={asking !== null}
+          disabled={dirty && read.error !== undefined}
+          onDiscard={() => {
+            onDraft(undefined);
+            setAsking(null);
+            setRefusal(undefined);
+          }}
+          words={{
+            save: t("save"),
+            saving: t("saving"),
+            confirm: reauth("submit"),
+            confirming: reauth("confirming"),
+          }}
+          className="justify-start lg:justify-end"
+        />
       </div>
     </form>
   );

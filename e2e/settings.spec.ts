@@ -75,11 +75,16 @@ test("the groups are tabs, the one on show is kept in the address, and search lo
   await expect(
     page.getByRole("heading", { name: text.fields.auth.reauthMinutes.label }),
   ).toBeVisible();
-  await search.fill("لا يوجد إعداد بهذا الاسم");
-  await expect(
-    page.getByRole("heading", { name: text.search.empty.title }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: text.search.clear }).click();
+  const missing = "لا يوجد إعداد بهذا الاسم";
+  await search.fill(missing);
+  const none = page.getByText(
+    messages.ui.search.none.replace("{query}", missing),
+  );
+  await expect(none).toBeVisible();
+  await none
+    .locator("..")
+    .getByRole("button", { name: messages.ui.search.clear })
+    .click();
   await expect(tabs).toBeVisible();
 });
 
@@ -127,7 +132,7 @@ test("the sample rate's slider moves with the arrow keys the way the page reads"
   await expect(slider).toHaveAttribute("aria-valuenow", "19");
   await expect(slider).toHaveAttribute("aria-valuetext", /19/);
   // Never saved: discarding brings back the stored rate.
-  await setting.getByRole("button", { name: text.discard }).click();
+  await setting.getByRole("button", { name: messages.ui.discard }).click();
   await expect(slider).toHaveAttribute("aria-valuenow", "20");
 });
 

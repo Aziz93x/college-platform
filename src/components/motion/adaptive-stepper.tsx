@@ -12,6 +12,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { cn } from "@/components/ui/cn";
 import { EASE_OUT, SPRING_PRESS } from "./lib/ease.ts";
@@ -38,6 +39,8 @@ type AdaptiveStepperContextValue = {
   increment: (restoreFocus: boolean) => void;
   decrementRef: RefObject<HTMLButtonElement | null>;
   incrementRef: RefObject<HTMLButtonElement | null>;
+  // The rendered size over the drawn one (48 px high): 2 at 200% text, so nothing clips.
+  scale: number;
 };
 
 const AdaptiveStepperContext =
@@ -90,6 +93,23 @@ export function AdaptiveStepper({
   const reduce = useReducedMotion() ?? false;
   const decrementRef = useRef<HTMLButtonElement>(null);
   const incrementRef = useRef<HTMLButtonElement>(null);
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
+  const [scale, setScale] = useState(1);
+
+  // The shapes are drawn on a 216 by 48 grid, and the stepper is sized in rem: enlarged text
+  // enlarges both alike, and a screen narrower than the stepper shrinks it to fit.
+  useLayoutEffect(() => {
+    const fieldset = fieldsetRef.current;
+    if (!fieldset) return;
+    const measure = () =>
+      setScale(
+        Math.min(fieldset.offsetHeight / 48, fieldset.offsetWidth / 216) || 1,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(fieldset);
+    return () => observer.disconnect();
+  }, []);
   const current = clamp(value, min, max);
   const previousValueRef = useRef(current);
   const currentValueRef = useRef(current);
@@ -141,6 +161,7 @@ export function AdaptiveStepper({
       },
       decrementRef,
       incrementRef,
+      scale,
     }),
     [
       commit,
@@ -152,6 +173,7 @@ export function AdaptiveStepper({
       max,
       min,
       reduce,
+      scale,
     ],
   );
 
@@ -159,9 +181,10 @@ export function AdaptiveStepper({
     <AdaptiveStepperContext.Provider value={context}>
       <fieldset
         {...aria}
+        ref={fieldsetRef}
         disabled={disabled}
         className={cn(
-          "relative isolate m-0 inline-block h-12 w-[13.5rem] border-0 p-0",
+          "relative isolate m-0 inline-block h-12 w-[13.5rem] max-w-full border-0 p-0",
           className,
         )}
       >
@@ -196,14 +219,15 @@ function StepperAction({
     direction === -1 ? context.decrementRef : context.incrementRef;
   const action = direction === -1 ? context.decrement : context.increment;
   const x = direction === -1 ? (hidden ? 32 : 0) : hidden ? 136 : 168;
+  const { scale } = context;
 
   return (
     <LiquidItem
-      x={x}
+      x={x * scale}
       y={0}
-      width={48}
-      height={48}
-      radius={24}
+      width={48 * scale}
+      height={48 * scale}
+      radius={24 * scale}
       transition={STEPPER_LIQUID_TRANSITION}
     >
       <m.button
@@ -261,14 +285,15 @@ function AdaptiveStepperValue() {
           : { x: 64, width: 88 };
   // The number rolls the way it moved: up as it grows, down as it shrinks.
   const distance = context.reduce ? 0 : context.direction * 32;
+  const { scale } = context;
 
   return (
     <LiquidItem
-      x={geometry.x}
+      x={geometry.x * scale}
       y={0}
-      width={geometry.width}
-      height={48}
-      radius={24}
+      width={geometry.width * scale}
+      height={48 * scale}
+      radius={24 * scale}
       transition={STEPPER_LIQUID_TRANSITION}
     >
       {/* Mirrored back, so the number reads the right way round. */}

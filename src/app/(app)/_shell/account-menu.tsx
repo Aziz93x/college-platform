@@ -61,7 +61,7 @@ export function AccountMenu({
           id: "change-password",
           label: labels.changePassword,
           icon: <KeyRound />,
-          href: "/change-password",
+          href: "/profile/password",
         },
         {
           id: "sign-out",

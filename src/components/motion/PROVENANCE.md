@@ -219,3 +219,22 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `date-range-picker`: a `today` prop gives the day on the college's clock, which the calendar marks
   and opens on; a browser on another clock, such as a test runner's in UTC after midnight in Riyadh,
   marked its own day (found by this step's end-to-end run).
+
+## Local changes from UX review 1 (docs/reviews/ux-10.md)
+
+- `liquid.tsx` and `adaptive-stepper.tsx`: at rest each shape is drawn by its own element, with a CSS
+  fill and an inset edge, which stays crisp on a 1x screen; the goo filter runs only while shapes
+  merge or split. The stepper draws on its 216 by 48 grid times its rendered size, so enlarged text
+  or a narrow row scales the shapes with it and the value never clips (F1, F5).
+- `range-slider.tsx`: the track takes the card's colour and the fill `primary/25`, so the value
+  reads at a glance (F5).
+- `tabs.tsx`: the scroll arrows are opaque and the fade starts past them, so no label shows half
+  under one (F5).
+- `table/index.tsx`: the scrolling frame is positioned, so the headers' screen-reader text scrolls
+  with the table instead of widening the page (F1).
+- `checkbox.tsx`: a 44 px hit area around the 20 px box, as the switch has.
+- `combobox/list.tsx`: on the highlighted row's muted ground, secondary text (an employee number)
+  takes the foreground colour; muted on muted measured 3.2:1.
+- `date-range-picker`: on a touch screen the panel is 24rem wide (within the screen), its padding
+  smaller and its month, year and arrow buttons 44 px, so each day is 44 px wide on a phone of
+  360 px or more.

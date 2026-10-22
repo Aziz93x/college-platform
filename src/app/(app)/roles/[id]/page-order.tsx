@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Check, LoaderCircle, Save } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionSwapButton } from "@/components/motion/action-swap";
 import { SPRING_LAYOUT } from "@/components/motion/lib/ease";
+import { SaveActions, useSaveState } from "@/components/save-actions";
 import type { navigation } from "../../_shell/navigation.ts";
 import { savePageOrderAction } from "../actions.ts";
 
@@ -27,15 +27,9 @@ export function PageOrder({
   const id = useId();
   const [order, setOrder] = useState(pages);
   const [refusal, setRefusal] = useState<string>();
-  const [state, setState] = useState<"idle" | "running" | "done">("idle");
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
   const dirty = order.some((page, index) => page.id !== pages[index]?.id);
-
-  useEffect(() => {
-    if (state !== "done") return;
-    const timer = setTimeout(() => setState("idle"), 2000);
-    return () => clearTimeout(timer);
-  }, [state]);
 
   const move = (index: number, by: -1 | 1) => {
     setOrder((current) => {
@@ -49,14 +43,14 @@ export function PageOrder({
 
   const save = () =>
     startTransition(async () => {
-      setState("running");
+      setState("saving");
       const result = await savePageOrderAction({
         roleId,
         order: order.map((page) => page.id),
       });
       const status = result?.data?.status;
       if (status === "saved" || status === "unchanged") {
-        setState("done");
+        setState("saved");
         toast.success(t("toast"));
         return;
       }
@@ -128,24 +122,15 @@ export function PageOrder({
             {refusal}
           </p>
         ) : null}
-        {dirty || state !== "idle" ? (
-          <div className="flex justify-end">
-            <ActionSwapButton
-              type="submit"
-              disabled={state === "running"}
-              value={{ idle: "save", running: "saving", done: "saved" }[state]}
-              items={[
-                { id: "save", label: t("save"), icon: <Save /> },
-                {
-                  id: "saving",
-                  label: t("saving"),
-                  icon: <LoaderCircle className="animate-spin" />,
-                },
-                { id: "saved", label: t("saved"), icon: <Check /> },
-              ]}
-            />
-          </div>
-        ) : null}
+        <SaveActions
+          dirty={dirty}
+          state={state}
+          onDiscard={() => {
+            setOrder(pages);
+            setRefusal(undefined);
+          }}
+          words={{ save: t("save"), saving: t("saving") }}
+        />
       </form>
     </section>
   );

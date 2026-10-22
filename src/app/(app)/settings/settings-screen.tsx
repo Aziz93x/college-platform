@@ -7,13 +7,9 @@ import {
   Languages,
   type LucideIcon,
   MonitorCog,
-  Search,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { EmptyState } from "@/components/empty-state";
-import { Input } from "@/components/motion/input";
 import { searchCommands } from "@/components/motion/lib/command-search";
 import {
   Tabs,
@@ -21,7 +17,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/motion/tabs";
+import { NoResults, SearchField } from "@/components/search-field";
 import type { SettingGroup, SettingKey } from "@/modules/settings";
+import { toLatinDigits } from "@/platform/validation/digits";
 import { SettingRow } from "./setting-row.tsx";
 import type { SettingView } from "./setting-view.ts";
 import { useSettingWords } from "./use-setting-words.ts";
@@ -97,36 +95,20 @@ export function SettingsScreen({
           group: t(`groups.${setting.group}`),
           keywords: [words.description(setting)],
         })),
-        query,
+        toLatinDigits(query),
       ).map((result) => result.setting)
     : [];
 
   return (
     <Tabs value={group} onValueChange={changeGroup}>
       <div className="flex flex-col gap-3 lg:flex-row-reverse lg:items-center lg:justify-between">
-        <Input
-          type="search"
+        <SearchField
           label={t("search.label")}
-          hideLabel
           placeholder={t("search.placeholder")}
           value={query}
           onChange={setQuery}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setQuery("");
-          }}
-          startIcon={<Search />}
-          endSlot={
-            searching ? (
-              <button
-                type="button"
-                aria-label={t("search.clear")}
-                onClick={() => setQuery("")}
-              >
-                <X aria-hidden />
-              </button>
-            ) : undefined
-          }
-          className="w-full lg:w-80"
+          results={results.length}
+          className="lg:w-80"
         />
         <div hidden={searching} className="min-w-0">
           <TabsList
@@ -144,9 +126,6 @@ export function SettingsScreen({
           </TabsList>
         </div>
       </div>
-      <p aria-live="polite" className="sr-only">
-        {searching ? t("search.results", { count: results.length }) : ""}
-      </p>
       <div className="mt-5">
         {searching ? (
           results.length > 0 ? (
@@ -166,10 +145,7 @@ export function SettingsScreen({
                 ))}
             </div>
           ) : (
-            <EmptyState
-              title={t("search.empty.title")}
-              description={t("search.empty.description")}
-            />
+            <NoResults query={query} onClear={() => setQuery("")} />
           )
         ) : (
           groups.map((name) => (

@@ -22,7 +22,7 @@ export function documentLocale(locale: string) {
 }
 
 // The first day of the week a locale names with its fw keyword (ar-u-fw-sun), numbered from Sunday
-// as react-day-picker and JavaScript dates count; Sunday when it names none. Intl.Locale reads the
+// as the date range picker and JavaScript dates count; Sunday when it names none. Intl.Locale reads the
 // keyword in few engines yet, so it is read from the tag.
 const FIRST_DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 

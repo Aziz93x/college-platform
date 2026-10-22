@@ -20,7 +20,7 @@ export default async function NewDepartmentPage() {
   const scope = { collegeId: viewer.collegeId };
   if (!authorize(viewer, "departments.manage", scope)) forbidden();
 
-  const [t, ui, { actions, departments }] = await Promise.all([
+  const [t, ui, { ui: uiWords, actions, departments }] = await Promise.all([
     getTranslations("departments"),
     getTranslations("ui"),
     getMessages(),
@@ -34,7 +34,11 @@ export default async function NewDepartmentPage() {
         breadcrumbsLabel={ui("trail")}
       />
       <NextIntlClientProvider
-        messages={{ actions, departments: { form: departments.form } }}
+        messages={{
+          ui: uiWords,
+          actions,
+          departments: { form: departments.form },
+        }}
       >
         <DepartmentForm />
       </NextIntlClientProvider>

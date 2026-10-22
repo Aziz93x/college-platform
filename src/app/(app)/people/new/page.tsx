@@ -30,15 +30,21 @@ export default async function NewPersonPage() {
   if (!authorize(viewer, "people.manage", scope)) forbidden();
   const givesRoles = authorize(viewer, "roles.manage", scope);
 
-  const [t, ui, { actions, people, reauth }, roles, departments, language] =
-    await Promise.all([
-      getTranslations("people"),
-      getTranslations("ui"),
-      getMessages(),
-      givesRoles ? listRoles(viewer.collegeId) : [],
-      listDepartments(viewer.collegeId),
-      getSetting("locale.language", scope),
-    ]);
+  const [
+    t,
+    ui,
+    { ui: uiWords, actions, people, reauth },
+    roles,
+    departments,
+    language,
+  ] = await Promise.all([
+    getTranslations("people"),
+    getTranslations("ui"),
+    getMessages(),
+    givesRoles ? listRoles(viewer.collegeId) : [],
+    listDepartments(viewer.collegeId),
+    getSetting("locale.language", scope),
+  ]);
   return (
     <>
       <PageHeader
@@ -47,7 +53,9 @@ export default async function NewPersonPage() {
         breadcrumbs={[{ label: t("title"), href: "/people" }]}
         breadcrumbsLabel={ui("trail")}
       />
-      <NextIntlClientProvider messages={{ actions, people, reauth }}>
+      <NextIntlClientProvider
+        messages={{ ui: uiWords, actions, people, reauth }}
+      >
         <AddPersonForm
           roles={roles
             .filter((role) => !role.system)

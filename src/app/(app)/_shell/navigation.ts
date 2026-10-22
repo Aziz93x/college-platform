@@ -116,16 +116,27 @@ export function orderFor(
   return key === undefined ? [] : orders[key];
 }
 
-// Five targets fit across a phone. With more pages, four tabs stay and the fifth opens a sheet
-// that lists the rest.
+// Five targets fit across a phone. With more pages, the last target opens a sheet that lists the
+// rest. A narrower bar, on a small phone or with enlarged text, holds fewer, each still 44 px wide.
 const PHONE_TABS = 5;
+// A tab's 44 px and the 4 px gap before the next one.
+const TAB_SPAN = 48;
+// The bar's padding and border (14 px), less the gap the last tab does not have.
+const BAR_EDGES = 10;
 
-export function phoneTabs<T>(items: readonly T[]): { tabs: T[]; more: T[] } {
-  if (items.length <= PHONE_TABS) return { tabs: [...items], more: [] };
-  return {
-    tabs: items.slice(0, PHONE_TABS - 1),
-    more: items.slice(PHONE_TABS - 1),
-  };
+// How many targets fit in a tab bar this wide; a bar that is not shown (0 px) keeps five.
+export function tabSlots(barWidth: number): number {
+  if (barWidth <= 0) return PHONE_TABS;
+  const fit = Math.floor((barWidth - BAR_EDGES) / TAB_SPAN);
+  return Math.max(2, Math.min(PHONE_TABS, fit));
+}
+
+export function phoneTabs<T>(
+  items: readonly T[],
+  slots = PHONE_TABS,
+): { tabs: T[]; more: T[] } {
+  if (items.length <= slots) return { tabs: [...items], more: [] };
+  return { tabs: items.slice(0, slots - 1), more: items.slice(slots - 1) };
 }
 
 // Whether a page is the one open, or an ancestor of it.

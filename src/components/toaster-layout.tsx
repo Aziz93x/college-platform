@@ -16,9 +16,13 @@ export async function ToasterLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
+      {/* Centred at the foot, and on a phone above the tab bar, which a toast must not cover
+          (UX review 1). */}
       <Toaster
         dir={documentLocale(locale).dir}
         containerAriaLabel={t("region")}
+        position="bottom-center"
+        mobileOffset={{ bottom: "calc(env(safe-area-inset-bottom) + 6rem)" }}
       />
     </>
   );

@@ -37,7 +37,8 @@ export function Table<T>({
   return (
     <div
       className={cn(
-        "w-full overflow-x-auto rounded-xl border bg-card text-sm",
+        // Positioned, so the headers' screen-reader text scrolls with the table, not the page.
+        "relative w-full overflow-x-auto rounded-xl border bg-card text-sm",
         className,
       )}
     >

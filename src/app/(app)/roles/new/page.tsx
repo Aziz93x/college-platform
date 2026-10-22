@@ -21,7 +21,7 @@ export default async function NewRolePage() {
   if (!authorize(viewer, "roles.manage", { collegeId: viewer.collegeId })) {
     forbidden();
   }
-  const [t, ui, { actions, roles }] = await Promise.all([
+  const [t, ui, { ui: uiWords, actions, roles }] = await Promise.all([
     getTranslations("roles"),
     getTranslations("ui"),
     getMessages(),
@@ -35,7 +35,11 @@ export default async function NewRolePage() {
         breadcrumbsLabel={ui("trail")}
       />
       <NextIntlClientProvider
-        messages={{ actions, roles: { name: roles.name, new: roles.new } }}
+        messages={{
+          ui: uiWords,
+          actions,
+          roles: { name: roles.name, new: roles.new },
+        }}
       >
         <RoleNameForm />
       </NextIntlClientProvider>

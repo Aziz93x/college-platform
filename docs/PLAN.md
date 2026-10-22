@@ -834,8 +834,6 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
-> **From Step 41:** once in about forty loads of the production login page, the page held two identifier inputs for a moment, one with a server id (`_R_…`) and one from a render on the client (`_r_…`), and a strict locator failed. Find the client render behind it.
->
 > **Before it (lead review A):** capture the screens from the production build, which has no Next.js dev-tools button: `pnpm build`, copy `.next/static` and `public` into `.next/standalone` as CI does, then `CI=1 pnpm e2e:screens`. The review decides the scale of the 390 px captures, which are 1170 px wide today (`scale: "css"`); PR #6 left that question to it.
 >
 > **From Step 7:** the settings screen shows each description under its label rather than in BeUI's popover, saves one setting at a time with its own button, and asks for the password in the row; review those choices, the search's Arabic matching, and whether `ui/switch`, `ui/select` and `ui/tabs` leave the catalog now that their BeUI counterparts are in use.

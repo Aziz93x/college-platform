@@ -18,52 +18,16 @@ import {
 import {
   type DateRange,
   DateRangePickerDropdown,
-  type DateRangePickerWords,
 } from "@/components/motion/date-range-picker";
 import { Input } from "@/components/motion/input";
 import { Button } from "@/components/ui/button";
+import { useDateRangeWords } from "@/components/use-date-range-words";
 import { firstDayOfWeek } from "@/platform/i18n/language";
 import { auditHref } from "./href.ts";
 import type { AuditQuery } from "./query.ts";
 
 // The action list's first choice: every action.
 const ANY = "any";
-
-// The picker's words from the catalog, under the name of what it chooses.
-function useDateRangeWords(label: string): DateRangePickerWords {
-  const t = useTranslations("dateRange");
-  return {
-    label,
-    placeholder: t("placeholder"),
-    start: t("start"),
-    end: t("end"),
-    unchosen: t("unchosen"),
-    chooseMonth: t("chooseMonth"),
-    chooseYear: t("chooseYear"),
-    monthsOf: (year) => t("monthsOf", { year }),
-    yearsFrom: (from, to) => t("yearsFrom", { from, to }),
-    previous: {
-      month: t("previous.month"),
-      year: t("previous.year"),
-      years: t("previous.years"),
-    },
-    next: {
-      month: t("next.month"),
-      year: t("next.year"),
-      years: t("next.years"),
-    },
-    help: t("help"),
-    startChosen: (date) => t("startChosen", { date }),
-    rangeChosen: (from, to) => t("rangeChosen", { from, to }),
-    unavailable: t("unavailable"),
-    cleared: t("cleared"),
-    chooseStart: t("chooseStart"),
-    chooseEnd: t("chooseEnd"),
-    days: (count) => t("days", { count }),
-    clear: t("clear"),
-    clearLabel: t("clearLabel"),
-  };
-}
 
 // The log's filters: a period of days up to today on the college's clock, one action, and a person
 // by name, employee number or email. "Show" puts them in the address, which the page reads.

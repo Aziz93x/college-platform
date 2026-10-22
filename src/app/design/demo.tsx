@@ -20,7 +20,10 @@ export function Demo({
       <h3 id={`primitive-${id}`} className="text-lg">
         {title}
       </h3>
-      <div className="flex flex-wrap items-start gap-4">{children}</div>
+      {/* Each sample within the card, so a narrow screen never scrolls the page sideways. */}
+      <div className="flex flex-wrap items-start gap-4 *:min-w-0 *:max-w-full">
+        {children}
+      </div>
     </section>
   );
 }

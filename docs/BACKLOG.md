@@ -16,10 +16,21 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - Failed sign-ins in the audit log: today only a lock writes an event (`account.lock`); decide whether each failure should, with the retention setting (Steps 6 and 11).
 - A remembered device's cookie lasts 90 days (Better Auth's session lifetime, the longest `auth.rememberedDeviceDays` allows) while the server ends its session at the setting, 30 days by default. Set the cookie's expiry from the setting, if a reviewer finds the longer cookie misleading (Step 6).
 - Sign-in limits behind Caddy only: they key on the first `X-Forwarded-For` entry, which a client reaching the app directly could set itself (Steps 6, 40 and 41).
-- One component per job (section 4): the Step 4 primitives and the BeUI pieces overlap on the text field, the checkbox, the command palette (cmdk), the sheet and drawer (vaul) and the menu, and Step 7 adds the switch, select, tabs and popover. docs/design/beui-map.md names the component for each job; in the UX review of Steps 1 to 10, remove the others from the catalog with their dependencies. The Radix sheet and the vaul drawer ease on `--duration-slow` and vaul's 0.5 s curve, and Sonner shows toasts: decide there too whether BeUI's `animated-toast-stack` replaces Sonner. From the Step 4 review, revised in Step 5 and Audit 2.
 
 - Serve the identity font as WOFF2 once its licence allows converting it: the two TTF files are about 150 KiB of the login page's transfer (Audit 2, enhancement 1). Licensed files stay unconverted until then (ADR-0004 and the font-licence item in section 8). Lead review A left it here.
 - Sign the image archives that updates bring on approved media: `SHA256SUMS` on the same medium proves the copy is whole, not that it came from the owner. A detached signature (minisign, or `cosign sign-blob` with a key the owner keeps), checked by `pnpm local:up --images`, gives an isolated server authenticity without a registry. About 1 h plus keeping the key; Step 40's dependency audit could own it (Audit 3, enhancement 2).
+
+## UX review 1: should fix (docs/reviews/ux-10.md)
+
+Every score is 4 or above without these; the review ranks them after its must-fix items, which its PR fixed.
+
+- S1. Motion over the 200 ms token: the login wave (1 s), the text reveal (about 1.1 s), the status page's code and art, the page header's eyebrow, the sidebar's links and fold, the badge's colour, the bloom menu, the checkbox and the field's shake; the stepper's elastic curve and the row actions' and slider's under-damped springs. Move them to `--duration-fast` or `--duration-slow` on the standard curve and critically damped springs; the sheets keep their glide.
+- S2. Tokens: glow tokens for the three radial gradients, the sidebar's glow and the inset shadows; the bell's count on `text-xs` and `h-5 min-w-5`; `rounded-xl` for the bloom menu's panel; `--shadow-*` for the two `rgb()` shadows (Steps 11 and 12); let `scripts/check-hardcode.mjs` catch `_rgb(`.
+- S3. One accent per view: drop the wave from the page header (`sm:pb-16` to `sm:pb-8`), which also makes the desktop's largest paint text.
+- S4. Copy and numbers: the import's counts as an ICU message with a formatted number; page-order positions and import line numbers through `format.number`; the settings default line quotes its value; the sign-in help names heads as well as the platform admin; the platform name's description says where the college's names are edited.
+- S5. Smaller finish: the login page's 40 px desktop scroll and the tablet panel's alignment; the page search's empty footer strip on touch; `font-sans` for the header's `Ctrl K`; a skeleton of the profile's own; a way back to the list from an unknown record's 404; a stage line on the import; the page order's phone cut-off; a copy button for the two-factor key and backup codes; the profile's two-factor state as a badge; icon-only row actions on a phone, whose open bar covers the name (the touch check still finds that name link, `people-row-actions-390`).
+- Later: a filter for a role's members (the trainer role lists 40 before its add form), and a sticky header for the people table (47 rows).
+- A seven-day calendar cannot give 44 px days on a 320 px phone: the date range picker reaches 44 px from 360 px (UX review 1). Decide with Step 13, which uses it for holidays, whether a narrow phone gets a list of weeks instead.
 
 ## Lead review A: proposals waiting for the owner (docs/reviews/lead-A.md)
 

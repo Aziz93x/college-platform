@@ -396,7 +396,7 @@ export function TabsList({
       });
   };
   const controlClass =
-    "absolute inset-y-0 z-20 inline-flex w-11 items-center justify-center text-foreground transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-0";
+    "absolute inset-y-0 z-20 inline-flex w-11 items-center justify-center bg-card text-foreground transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-0";
 
   return (
     <div
@@ -429,7 +429,8 @@ export function TabsList({
         style={
           edges.overflow
             ? {
-                maskImage: `linear-gradient(to right, ${edges.left ? "transparent, black 44px" : "black, black 0px"}, ${edges.right ? "black calc(100% - 44px), transparent" : "black 100%"})`,
+                // The fade starts past each opaque chevron, so no label shows half under one.
+                maskImage: `linear-gradient(to right, ${edges.left ? "transparent 44px, black 72px" : "black, black 0px"}, ${edges.right ? "black calc(100% - 72px), transparent calc(100% - 44px)" : "black 100%"})`,
               }
             : undefined
         }

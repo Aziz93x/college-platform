@@ -33,7 +33,7 @@ export default async function PeoplePage() {
 
   const [
     t,
-    { actions, people: words, reauth },
+    { ui, actions, people: words, reauth },
     directory,
     collegeDepartments,
     language,
@@ -76,7 +76,7 @@ export default async function PeoplePage() {
           ) : null
         }
       />
-      <NextIntlClientProvider messages={{ actions, people: words, reauth }}>
+      <NextIntlClientProvider messages={{ ui, actions, people: words, reauth }}>
         {people.length > 0 ? (
           <PeopleList people={people} />
         ) : (

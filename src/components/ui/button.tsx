@@ -4,7 +4,7 @@ import type * as React from "react";
 import { cn } from "@/components/ui/cn";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none active:scale-[0.98] pointer-coarse:min-h-11 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-alert aria-invalid:ring-alert/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex max-w-full shrink-0 items-center justify-center gap-2 rounded-full text-center text-sm font-medium transition-all outline-none active:scale-[0.98] pointer-coarse:min-h-11 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-alert aria-invalid:ring-alert/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -18,7 +18,8 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        // A label too long for a narrow screen wraps inside the button (UX review 1).
+        default: "min-h-10 px-4 py-2",
         icon: "size-9 pointer-coarse:min-w-11",
       },
     },
@@ -52,4 +53,4 @@ function Button({
   );
 }
 
-export { Button, buttonVariants };
+export { Button };

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Input } from "@/components/motion/input";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,13 +13,12 @@ import {
   FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { latinDigits } from "@/platform/validation/form";
 
-// react-hook-form with a Zod schema: Arabic-Indic digits are read, and kept, as Latin ones.
+// react-hook-form with a Zod schema, on the screens' text field, which names itself: Arabic-Indic
+// digits are read, and kept, as Latin ones.
 export function FormDemo() {
   const t = useTranslations("design.form");
   const error = { error: t("invalid") };
@@ -47,12 +47,15 @@ export function FormDemo() {
           name="sections"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("label")}</FormLabel>
               <FormControl>
                 <Input
+                  label={t("label")}
                   inputMode="numeric"
-                  {...field}
+                  name={field.name}
                   value={String(field.value ?? "")}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
                 />
               </FormControl>
               <FormDescription>{t("description")}</FormDescription>

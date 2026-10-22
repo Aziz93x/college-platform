@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { cn } from "@/components/ui/cn";
 import { platformName } from "@/i18n/platform-name";
 import { requireViewer } from "@/modules/access";
 import { latestUnread, unreadCount } from "@/modules/notifications";
@@ -130,7 +131,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <main
             id="main"
             tabIndex={-1}
-            className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-32 outline-none lg:px-8 lg:pb-12"
+            // Clear of the phone's tab bar, which a viewer with one page does not have.
+            className={cn(
+              "mx-auto w-full max-w-6xl flex-1 px-4 pt-6 outline-none lg:px-8 lg:pb-12",
+              links.length > 1 ? "pb-32" : "pb-12",
+            )}
           >
             {children}
           </main>
