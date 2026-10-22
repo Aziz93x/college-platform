@@ -157,6 +157,6 @@ export const updateHolidayAction = viewerAction
       await changeBy(viewer),
       wallClock(new Date(), timeZone).slice(0, 10),
     );
-    if (result.status === "saved") refresh();
+    if (result.status === "saved" || result.status === "approved") refresh();
     return result;
   });

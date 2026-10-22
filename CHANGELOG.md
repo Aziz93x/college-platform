@@ -4,6 +4,17 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0018 amended: Founding Day, each year's holidays in their year, and approval (the owner's request)
+
+- Founding Day joins the college's holidays for the ten years. It is 22 February in the Umm al-Qura year it falls in, moved off the weekend as the official rule says: a Friday gives the Thursday before, and a Saturday the Sunday after.
+- The Eid al-Fitr break starts in the last third of Ramadan, so it is named «إجازة رمضان وعيد الفطر». There is no separate Ramadan holiday, as the owner chose. The demo term no longer adds Founding Day to its own calendar.
+- `/terms` lists only the current Umm al-Qura year's holidays, under «إجازات عام 1448 هـ». Each year's holidays appear when that year begins, and every term still counts those that fall in it.
+- The vice-dean approves an estimate as it is with «اعتماد», which writes `holiday.approve`, or adjusts its days in the sheet as before. Either way it then shows as approved.
+- Tests:
+  - Founding Day's estimate on a weekday, a Friday and a Saturday, and in a year without a 22 February.
+  - The seed's holidays of 1448, and an approval, once, in the log.
+  - End-to-end on the desktop and the iPhone: only this year's holidays are listed, and an estimate is approved, then adjusted.
+
 ### Step 13: terms and calendar
 
 - The vice-dean, or whoever holds `term.manage`, enters the college's terms, and their dates follow from them. Migration `0014` adds `terms`, `calendar_events` and `holidays`, and a term on `memberships`.

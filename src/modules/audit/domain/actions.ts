@@ -44,8 +44,9 @@ export const auditActions = [
   "calendarEvent.create",
   "calendarEvent.update",
   "calendarEvent.delete",
-  // A year's Eid break adjusted by the vice-dean (ADR-0018).
+  // A year's holiday adjusted, or approved as estimated, by the vice-dean (ADR-0018).
   "holiday.update",
+  "holiday.approve",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
