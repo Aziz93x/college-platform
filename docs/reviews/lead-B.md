@@ -478,6 +478,10 @@ Unchanged; I found none of them broken. GitHub was not reachable, so I could not
 | Proposal 6: a role given from the person's page (ADR-0016) | **Built.** `people/give-role.tsx`, for whoever holds `roles.manage`: the role (with a placeholder, which `SelectValue` now takes), the scope (the college or an active department; none for the system role), the password step, then `addMembershipAction`, the role page's own. The empty roles line no longer sends the reader to the role pages. | `feat(people): a role given from the person's page` |
 | | **Test.** End-to-end on both projects: the system role asks for no scope; the head role in a department shows on the page at once, with one `membership.create` event and one `membershipAdded` notification. The people pages' axe and 44 px checks now cover the form. | same commit |
 
+**Found while building on it (the announcements, ADR-0017).** Two faults in proposal 1's build, fixed here: `fix(notifications): a hovered card's muted words keep their contrast, and the center's rows are read in the page`.
+- A card on the bell's stack tints on hover, and its muted time and description then measured under 4.5:1. They take the foreground colour on hover, as the center's rows do. The axe test now hovers a card; with the old classes it fails on the desktop with `color-contrast`.
+- The end-to-end tests read the center's rows across the page, where the bell's panel may still be fading out as the center opens; its card matched the row, one run in three. They read them in `main` now: 8 runs of each, no failure.
+
 ### Re-run results (local, on the final tree)
 
 | Command | Result |
