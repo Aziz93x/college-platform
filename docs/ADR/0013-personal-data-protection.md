@@ -14,7 +14,7 @@
 ## Context
 
 The platform keeps personal data in stages:
-- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge. Step 12 added in-app notifications, kept with no end date.
+- **Already:** staff accounts, sessions with their IP address and user agent, sign-in counts, memberships and an audit trail. Steps 10 and 11 added people files, disabling and resets, and the audit screen with its CSV export and retention purge. Step 12 added in-app notifications, and ADR-0017 announcements with how many have read each, all kept with no end date.
 - **Step 16:** Rayat's data under trainee numbers. That includes absence and "barred for absence".
 - **Step 25:** evidence photos, which may show a trainee's face, name or grade.
 - **Step 36:** a per-person log of events with their durations, for the pilot measurement.
@@ -57,7 +57,7 @@ Better Auth already deletes expired verification values whenever anyone checks a
      - sessions past the college's limits (the same rule `getSessionUser()` applies when a session is seen), and sessions past `expires_at`;
      - expired verification values, as a backstop to Better Auth's own cleanup;
      - sign-in counts past their window or lock (the same rule the next attempt applies);
-     - notifications older than `privacy.notificationMonths`, 12 by default (Step 12 keeps them with no end date).
+     - notifications and announcements older than `privacy.notificationMonths`, 12 by default (Step 12 and ADR-0017 keep them with no end date).
    - **A second owner function, next to Step 11's `purge_audit_events()`:**
      - it clears the IP address and user agent of audit events older than `privacy.auditNetworkMonths`, and keeps the events;
      - the default is 12, and the schema refuses less, which is the ECC-2:2024 floor (2-12-3-5);
