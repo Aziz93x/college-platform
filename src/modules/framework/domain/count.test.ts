@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countTasks, occurrences } from "./count.ts";
+import { countTasks, departmentsReached, occurrences } from "./count.ts";
 import type { AppliesTo, DueRule } from "./inputs.ts";
 
 const TRAINER = "0199b2a4-0000-7000-8000-000000000001";
@@ -21,6 +21,25 @@ describe("occurrences", () => {
     [{ type: "afterEvent", eventKind: "gradeDeadline", weeks: 0 }, 0],
   ])("counts %j %i times in 18 weeks", (due, times) => {
     expect(occurrences(due, TERM)).toBe(times);
+  });
+});
+
+describe("departmentsReached", () => {
+  it("joins each department's role holders and sections, a department with sections and no one in it yet too", () => {
+    expect(
+      departmentsReached(
+        [
+          { departmentId: "a", roleId: "trainer", count: 4 },
+          { departmentId: "a", roleId: "head", count: 1 },
+          { departmentId: "b", roleId: "trainer", count: 2 },
+        ],
+        { a: 10, c: 3 },
+      ),
+    ).toEqual([
+      { roles: { trainer: 4, head: 1 }, sections: 10 },
+      { roles: {}, sections: 3 },
+      { roles: { trainer: 2 }, sections: 0 },
+    ]);
   });
 });
 

@@ -9,6 +9,7 @@ import {
 } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { sectionCounts } from "@/modules/academics";
 import {
   authorize,
   countMembers,
@@ -20,6 +21,7 @@ import { listAxes } from "@/modules/axes";
 import {
   countTasks,
   type DueRule,
+  departmentsReached,
   type FrameworkItemInput,
   frameworkLimits,
   taskKinds,
@@ -80,6 +82,7 @@ export default async function FrameworkPage() {
     groups,
     roles,
     members,
+    sections,
     calendar,
     needsEndorsement,
     accepted,
@@ -93,6 +96,7 @@ export default async function FrameworkPage() {
     listAxes(viewer.collegeId),
     listRoles(viewer.collegeId),
     countMembers(viewer.collegeId),
+    sectionCounts(viewer.collegeId, term.id),
     findTerm(viewer.collegeId, term.id),
     getSetting("framework.requireEndorsement", scope),
     getSetting("files.acceptedTypes", scope),
@@ -152,17 +156,9 @@ export default async function FrameworkPage() {
     },
   });
 
-  // The tasks the draft would create: each department's holders of each role, its sections once
-  // Rayat's import brings them (Step 17), and the term's weeks and calendar.
-  const departments = Object.values(
-    members.reduce<
-      Record<string, { roles: Record<string, number>; sections: number }>
-    >((all, { departmentId, roleId, count }) => {
-      all[departmentId] ??= { roles: {}, sections: 0 };
-      all[departmentId].roles[roleId] = count;
-      return all;
-    }, {}),
-  );
+  // The tasks the draft would create: each department's holders of each role and its sections in
+  // Rayat's SS01 in force (Step 17), and the term's weeks and calendar.
+  const departments = departmentsReached(members, sections);
   // Each day of the calendar by the last numbered week it falls in.
   const weeks = calendar
     ? termWeeks(

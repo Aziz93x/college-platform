@@ -5,7 +5,7 @@ import writeExcelFile from "write-excel-file/node";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../db/seed/demo/departments.ts";
 import { createRandom } from "../db/seed/demo/random.ts";
-import { demoRayatFiles } from "../db/seed/demo/rayat.ts";
+import { demoRayatFiles, demoVisitor } from "../db/seed/demo/rayat.ts";
 import { rayatColumns, rayatHeaders } from "../db/seed/rayat-columns.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { joinRole } from "../src/modules/access/index.ts";
@@ -278,6 +278,9 @@ test.describe("the admin", () => {
       head.name,
     ]);
     await expect(facts(sf01, text.facts.uploadedAt)).toHaveCount(1);
+    // The trainer SS01 names who is not on the platform, with their sections (Step 17).
+    await expect(ss01).toContainText(text.unmatched.title);
+    await expect(ss01).toContainText(demoVisitor.employeeNumber);
     await expect(sf01).toContainText(text.pending.title);
     await expect(sf01).toContainText(t("diff.added", { count: 2 }));
     await sf01.getByText(text.diff.samples).click();

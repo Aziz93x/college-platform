@@ -312,6 +312,56 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names a section's transfer by the section and its term, with the trainers, the week and why (Step 17)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "sectionTransfer",
+          entityId: "s1",
+          action: "sectionTransfer.create",
+          diff: {
+            to: {
+              termId: SPRING,
+              sectionRef: "30101",
+              fromNumber: "200101",
+              userId: HIND,
+              week: 6,
+              reason: "إعادة توزيع الأنصبة",
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "نقل شعبة من مدرب إلى آخر",
+      subject: "30101 · الفصل الثاني 1447",
+      changes: [
+        { field: "الفصل التدريبي", after: "الفصل الثاني 1447" },
+        { field: "الشعبة", after: "30101" },
+        { field: "المدرب السابق", after: "200101" },
+        { field: "الشخص", after: "هند القحطاني" },
+        { field: "الأسبوع", after: "6" },
+        { field: "السبب", after: "إعادة توزيع الأنصبة" },
+      ],
+    });
+    expect(
+      describeEvent(
+        entry({
+          entityType: "sectionTransfer",
+          entityId: "s1",
+          action: "sectionTransfer.keep",
+          diff: { termId: SPRING, sectionRef: "30101" },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "إبقاء نقل شعبة يخالف رايات",
+      subject: "30101 · الفصل الثاني 1447",
+    });
+  });
+
   it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
     expect(
       describeEvent(

@@ -4,6 +4,7 @@ import { rayatColumns, rayatHeaders } from "../../db/seed/rayat-columns.ts";
 import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import { notify } from "../../src/modules/notifications/index.ts";
+import { applyRayat, uploadRayat } from "../../src/modules/rayat/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
 import { csvLines } from "../../src/platform/files/table.ts";
 import { base32Bytes, totp } from "../support/totp.ts";
@@ -128,6 +129,9 @@ const writes: Record<string, string[]> = {
   "(app)/rayat/actions.ts#applyRayatAction": ["rayatImport.apply"],
   "(app)/rayat/actions.ts#discardRayatAction": ["rayatImport.discard"],
   "(app)/rayat/actions.ts#rollbackRayatAction": ["rayatImport.rollback"],
+  "(app)/sections/actions.ts#transferSectionAction": ["sectionTransfer.create"],
+  "(app)/sections/actions.ts#keepTransferAction": ["sectionTransfer.keep"],
+  "(app)/sections/actions.ts#cancelTransferAction": ["sectionTransfer.cancel"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -492,6 +496,69 @@ describe("every server action writes its event", () => {
     });
     await expectWrites(`${rayat}#rollbackRayatAction`, {
       importId: first.importId,
+    });
+
+    // The term's SS01, applied: its section transferred to a trainer of Electrical, the transfer
+    // kept, then cancelled (Step 17).
+    const sections = "(app)/sections/actions.ts";
+    const teacher = await person("An Electrical Trainer");
+    await joinRole({
+      userId: teacher.userId,
+      collegeId,
+      role: { key: "trainer" },
+      departmentId: created.id as string,
+    });
+    const meeting: Record<string, string> = {
+      term: spring.name,
+      department: "Electrical",
+      courseCode: "ELC 101",
+      courseName: "Circuits",
+      creditHours: "3",
+      sectionRef: "30101",
+      deliveryMode: "Classroom",
+      day: "Sunday",
+      time: "08:00 - 09:40",
+      building: "B1",
+      room: "101",
+      capacity: "30",
+      enrolled: "28",
+      remaining: "2",
+      trainerNumber: trainer.employeeNumber,
+    };
+    const ss01Columns = Object.entries(rayatColumns.ss01);
+    const uploaded = await uploadRayat(
+      "ss01",
+      term.id as string,
+      [
+        rayatHeaders.ss01,
+        rayatHeaders.ss01.map(
+          (header) =>
+            meeting[
+              ss01Columns.find(([, name]) => name === header)?.[0] ?? ""
+            ] ?? "",
+        ),
+      ],
+      { collegeId, actorId: admin.userId },
+    );
+    if (uploaded.status !== "pending") throw new Error(uploaded.status);
+    await applyRayat(uploaded.importId, { collegeId, actorId: admin.userId });
+    const transferred = await expectWrites(
+      `${sections}#transferSectionAction`,
+      {
+        termId: term.id,
+        sectionRef: "30101",
+        fromNumber: trainer.employeeNumber,
+        toUserId: teacher.userId,
+        week: 2,
+        reason: "Workload",
+      },
+    );
+    expect(transferred.status).toBe("transferred");
+    await expectWrites(`${sections}#keepTransferAction`, {
+      id: transferred.id,
+    });
+    await expectWrites(`${sections}#cancelTransferAction`, {
+      id: transferred.id,
     });
 
     // The term's framework: a draft and its items, endorsed and published, then the next version

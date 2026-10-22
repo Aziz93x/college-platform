@@ -160,6 +160,15 @@ vi.mock("@/modules/rayat", async (importOriginal) => ({
   discardRayat: async () => ({ status: "discarded" }),
   rollbackRayat: async () => ({ status: "rolledBack" }),
 }));
+// A section of the matrix's department, and a transfer of it, each change answered as done (Step 17).
+vi.mock("@/modules/academics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/academics")>()),
+  findSection: async () => ({ sectionRef: "30101", departmentId: DEPARTMENT }),
+  findTransfer: async () => ({ id: ID, departmentId: DEPARTMENT }),
+  transferSection: async () => ({ status: "transferred", id: ID }),
+  keepTransfer: async () => ({ status: "kept" }),
+  cancelTransfer: async () => ({ status: "cancelled" }),
+}));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
   updateAxis: async () => ({ status: "saved" }),
@@ -423,6 +432,28 @@ const checked: {
     module: "(app)/rayat/actions.ts",
     action: action as string,
     permission: "rayat.import" as const,
+    input,
+    inDepartment: true as const,
+  })),
+  // A section's transfer, the head's in the section's department (Step 17).
+  ...[
+    [
+      "transferSectionAction",
+      {
+        termId: ID,
+        sectionRef: "30101",
+        fromNumber: "2001",
+        toUserId: ID,
+        week: 6,
+        reason: "Workload",
+      },
+    ],
+    ["keepTransferAction", { id: ID }],
+    ["cancelTransferAction", { id: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/sections/actions.ts",
+    action: action as string,
+    permission: "sections.transfer" as const,
     input,
     inDepartment: true as const,
   })),

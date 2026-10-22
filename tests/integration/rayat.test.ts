@@ -5,10 +5,10 @@ import { createAccount } from "../../src/modules/identity/index.ts";
 import { createDepartment } from "../../src/modules/org/index.ts";
 import {
   applyRayat,
-  currentRayatRecords,
   discardRayat,
   listRayatImports,
   type RayatKind,
+  rayatVersion,
   rollbackRayat,
   uploadRayat,
 } from "../../src/modules/rayat/index.ts";
@@ -18,6 +18,7 @@ import {
   createTerm,
 } from "../../src/modules/terms/index.ts";
 import { createTestDatabase } from "./support/database.ts";
+import { rayatTable } from "./support/rayat-table.ts";
 
 // Rayat's reports imported for a term (Step 16): checked whole, diffed against the version in force,
 // applied in one step, kept as versions and rolled back; and never a trainee's name, mobile number
@@ -32,29 +33,6 @@ const ELECTRICAL = "قسم التقنية الكهربائية";
 const query = async (text: string, values: unknown[] = []) =>
   (await database.pool.query(text, values)).rows;
 const change = () => ({ collegeId, actorId: viceDean });
-
-// A report as Rayat exports it: its header row, then each row's columns read, by field, and the
-// others, by header.
-function table<K extends RayatKind>(
-  kind: K,
-  rows: Partial<Record<keyof (typeof rayatColumns)[K], string>>[],
-  dropped: Record<string, string>[] = [],
-) {
-  const columns = rayatColumns[kind] as Record<string, string>;
-  return [
-    rayatHeaders[kind],
-    ...rows.map((row, at) =>
-      rayatHeaders[kind].map((header) => {
-        const field = Object.keys(columns).find(
-          (name) => columns[name] === header,
-        );
-        return field
-          ? ((row as Record<string, string>)[field] ?? "")
-          : (dropped[at]?.[header] ?? "");
-      }),
-    ),
-  ];
-}
 
 const section = (sectionRef: string, changes: Record<string, string> = {}) => ({
   term: TERM,
@@ -100,13 +78,13 @@ const absence = (traineeNumber: string) => ({
 
 async function upload<K extends RayatKind>(
   kind: K,
-  rows: Parameters<typeof table<K>>[1],
+  rows: Parameters<typeof rayatTable<K>>[1],
   dropped?: Record<string, string>[],
 ) {
   return uploadRayat(
     kind,
     termId,
-    table(kind, rows, dropped),
+    rayatTable(kind, rows, dropped),
     change(),
     database.db,
   );
@@ -114,7 +92,7 @@ async function upload<K extends RayatKind>(
 
 async function pending<K extends RayatKind>(
   kind: K,
-  rows: Parameters<typeof table<K>>[1],
+  rows: Parameters<typeof rayatTable<K>>[1],
   dropped?: Record<string, string>[],
 ) {
   const result = await upload(kind, rows, dropped);
@@ -124,6 +102,10 @@ async function pending<K extends RayatKind>(
 
 const imports = async () =>
   Number((await query("select count(*) from rayat_imports"))[0].count);
+
+// The records of the term's version of a report in force; undefined before one is applied.
+const records = async <K extends RayatKind>(kind: K) =>
+  (await rayatVersion(collegeId, termId, kind, database.db))?.records;
 
 beforeAll(async () => {
   database = await createTestDatabase();
@@ -180,18 +162,11 @@ describe("a term's version of a report", () => {
       diff: { added: 2, removed: 0, changed: 0, unchanged: 0 },
     });
     // Waiting to be applied, it is not the term's version yet.
-    await expect(
-      currentRayatRecords(collegeId, termId, "ss01", database.db),
-    ).resolves.toEqual([]);
+    await expect(records("ss01")).resolves.toBeUndefined();
     await expect(
       applyRayat(first.importId, change(), database.db),
     ).resolves.toEqual({ status: "applied" });
-    const applied = await currentRayatRecords(
-      collegeId,
-      termId,
-      "ss01",
-      database.db,
-    );
+    const applied = await records("ss01");
     expect(applied).toEqual([
       expect.objectContaining({
         sectionRef: "30101",
@@ -243,9 +218,7 @@ describe("a term's version of a report", () => {
     });
     await applyRayat(second.importId, change(), database.db);
     expect(
-      (await currentRayatRecords(collegeId, termId, "ss01", database.db)).map(
-        ({ sectionRef }) => sectionRef,
-      ),
+      (await records("ss01"))?.map(({ sectionRef }) => sectionRef),
     ).toEqual(["30101", "30103"]);
 
     await expect(
@@ -254,9 +227,16 @@ describe("a term's version of a report", () => {
     await expect(
       rollbackRayat(second.importId, change(), database.db),
     ).resolves.toEqual({ status: "rolledBack" });
-    await expect(
-      currentRayatRecords(collegeId, termId, "ss01", database.db),
-    ).resolves.toEqual(applied);
+    await expect(records("ss01")).resolves.toEqual(applied);
+    // The version in force again, applied when it first was.
+    const [, firstImport] = await listRayatImports(
+      collegeId,
+      termId,
+      database.db,
+    );
+    expect(
+      (await rayatVersion(collegeId, termId, "ss01", database.db))?.appliedAt,
+    ).toEqual(firstImport.appliedAt);
     expect(
       (await listRayatImports(collegeId, termId, database.db)).map(
         ({ id, status, current }) => ({ id, status, current }),
@@ -335,7 +315,7 @@ describe("a term's version of a report", () => {
       uploadRayat(
         "so01",
         termId,
-        table("so01", rows),
+        rayatTable("so01", rows),
         { collegeId, actorId: head },
         database.db,
       );
@@ -439,7 +419,7 @@ describe("a trainee's name, mobile number and grade", () => {
     const uploaded = await uploadRayat(
       "sf01",
       open.id,
-      table(
+      rayatTable(
         "sf01",
         [
           enrollment("444100001", { term: "الفصل التدريبي الثاني 1448" }),

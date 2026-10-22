@@ -113,6 +113,7 @@ describe("listRoles", () => {
       "plan.edit",
       "plan.publish",
       "assignment.manage",
+      "sections.transfer",
       "review.decide",
       "portfolio.approve",
     ]);

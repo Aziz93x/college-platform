@@ -4,6 +4,26 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 17: Courses, sections, enrollments and transfers
+
+- A term's courses, sections and enrollments are read from Rayat's SS01 and SF01 in force (Step 16), not copied: a section is its reference in the term, and applying or rolling back a version changes them at once. `rayatVersion()` replaces `currentRayatRecords()` and gives when the version was applied.
+- `/sections`, in the navigation for whoever holds the new key `sections.transfer`: the term's sections in the viewer's departments, each with its course and hours, delivery mode, schedule, seats, SF01's registrations by status, and its trainers this week, matched to people by employee number. A trainer no one has is named as not on the platform. The page has no-term, no-SS01, closed-term and loading states.
+- A head transfers a section from one of its trainers to a trainer of the department, from a week of the term, with a reason. A trainer of the department is an enabled person who holds a role there and completes tasks. Refused, keeping nothing:
+  - a section SS01 in force does not have, a closed term, or a week past the term's last;
+  - someone not teaching the section that week, or someone teaching it already;
+  - someone who is not a trainer of the department.
+- A transfer holds until a version of SS01 is applied after it. That version confirms it when it names the new trainer and no longer the one replaced, and is in conflict with it otherwise, the section gone included. The head keeps a transfer in conflict, so that it holds until the next SS01, or cancels it. The transfers of sections SS01 no longer has are listed apart. Rolling a version back changes their state again.
+- The transfer rules for tasks (docs/PLAN.md, section 3): the replaced trainer's open work (not started, in progress, returned) moves to the new trainer, and their completed work (submitted, done, not applicable) stays with them, marked with the last week they taught the section. Tasks arrive in Step 20, which applies them (a note under Step 20).
+- The Rayat page's SS01 card lists the trainers SS01 names who are not on the platform, with their sections.
+- The framework's preview counts each department's sections for the items that reach each section's trainer (`departmentsReached()`).
+- Migration `0018` adds `section_transfers`. The base seed gives `sections.transfer` to the head; a college seeded before keeps its grid, where the admin gives it. The log names `sectionTransfer.create`, `.keep` and `.cancel` by section and term.
+- `seed:demo`: Electrical's SS01 names a visiting trainer not on the platform, and the head of Electrical transfers a section from this week.
+- Tests:
+  - the transfer rules, a section's trainers in a week and a transfer's state, unit-tested;
+  - on a real database: sections with their registrations and matched trainers, the unmatched report, the counts, transfers and their refusals, their state across newer versions of SS01, a rollback and keeping, and cancelling;
+  - the permission matrix with the key held in a department, every action's audit event, the log's words, and the seed;
+  - end to end on the desktop and the iPhone: the head of Electrical reads the demo's sections; a head transfers a section and cancels the transfer, with axe and 44 px targets; the admin reads the unmatched trainers on the Rayat page; a trainer is refused the page.
+
 ### Step 16: Rayat import
 
 - The vice-dean, or whoever holds `rayat.import`, imports Rayat's reports for the term on view on `/rayat`: SS01, the sections' schedules; SF01, the trainees registered in them; and the optional SO01, absence by course. A file is XLSX as Rayat exports it, or CSV.
@@ -17,7 +37,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
   - numbers in either set of digits, and in SS01 a section's capacity equal to its enrolled plus its remaining (below zero for a section given more trainees than seats);
   - nothing twice, and SS01's meeting rows merged by section reference, with the rows that disagree named.
 - A checked file waits as an import with its diff against the version in force: the records added, removed and changed, with the fields that changed. Applying it makes it the version, in one transaction. A newer upload replaces one still waiting, and a file with nothing new is not kept. Rolling back the version in force restores the one before and drops the upload waiting on it.
-- Migration `0017` adds `rayat_imports` and each import's records: `rayat_sections`, `rayat_enrollments` and `rayat_absences`. Step 17 builds courses, sections and enrollments on the version in force (`currentRayatRecords()`).
+- Migration `0017` adds `rayat_imports` and each import's records: `rayat_sections`, `rayat_enrollments` and `rayat_absences`. Step 17 builds courses, sections and enrollments on the version in force (`rayatVersion()`).
 - A server action now takes up to 10 MB, a people file too (`src/platform/files/upload-limit.ts`). A file is read whole, not streamed (a note under Step 16).
 - The log names `rayatImport.upload`, `.apply`, `.discard` and `.rollback` by the report and the term.
 - `seed:demo`: the vice-dean imports synthetic SS01, SF01 and SO01 files for the demo term (32 sections, 765 registrations, 219 absences); the admin gives the head's role the key, the head of Electrical uploaded the SO01, which the vice-dean applied, and a newer SF01 waits with two late registrations and three withdrawals, uploaded by the head.
