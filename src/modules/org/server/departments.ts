@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { foldCase } from "../../../platform/validation/text.ts";
 import { writeAudit } from "../../audit/index.ts";
 import type { CollegeInput, DepartmentInput } from "../domain/inputs.ts";
@@ -86,16 +87,6 @@ export async function findDepartment(
   return (await withValues(rows, db))[0];
 }
 
-// One change to the college's departments at a time, so two admins cannot both take the same
-// name or Rayat value between the check and the write.
-async function lockCollege(tx: Tx, collegeId: string) {
-  await tx
-    .select({ id: colleges.id })
-    .from(colleges)
-    .where(eq(colleges.id, collegeId))
-    .for("update");
-}
-
 async function findConflict(
   tx: Tx,
   collegeId: string,
@@ -144,6 +135,8 @@ export async function createDepartment(
   db: Db = getDb(),
 ): Promise<Conflict | { status: "created"; id: string }> {
   return db.transaction(async (tx) => {
+    // One change to the college's departments at a time, so two admins cannot both take the same
+    // name or Rayat value between the check and the write.
     await lockCollege(tx, change.collegeId);
     const conflict = await findConflict(tx, change.collegeId, input);
     if (conflict) return conflict;
@@ -252,11 +245,13 @@ export async function updateCollege(
   db: Db = getDb(),
 ): Promise<{ status: "saved" | "unchanged" | "notFound" }> {
   return db.transaction(async (tx) => {
+    // The row this writes, held as an update that changes no key, which the inserts naming the
+    // college do not wait for (lead review B).
     const [current] = await tx
       .select({ name: colleges.name, shortName: colleges.shortName })
       .from(colleges)
       .where(eq(colleges.id, change.collegeId))
-      .for("update");
+      .for("no key update");
     if (!current) return { status: "notFound" };
     const from: Record<string, string> = {};
     const to: Record<string, string> = {};

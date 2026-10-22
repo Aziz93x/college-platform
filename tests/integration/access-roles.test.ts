@@ -1,3 +1,5 @@
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { defaultRoles, seedBase, systemRole } from "../../db/seed/base.ts";
 import {
@@ -473,4 +475,38 @@ describe("addMembership and removeMembership", () => {
       ),
     ).toEqual([second]);
   });
+});
+
+it("gives and takes a role on one connection: nothing in its transaction waits for a second one (lead review B)", async () => {
+  // With a pool of one, a read inside the transaction would wait for ever for a second connection.
+  const single = new Pool({ connectionString: database.url, max: 1 });
+  const db = drizzle({ client: single });
+  const within = <T>(work: Promise<T>) =>
+    Promise.race([
+      work,
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("waited for a second connection")),
+          5000,
+        ),
+      ),
+    ]);
+  try {
+    const userId = await person("One Connection", "1009");
+    const added = await within(
+      addMembership(
+        { userId, roleId: await roleId("trainer"), departmentId: electrical },
+        change(),
+        db,
+      ),
+    );
+    expect(added.status).toBe("added");
+    if (added.status !== "added") return;
+    await expect(
+      within(removeMembership(added.id, change(), db)),
+    ).resolves.toEqual({ status: "removed" });
+  } finally {
+    // Not awaited: a transaction left waiting holds its connection, and end() would wait with it.
+    void single.end();
+  }
 });

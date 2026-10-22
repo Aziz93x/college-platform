@@ -13,10 +13,12 @@ export {
   updatePerson,
 } from "./server/manage.ts";
 export {
+  type Credential,
   changePassword,
   createAccount,
   type NewAccount,
   resetPassword,
+  temporaryCredential,
 } from "./server/password.ts";
 export { listPeople } from "./server/people.ts";
 export { reauthenticate } from "./server/reauthenticate.ts";

@@ -93,7 +93,10 @@ export async function changePassword(
 }
 
 async function setPassword(tx: Tx, userId: string, password: string) {
-  const hash = await hashPassword(password);
+  await storePassword(tx, userId, await hashPassword(password));
+}
+
+async function storePassword(tx: Tx, userId: string, hash: string) {
   const updated = await tx
     .update(accounts)
     .set({ password: hash, updatedAt: new Date() })
@@ -163,27 +166,39 @@ export type NewAccount = {
   employeeNumber: string;
 };
 
-// A person with a credential account. Without a password, a temporary one is made, returned
-// once, and the person must replace it at their first sign-in.
+// A temporary password and its hash, made apart from the account it opens: an import hashes its
+// new accounts' a few at a time, on Node's thread pool, before it writes them (lead review B).
+export type Credential = { password: string; hash: string };
+
+export async function temporaryCredential(): Promise<Credential> {
+  const password = temporaryPassword(randomBytes);
+  return { password, hash: await hashPassword(password) };
+}
+
+// A person with a credential account. Without a password of their own, a temporary one is made
+// (or the one given), returned once, and the person must replace it at their first sign-in.
 export async function createAccount(
   account: NewAccount,
   tx: Tx,
-  password?: string,
+  password?: string | Credential,
 ) {
+  const chosen = typeof password === "string";
+  const credential = chosen
+    ? { password, hash: await hashPassword(password) }
+    : (password ?? (await temporaryCredential()));
   const [user] = await tx
     .insert(users)
     .values({
       name: account.name,
       email: account.email.toLowerCase(),
-      mustChangePassword: password === undefined,
+      mustChangePassword: !chosen,
     })
     .returning({ id: users.id });
-  const initial = password ?? temporaryPassword(randomBytes);
-  await setPassword(tx, user.id, initial);
+  await storePassword(tx, user.id, credential.hash);
   await tx.insert(people).values({
     collegeId: account.collegeId,
     userId: user.id,
     employeeNumber: account.employeeNumber,
   });
-  return { userId: user.id, password: initial };
+  return { userId: user.id, password: credential.password };
 }

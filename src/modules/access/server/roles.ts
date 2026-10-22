@@ -11,10 +11,11 @@ import {
   sql,
 } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { people, users } from "../../identity/index.ts";
 import { notify } from "../../notifications/index.ts";
-import { colleges, departments } from "../../org/index.ts";
+import { departments } from "../../org/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import type {
   MembershipInput,
@@ -156,15 +157,6 @@ export async function findRole(
   };
 }
 
-// One change to the college's role names at a time, so two admins cannot both give the same name.
-async function lockCollege(tx: Tx, collegeId: string) {
-  await tx
-    .select({ id: colleges.id })
-    .from(colleges)
-    .where(eq(colleges.id, collegeId))
-    .for("update");
-}
-
 async function labelTaken(
   tx: Tx,
   collegeId: string,
@@ -195,6 +187,8 @@ export async function createRole(
   db: Db = getDb(),
 ): Promise<{ status: "created"; id: string } | { status: "labelTaken" }> {
   return db.transaction(async (tx) => {
+    // One change to the college's role names at a time, so two admins cannot both give the same
+    // name.
     await lockCollege(tx, change.collegeId);
     if (await labelTaken(tx, change.collegeId, language, input.label)) {
       return { status: "labelTaken" };
@@ -330,6 +324,13 @@ export async function addMembership(
   | { status: "added"; id: string }
   | { status: "exists" | "notFound" | "collegeOnly" | "inactive" }
 > {
+  // Read before the transaction, which holds its connection: read inside it, it would wait for a
+  // second one from the pool, and ten at once would wait for ever (lead review B).
+  const language = await getSetting(
+    "locale.language",
+    { collegeId: change.collegeId },
+    db,
+  );
   return db.transaction(async (tx) => {
     const [role] = await tx
       .select({ key: roles.key, labels: roles.labels, system: roles.system })
@@ -362,11 +363,6 @@ export async function addMembership(
     if (role.system && input.departmentId) return { status: "collegeOnly" };
     // A department set aside keeps what was recorded for it, and takes no new member.
     if (!department.active) return { status: "inactive" };
-    const language = await getSetting(
-      "locale.language",
-      { collegeId: change.collegeId },
-      db,
-    );
     const id = await insertMembership(
       tx,
       input,
@@ -441,6 +437,12 @@ export async function removeMembership(
   change: Change,
   db: Db = getDb(),
 ): Promise<{ status: "removed" | "notFound" | "lastAdmin" }> {
+  // Before the transaction, as in addMembership.
+  const language = await getSetting(
+    "locale.language",
+    { collegeId: change.collegeId },
+    db,
+  );
   return db.transaction(async (tx) => {
     const [membership] = await tx
       .select({
@@ -507,11 +509,6 @@ export async function removeMembership(
           .from(departments)
           .where(eq(departments.id, membership.departmentId))
       : [{ name: null }];
-    const language = await getSetting(
-      "locale.language",
-      { collegeId: change.collegeId },
-      db,
-    );
     await notify(
       {
         collegeId: change.collegeId,
