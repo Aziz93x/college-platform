@@ -165,7 +165,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | Identity | Better Auth tables (user, session, account, two-factor); `people` (profile, employee number) | admin, the person |
 | Organization | colleges; departments (with Rayat matching values); roles; permissions (keys from code); role\_permissions; memberships (person, role, scope, optional term) | admin |
 | Settings | settings (key, scope, value validated by the key's schema, version) | admin, by permission |
-| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday, exam week, grade deadline, custom) | vice-dean |
+| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday; exam period: a type from the exam-period catalog, from week, to week; grade deadline; custom) | vice-dean |
 | Portfolio catalog | axis\_groups; axes (code, title, order, locked) | admin |
 | Framework | frameworks (term, version, status); framework\_items | vice-dean |
 | Academics | courses; sections (term, department, course, Rayat reference, trainer, schedule, capacity, enrolled, delivery mode); enrollments (section, trainee number, status); section\_overrides (transfers) | Rayat import, head |
@@ -192,7 +192,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 - **Idempotent:** one task per source item, occurrence, assignee and section. Running it twice changes nothing.
 - **Re-publish:** add new tasks; move due dates of tasks not started; cancel removed tasks that have no evidence; never touch completed work.
-- **Due rules:** week N; weekly; every N weeks; or relative to a calendar event, for example one week after the midterm exam week. Dates skip holidays when the setting says so.
+- **Due rules:** week N; weekly; every N weeks; or relative to a calendar event, for example one week after the midterm exam week. A rule can name an exam-period type instead of one event: before or after each period of that type by N weeks, on a weekday. Such a rule moves with the periods when the vice-dean changes them, within the re-publish rule above. Dates skip holidays when the setting says so.
 - **Section transfer:** completed work stays with the trainer who did it, marked "until week N"; open tasks move to the new trainer. The transfer holds until the next SS01 import confirms it or flags a conflict.
 
 **Task status:** not started → in progress → submitted → done, plus returned (back to the trainer with a note) and not applicable (with a reason). Overdue is a flag on top of the status, not a status.
@@ -952,6 +952,14 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0018 (the owner's request):** the Eid breaks, ten years ahead. The base seed adds the college's Eid al-Fitr and Eid al-Adha breaks for the current Hijri year and the nine after it, each estimated from the averages of past Saudi calendars (docs/reviews/eid-breaks.md) and fitted to whole weeks, with Eid's date from the Umm al-Qura calendar Intl carries. Every term counts the breaks that fall in it with its own holidays, and the vice-dean adjusts each year's break on `/terms` once it is announced (`holiday.update`); a break that has begun stays as it was. Amended the same day: Founding Day joins the ten years, moved off the weekend as the official rule says, and the Eid al-Fitr break is named for Ramadan too; `/terms` shows only the current Umm al-Qura year's holidays; and the vice-dean approves an estimate as it is (`holiday.approve`) or adjusts it.
 
+**Notes from the owner (21 October 2026): the term calendar in layers.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows the screens. Steps 13 and 15 merged before these notes (#32 and #36). Step 13 keeps an exam week as a dated event with a title of its own, and Step 15's "after an event" due rule counts so many weeks after each event of a kind, such as each exam. So the first bullet changes what both built.
+
+- **Exam periods by week number.** The vice-dean sets each exam period by week number, from week and to week, every term. No period is fixed, and none is computed from the term's end.
+  - The types are a catalog in data, seeded with the first periodic, the second periodic, the practical final and the theoretical final.
+  - The "open next term" wizard copies the periods as a draft.
+  - Shortening the term never moves a period. A period past the term's last week, or two periods in one week, is an error on the screen and at publish.
+- **One calendar in three layers.** This step builds the college's layer: the vice-dean's term start, holidays, exam periods and grade deadlines, which every role sees. Steps 18 and 19 add the department's layer, and Step 24 the trainer's own.
+
 #### Step 14. Portfolio axes catalog (S)
 
 **Goal:** the administration's axes are data, protected from accidental change.
@@ -978,6 +986,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 14:** the axes are `axes` and `axis_groups` (`src/modules/axes`), found by their code (`axes_code_unique`); `listAxes()` gives the groups in order with their axes. An item that points at an axis needs `unique(college_id, id)` on `axes` for its composite foreign key, added with the first such table. Every axis is the administration's, so `axes.manage`, the admin's key, guards them all and no per-axis `locked` column is stored; add one only if a college may add axes of its own.
 
 **Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
+
+**Note from the owner (21 October 2026):** the due-rule shape includes the anchored rule from section 3: before or after each period of an exam-period type by N weeks, on a weekday. Step 15 merged before this note (#36): its rule counts only after each event of a kind, with no weekday, so this note changes what it built.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
@@ -1056,6 +1066,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Drafts; publish with an impact preview and a review-load preview ("about N reviews a week"); versions; copy from the previous term.
 
 **Done when:** a scripted usability run builds a 50-item plan in under 30 minutes, publish previews use the shared counting function, versions cannot be edited, and the Step 13 wizard copies the plan as a draft.
+
+**Note from the owner (21 October 2026):** the head's department deadlines are anchored to exam-period types, not to dates.
+- **Examples:** exam questions on the Thursday of the week before each exam period; the grade analysis in the week after it.
+- **The editor:** previews the weeks each anchored item lands in, and flags one that falls past the term's end.
+- **On the calendar:** these items form the department's layer, which its trainers see in the department's color (Step 24).
 
 #### Step 20. Generation engine (L)
 
@@ -1145,11 +1160,32 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 13:** Today already shows the week of the term on view. Pages that show a term's work read that term with `viewedTerm()` (`src/app/(app)/_shell/term.ts`), which follows the header's switcher.
 
+**Note from the owner (21 October 2026): the calendar's layers start here.** The design canvas «لوحة المدرب: تقويم الفصل بطبقاته» shows them.
+- **The trainer's Today shows:**
+  - this week's days, each day's items marked by layer;
+  - the term's weeks, with its exam periods;
+  - each item in the color of whoever asked for it (Step 24).
+- **Three layer roles join the tokens beside the status roles:**
+  - the college: from the identity's blue;
+  - the department: from its teal;
+  - the trainer's own: from its green.
+
+  The teal and the green have almost the same lightness, so each layer also differs in fill: solid, tinted with an edge, or white with a mark. Each also carries its own icon and is named in a legend, and any text on it passes 4.5:1. Red stays for what is overdue.
+
 #### Step 24. My work and my sections (M)
 
 **Goal:** all work in one list, and each section on one page.
 
 **Do:** one work list with filters (this week, overdue, plan, sections, assignments) kept in the URL; "My sections" as cards with progress; a section page with a header (course, reference, enrolled, schedule) and its tasks grouped by week.
+
+**Notes from the owner (21 October 2026): the calendar page.** One page for every role. On a phone it lists the term by week; on a wide screen it lays the term out in lanes, one per layer, with a selected week's details.
+- **The trainer's three layers.** Each item takes the color of whoever asked for it:
+  - the college's: the vice-dean;
+  - the department's: the head, even when the trainer does the work;
+  - the trainer's own: his sections' tasks, his assignments and his own notes, which only he sees.
+- **Red** stays for what is overdue.
+- **The look:** the layer roles and their fills, icons and legend come from Step 23's note.
+- **Toggles** show or hide each layer.
 
 **Done when:** filters survive a reload and a shared link, and the section page shows the generated tasks with the right due dates.
 
