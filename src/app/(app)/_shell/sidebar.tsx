@@ -33,9 +33,9 @@ export function Sidebar({
         className="absolute -bottom-8 start-0 h-auto w-[150%] max-w-none opacity-45 mix-blend-screen rtl:-scale-x-100"
       />
       {/* On the rail, the names fold away under the toggle and the gradient's bar moves below it. */}
-      <div className="relative px-6 pt-8 pb-7 transition-[padding] duration-300 group-data-[state=collapsed]/sidebar:pt-20">
+      <div className="relative px-6 pt-8 pb-7 transition-[padding] duration-(--duration-slow) group-data-[state=collapsed]/sidebar:pt-20">
         {/* The names keep the open width, so they fold away without wrapping again. */}
-        <div className="grid grid-rows-[1fr] transition-[grid-template-rows,opacity] duration-300 group-data-[state=collapsed]/sidebar:grid-rows-[0fr] group-data-[state=collapsed]/sidebar:opacity-0">
+        <div className="grid grid-rows-[1fr] transition-[grid-template-rows,opacity] duration-(--duration-slow) group-data-[state=collapsed]/sidebar:grid-rows-[0fr] group-data-[state=collapsed]/sidebar:opacity-0">
           <div className="min-h-0 w-56 overflow-hidden pe-10">
             <p className="text-balance font-medium text-lg leading-snug">
               {platformName}
@@ -49,7 +49,7 @@ export function Sidebar({
         </div>
         <span
           aria-hidden
-          className="mt-3 block h-1 w-10 rounded-full from-gradient-end to-primary transition-[width,margin] duration-300 group-data-[state=collapsed]/sidebar:mt-0 group-data-[state=collapsed]/sidebar:w-5 ltr:bg-linear-to-r rtl:bg-linear-to-l"
+          className="mt-3 block h-1 w-10 rounded-full from-gradient-end to-primary transition-[width,margin] duration-(--duration-slow) group-data-[state=collapsed]/sidebar:mt-0 group-data-[state=collapsed]/sidebar:w-5 ltr:bg-linear-to-r rtl:bg-linear-to-l"
         />
       </div>
       <SidebarNav links={links} groups={groups} label={labels.navigation} />

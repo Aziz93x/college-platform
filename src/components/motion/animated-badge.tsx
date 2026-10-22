@@ -87,7 +87,7 @@ export function AnimatedBadge({
       layout={!reduce}
       transition={SPRING_LAYOUT}
       className={cn(
-        "relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border px-2.5 font-medium text-xs transition-colors duration-300",
+        "relative inline-flex h-7 shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border px-2.5 font-medium text-xs transition-colors duration-(--duration-slow)",
         STATUS_CLASS[status],
         className,
       )}

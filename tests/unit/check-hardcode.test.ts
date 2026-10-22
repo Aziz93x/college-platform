@@ -229,4 +229,68 @@ describe("check:hardcode", () => {
       "src/styles/tokens.css:prefers-color-scheme",
     ]);
   });
+
+  it("fails on a font size off the scale, but not on a step the theme names", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/app/a.tsx",
+      [
+        '<span className="px-2 text-[13px]" />',
+        '<span className="text-[0.625rem] font-medium" />',
+        '<span className="text-sm text-badge text-display text-[--x]" />',
+      ].join("\n"),
+    );
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      "src/app/a.tsx:1:font-size-off-scale",
+      "src/app/a.tsx:2:font-size-off-scale",
+    ]);
+  });
+
+  it("fails on a duration that is not a motion token", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/app/a.tsx",
+      [
+        '<i className="transition-colors duration-300" />',
+        '<i className="animate-in duration-[450ms]" />',
+        '<i className="duration-(--duration-slow) motion-reduce:duration-0" />',
+        '<i className="duration-(--duration-fast) [--tw-duration:1s]" />',
+      ].join("\n"),
+    );
+    write(
+      "src/app/b.css",
+      ".a { transition-duration: 160ms; animation-duration: 0ms; }\n",
+    );
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      "src/app/a.tsx:1:duration-off-token",
+      "src/app/a.tsx:2:duration-off-token",
+    ]);
+  });
+
+  it("fails on a class whose step or color the theme does not have", () => {
+    root = mkdtempSync(join(tmpdir(), "hardcode-"));
+    write(
+      "src/app/a.tsx",
+      [
+        '<b className="font-semibold" />',
+        '<b className="hover:font-bold text-5xl" />',
+        '<b className="rounded-2xl rounded-t-3xl shadow-xl" />',
+        '<b className="text-popover-foreground bg-destructive" />',
+        '<b className="font-medium rounded-xl rounded-full shadow-lg inset-shadow-xl" />',
+        '<b className="text-foreground bg-alert text-3xl" />',
+      ].join("\n"),
+    );
+    expect(
+      findHardcodedValues(root).map((f) => `${f.file}:${f.line}:${f.rule}`),
+    ).toEqual([
+      "src/app/a.tsx:1:class-without-token",
+      "src/app/a.tsx:2:class-without-token",
+      "src/app/a.tsx:3:class-without-token",
+      "src/app/a.tsx:4:class-without-token",
+    ]);
+  });
 });
