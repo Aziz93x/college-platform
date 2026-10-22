@@ -65,7 +65,10 @@ docker cp "$(docker ps --quiet --filter label=com.docker.compose.service=caddy)"
 ```sh
 pnpm local:up --demo
 pnpm local:up --demo --seed 7
+pnpm local:up --demo --seed 42 --week 9
 ```
+
+يحدد `--week` أسبوع الفصل التجريبي الذي يقع فيه اليوم (9 إن لم يُذكر)، فيبدأ الفصل من التاريخ الذي يجعل اليوم في ذلك الأسبوع، بعد احتساب إجازات العيدين.
 
 يشغّل نسخة عرض منفصلة ببياناتها الخاصة (`APP_ENV=staging`)، ويملؤها بالكلية التجريبية. لا تختلط بيانات العرض ببيانات النسخة الشبيهة بالإنتاج أبدًا، ولا تعمل النسختان معًا: أوقف الأولى بـ`pnpm local:down` قبل تشغيل الأخرى.
 
@@ -99,7 +102,7 @@ pnpm local:share
 
 ```sh
 pnpm local:run admin:create --name "…" --email … --employee-number …
-pnpm local:run seed:demo --seed 42
+pnpm local:run seed:demo --seed 42 --week 9
 ```
 
 ## التشغيل من أرشيفات الصور

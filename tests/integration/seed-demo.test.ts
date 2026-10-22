@@ -11,6 +11,15 @@ import {
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
+import { settingsRegistry } from "../../src/modules/settings/index.ts";
+import {
+  activeTerm,
+  calendarOf,
+  calendarSettings,
+  termWeeks,
+} from "../../src/modules/terms/index.ts";
+import type { Db } from "../../src/platform/db/client.ts";
+import { wallClock } from "../../src/platform/i18n/time-zone.ts";
 import {
   createTestDatabase,
   runScript,
@@ -291,6 +300,10 @@ it("writes three weeks of the college's history, every event in the past and by 
       "notification.read",
       "notification.mute",
       "announcement.publish",
+      // The vice-dean's term and its calendar (Step 13).
+      "term.create",
+      "calendarEvent.create",
+      "term.activate",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -441,6 +454,62 @@ it("announces as the head of Electrical and the dean did, to everyone enabled in
   expect(published.map(({ entity_id }) => entity_id)).toEqual(
     said.map(({ id }) => id),
   );
+});
+
+// The week of the demo college's active term today falls in: its own, or the first numbered one
+// after it while an Eid break takes this one (Step 13).
+async function demoWeek(db: Db, pool: Pool) {
+  const {
+    rows: [{ id: collegeId }],
+  } = await pool.query("select id from colleges");
+  const term = await activeTerm(collegeId, db);
+  if (!term) throw new Error("no active term");
+  const settings = await calendarSettings(collegeId, db);
+  const today = wallClock(
+    new Date(),
+    settingsRegistry["locale.timeZone"].default,
+  ).slice(0, 10);
+  const week = termWeeks(
+    calendarOf(term, term.events, settings, term.breaks),
+  ).find((each) => each.endsOn >= today && each.number !== null);
+  return { term, number: week?.number };
+}
+
+it("starts the demo term on the day that puts today in week 9, counted past the Eid breaks, with the calendar the vice-dean entered and one role held in it (Step 13)", async () => {
+  const { db, pool } = await seededDatabase();
+  const { term, number } = await demoWeek(db, pool);
+  expect(number).toBe(9);
+  expect(term).toMatchObject({ weeks: 18, status: "active" });
+  expect(new Set(term.events.map(({ kind }) => kind))).toEqual(
+    new Set(["custom", "exam", "holiday", "gradeDeadline"]),
+  );
+  const { rows: actors } = await pool.query(
+    `select distinct u.email from audit_events e join users u on u.id::text = e.actor_id
+     where e.entity_type = 'term'`,
+  );
+  expect(actors).toEqual([{ email: demoAccounts.viceDean.email }]);
+  // Electrical's secretary for this term only.
+  const { rows: held } = await pool.query(
+    `select r.key, d.name from memberships m join roles r on r.id = m.role_id
+     join departments d on d.id = m.department_id where m.term_id = $1`,
+    [term.id],
+  );
+  expect(held).toEqual([{ key: "secretary", name: demoDepartments[1].name }]);
+});
+
+it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {
+  const database = await freshDatabase();
+  const seeded = await seedDemo(
+    ["--seed", "42", "--week", "3"],
+    scriptEnv(database.url),
+  );
+  expect(seeded.code, seeded.stderr).toBe(0);
+  expect((await demoWeek(database.db, database.pool)).number).toBe(3);
+  for (const week of ["0", "19", "nine"]) {
+    const refused = await seedDemo(["--week", week], scriptEnv(database.url));
+    expect(refused.code, week).toBe(1);
+    expect(refused.stderr).toContain("--week");
+  }
 });
 
 it("refuses to run when APP_ENV is production or unset, and writes nothing", async () => {

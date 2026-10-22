@@ -5,6 +5,11 @@ import {
   roles,
 } from "../../src/modules/access/index.ts";
 import { colleges } from "../../src/modules/org/index.ts";
+import {
+  type BreakRule,
+  estimateHolidays,
+  umAlQuraYear,
+} from "../../src/modules/terms/index.ts";
 import { parseSeedEnv } from "../../src/platform/config/env.ts";
 import { createDb, type Db } from "../../src/platform/db/client.ts";
 
@@ -57,14 +62,45 @@ export const defaultRoles: {
   { key: "quality-reviewer", labels: { ar: "مراجع الجودة" }, permissions: [] },
 ];
 
+// The Eid breaks a college starts with (ADR-0018): each from the weekend nearest so many days before
+// its Eid to the weekend nearest so many days after it, the averages of the Saudi calendars of 1443
+// to 1448 (docs/reviews/eid-breaks.md), for this Umm al-Qura year and the nine after it. The
+// vice-dean adjusts each year's on the terms page once its days are announced.
+export const eidBreaks: (BreakRule & { key: string; name: string })[] = [
+  {
+    key: "eid-al-fitr",
+    name: "إجازة عيد الفطر",
+    month: 10,
+    day: 1,
+    before: 12,
+    after: 5,
+  },
+  {
+    key: "eid-al-adha",
+    name: "إجازة عيد الأضحى",
+    month: 12,
+    day: 10,
+    before: 7,
+    after: 6,
+  },
+];
+export const EID_BREAK_YEARS = 10;
+
+// The Umm al-Qura years whose breaks a seed run on this day adds: this one and the nine after it.
+export function breakYears(today = new Date().toISOString().slice(0, 10)) {
+  const year = umAlQuraYear(today);
+  return Array.from({ length: EID_BREAK_YEARS }, (_, offset) => year + offset);
+}
+
 // Idempotent: inserts the one college only while none exists and never updates it, and each of its
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
-// nothing and never undoes the grid. Returns the id of the first college, the one db:seed made.
+// nothing and never undoes the grid; and the Eid breaks of the years ahead it does not have yet,
+// leaving those it has, adjusted or not. Returns the id of the first college, the one db:seed made.
 export async function seedBase(
   db: Db,
   college: { name: string; shortName: string },
 ) {
-  return db.transaction(async (tx) => {
+  const collegeId = await db.transaction(async (tx) => {
     // Runs that start together would each see no college and insert one; the lock makes them take turns.
     await tx.execute(sql`lock table ${colleges} in share row exclusive mode`);
     await tx.execute(sql`
@@ -96,6 +132,9 @@ export async function seedBase(
     }
     return row.id;
   });
+  // After the transaction: the estimate reads the college's weekend from its settings.
+  await estimateHolidays(collegeId, eidBreaks, breakYears(), db);
+  return collegeId;
 }
 
 if (import.meta.main) {

@@ -17,6 +17,7 @@ import { people, users } from "../../identity/index.ts";
 import { notify } from "../../notifications/index.ts";
 import { departments } from "../../org/index.ts";
 import { getSetting } from "../../settings/index.ts";
+import { terms } from "../../terms/index.ts";
 import type {
   MembershipInput,
   RoleInput,
@@ -55,6 +56,8 @@ export type Member = {
   name: string;
   employeeNumber: string;
   departmentId: string | null;
+  /** The one term they hold it in, by name; null for every term. */
+  term: string | null;
   /** Their account is disabled: they hold the role but cannot sign in. */
   disabled: boolean;
 };
@@ -143,11 +146,13 @@ export async function findRole(
       name: users.name,
       employeeNumber: people.employeeNumber,
       departmentId: memberships.departmentId,
+      term: terms.name,
       disabled: sql<boolean>`${users.disabledAt} is not null`,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
     .innerJoin(people, eq(people.userId, memberships.userId))
+    .leftJoin(terms, eq(terms.id, memberships.termId))
     .where(eq(memberships.roleId, id))
     .orderBy(asc(users.name), asc(memberships.id));
   return {
@@ -322,7 +327,15 @@ export async function addMembership(
   db: Db = getDb(),
 ): Promise<
   | { status: "added"; id: string }
-  | { status: "exists" | "notFound" | "collegeOnly" | "inactive" }
+  | {
+      status:
+        | "exists"
+        | "notFound"
+        | "collegeOnly"
+        | "inactive"
+        | "everyTerm"
+        | "termClosed";
+    }
 > {
   // Read before the transaction, which holds its connection: read inside it, it would wait for a
   // second one from the pool, and ten at once would wait for ever (lead review B).
@@ -359,10 +372,25 @@ export async function addMembership(
             ),
           )
       : [{ name: null, active: true }];
-    if (!role || !person || !department) return { status: "notFound" };
+    const [term] = input.termId
+      ? await tx
+          .select({ status: terms.status })
+          .from(terms)
+          .where(
+            and(
+              eq(terms.collegeId, change.collegeId),
+              eq(terms.id, input.termId),
+            ),
+          )
+      : [{ status: "active" as const }];
+    if (!role || !person || !department || !term) return { status: "notFound" };
     if (role.system && input.departmentId) return { status: "collegeOnly" };
+    // The system role is the college's keeper in every term: none of its members holds it in one.
+    if (role.system && input.termId) return { status: "everyTerm" };
     // A department set aside keeps what was recorded for it, and takes no new member.
     if (!department.active) return { status: "inactive" };
+    // A closed term gives no keys again, so a role held in it would give nothing.
+    if (term.status === "closed") return { status: "termClosed" };
     const id = await insertMembership(
       tx,
       input,
@@ -410,6 +438,7 @@ export async function insertMembership(
           userId: input.userId,
           role: role.key,
           departmentId: input.departmentId,
+          ...(input.termId ? { termId: input.termId } : {}),
         },
       },
       ip: change.ip,

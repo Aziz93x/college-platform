@@ -2,6 +2,7 @@
 
 import {
   BellRing,
+  CalendarRange,
   ClipboardCheck,
   FolderUp,
   Languages,
@@ -27,6 +28,7 @@ import { useSettingWords } from "./use-setting-words.ts";
 const GROUP_ICONS: Record<SettingGroup, LucideIcon> = {
   platform: MonitorCog,
   locale: Languages,
+  calendar: CalendarRange,
   security: ShieldCheck,
   files: FolderUp,
   review: ClipboardCheck,

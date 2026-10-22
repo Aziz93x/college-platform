@@ -36,6 +36,7 @@ const numberingSystems = ["latn", "arab"] as const;
 export const settingGroups = [
   "platform",
   "locale",
+  "calendar",
   "security",
   "files",
   "review",
@@ -55,11 +56,14 @@ export type SettingUnit =
   | "megabytes"
   | "percent"
   | "items"
+  | "weeks"
   | "hourOfDay";
 
-// The permission key (src/modules/access) that edits a setting. Every setting so far is the
-// platform's own; a step whose setting belongs to another role names that role's key here.
+// The permission key (src/modules/access) that edits a setting: the platform's own settings take
+// settings.manage, and a setting that belongs to another role names that role's key, such as the
+// vice-dean's for how a term's weeks are counted (Step 13).
 const MANAGE = "settings.manage";
+const TERM = "term.manage";
 
 // Every setting the code reads: its scope, the screen's group, the permission that edits it, the
 // schema a stored value must pass, the default used while none is stored, and the unit of a number.
@@ -148,6 +152,33 @@ export const settingsRegistry = {
     permission: MANAGE,
     schema: z.boolean(),
     default: false,
+  },
+  // How a term's weeks are counted (Step 13): the days worked in a week, from its first day
+  // (locale.weekStart), and whether a week whose working days are all holidays, an Eid break, goes
+  // without a number, so the term runs a week longer.
+  "calendar.workingDays": {
+    scope: "college",
+    group: "calendar",
+    permission: TERM,
+    schema: z.int().min(1).max(7),
+    default: 5,
+    unit: "days",
+  },
+  "calendar.skipHolidayWeeks": {
+    scope: "college",
+    group: "calendar",
+    permission: TERM,
+    schema: z.boolean(),
+    default: true,
+  },
+  // The usual length of a term: a new term's form starts from it.
+  "calendar.termWeeks": {
+    scope: "college",
+    group: "calendar",
+    permission: TERM,
+    schema: z.int().min(1).max(52),
+    default: 18,
+    unit: "weeks",
   },
   // Whether holding a key that requires two-factor makes its holder set it up before anything else.
   // Off, two-factor is each person's own choice on their profile (ADR-0014).

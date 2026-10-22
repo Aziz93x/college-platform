@@ -11,10 +11,15 @@ export type Lookups = {
   setting: (key: string) => string | undefined;
   // A kind of notification a person turned off or on (Step 12).
   notificationKind: (kind: string) => string | undefined;
+  // A term by its id, and a kind of day of its calendar (Step 13).
+  term: (id: string) => string | undefined;
+  calendarKind: (kind: string) => string | undefined;
   college: string;
   // A role's labels in the college's language.
   labels: (labels: Record<string, string>) => string;
   dateTime: (iso: string) => string;
+  // A calendar day, YYYY-MM-DD.
+  day: (day: string) => string;
   list: (items: string[]) => string;
 };
 
@@ -65,8 +70,22 @@ function format(
         return words.has(`twoFactor.${value}`)
           ? words(`twoFactor.${value}`)
           : value;
+      // A kind of notification, or of a day of a term's calendar: no name is both.
       case "kind":
-        return lookups.notificationKind(value) ?? value;
+        return (
+          lookups.notificationKind(value) ??
+          lookups.calendarKind(value) ??
+          value
+        );
+      case "termId":
+        return lookups.term(value) ?? value;
+      case "startsOn":
+      case "endsOn":
+        return lookups.day(value);
+      case "status":
+        return words.has(`termStatus.${value}`)
+          ? words(`termStatus.${value}`)
+          : value;
       // The action an export was narrowed to.
       case "action":
         return words.has(`actions.${value}`)
@@ -134,6 +153,16 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
       return lookups.setting(id) ?? id;
     case "college":
       return lookups.college;
+    case "term":
+      return lookups.term(id) ?? id;
+    // A year's Eid break by its name and Hijri year, as it was adjusted (ADR-0018).
+    case "holiday": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) && typeof was.name === "string"
+        ? `${was.name} ${was.hijriYear}`
+        : id;
+    }
     // An announcement by its title, as it was published or withdrawn (ADR-0017).
     case "announcement": {
       const diff = entry.diff ?? {};

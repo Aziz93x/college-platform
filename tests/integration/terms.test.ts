@@ -1,0 +1,690 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { breakYears, eidBreaks, seedBase } from "../../db/seed/base.ts";
+import {
+  addMembership,
+  findRole,
+  loadAccess,
+} from "../../src/modules/access/index.ts";
+import { createAccount } from "../../src/modules/identity/index.ts";
+import {
+  activateTerm,
+  addCalendarEvent,
+  type CalendarSettings,
+  calendarOf,
+  calendarSettings,
+  closeTerm,
+  createTerm,
+  estimateHolidays,
+  findTerm,
+  openNextTerm,
+  removeCalendarEvent,
+  termEndsOn,
+  termWeeks,
+  updateCalendarEvent,
+  updateHoliday,
+  updateTerm,
+  weekOf,
+} from "../../src/modules/terms/index.ts";
+import { createTestDatabase } from "./support/database.ts";
+
+// The vice-dean's terms (Step 13): an 18-week term with its holidays, exam weeks and grade deadline,
+// one active term per college, the next term opened from a term's calendar, and a role held in one
+// term.
+let database: Awaited<ReturnType<typeof createTestDatabase>>;
+let collegeId: string;
+let otherCollegeId: string;
+let electrical: string;
+let settings: CalendarSettings;
+const people: Record<string, string> = {};
+
+const query = async (text: string, values: unknown[] = []) =>
+  (await database.pool.query(text, values)).rows;
+
+const change = () => ({ collegeId, actorId: people.viceDean });
+
+const roleId = async (key: string) =>
+  (
+    await query("select id from roles where college_id = $1 and key = $2", [
+      collegeId,
+      key,
+    ])
+  )[0].id as string;
+
+// The second term of 1447: 18 weeks from Sunday 4 January 2026, trained through Ramadan, with a
+// two-week Eid al-Fitr break, exams in the middle and at the end, and the grades due on the last
+// Thursday.
+const SECOND_TERM = {
+  name: "الفصل التدريبي الثاني 1447",
+  startsOn: "2026-01-04",
+  weeks: 18,
+};
+const CALENDAR = [
+  {
+    kind: "holiday",
+    title: "يوم التأسيس",
+    startsOn: "2026-02-22",
+    endsOn: "2026-02-22",
+  },
+  {
+    kind: "exam",
+    title: "اختبارات منتصف الفصل",
+    startsOn: "2026-03-01",
+    endsOn: "2026-03-05",
+  },
+  {
+    kind: "holiday",
+    title: "إجازة عيد الفطر",
+    startsOn: "2026-03-15",
+    endsOn: "2026-03-28",
+  },
+  {
+    kind: "exam",
+    title: "الاختبارات النهائية",
+    startsOn: "2026-05-10",
+    endsOn: "2026-05-21",
+  },
+  {
+    kind: "gradeDeadline",
+    title: "آخر موعد لرصد الدرجات",
+    startsOn: "2026-05-21",
+    endsOn: "2026-05-21",
+  },
+] as const;
+
+async function termWithCalendar(name: string) {
+  const created = await createTerm(
+    { ...SECOND_TERM, name },
+    change(),
+    database.db,
+  );
+  if (created.status !== "created") throw new Error(created.status);
+  for (const event of CALENDAR) {
+    const added = await addCalendarEvent(
+      created.id,
+      event,
+      change(),
+      settings,
+      database.db,
+    );
+    if (added.status !== "saved") throw new Error(added.status);
+  }
+  return created.id;
+}
+
+beforeAll(async () => {
+  database = await createTestDatabase();
+  collegeId = await seedBase(database.db, {
+    name: "Test College",
+    shortName: "TC",
+  });
+  [{ id: otherCollegeId }] = await query(
+    "insert into colleges (name, short_name) values ('Other', 'O') returning id",
+  );
+  [{ id: electrical }] = await query(
+    "insert into departments (college_id, name, short_name) values ($1, 'Electrical', 'Elec') returning id",
+    [collegeId],
+  );
+  for (const name of ["viceDean", "hind"]) {
+    people[name] = await database.db.transaction(
+      async (tx) =>
+        (
+          await createAccount(
+            {
+              collegeId,
+              name,
+              email: `${name}@college.example`,
+              employeeNumber: `5${Object.keys(people).length}0001`,
+            },
+            tx,
+            `password-${name}`,
+          )
+        ).userId,
+    );
+  }
+  settings = await calendarSettings(collegeId, database.db);
+});
+
+afterAll(() => database?.drop());
+
+describe("a term and its calendar", () => {
+  it("takes an 18-week term with its holidays, exam weeks and grade deadline, and counts on past the Eid break", async () => {
+    const id = await termWithCalendar("الفصل الأول");
+    const term = await findTerm(collegeId, id, database.db);
+    if (!term) throw new Error("no term");
+    expect(term).toMatchObject({ ...SECOND_TERM, name: "الفصل الأول" });
+    expect(term.status).toBe("draft");
+    expect(term.events.map(({ title }) => title)).toEqual(
+      CALENDAR.map(({ title }) => title),
+    );
+
+    const calendar = calendarOf(term, term.events, settings);
+    const weeks = termWeeks(calendar);
+    expect(weeks.filter((week) => week.number !== null)).toHaveLength(18);
+    expect(weeks.filter((week) => week.number === null)).toEqual([
+      expect.objectContaining({ startsOn: "2026-03-15", holiday: true }),
+      expect.objectContaining({ startsOn: "2026-03-22", holiday: true }),
+    ]);
+    expect(weekOf(calendar, "2026-03-01")?.number).toBe(9);
+    expect(weekOf(calendar, "2026-05-10")?.number).toBe(17);
+    expect(termEndsOn(calendar)).toBe("2026-05-23");
+
+    expect(
+      await query(
+        "select action, actor_id, diff from audit_events where entity_type = 'term' and entity_id = $1 order by created_at, id",
+        [id],
+      ),
+    ).toEqual([
+      {
+        action: "term.create",
+        actor_id: people.viceDean,
+        diff: { to: { ...SECOND_TERM, name: "الفصل الأول" } },
+      },
+      ...CALENDAR.map((event) => ({
+        action: "calendarEvent.create",
+        actor_id: people.viceDean,
+        diff: { to: event },
+      })),
+    ]);
+  });
+
+  it("refuses an event outside the term, and a change that leaves one outside it", async () => {
+    const id = await termWithCalendar("Term B");
+    const outside = (title: string, startsOn: string, endsOn = startsOn) =>
+      addCalendarEvent(
+        id,
+        { kind: "custom", title, startsOn, endsOn },
+        change(),
+        settings,
+        database.db,
+      );
+    await expect(outside("before", "2026-01-03")).resolves.toEqual({
+      status: "eventsOutside",
+      events: ["before"],
+    });
+    await expect(outside("after", "2026-05-20", "2026-05-24")).resolves.toEqual(
+      { status: "eventsOutside", events: ["after"] },
+    );
+    // Two weeks fewer leave the last two weeks' exams and deadline out.
+    await expect(
+      updateTerm(
+        id,
+        { ...SECOND_TERM, name: "Term B", weeks: 16 },
+        change(),
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({
+      status: "eventsOutside",
+      events: ["الاختبارات النهائية", "آخر موعد لرصد الدرجات"],
+    });
+    // So does the Eid break taken away: the term would end two weeks sooner.
+    const term = await findTerm(collegeId, id, database.db);
+    const eid = term?.events.find(({ title }) => title === "إجازة عيد الفطر");
+    if (!eid) throw new Error("no Eid break");
+    await expect(
+      removeCalendarEvent(id, eid.id, change(), settings, database.db),
+    ).resolves.toEqual({
+      status: "eventsOutside",
+      events: ["الاختبارات النهائية", "آخر موعد لرصد الدرجات"],
+    });
+    await expect(
+      removeCalendarEvent(
+        id,
+        crypto.randomUUID(),
+        change(),
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "eventNotFound" });
+    // The same name, in any case of its Latin letters, is another term's.
+    await expect(
+      createTerm({ ...SECOND_TERM, name: "term b" }, change(), database.db),
+    ).resolves.toEqual({ status: "nameTaken" });
+  });
+
+  it("records what an edit changed, and what a removal took", async () => {
+    const id = await termWithCalendar("Term C");
+    const term = await findTerm(collegeId, id, database.db);
+    const midterm = term?.events.find(({ kind }) => kind === "exam");
+    if (!midterm) throw new Error("no midterm");
+    await expect(
+      updateCalendarEvent(
+        id,
+        midterm.id,
+        { ...CALENDAR[1], endsOn: "2026-03-04" },
+        change(),
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      removeCalendarEvent(id, midterm.id, change(), settings, database.db),
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      updateTerm(
+        id,
+        { ...SECOND_TERM, name: "Term C2" },
+        change(),
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    expect(
+      await query(
+        `select action, diff from audit_events where entity_id = $1
+         and action in ('calendarEvent.update', 'calendarEvent.delete', 'term.update') order by created_at, id`,
+        [id],
+      ),
+    ).toEqual([
+      {
+        action: "calendarEvent.update",
+        diff: {
+          from: { title: "اختبارات منتصف الفصل", endsOn: "2026-03-05" },
+          to: { endsOn: "2026-03-04" },
+        },
+      },
+      {
+        action: "calendarEvent.delete",
+        diff: { from: { ...CALENDAR[1], endsOn: "2026-03-04" } },
+      },
+      {
+        action: "term.update",
+        diff: { from: { name: "Term C" }, to: { name: "Term C2" } },
+      },
+    ]);
+  });
+});
+
+describe("the active term and the next one", () => {
+  it("keeps one active term per college, opens the next term from a term's calendar, and closes the old one when the next becomes active", async () => {
+    const first = await termWithCalendar("الفصل الثاني 1447");
+    await expect(activateTerm(first, change(), database.db)).resolves.toEqual({
+      status: "activated",
+    });
+    await expect(activateTerm(first, change(), database.db)).resolves.toEqual({
+      status: "notDraft",
+    });
+
+    // The next term: the exam weeks and the deadline at the same places in its weeks, the holidays
+    // left behind for the vice-dean to enter.
+    const next = await openNextTerm(
+      first,
+      { name: "الفصل الأول 1448", startsOn: "2026-08-23", weeks: 18 },
+      change(),
+      settings,
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    expect(next.copied).toBe(3);
+    const opened = await findTerm(collegeId, next.id, database.db);
+    expect(opened?.status).toBe("draft");
+    expect(
+      opened?.events.map(({ kind, title, startsOn, endsOn }) => ({
+        kind,
+        title,
+        startsOn,
+        endsOn,
+      })),
+    ).toEqual([
+      // Week 9, Sunday to Thursday.
+      { ...CALENDAR[1], startsOn: "2026-10-18", endsOn: "2026-10-22" },
+      // Weeks 17 and 18.
+      { ...CALENDAR[3], startsOn: "2026-12-13", endsOn: "2026-12-24" },
+      { ...CALENDAR[4], startsOn: "2026-12-24", endsOn: "2026-12-24" },
+    ]);
+    // A shorter term takes only what falls in its weeks.
+    const shorter = await openNextTerm(
+      first,
+      { name: "Summer", startsOn: "2026-06-07", weeks: 9 },
+      change(),
+      settings,
+      database.db,
+    );
+    expect(shorter).toMatchObject({ status: "created", copied: 1 });
+
+    // The next term made active closes the one before it.
+    await expect(activateTerm(next.id, change(), database.db)).resolves.toEqual(
+      { status: "activated", closed: "الفصل الثاني 1447" },
+    );
+    expect(
+      await query(
+        "select name, status from terms where id = any($1) order by starts_on",
+        [[first, next.id]],
+      ),
+    ).toEqual([
+      { name: "الفصل الثاني 1447", status: "closed" },
+      { name: "الفصل الأول 1448", status: "active" },
+    ]);
+    expect(
+      await query(
+        `select action, entity_id, diff from audit_events
+         where action in ('term.activate', 'term.close') order by created_at, id`,
+      ),
+    ).toEqual([
+      {
+        action: "term.activate",
+        entity_id: first,
+        diff: { from: { status: "draft" }, to: { status: "active" } },
+      },
+      {
+        action: "term.close",
+        entity_id: first,
+        diff: { from: { status: "active" }, to: { status: "closed" } },
+      },
+      {
+        action: "term.activate",
+        entity_id: next.id,
+        diff: { from: { status: "draft" }, to: { status: "active" } },
+      },
+    ]);
+    expect(
+      (
+        await query(
+          "select diff from audit_events where action = 'term.create' and entity_id = $1",
+          [next.id],
+        )
+      )[0].diff,
+    ).toEqual({
+      to: {
+        name: "الفصل الأول 1448",
+        startsOn: "2026-08-23",
+        weeks: 18,
+        from: "الفصل الثاني 1447",
+        copied: 3,
+      },
+    });
+
+    // The database holds one active term per college, whatever a query forgets.
+    await expect(
+      query(
+        "insert into terms (college_id, name, starts_on, weeks, status) values ($1, 'x', '2027-01-03', 18, 'active')",
+        [collegeId],
+      ),
+    ).rejects.toMatchObject({ code: "23505" });
+
+    // A closed term is kept as it is.
+    await expect(
+      updateTerm(first, SECOND_TERM, change(), settings, database.db),
+    ).resolves.toEqual({ status: "closed" });
+    await expect(
+      addCalendarEvent(first, CALENDAR[0], change(), settings, database.db),
+    ).resolves.toEqual({ status: "closed" });
+    await expect(closeTerm(first, change(), database.db)).resolves.toEqual({
+      status: "notActive",
+    });
+    await expect(closeTerm(next.id, change(), database.db)).resolves.toEqual({
+      status: "closed",
+    });
+  });
+});
+
+describe("a role held in one term", () => {
+  it("gives its keys only while its term is the active one", async () => {
+    const head = await roleId("head");
+    const created = await Promise.all(
+      ["Spring", "Autumn"].map((name) =>
+        createTerm({ ...SECOND_TERM, name }, change(), database.db),
+      ),
+    );
+    const [spring, autumn] = created.map((result) => {
+      if (result.status !== "created") throw new Error(result.status);
+      return result.id;
+    });
+    const added = await addMembership(
+      {
+        userId: people.hind,
+        roleId: head,
+        departmentId: electrical,
+        termId: spring,
+      },
+      change(),
+      database.db,
+    );
+    if (added.status !== "added") throw new Error(added.status);
+    // Once in each term: the same role and department in another term is another membership.
+    await expect(
+      addMembership(
+        {
+          userId: people.hind,
+          roleId: head,
+          departmentId: electrical,
+          termId: spring,
+        },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "exists" });
+    expect((await findRole(collegeId, head, database.db))?.members).toEqual([
+      expect.objectContaining({ userId: people.hind, term: "Spring" }),
+    ]);
+    expect(
+      (
+        await query(
+          "select diff from audit_events where action = 'membership.create' and entity_id = $1",
+          [added.id],
+        )
+      )[0].diff,
+    ).toEqual({
+      to: {
+        userId: people.hind,
+        role: "head",
+        departmentId: electrical,
+        termId: spring,
+      },
+    });
+
+    const holds = async () =>
+      (await loadAccess(people.hind, collegeId, database.db)).grants.some(
+        (grant) =>
+          grant.permission === "plan.edit" && grant.departmentId === electrical,
+      );
+    // A draft term gives nothing yet; the active term, its keys; closed, nothing again.
+    expect(await holds()).toBe(false);
+    await activateTerm(spring, change(), database.db);
+    expect(await holds()).toBe(true);
+    await activateTerm(autumn, change(), database.db);
+    expect(await holds()).toBe(false);
+
+    // A closed term takes no new member, the system role is held in every term, and another
+    // college's term is none of this one's.
+    await expect(
+      addMembership(
+        {
+          userId: people.hind,
+          roleId: head,
+          departmentId: null,
+          termId: spring,
+        },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "termClosed" });
+    const [{ id: admin }] = await query(
+      "select id from roles where college_id = $1 and system",
+      [collegeId],
+    );
+    await expect(
+      addMembership(
+        {
+          userId: people.hind,
+          roleId: admin,
+          departmentId: null,
+          termId: autumn,
+        },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "everyTerm" });
+    const [{ id: elsewhere }] = await query(
+      "insert into terms (college_id, name, starts_on, weeks) values ($1, 'Elsewhere', '2026-01-04', 18) returning id",
+      [otherCollegeId],
+    );
+    await expect(
+      addMembership(
+        {
+          userId: people.hind,
+          roleId: head,
+          departmentId: null,
+          termId: elsewhere,
+        },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "notFound" });
+  });
+});
+
+describe("the Eid breaks (ADR-0018)", () => {
+  const breaksOf = async (year: number) =>
+    query(
+      `select id, key, to_char(starts_on, 'YYYY-MM-DD') as "startsOn",
+         to_char(ends_on, 'YYYY-MM-DD') as "endsOn", adjusted
+       from holidays where college_id = $1 and hijri_year = $2 order by starts_on`,
+      [collegeId, year],
+    );
+
+  it("are seeded for this Hijri year and the nine after it, once", async () => {
+    expect(breakYears("2026-10-22")).toEqual([
+      1448, 1449, 1450, 1451, 1452, 1453, 1454, 1455, 1456, 1457,
+    ]);
+    const seeded = await query(
+      "select distinct hijri_year from holidays where college_id = $1 order by 1",
+      [collegeId],
+    );
+    expect(seeded.map(({ hijri_year }) => hijri_year)).toEqual(breakYears());
+    const before = await query("select count(*)::int as n from holidays");
+    await seedBase(database.db, { name: "Test College", shortName: "TC" });
+    expect(await query("select count(*)::int as n from holidays")).toEqual(
+      before,
+    );
+    // 1448's, whatever today is: the estimate of each, in whole weeks.
+    await estimateHolidays(collegeId, eidBreaks, [1448], database.db);
+    expect(await breaksOf(1448)).toEqual([
+      {
+        id: expect.any(String),
+        key: "eid-al-fitr",
+        startsOn: "2027-02-26",
+        endsOn: "2027-03-13",
+        adjusted: false,
+      },
+      {
+        id: expect.any(String),
+        key: "eid-al-adha",
+        startsOn: "2027-05-07",
+        endsOn: "2027-05-22",
+        adjusted: false,
+      },
+    ]);
+  });
+
+  it("are counted by every term they fall in, and the next term takes its days past them", async () => {
+    const created = await createTerm(
+      { name: "الفصل الثاني 1448", startsOn: "2027-01-10", weeks: 18 },
+      change(),
+      database.db,
+    );
+    if (created.status !== "created") throw new Error(created.status);
+    const term = await findTerm(collegeId, created.id, database.db);
+    if (!term) throw new Error("no term");
+    const calendar = calendarOf(term, term.events, settings, term.breaks);
+    // Two weeks of each break go without a number; the term runs four weeks longer.
+    expect(termWeeks(calendar).filter((week) => week.number === null)).toEqual([
+      expect.objectContaining({ startsOn: "2027-02-28" }),
+      expect.objectContaining({ startsOn: "2027-03-07" }),
+      expect.objectContaining({ startsOn: "2027-05-09" }),
+      expect.objectContaining({ startsOn: "2027-05-16" }),
+    ]);
+    expect(termEndsOn(calendar)).toBe("2027-06-12");
+
+    // A term of 1447 opened into it: its midterm, in week 9, lands in week 9 past the Eid break.
+    const source = await termWithCalendar("الفصل الثاني 1447 للنقل");
+    const next = await openNextTerm(
+      source,
+      { name: "الفصل الثاني 1448 للنقل", startsOn: "2027-01-10", weeks: 18 },
+      change(),
+      settings,
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    const opened = await findTerm(collegeId, next.id, database.db);
+    expect(
+      opened?.events.find(({ title }) => title === "اختبارات منتصف الفصل"),
+    ).toMatchObject({ startsOn: "2027-03-21", endsOn: "2027-03-25" });
+  });
+
+  it("are adjusted by the vice-dean, for every term at once, until they begin", async () => {
+    const [fitr] = await breaksOf(1448);
+    const today = "2026-10-22";
+    await expect(
+      updateHoliday(
+        fitr.id,
+        { startsOn: "2027-02-19", endsOn: "2027-03-13" },
+        change(),
+        today,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    expect((await breaksOf(1448))[0]).toMatchObject({
+      startsOn: "2027-02-19",
+      adjusted: true,
+    });
+    // The term of 1448 skips the week the break now takes, and ends a week later.
+    const [{ id }] = await query(
+      "select id from terms where name = 'الفصل الثاني 1448'",
+    );
+    const term = await findTerm(collegeId, id, database.db);
+    if (!term) throw new Error("no term");
+    expect(
+      termEndsOn(calendarOf(term, term.events, settings, term.breaks)),
+    ).toBe("2027-06-19");
+    expect(
+      (
+        await query(
+          "select actor_id, diff from audit_events where action = 'holiday.update'",
+        )
+      )[0],
+    ).toEqual({
+      actor_id: people.viceDean,
+      diff: {
+        from: {
+          name: "إجازة عيد الفطر",
+          hijriYear: 1448,
+          startsOn: "2027-02-26",
+          endsOn: "2027-03-13",
+        },
+        to: {
+          name: "إجازة عيد الفطر",
+          hijriYear: 1448,
+          startsOn: "2027-02-19",
+          endsOn: "2027-03-13",
+        },
+      },
+    });
+    // The same days again change nothing; a day that has passed, or a break begun, is refused.
+    const days = { startsOn: "2027-02-19", endsOn: "2027-03-13" };
+    await expect(
+      updateHoliday(fitr.id, days, change(), today, database.db),
+    ).resolves.toEqual({ status: "unchanged" });
+    await expect(
+      updateHoliday(
+        fitr.id,
+        { startsOn: "2026-10-22", endsOn: "2027-03-13" },
+        change(),
+        today,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "past" });
+    await expect(
+      updateHoliday(fitr.id, days, change(), "2027-02-19", database.db),
+    ).resolves.toEqual({ status: "begun" });
+    await expect(
+      updateHoliday(
+        fitr.id,
+        days,
+        { ...change(), collegeId: otherCollegeId },
+        today,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "notFound" });
+  });
+});

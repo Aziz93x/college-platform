@@ -243,3 +243,9 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `date-range-picker`: on a touch screen the panel is 24rem wide (within the screen), its padding
   smaller and its month, year and arrow buttons 44 px, so each day is 44 px wide on a phone of
   360 px or more.
+
+## Local changes from Step 13 (terms and their calendars)
+
+- `date-range-picker/`: `single` chooses one day, the term's first one: a tap completes the value,
+  from and to that day, and announces it with the catalog's `dayChosen`. The trigger writes a value
+  that starts and ends on one day as that day, a one-day holiday too.

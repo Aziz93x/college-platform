@@ -22,6 +22,14 @@ vi.mock("../../src/modules/access/server/viewer.ts", () => ({
 const ID = "0199b2a4-6c1e-7d3a-9f00-3c5e8a1b2c4d";
 // The department the matrix holds keys in, where the people its account actions touch are.
 const DEPARTMENT = "0199b2a4-6c1e-7d3a-9f00-000000000001";
+// A term and a day of its calendar, as the terms' actions take them.
+const TERM = { name: "Spring", startsOn: "2026-01-04", weeks: 18 };
+const DAY = {
+  kind: "holiday",
+  title: "Eid",
+  startsOn: "2026-03-15",
+  endsOn: "2026-03-28",
+};
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -32,7 +40,12 @@ vi.mock("@/modules/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/settings")>()),
   setSetting: async () => ({ status: "saved", value: null }),
   resetSetting: async () => ({ status: "reset", value: null }),
-  getSetting: async (key: string) => (key === "locale.language" ? "ar" : {}),
+  getSetting: async (key: string) =>
+    key === "locale.language"
+      ? "ar"
+      : key === "locale.timeZone"
+        ? "Asia/Riyadh"
+        : {},
 }));
 vi.mock("@/modules/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/access")>()),
@@ -96,6 +109,23 @@ vi.mock("@/modules/announcements", async (importOriginal) => ({
     departmentId: DEPARTMENT,
   }),
   withdrawAnnouncement: async () => ({ status: "withdrawn", removed: 1 }),
+}));
+// A term of the college and its calendar, each change answered as done (Step 13).
+vi.mock("@/modules/terms", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/terms")>()),
+  calendarSettings: async () => ({
+    workingDays: new Set([0, 1, 2, 3, 4]),
+    skipHolidayWeeks: true,
+  }),
+  createTerm: async () => ({ status: "created", id: ID }),
+  updateTerm: async () => ({ status: "saved" }),
+  activateTerm: async () => ({ status: "activated" }),
+  closeTerm: async () => ({ status: "closed" }),
+  openNextTerm: async () => ({ status: "created", id: ID, copied: 0 }),
+  addCalendarEvent: async () => ({ status: "saved" }),
+  updateCalendarEvent: async () => ({ status: "saved" }),
+  removeCalendarEvent: async () => ({ status: "saved" }),
+  updateHoliday: async () => ({ status: "saved" }),
 }));
 vi.mock("@/platform/files/table", () => ({
   readTable: async () => [
@@ -301,6 +331,27 @@ const checked: {
     permission: "announcements.publish",
     input: { id: ID },
   },
+  // The college's terms and their calendars, the vice-dean's across the college (Step 13).
+  ...[
+    ["createTermAction", TERM],
+    ["updateTermAction", { id: ID, ...TERM }],
+    ["activateTermAction", { id: ID }],
+    ["closeTermAction", { id: ID }],
+    ["openNextTermAction", { fromId: ID, ...TERM }],
+    ["addCalendarEventAction", { termId: ID, ...DAY }],
+    ["updateCalendarEventAction", { termId: ID, eventId: ID, ...DAY }],
+    ["removeCalendarEventAction", { termId: ID, eventId: ID }],
+    // A year's Eid break (ADR-0018).
+    [
+      "updateHolidayAction",
+      { id: ID, startsOn: "2027-02-26", endsOn: "2027-03-13" },
+    ],
+  ].map(([action, input]) => ({
+    module: "(app)/terms/actions.ts",
+    action: action as string,
+    permission: "term.manage" as const,
+    input,
+  })),
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others

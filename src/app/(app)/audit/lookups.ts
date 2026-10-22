@@ -4,6 +4,7 @@ import { listDirectory, listRoles, roleLabel } from "@/modules/access";
 import { type AuditEntry, auditActions } from "@/modules/audit";
 import { findCollege, listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { listTerms } from "@/modules/terms";
 import { describeEvent, type Lookups, type Words } from "./describe.ts";
 import type { EventRow } from "./event-list.tsx";
 
@@ -31,8 +32,8 @@ export async function actionChoices() {
   }));
 }
 
-// What names the ids events carry: the college's people, departments and roles, and the
-// catalog's keys and settings.
+// What names the ids events carry: the college's people, departments, roles and terms, and the
+// catalog's keys, settings and kinds.
 export async function auditLookups(collegeId: string): Promise<Lookups> {
   const [
     people,
@@ -43,6 +44,8 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     keys,
     settings,
     kinds,
+    terms,
+    calendarKinds,
     format,
   ] = await Promise.all([
     collegePeople(collegeId),
@@ -53,12 +56,15 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     getTranslations("roles.permissions"),
     getTranslations("settings.fields"),
     getTranslations("notifications.kinds"),
+    listTerms(collegeId),
+    getTranslations("terms.kinds"),
     getFormatter(),
   ]);
   const names = new Map(people.map(({ userId, name }) => [userId, name]));
   type KeyLabel = Parameters<typeof keys>[0];
   type SettingLabel = Parameters<typeof settings>[0];
   type KindLabel = Parameters<typeof kinds>[0];
+  type CalendarKind = Parameters<typeof calendarKinds>[0];
   return {
     person: (userId) => names.get(userId),
     department: (id) => departments.find((each) => each.id === id)?.name,
@@ -82,12 +88,23 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
       kinds.has(`${kind}.label` as KindLabel)
         ? kinds(`${kind}.label` as KindLabel)
         : undefined,
+    term: (id) => terms.find((each) => each.id === id)?.name,
+    calendarKind: (kind) =>
+      calendarKinds.has(kind as CalendarKind)
+        ? calendarKinds(kind as CalendarKind)
+        : undefined,
     college: college?.name ?? "",
     labels: (labels) => roleLabel(labels, language),
     dateTime: (iso) =>
       format.dateTime(new Date(iso), {
         dateStyle: "medium",
         timeStyle: "short",
+      }),
+    // A day of the calendar, not an instant: read and written on UTC's, so no clock moves it.
+    day: (day) =>
+      format.dateTime(new Date(`${day}T00:00:00Z`), {
+        dateStyle: "medium",
+        timeZone: "UTC",
       }),
     list: (items) => format.list(items),
   };

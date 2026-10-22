@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { type Db, getDb } from "../../../platform/db/client.ts";
+import { terms } from "../../terms/index.ts";
 import type { Grant } from "../domain/authorize.ts";
 import {
   isPermissionKey,
@@ -11,7 +12,7 @@ import { memberships, rolePermissions, roles } from "./schema.ts";
 // The roles a person holds in a college and what they give: each key in its membership's scope
 // (the grants that authorize() checks), and every key held anywhere (for the navigation and the
 // two-factor rule). The system role gives every key in code; stored keys the code no longer knows
-// give nothing.
+// give nothing. A role held in one term gives its keys while that term is the active one.
 export async function loadAccess(
   userId: string,
   collegeId: string,
@@ -27,8 +28,13 @@ export async function loadAccess(
     .from(memberships)
     .innerJoin(roles, eq(roles.id, memberships.roleId))
     .leftJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
+    .leftJoin(terms, eq(terms.id, memberships.termId))
     .where(
-      and(eq(memberships.userId, userId), eq(memberships.collegeId, collegeId)),
+      and(
+        eq(memberships.userId, userId),
+        eq(memberships.collegeId, collegeId),
+        or(isNull(memberships.termId), eq(terms.status, "active")),
+      ),
     );
   const grants: Grant[] = [];
   for (const { system, departmentId, permission } of rows) {

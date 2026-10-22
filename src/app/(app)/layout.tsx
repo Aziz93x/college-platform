@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { platformName } from "@/i18n/platform-name";
-import { requireViewer } from "@/modules/access";
+import { authorize, requireViewer } from "@/modules/access";
 import {
   latestUnread,
   type NotificationParams,
@@ -13,6 +13,7 @@ import {
 } from "@/modules/notifications";
 import { findCollege } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { wallClock } from "@/platform/i18n/time-zone";
 import { Announcements } from "./_shell/announcements.tsx";
 import { Bell } from "./_shell/bell.tsx";
 import { CommandMenu } from "./_shell/command-menu.tsx";
@@ -26,6 +27,8 @@ import {
 } from "./_shell/navigation.ts";
 import { Sidebar } from "./_shell/sidebar.tsx";
 import { TabBar } from "./_shell/tab-bar.tsx";
+import { termOnDay, viewedTerm } from "./_shell/term.ts";
+import { TermSwitcher } from "./_shell/term-switcher.tsx";
 import { notificationViews } from "./notifications/view.ts";
 
 // The shell around every page of a signed-in role: the sidebar on desktop, open or on its icon rail
@@ -81,6 +84,25 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       href,
     }),
   );
+  // The term the header shows, and today's week in it (Step 13).
+  const [{ terms, term }, timeZone, termWords, statuses] = await Promise.all([
+    viewedTerm(
+      viewer.collegeId,
+      authorize(viewer, "term.manage", { collegeId: viewer.collegeId }),
+    ),
+    getTimeZone(),
+    getTranslations("shell.term"),
+    getTranslations("terms.status"),
+  ]);
+  const today = wallClock(now, timeZone).slice(0, 10);
+  const week = term
+    ? (await termOnDay(viewer.collegeId, term.id, today))?.week
+    : undefined;
+  const weekWords = week
+    ? week.number === null
+      ? termWords("holiday")
+      : termWords("week", { number: week.number })
+    : undefined;
   const links: ShellLink[] = items.map((item) => ({
     id: item.id,
     href: item.href,
@@ -134,6 +156,32 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Header
             collegeName={college?.shortName}
             account={{ name: viewer.name, email: viewer.email }}
+            term={
+              terms.length > 0 ? (
+                <TermSwitcher
+                  terms={terms.map(({ id, name, status }) => ({
+                    id,
+                    name,
+                    status: statuses(status),
+                  }))}
+                  viewed={term && { id: term.id, name: term.name }}
+                  week={weekWords}
+                  labels={{
+                    open: term
+                      ? weekWords
+                        ? termWords("openWithWeek", {
+                            name: term.name,
+                            week: weekWords,
+                          })
+                        : termWords("open", { name: term.name })
+                      : termWords("choose"),
+                    list: termWords("list"),
+                    calendar: termWords("calendar"),
+                    choose: termWords("choose"),
+                  }}
+                />
+              ) : null
+            }
             bell={
               <Bell
                 count={unread}

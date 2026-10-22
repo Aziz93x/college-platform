@@ -35,25 +35,31 @@ import type { Member } from "@/modules/access";
 import { addMembershipAction, removeMembershipAction } from "../actions.ts";
 
 const COLLEGE = "college";
+const EVERY_TERM = "every";
 
-// Who holds the role, and where; adding someone, across the college or in one department, and
-// taking the role away, which a sheet confirms as it confirms every change to someone's access. The
-// system role is held across the college only, and keeps its last member who can sign in.
+// Who holds the role, and where, and in which term; adding someone, across the college or in one
+// department, in every term or in one (Step 13), and taking the role away, which a sheet confirms as
+// it confirms every change to someone's access. The system role is held across the college and in
+// every term only, and keeps its last member who can sign in.
 export function Members({
   role,
   people,
   departments,
+  terms,
 }: {
   role: { id: string; label: string; system: boolean; members: Member[] };
   people: { userId: string; name: string; employeeNumber: string }[];
   /** The college's departments; the ones set aside name old memberships but are not offered. */
   departments: { id: string; name: string; active: boolean }[];
+  /** The terms a role can be held in: the draft and active ones. */
+  terms: { id: string; name: string }[];
 }) {
   const t = useTranslations("roles.members");
   const refusals = useTranslations("actions");
   const id = useId();
   const [person, setPerson] = useState<string>();
   const [scope, setScope] = useState(COLLEGE);
+  const [term, setTerm] = useState(EVERY_TERM);
   const [error, setError] = useState<string>();
   const [running, setRunning] = useState(false);
   const [removing, setRemoving] = useState<Member>();
@@ -80,6 +86,8 @@ export function Members({
     else if (status === "lastAdmin") setError(t("lastAdmin"));
     else if (status === "collegeOnly") setError(t("collegeOnly"));
     else if (status === "inactive") setError(t("inactive"));
+    else if (status === "everyTerm") setError(t("systemEveryTerm"));
+    else if (status === "termClosed") setError(t("termClosed"));
     else if (status === "notFound") setError(t("gone"));
     else setError(refusals(serverError ?? "unexpected"));
   };
@@ -96,6 +104,7 @@ export function Members({
         userId: person,
         roleId: role.id,
         departmentId: scope === COLLEGE ? null : scope,
+        termId: role.system || term === EVERY_TERM ? null : term,
         password,
       });
       setRunning(false);
@@ -136,6 +145,12 @@ export function Members({
                   <span dir="ltr">{member.employeeNumber}</span>
                   <span aria-hidden> · </span>
                   {scopeName(member.departmentId)}
+                  {member.term ? (
+                    <>
+                      <span aria-hidden> · </span>
+                      {member.term}
+                    </>
+                  ) : null}
                   {member.disabled ? (
                     <>
                       <span aria-hidden> · </span>
@@ -236,6 +251,30 @@ export function Members({
             </div>
           )}
         </div>
+        {role.system || terms.length === 0 ? null : (
+          <div className="flex flex-col gap-1.5 sm:w-56">
+            <span id={`${id}-term`} className="px-1 font-medium text-sm">
+              {t("term")}
+            </span>
+            <Select
+              aria-labelledby={`${id}-term`}
+              value={term}
+              onValueChange={setTerm}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={EVERY_TERM}>{t("everyTerm")}</SelectItem>
+                {terms.map((each) => (
+                  <SelectItem key={each.id} value={each.id}>
+                    {each.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {step.field(t("reauth"))}
         {error ? (
           <p role="alert" className="text-alert text-sm">

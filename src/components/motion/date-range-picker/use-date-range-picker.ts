@@ -25,6 +25,7 @@ export function useDateRangePickerController({
   autoFocus = false,
   showSummary = true,
   closeOnSelect = false,
+  single = false,
 }: DateRangePickerProps) {
   const label = words.label;
   const [today] = useState(() => {
@@ -167,6 +168,11 @@ export function useDateRangePickerController({
   const select = (date: string) => {
     if (unavailable(date)) return;
     setCursor(date);
+    if (single) {
+      change({ from: date, to: date });
+      setAnnouncement(words.dayChosen(dateFormat.format(parse(date))));
+      return;
+    }
     if (!value || value.to) {
       change({ from: date });
       setAnnouncement(words.startChosen(dateFormat.format(parse(date))));
