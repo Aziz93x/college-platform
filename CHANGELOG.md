@@ -335,6 +335,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - `docker/compose.dev.yml` (PostgreSQL 18, Mailpit) and `docker/compose.yml` (Caddy, app, worker, PostgreSQL, a daily `pg_dump` backup until Step 42).
 - `src/platform/config/env.ts`: one Zod schema for `NODE_ENV`, `APP_URL`, `DATABASE_URL` and `SMTP_URL`; the app (instrumentation) and the worker exit at start and name each invalid variable.
 - `pnpm worker` and `pnpm worker:dev`; `.env.example` and `docker/.env.example`.
+- The checks job gets 30 minutes instead of 20, as the other jobs do. It takes about 14 minutes, and a slow package mirror once made the browser install's apt download take up to 14 more.
 
 ### Step 01: repository and guardrails
 
