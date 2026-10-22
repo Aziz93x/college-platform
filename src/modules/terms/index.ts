@@ -1,4 +1,8 @@
 export {
+  type BreakRule,
+  umAlQuraYear,
+} from "./domain/holidays.ts";
+export {
   type CalendarEventInput,
   type CalendarEventKind,
   calendarEventInput,
@@ -10,13 +14,20 @@ export {
 } from "./domain/inputs.ts";
 export {
   type Day,
+  type DayRange,
   type TermCalendar,
   type TermWeek,
   termEndsOn,
   termWeeks,
   weekOf,
 } from "./domain/weeks.ts";
-export { calendarEvents, terms } from "./server/schema.ts";
+export {
+  estimateHolidays,
+  type Holiday,
+  holidaysFrom,
+  updateHoliday,
+} from "./server/holidays.ts";
+export { calendarEvents, holidays, terms } from "./server/schema.ts";
 export {
   activateTerm,
   activeTerm,

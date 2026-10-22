@@ -43,7 +43,11 @@ export function TermForm({
   const locale = useLocale();
   const router = useRouter();
   const id = useId();
-  const saved: Draft = term ?? { name: "", startsOn: null, weeks: defaultWeeks };
+  const saved: Draft = term ?? {
+    name: "",
+    startsOn: null,
+    weeks: defaultWeeks,
+  };
   const [draft, setDraft] = useState<Draft>(saved);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [refusal, setRefusal] = useState<string>();

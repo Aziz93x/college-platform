@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { viewerAction } from "@/modules/access";
 import { requestMeta } from "@/modules/identity";
+import { getSetting } from "@/modules/settings";
 import {
   activateTerm,
   addCalendarEvent,
@@ -16,8 +17,10 @@ import {
   removeCalendarEvent,
   termInput,
   updateCalendarEvent,
+  updateHoliday,
   updateTerm,
 } from "@/modules/terms";
+import { wallClock } from "@/platform/i18n/time-zone";
 
 // The vice-dean's terms (Step 13): each action needs term.manage, held across the college, and the
 // domain function writes the audit event. After a change the page is drawn again, so the term's
@@ -129,6 +132,30 @@ export const removeCalendarEventAction = viewerAction
       eventId,
       await changeBy(viewer),
       await calendarSettings(viewer.collegeId),
+    );
+    if (result.status === "saved") refresh();
+    return result;
+  });
+
+// A year's Eid break, adjusted once its days are announced (ADR-0018): today is the college's.
+export const updateHolidayAction = viewerAction
+  .metadata({ name: "updateHoliday", permission: "term.manage" })
+  .inputSchema(
+    z
+      .object({ id: z.uuid(), startsOn: z.iso.date(), endsOn: z.iso.date() })
+      .refine(({ startsOn, endsOn }) => startsOn <= endsOn, {
+        path: ["endsOn"],
+      }),
+  )
+  .action(async ({ parsedInput: { id, ...days }, ctx: { viewer } }) => {
+    const timeZone = await getSetting("locale.timeZone", {
+      collegeId: viewer.collegeId,
+    });
+    const result = await updateHoliday(
+      id,
+      days,
+      await changeBy(viewer),
+      wallClock(new Date(), timeZone).slice(0, 10),
     );
     if (result.status === "saved") refresh();
     return result;

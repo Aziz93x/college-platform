@@ -52,7 +52,7 @@ export function TermStatus({
   maxWeeks: number;
   today: string;
 }) {
-  const t = useTranslations("terms.status");
+  const t = useTranslations("terms.lifecycle");
   const form = useTranslations("terms.form");
   const ui = useTranslations("ui");
   const refusals = useTranslations("actions");
@@ -156,11 +156,7 @@ export function TermStatus({
           {t("close")}
         </Button>
       ) : null}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => openSheet("next")}
-      >
+      <Button type="button" variant="outline" onClick={() => openSheet("next")}>
         <CalendarPlus aria-hidden />
         {t("next")}
       </Button>
@@ -248,9 +244,7 @@ export function TermStatus({
                       increase: form("moreWeeks"),
                     }}
                     formatValue={(count) => format.number(count)}
-                    formatValueText={(count) =>
-                      form("weeksValue", { count })
-                    }
+                    formatValueText={(count) => form("weeksValue", { count })}
                   />
                 </div>
               </>

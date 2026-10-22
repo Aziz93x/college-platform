@@ -36,7 +36,8 @@ export function workingDays(weekStart: number, count: number) {
   );
 }
 
-function weekday(day: Day) {
+// The day of the week a day is, 0 for Sunday.
+export function weekday(day: Day) {
   return new Date(`${day}T00:00:00Z`).getUTCDay();
 }
 

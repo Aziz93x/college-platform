@@ -1,6 +1,7 @@
 import {
   Building2,
   CalendarCheck,
+  CalendarRange,
   Contact,
   History,
   type LucideIcon,
@@ -85,6 +86,14 @@ export const navigation = [
     icon: History,
     permission: "audit.view",
     group: "administration",
+  },
+  // The vice-dean's terms and their calendars (Step 13). After the administration's pages, so Today
+  // still leads an admin setting the college up to its departments, and a vice-dean here.
+  {
+    id: "terms",
+    href: "/terms",
+    icon: CalendarRange,
+    permission: "term.manage",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

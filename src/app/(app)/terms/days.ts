@@ -21,7 +21,9 @@ export function dayWords(locale: string, hijri: boolean) {
     timeZone: "UTC",
   });
   const span = (format: Intl.DateTimeFormat, from: string, to: string) =>
-    from === to ? format.format(at(from)) : format.formatRange(at(from), at(to));
+    from === to
+      ? format.format(at(from))
+      : format.formatRange(at(from), at(to));
   return {
     /** A day with its year, as a term's first and last are written. */
     day: (day: string) => withYear.format(at(day)),

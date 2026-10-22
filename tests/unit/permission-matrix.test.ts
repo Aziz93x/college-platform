@@ -40,7 +40,12 @@ vi.mock("@/modules/settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/settings")>()),
   setSetting: async () => ({ status: "saved", value: null }),
   resetSetting: async () => ({ status: "reset", value: null }),
-  getSetting: async (key: string) => (key === "locale.language" ? "ar" : {}),
+  getSetting: async (key: string) =>
+    key === "locale.language"
+      ? "ar"
+      : key === "locale.timeZone"
+        ? "Asia/Riyadh"
+        : {},
 }));
 vi.mock("@/modules/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/access")>()),
@@ -120,6 +125,7 @@ vi.mock("@/modules/terms", async (importOriginal) => ({
   addCalendarEvent: async () => ({ status: "saved" }),
   updateCalendarEvent: async () => ({ status: "saved" }),
   removeCalendarEvent: async () => ({ status: "saved" }),
+  updateHoliday: async () => ({ status: "saved" }),
 }));
 vi.mock("@/platform/files/table", () => ({
   readTable: async () => [
@@ -335,6 +341,11 @@ const checked: {
     ["addCalendarEventAction", { termId: ID, ...DAY }],
     ["updateCalendarEventAction", { termId: ID, eventId: ID, ...DAY }],
     ["removeCalendarEventAction", { termId: ID, eventId: ID }],
+    // A year's Eid break (ADR-0018).
+    [
+      "updateHolidayAction",
+      { id: ID, startsOn: "2027-02-26", endsOn: "2027-03-13" },
+    ],
   ].map(([action, input]) => ({
     module: "(app)/terms/actions.ts",
     action: action as string,

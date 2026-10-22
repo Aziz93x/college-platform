@@ -39,6 +39,8 @@ type EventView = {
   skipped: number;
   from?: number;
   to?: number;
+  /** One of the college's Eid breaks (ADR-0018): adjusted on the terms page, not here. */
+  college: boolean;
 };
 
 type Draft = {
@@ -107,9 +109,7 @@ export function CalendarEvents({
   ) => {
     switch (outcome?.status) {
       case "eventsOutside":
-        setError(
-          t("outside", { events: format.list(outcome.events ?? []) }),
-        );
+        setError(t("outside", { events: format.list(outcome.events ?? []) }));
         return;
       case "closed":
         setError(t("closed"));
@@ -218,7 +218,7 @@ export function CalendarEvents({
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground text-xs">
-                    {kinds(event.kind)}
+                    {event.college ? t("collegeBreak") : kinds(event.kind)}
                   </span>
                   <span className="font-medium text-sm">{event.title}</span>
                 </p>
@@ -239,7 +239,7 @@ export function CalendarEvents({
                   </p>
                 ) : null}
               </div>
-              {editable ? (
+              {editable && !event.college ? (
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     type="button"

@@ -1,5 +1,5 @@
 {
-  "id": "5028ea75-61b1-41e5-900c-47ba6b2b0d8c",
+  "id": "ad065dca-5d13-4b04-b7e9-0910d34f3be2",
   "prevId": "1e8d60fd-3eb9-4a63-b5dd-e83a0fa0a9a3",
   "version": "7",
   "dialect": "postgresql",
@@ -1849,6 +1849,126 @@
         "calendar_events_days": {
           "name": "calendar_events_days",
           "value": "\"calendar_events\".\"starts_on\" <= \"calendar_events\".\"ends_on\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.holidays": {
+      "name": "holidays",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "college_id": {
+          "name": "college_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hijri_year": {
+          "name": "hijri_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adjusted": {
+          "name": "adjusted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "holidays_days_idx": {
+          "name": "holidays_days_idx",
+          "columns": [
+            {
+              "expression": "college_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "holidays_college_id_colleges_id_fk": {
+          "name": "holidays_college_id_colleges_id_fk",
+          "tableFrom": "holidays",
+          "tableTo": "colleges",
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "holidays_year_unique": {
+          "name": "holidays_year_unique",
+          "nullsNotDistinct": false,
+          "columns": ["college_id", "key", "hijri_year"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "holidays_days": {
+          "name": "holidays_days",
+          "value": "\"holidays\".\"starts_on\" <= \"holidays\".\"ends_on\""
         }
       },
       "isRLSEnabled": false

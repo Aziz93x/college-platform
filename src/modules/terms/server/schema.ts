@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -81,5 +82,36 @@ export const calendarEvents = pgTable(
       sql`${table.kind} in ('holiday', 'exam', 'gradeDeadline', 'custom')`,
     ),
     check("calendar_events_days", sql`${table.startsOn} <= ${table.endsOn}`),
+  ],
+);
+
+// The college's Eid breaks across the years (ADR-0018): each year's, by the key of the rule it was
+// estimated from, until the vice-dean adjusts it. Every term counts those that fall in it as its
+// holidays. Its name is data, from the base seed.
+export const holidays = pgTable(
+  "holidays",
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    collegeId: uuid("college_id")
+      .notNull()
+      .references(() => colleges.id),
+    key: text().notNull(),
+    name: text().notNull(),
+    hijriYear: integer("hijri_year").notNull(),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    endsOn: date("ends_on", { mode: "string" }).notNull(),
+    // Whether the vice-dean has set its days, rather than the estimate.
+    adjusted: boolean().notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("holidays_year_unique").on(
+      table.collegeId,
+      table.key,
+      table.hijriYear,
+    ),
+    index("holidays_days_idx").on(table.collegeId, table.startsOn),
+    check("holidays_days", sql`${table.startsOn} <= ${table.endsOn}`),
   ],
 );

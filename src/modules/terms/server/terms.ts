@@ -13,12 +13,14 @@ import type {
 } from "../domain/inputs.ts";
 import {
   type Day,
+  type DayRange,
   type TermCalendar,
   termEndsOn,
   weekDays,
   weekOf,
   workingDays,
 } from "../domain/weeks.ts";
+import { holidaysFrom } from "./holidays.ts";
 import { calendarEvents, terms } from "./schema.ts";
 
 // Who changes a term, for the audit event. The caller has authorized them.
@@ -79,16 +81,21 @@ export async function calendarSettings(collegeId: string, db?: Db) {
 
 export type CalendarSettings = Awaited<ReturnType<typeof calendarSettings>>;
 
-// A term's calendar as the week utilities count it: its holidays and the college's settings.
+// A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
+// (ADR-0018), with the college's settings.
 export function calendarOf(
   term: Pick<Term, "startsOn" | "weeks">,
   events: readonly Dated[],
   settings: CalendarSettings,
+  breaks: readonly DayRange[] = [],
 ): TermCalendar {
   return {
     startsOn: term.startsOn,
     weeks: term.weeks,
-    holidays: events.filter((event) => event.kind === "holiday"),
+    holidays: [
+      ...events.filter((event) => event.kind === "holiday"),
+      ...breaks,
+    ],
     ...settings,
   };
 }
@@ -121,8 +128,16 @@ async function eventsOf(termId: string, db: Db | Tx) {
     .orderBy(asc(calendarEvents.startsOn), asc(calendarEvents.endsOn));
 }
 
-// One term of the college with its calendar's events in order; undefined for an id that is not one
-// of the college's.
+// A term with its calendar's events in order, and the college's breaks it can meet (ADR-0018).
+async function withCalendar(term: Term, collegeId: string, db: Db | Tx) {
+  return {
+    ...term,
+    events: await eventsOf(term.id, db),
+    breaks: await holidaysFrom(collegeId, term.startsOn, db),
+  };
+}
+
+// One term of the college with its calendar; undefined for an id that is not one of the college's.
 export async function findTerm(
   collegeId: string,
   id: string,
@@ -132,16 +147,16 @@ export async function findTerm(
     .select(termColumns)
     .from(terms)
     .where(and(eq(terms.collegeId, collegeId), eq(terms.id, id)));
-  return term ? { ...term, events: await eventsOf(id, db) } : undefined;
+  return term ? withCalendar(term, collegeId, db) : undefined;
 }
 
-// The college's active term with its calendar's events, if it has one.
+// The college's active term with its calendar, if it has one.
 export async function activeTerm(collegeId: string, db: Db = getDb()) {
   const [term] = await db
     .select(termColumns)
     .from(terms)
     .where(and(eq(terms.collegeId, collegeId), eq(terms.status, "active")));
-  return term ? { ...term, events: await eventsOf(term.id, db) } : undefined;
+  return term ? withCalendar(term, collegeId, db) : undefined;
 }
 
 // Another term of the college with this name in any case of its Latin letters.
@@ -229,7 +244,12 @@ export async function updateTerm(
       return { status: "nameTaken" };
     }
     const left = outside(
-      calendarOf(input, current.events, settings),
+      calendarOf(
+        input,
+        current.events,
+        settings,
+        await holidaysFrom(change.collegeId, input.startsOn, tx),
+      ),
       current.events,
     );
     if (left.length > 0) {
@@ -335,7 +355,7 @@ async function changeCalendar(
     const edited = edit(term.events);
     if (!edited) return { status: "eventNotFound" };
     const left = outside(
-      calendarOf(term, edited.events, settings),
+      calendarOf(term, edited.events, settings, term.breaks),
       edited.events,
     );
     if (left.length > 0) {
@@ -443,9 +463,10 @@ function samePlace(from: TermCalendar, to: TermCalendar, day: Day) {
 }
 
 // The "open next term" wizard (Step 13): a draft from another term, with its exam weeks, deadlines
-// and events of the college's own at the same places in its weeks. Its holidays stay behind: they
-// are days of the year, and Eid moves from year to year. Records term.create with the term it came
-// from and how many events it took. Steps 15, 18 and 19 add their parts to the copy as drafts.
+// and events of the college's own at the same places in its weeks, counted past the college's Eid
+// breaks that fall in it (ADR-0018). Its own holidays stay behind: they are days of the year. Records
+// term.create with the term it came from and how many events it took. Steps 15, 18 and 19 add their
+// parts to the copy as drafts.
 export async function openNextTerm(
   fromId: string,
   input: TermInput,
@@ -467,8 +488,13 @@ export async function openNextTerm(
       .insert(terms)
       .values({ collegeId: change.collegeId, ...input })
       .returning({ id: terms.id });
-    const from = calendarOf(source, source.events, settings);
-    const to = calendarOf(input, [], settings);
+    const from = calendarOf(source, source.events, settings, source.breaks);
+    const to = calendarOf(
+      input,
+      [],
+      settings,
+      await holidaysFrom(change.collegeId, input.startsOn, tx),
+    );
     const copies = source.events.flatMap((event) => {
       if (event.kind === "holiday") return [];
       const startsOn = samePlace(from, to, event.startsOn);

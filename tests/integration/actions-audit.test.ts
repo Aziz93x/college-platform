@@ -110,6 +110,7 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#openNextTermAction": ["term.create"],
   "(app)/terms/actions.ts#activateTermAction": ["term.activate"],
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
+  "(app)/terms/actions.ts#updateHolidayAction": ["holiday.update"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -440,6 +441,13 @@ describe("every server action writes its event", () => {
     });
     await expectWrites(`${terms}#activateTermAction`, { id: term.id });
     await expectWrites(`${terms}#closeTermAction`, { id: term.id });
+    // The next Eid break, its last day a day later (ADR-0018).
+    const [next] = await query(
+      `select id, to_char(starts_on, 'YYYY-MM-DD') as "startsOn",
+         to_char(ends_on + 1, 'YYYY-MM-DD') as "endsOn"
+       from holidays where starts_on > current_date order by starts_on limit 1`,
+    );
+    await expectWrites(`${terms}#updateHolidayAction`, next);
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

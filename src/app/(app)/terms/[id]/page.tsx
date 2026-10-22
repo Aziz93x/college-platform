@@ -16,10 +16,10 @@ import { authorize, requireViewer } from "@/modules/access";
 import { getSetting } from "@/modules/settings";
 import {
   activeTerm,
-  type CalendarEvent,
   calendarEventKinds,
   calendarOf,
   calendarSettings,
+  type DayRange,
   findTerm,
   type TermCalendar,
   termEndsOn,
@@ -65,7 +65,7 @@ export async function generateMetadata({
 
 // The weeks an event spans, by their numbers; holidays say how many weeks they take out of the
 // count instead.
-function eventWeeks(calendar: TermCalendar, event: CalendarEvent) {
+function eventWeeks(calendar: TermCalendar, event: DayRange) {
   const weeks = termWeeks(calendar).filter(
     (week) => week.startsOn <= event.endsOn && event.startsOn <= week.endsOn,
   );
@@ -105,8 +105,14 @@ export default async function TermPage({
         ? activeTerm(viewer.collegeId)
         : undefined,
     ]);
-  const calendar = calendarOf(term, term.events, settings);
+  const calendar = calendarOf(term, term.events, settings, term.breaks);
   const lastDay = termEndsOn(calendar);
+  // The college's Eid breaks that fall in the term (ADR-0018), with its own days.
+  const overlaps = (range: DayRange, from: string, to: string) =>
+    range.startsOn <= to && from <= range.endsOn;
+  const breaks = term.breaks.filter((range) =>
+    overlaps(range, term.startsOn, lastDay),
+  );
   const today = wallClock(new Date(), timeZone).slice(0, 10);
   const days = dayWords(locale, hijri);
   const editable = manage && term.status !== "closed";
@@ -155,7 +161,10 @@ export default async function TermPage({
             />
           ) : null}
           {editable ? (
-            <section aria-labelledby="term-details" className="flex flex-col gap-2">
+            <section
+              aria-labelledby="term-details"
+              className="flex flex-col gap-2"
+            >
               <h2
                 id="term-details"
                 className="px-1 font-medium text-muted-foreground text-sm"
@@ -176,12 +185,24 @@ export default async function TermPage({
             kinds={calendarEventKinds}
             firstDay={term.startsOn}
             today={today}
-            events={term.events.map((event) => ({
-              ...event,
-              days: days.span(event.startsOn, event.endsOn),
-              hijri: days.hijri?.(event.startsOn, event.endsOn),
-              ...eventWeeks(calendar, event),
-            }))}
+            events={[
+              ...term.events.map((event) => ({ ...event, college: false })),
+              ...breaks.map(({ id, name, startsOn, endsOn }) => ({
+                id,
+                kind: "holiday" as const,
+                title: name,
+                startsOn,
+                endsOn,
+                college: true,
+              })),
+            ]
+              .sort((a, b) => a.startsOn.localeCompare(b.startsOn))
+              .map((event) => ({
+                ...event,
+                days: days.span(event.startsOn, event.endsOn),
+                hijri: days.hijri?.(event.startsOn, event.endsOn),
+                ...eventWeeks(calendar, event),
+              }))}
           />
         </div>
       </NextIntlClientProvider>
@@ -190,12 +211,14 @@ export default async function TermPage({
           ...week,
           days: days.span(week.startsOn, week.endsOn),
           hijri: days.hijri?.(week.startsOn, week.endsOn),
-          events: term.events
-            .filter(
-              (event) =>
-                event.startsOn <= week.endsOn && week.startsOn <= event.endsOn,
-            )
-            .map(({ id, kind, title }) => ({ id, kind, title })),
+          holds: [
+            ...breaks
+              .filter((range) => overlaps(range, week.startsOn, week.endsOn))
+              .map(({ name }) => name),
+            ...term.events
+              .filter((event) => overlaps(event, week.startsOn, week.endsOn))
+              .map(({ title }) => title),
+          ],
         }))}
         current={weekOf(calendar, today)?.startsOn}
       />

@@ -155,6 +155,14 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
       return lookups.college;
     case "term":
       return lookups.term(id) ?? id;
+    // A year's Eid break by its name and Hijri year, as it was adjusted (ADR-0018).
+    case "holiday": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) && typeof was.name === "string"
+        ? `${was.name} ${was.hijriYear}`
+        : id;
+    }
     // An announcement by its title, as it was published or withdrawn (ADR-0017).
     case "announcement": {
       const diff = entry.diff ?? {};
