@@ -85,7 +85,7 @@ async function announce(page: Page, title: string, body: string) {
 }
 
 test(
-  "a head's announcements open over their trainer's next page, newest first with the page blurred, closing reads each for good, and a withdrawn one leaves the center (ADR-0017)",
+  "a head's announcements open over their trainer's next page, newest first with the page blurred, closing reads each for good and the head sees it read, and a withdrawn one leaves the center (ADR-0017)",
   DATABASE,
   async ({ browser, account, hasTouch }) => {
     const made = await department(account);
@@ -103,6 +103,10 @@ test(
         .getByRole("listitem");
       await expect(live).toHaveCount(2);
       await expect(live.first()).toContainText("تسليم الخطط");
+      // Its author sees how many of those it reached have read it: none yet (ADR-0017, decision 7).
+      await expect(live.first()).toContainText(
+        t("list.reads", { read: 0, reached: 1 }),
+      );
 
       // At the trainer's sign-in, the newest opens in the middle, over the page blurred.
       const trainer = await signIn(browser, made.trainer);
@@ -138,6 +142,13 @@ test(
       ).toHaveAccessibleName(notices("bell", { count: 0 }));
       await trainer.reload();
       await expect(trainer.getByRole("dialog")).toHaveCount(0);
+      // Closed is read, and the author's page counts it.
+      await head.reload();
+      for (const each of [live.first(), live.last()]) {
+        await expect(each).toContainText(
+          t("list.reads", { read: 1, reached: 1 }),
+        );
+      }
       await trainer.goto("/notifications");
       const rows = trainer
         .locator("main")

@@ -214,6 +214,28 @@ describe("reading and withdrawing", () => {
     ).toEqual(["اجتماع القسم"]);
   });
 
+  it("counts, for each live announcement, how many it reached and how many of them have read it (ADR-0017, decision 7)", async () => {
+    const reads = async () =>
+      (await listAnnouncements(collegeId, "college", database.db)).map(
+        ({ title, reached, read }) => [title, reached, read],
+      );
+    // Hind closed the college's above; no one has read the department's yet.
+    expect(await reads()).toEqual([
+      ["إجازة", 5, 1],
+      ["اجتماع القسم", 2, 0],
+    ]);
+    const [meeting] = await query(
+      `select n.id from notifications n join announcements a on a.id::text = n.params->>'announcementId'
+       where a.title = 'اجتماع القسم' and n.user_id = $1`,
+      [people.huda],
+    );
+    await markRead({ ids: [meeting.id] }, change("huda"), database.db);
+    expect(await reads()).toEqual([
+      ["إجازة", 5, 1],
+      ["اجتماع القسم", 2, 1],
+    ]);
+  });
+
   it("takes a withdrawn one from everyone it reached, read or not, once, and records it", async () => {
     const [{ id }] = await query(
       "select id from announcements where title = 'إجازة'",

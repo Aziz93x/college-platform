@@ -25,6 +25,7 @@ export {
   retractAnnouncement,
 } from "./server/notify.ts";
 export {
+  announcementReads,
   latestUnread,
   listNotifications,
   type NotificationEntry,
