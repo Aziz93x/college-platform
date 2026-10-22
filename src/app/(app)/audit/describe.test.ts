@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type AuditEntry, auditActions } from "@/modules/audit";
+import {
+  type AuditEntity,
+  type AuditEntry,
+  auditActions,
+} from "@/modules/audit";
 import messages from "../../../../messages/ar.json" with { type: "json" };
 import { describeEvent, type Lookups, type Words } from "./describe.ts";
 
@@ -366,6 +370,28 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names a section template by its title, department and term, as it became or was taken out (Step 18)", () => {
+    const template = {
+      termId: SPRING,
+      departmentId: ELECTRICAL,
+      title: "الاختبارات القصيرة",
+    };
+    for (const diff of [{ to: template }, { from: template }]) {
+      expect(
+        describeEvent(
+          entry({
+            entityType: "sectionTemplate",
+            entityId: "t1",
+            action: "sectionTemplate.create",
+            diff,
+          }),
+          lookups,
+          words,
+        ).subject,
+      ).toBe("الاختبارات القصيرة · التقنية الكهربائية · الفصل الثاني 1447");
+    }
+  });
+
   it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
     expect(
       describeEvent(
@@ -451,6 +477,44 @@ describe("describeEvent", () => {
       ).changes,
     ).toContainEqual({ field: "الفصل التدريبي", after: "الفصل الثاني 1447" });
   });
+});
+
+// An event of each kind of thing the log records, as its service writes it. A new kind needs its
+// own here, and the log a name for it: never its id alone (Audit 6).
+const typical = {
+  user: { entityId: HIND },
+  college: {},
+  department: { entityId: ELECTRICAL },
+  role: {},
+  membership: {
+    diff: { to: { userId: HIND, role: "head", departmentId: ELECTRICAL } },
+  },
+  setting: { entityId: "reminders.digestHour" },
+  announcement: { diff: { to: { title: "اجتماع القسم" } } },
+  term: { entityId: SPRING },
+  holiday: { diff: { to: { name: "إجازة عيد الفطر", hijriYear: 1448 } } },
+  axis: { diff: { from: { title: "الاختبارات" } } },
+  framework: { diff: { to: { termId: SPRING } } },
+  rayatImport: { diff: { report: "ss01", termId: SPRING } },
+  sectionTransfer: { diff: { to: { sectionRef: "30101", termId: SPRING } } },
+  sectionTemplate: {
+    diff: {
+      to: {
+        title: "الاختبارات القصيرة",
+        departmentId: ELECTRICAL,
+        termId: SPRING,
+      },
+    },
+  },
+} satisfies Record<AuditEntity, Partial<AuditEntry>>;
+
+it.each(
+  Object.entries(typical),
+)("names what a %s's event is about, not by its id", (entityType, event) => {
+  const described = entry({ entityType, entityId: "x1", ...event });
+  expect(describeEvent(described, lookups, words).subject).not.toBe(
+    described.entityId,
+  );
 });
 
 it("has a word for every action the log records, and for its group", () => {
