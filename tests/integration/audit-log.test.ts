@@ -6,6 +6,7 @@ import {
   listAuditEvents,
 } from "../../src/modules/audit/index.ts";
 import { createTestDatabase } from "./support/database.ts";
+import { recording } from "./support/plans.ts";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 
@@ -261,5 +262,22 @@ describe("paging through 100,000 events", () => {
       expect(next).toBeDefined();
       expect(elapsed).toBeLessThan(300);
     }
+
+    // Each page reads its index from the top, in the index's order: nothing is sorted, and the
+    // page costs the same at any size of the log (lead review B).
+    const recorder = recording(database.pool);
+    await listAuditEvents(collegeId, {}, {}, recorder.db);
+    await listAuditEvents(collegeId, {}, { after: deep }, recorder.db);
+    await listAuditEvents(
+      collegeId,
+      { action: "department.create" },
+      {},
+      recorder.db,
+    );
+    expect(await recorder.plans()).toEqual([
+      ["Limit", "audit_events_college_time_idx"],
+      ["Limit", "audit_events_college_time_idx"],
+      ["Limit", "audit_events_action_idx"],
+    ]);
   });
 });

@@ -37,14 +37,19 @@ export const notifications = pgTable(
     readAt: timestamp("read_at", { withTimezone: true }),
   },
   // A person's notifications page newest first by (created_at, id); the bell counts the unread.
+  // Each index keeps desc()'s order, nulls first, as the queries ask (lead review B).
   (table) => [
     index("notifications_user_time_idx").on(
       table.userId,
-      table.createdAt.desc(),
-      table.id.desc(),
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
     ),
     index("notifications_unread_idx")
-      .on(table.userId, table.createdAt.desc())
+      .on(
+        table.userId,
+        table.createdAt.desc().nullsFirst(),
+        table.id.desc().nullsFirst(),
+      )
       .where(sql`${table.readAt} is null`),
     uniqueIndex("notifications_once_idx").on(table.userId, table.onceKey),
   ],

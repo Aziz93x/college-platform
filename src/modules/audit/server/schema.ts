@@ -33,26 +33,33 @@ export const auditEvents = pgTable(
       .notNull()
       .defaultNow(),
   },
-  // The log pages newest first by (created_at, id), whole or by person, and an entity's history
-  // reads its own events (Step 11).
+  // The log pages newest first by (created_at, id), whole, by person or by action, and an entity's
+  // history reads its own events (Step 11). Each index keeps desc()'s order, nulls first, as the
+  // queries ask: with nulls last, no ORDER BY could use it (lead review B).
   (table) => [
     index("audit_events_college_time_idx").on(
       table.collegeId,
-      table.createdAt.desc(),
-      table.id.desc(),
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
     ),
     index("audit_events_actor_idx").on(
       table.collegeId,
       table.actorId,
-      table.createdAt.desc(),
-      table.id.desc(),
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
+    ),
+    index("audit_events_action_idx").on(
+      table.collegeId,
+      table.action,
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
     ),
     index("audit_events_entity_idx").on(
       table.collegeId,
       table.entityType,
       table.entityId,
-      table.createdAt.desc(),
-      table.id.desc(),
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
     ),
   ],
 );
