@@ -25,6 +25,7 @@ export function KeepTransferButton({ id }: { id: string }) {
       setRunning(false);
       const status = result?.data?.status;
       if (status === "kept") toast.success(t("kept"));
+      else if (status === "notConflict") setError(t("notConflict"));
       else if (status) setError(t("gone"));
       else setError(refusals(result?.serverError ?? "unexpected"));
     });

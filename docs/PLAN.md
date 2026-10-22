@@ -237,6 +237,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | Accessibility | axe: no serious or critical issues; WCAG 2.2 AA; touch targets 44 px; usable at 200% text size |
 | JavaScript per route | 170 KB gzipped or less (not met; a measured budget is proposed in ADR-0010) |
 | Server time | p95 under 300 ms for reads and under 1 s for writes |
+| Rayat import | an upload of 25,000 rows in 5 s or less, from the file's bytes to its import kept with its diff (ADR-0023) |
 
 **The login page at `/`.** A split layout on desktop and one column on phones: identity wave art, the platform and college names from settings, employee number or email, password, "remember this device", and a pilot banner whose text is a setting. Showing the college logo before sign-in is also a setting, off until the dean gives written permission.
 
@@ -1020,6 +1021,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 16:** each import keeps its records, never the file: `rayat_sections` (a section by its reference, with its meetings and every trainer number its rows name), `rayat_enrollments` and `rayat_absences` (`src/modules/rayat`). A term's version of a report is its import applied last and not rolled back, which `rayatVersion(collegeId, termId, kind)` reads, with when it was applied. Build courses, sections and enrollments on the version in force; applying or rolling back a version is where a newer SS01 meets the transfers, so flag what it changes there.
 
+**Note from lead review C:** a transfer reads one of four ways against the SS01 in force, from `readTransfers()` (`src/modules/academics/domain/transfers.ts`): it holds while Rayat's file was uploaded before it was made or last kept; it is confirmed when Rayat names the new trainer and not the one replaced; it is in conflict while a file uploaded after it still names the trainer replaced, and applies until the head keeps or cancels it; and it changes nothing once the trainer replaced no longer teaches the section by its week, which the head cancels, not keeps. The waiting SS01 lists the transfers it would change, applying or rolling back SS01 tells the department's holders of `sections.transfer` (`transferConflict`), and `/sections` puts those sections first (ADR-0020). `/sections` opens read-only for `rayat.import`, one department at a time with a search (ADR-0021), and a trainer Rayat names who is not on the platform is added from the SS01 card (ADR-0022).
+
 > **Checkpoint: Lead review C.** Run `/lead-review C`, then tag `v0.3-C`.
 
 ### Section D. Department planning: the head's part (steps 18 to 22)
@@ -1066,7 +1069,9 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
 
-**Note from Step 17:** a section is SS01's in force, by its Rayat reference in the term; there is no table of sections (`listSections()`, `src/modules/academics`). Its trainers in a week are `trainersInWeek()`: Rayat's employee numbers, with each head's transfer in force by that week in place of the trainer it replaced; a number no person has is a trainer not on the platform, whose tasks wait for them. `transferTasks()` holds the rule for tasks: the replaced trainer's open tasks of the section move to the new trainer, and their completed work stays with them, marked with the last week they taught it. Apply it when a transfer is made, and generate a transfer's later weeks for the new trainer. Cancelling a transfer gives its open tasks back.
+**Note from Step 17, as lead review C left it:** a section is SS01's in force, by its Rayat reference in the term; there is no table of sections (`listSections()`, `src/modules/academics`). Its trainers in a week come from `readTransfers(rayat, uploadedAt, transfers)` (`src/modules/academics/domain/transfers.ts`), whose `trainersInWeek(week)` gives Rayat's employee numbers with each confirmed transfer undone for the weeks before it, and each transfer that holds or is in conflict in place of the trainer it replaced from its week on. A transfer that changes nothing changes no week. A number no person has is a trainer not on the platform, whose tasks wait for them. `transferTasks()` holds the rule for tasks: the replaced trainer's open tasks of the section move to the new trainer, and their completed work stays with them, marked with the last week they taught it. Apply it when a transfer is made, and generate a transfer's later weeks for the new trainer. Cancelling a transfer gives its open tasks back.
+
+**Note from lead review C (the owner's rule, 2026-10-22):** an item for each section's trainer makes one task for each trainer of the section, as the engine's key (item, occurrence, assignee and section) has it: a section Rayat gives two trainers makes two, and a section with no trainer yet makes none. The framework's preview counts the same, with `sectionCounts()` giving each department's section trainers and the sections without one, which the preview names apart. The demo has a section with two trainers, one with none, and the exam copy for each section's trainer, so "the published preview equals the tasks generated" is checked on both.
 
 > **Checkpoint: UX review 2.** Run `/ux-review 11-20` (audit log, notifications, term and framework, Rayat import, sections, templates, plan editor).
 
@@ -1455,7 +1460,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 7:** measured on the production build from a phone, the settings page loads about 304 KiB of script (Today 254 KiB): its BeUI controls with Motion's motion values, about 33 KiB, and Sonner, about 11 KiB. Zod stays off the client: `toLatinDigits` lives apart from the schema helpers in `src/platform/validation/digits.ts`. Decide whether the budget covers admin pages, or trim them here.
 
-**Note from lead review B:** `readTable()` (`src/platform/files/table.ts`) hands a workbook's bytes to read-excel-file, which inflates every entry into memory: a 0.9 MB file whose sheet inflates to about 900 MB held 1.1 GB for 3.4 s before it was refused. With this step's upload checks, read the archive's declared sizes first, or read the sheet with a byte budget of about 20 MB; a 2,000-row people file needs under 1 MB (docs/reviews/lead-B.md, proposal 7).
+**Note from lead review B, done in lead review C:** `readTable()` (`src/platform/files/table.ts`) handed a workbook's bytes to read-excel-file, which inflates every entry into memory: a 9.6 MB workbook, under Step 16's 10 MB uploads, took it past 8 GB. It now inflates each entry first, counting the bytes rather than trusting the sizes the archive declares, and refuses a workbook past 50 MB (`MAX_INFLATED_BYTES`); a 25,000-row SF01 inflates to about 17 MB (docs/reviews/lead-B.md, proposal 7; docs/reviews/lead-C.md).
 
 > **Checkpoint: UX review 4.** Run `/ux-review 31-40` (portfolio, PDF, department file, indicators, meetings, documents, installed app).
 

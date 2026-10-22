@@ -225,6 +225,10 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 - `notification-stack.tsx`: a group of links with a button at its foot, no longer one button. Each card is a link (`href`) that calls `onOpen` before it is followed, so the bell reads the notification first; the cards the closed stack hides are `aria-hidden` and out of reach. The foot keeps the stack's tap logic: its first activation opens the list, its second `onViewAll`, and its name and `aria-expanded` say which. A resting pointer opens the list as before, but focus opens it only when it is the keyboard's (`:focus-visible`) and comes from outside the stack, so a browser that focuses on contact does not spread the cards under a finger mid-tap. Escape gives the focus to the foot before the hidden cards close over it. The foot is 44 px tall. A hovered card's muted words take the foreground colour, as the center's rows do: muted on the hover's tint measures under 4.5:1.
 - `select.tsx`: `SelectValue` takes a `placeholder`, in the muted colour, for a choice with no default (the role to give on a person's page).
 
+## Local changes from lead review C
+
+- `select.tsx`: the open list is bounded to the room on the side it opens to, less an 8 px margin, and scrolls past it, at least about three options tall. A long list opened upward in a bottom sheet ran off the top of the screen, where neither a finger nor a mouse could reach its first options (the framework item's kinds, a transfer's weeks). The option focus follows, as before, scrolls into view.
+
 ## Local changes from UX review 1 (docs/reviews/ux-10.md)
 
 - `liquid.tsx` and `adaptive-stepper.tsx`: at rest each shape is drawn by its own element, with a CSS

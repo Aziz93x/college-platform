@@ -76,8 +76,8 @@ try {
     await seedDemoAnnouncements(ctx, collegeId);
     await seedDemoTerms(ctx, collegeId, week);
     await seedDemoFramework(ctx, collegeId);
-    await seedDemoRayat(ctx, collegeId);
-    await seedDemoSections(ctx, collegeId, week);
+    const rayat = await seedDemoRayat(ctx, collegeId);
+    await seedDemoSections(ctx, collegeId, week, rayat?.newerSs01);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,
     );

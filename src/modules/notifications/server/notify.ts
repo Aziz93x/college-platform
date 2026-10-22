@@ -90,7 +90,8 @@ export async function retractAnnouncement(
     .where(
       and(
         eq(notifications.collegeId, collegeId),
-        eq(notifications.kind, "announcement"),
+        // Written out, so the planner matches the partial index on announcements.
+        sql`${notifications.kind} = 'announcement'`,
         sql`${notifications.params}->>'announcementId' = ${announcementId}`,
       ),
     )

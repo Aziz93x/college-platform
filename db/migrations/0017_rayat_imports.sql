@@ -1,3 +1,6 @@
+-- Rayat's reports for a term (Step 16): each upload of SS01, SF01 or SO01 with its diff, waiting,
+-- applied or rolled back, and the records it keeps, never the file. Its inverse drops rayat_absences,
+-- rayat_enrollments, rayat_sections and rayat_imports.
 CREATE TABLE "rayat_absences" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"college_id" uuid NOT NULL,

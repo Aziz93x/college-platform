@@ -612,11 +612,20 @@ it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of
       appliedBy: null,
       counts: expect.objectContaining({ added: 2, removed: 0, changed: 3 }),
     },
+    // The next SS01, which the head's earlier transfer is in conflict with (ADR-0020).
+    {
+      kind: "ss01",
+      status: "applied",
+      uploadedBy: viceDean,
+      appliedBy: viceDean,
+      counts: expect.objectContaining({ added: 0, removed: 0, changed: 1 }),
+    },
   ]);
-  // Each section is taught by a trainer of its department, but Electrical's visitor (Step 17).
+  // Each section is taught by a trainer of its department, but Electrical's visitor and one of the
+  // third department's, which has no trainer yet (Step 17, lead review C).
   const { rows: departments } = await pool.query(
     `select d.name, count(*)::int > 0 as sections,
-      bool_and(s.trainer_numbers = array[$1] or exists (
+      bool_and(s.trainer_numbers = array[$1] or cardinality(s.trainer_numbers) = 0 or exists (
         select 1 from people p
         join memberships m on m.user_id = p.user_id
         join roles r on r.id = m.role_id and r.key = 'trainer'
@@ -631,9 +640,22 @@ it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of
       .map(({ name }) => ({ name, sections: true, taught: true }))
       .sort((a, b) => (a.name < b.name ? -1 : 1)),
   );
+  // In the version in force, the third department has a section taught by two trainers and one
+  // with none, which the owner's rule gives two tasks and none (lead review C).
+  const { rows: shapes } = await pool.query(
+    `select cardinality(s.trainer_numbers) as trainers, count(*)::int as sections
+     from rayat_sections s join rayat_imports i on i.id = s.import_id
+     join departments d on d.id = s.department_id
+     where i.kind = 'ss01' and i.status = 'applied' and d.name = $1
+       and i.applied_at = (select max(applied_at) from rayat_imports where kind = 'ss01' and status = 'applied')
+     group by 1 order by 1`,
+    [demoDepartments[2].name],
+  );
+  expect(shapes.map(({ trainers }) => trainers)).toEqual([0, 1, 2]);
+  expect(shapes.find(({ trainers }) => trainers !== 1)).toBeDefined();
 });
 
-it("has the head of Electrical transfer a section to another trainer of the department from this week, and Electrical's visitor named as not on the platform (Step 17)", async () => {
+it("has the head of Electrical transfer a section to another trainer of the department two weeks back, which the next SS01 is in conflict with, and another from this week; and Electrical's visitor named as not on the platform (Step 17, ADR-0020)", async () => {
   const { db, pool } = await seededDatabase();
   const { rows: transfers } = await pool.query(`
     select d.name as department, u.email as by, t.week,
@@ -643,8 +665,17 @@ it("has the head of Electrical transfer a section to another trainer of the depa
         where m.user_id = t.to_user_id and m.department_id = t.department_id
       ) as "toTeachesThere"
     from section_transfers t join departments d on d.id = t.department_id
-    join users u on u.id = t.created_by`);
+    join users u on u.id = t.created_by
+    order by t.created_at`);
   expect(transfers).toEqual([
+    // The earlier, which the next SS01 is in conflict with (ADR-0020).
+    {
+      department: demoDepartments[1].name,
+      by: demoAccounts.head.email,
+      week: 7,
+      fromOnPlatform: true,
+      toTeachesThere: true,
+    },
     {
       department: demoDepartments[1].name,
       by: demoAccounts.head.email,
@@ -653,6 +684,13 @@ it("has the head of Electrical transfer a section to another trainer of the depa
       toTeachesThere: true,
     },
   ]);
+  // The head heard of the conflict.
+  const { rows: told } = await pool.query(
+    `select n.params->>'status' as status from notifications n join users u on u.id = n.user_id
+     where n.kind = 'transferConflict' and u.email = $1`,
+    [demoAccounts.head.email],
+  );
+  expect(told).toEqual([{ status: "conflict" }]);
   const {
     rows: [{ id: collegeId }],
   } = await pool.query("select id from colleges");

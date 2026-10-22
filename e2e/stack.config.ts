@@ -17,6 +17,7 @@ if (existsSync(secrets)) process.loadEnvFile(secrets);
 export default defineConfig({
   ...config,
   testDir: ".",
+  // Every spec is here or named, with why it stays out, in tests/unit/stack-specs.test.ts.
   testMatch: [
     "audit.spec.ts",
     "auth.setup.ts",
@@ -29,6 +30,7 @@ export default defineConfig({
     "people.spec.ts",
     "rayat.spec.ts",
     "roles.spec.ts",
+    "sections.spec.ts",
     "security.spec.ts",
     "settings.spec.ts",
     "shell.spec.ts",

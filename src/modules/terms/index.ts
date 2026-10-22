@@ -35,9 +35,11 @@ export {
   closeTerm,
   createTerm,
   findTerm,
+  listTermCalendars,
   listTerms,
   openNextTerm,
   removeCalendarEvent,
+  strandedBySetting,
   updateCalendarEvent,
   updateTerm,
 } from "./server/terms.ts";

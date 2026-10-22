@@ -12,6 +12,9 @@ export const notificationKinds = {
   // What someone announced to the person's department or college, shown over the page until it is
   // closed, which no one turns off (ADR-0017).
   announcement: { href: "/notifications", optional: false },
+  // A new version of SS01 put a transfer of a section of the head's department in conflict, or left
+  // it replacing a trainer who no longer teaches the section (ADR-0020).
+  transferConflict: { href: "/sections", optional: true },
 } as const;
 
 export type NotificationKind = keyof typeof notificationKinds;
@@ -51,4 +54,10 @@ export type NotificationParams = {
     body: string;
     author: string;
   } & ({ scope: "college" } | { scope: "department"; department: string });
+  // The section, its department as named when it was sent, and what Rayat now says of the transfer.
+  transferConflict: {
+    sectionRef: string;
+    department: string;
+    status: "conflict" | "otherTrainer";
+  };
 };

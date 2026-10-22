@@ -52,6 +52,11 @@ export const notifications = pgTable(
       )
       .where(sql`${table.readAt} is null`),
     uniqueIndex("notifications_once_idx").on(table.userId, table.onceKey),
+    // An announcement's notifications, which its read counts and its withdrawal look up (lead
+    // review C).
+    index("notifications_announcement_idx")
+      .on(sql`(${table.params} ->> 'announcementId')`)
+      .where(sql`${table.kind} = 'announcement'`),
   ],
 );
 

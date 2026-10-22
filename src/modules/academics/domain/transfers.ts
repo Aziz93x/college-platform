@@ -2,49 +2,81 @@
 // named by their employee numbers, as Rayat names them.
 
 // A head's transfer of a section: from the week it takes effect, the trainer with toNumber teaches
-// it in place of the one with fromNumber.
+// it in place of the one with fromNumber. It was made, or last kept by the head, at `since`.
 export type TransferChange = {
   fromNumber: string;
   toNumber: string;
   week: number;
+  since: Date;
 };
 
-// A section's trainers in a week: Rayat's, each replaced by whom a transfer in force by that week
-// gave the section. Transfers of one week replace in the order they come, the order they were made.
-export function trainersInWeek(
+// What a transfer comes to against Rayat's SS01 in force (lead review C):
+// - confirmed: Rayat names the new trainer and not the one replaced;
+// - holds: it applies, and Rayat's file was uploaded before it was made or last kept, so it cannot
+//   know of it yet;
+// - conflict: it applies, and a file uploaded after it still names the trainer it replaced; it
+//   applies until the head keeps or cancels it;
+// - otherTrainer: the trainer it replaced no longer teaches the section by its week, so it changes
+//   nothing.
+export type TransferStatus =
+  | "holds"
+  | "confirmed"
+  | "conflict"
+  | "otherTrainer";
+
+// A section's transfers read against the employee numbers Rayat's SS01 in force names for it, from
+// a file uploaded at uploadedAt. The transfers come in the order they were made, and take effect
+// by their weeks, those of one week in the order they were made.
+//
+// Each trainer Rayat names holds a place in the section. Rayat's names come after the transfers it
+// confirms, so the term starts with those undone, the latest first. Each transfer then puts its
+// new trainer in the place of the one it replaced, from its week on: a confirmed transfer in the
+// place Rayat gave its new trainer, another where the trainer it replaced is by then. Gives each
+// transfer's status, in the order given, and the section's trainers in a week.
+export function readTransfers(
   rayat: readonly string[],
+  uploadedAt: Date,
   transfers: readonly TransferChange[],
-  week: number,
 ) {
-  return transfers
-    .filter((transfer) => transfer.week <= week)
-    .sort((a, b) => a.week - b.week)
-    .reduce(
-      (trainers, transfer) =>
-        trainers.map((number) =>
-          number === transfer.fromNumber ? transfer.toNumber : number,
-        ),
-      [...rayat],
-    );
-}
-
-export type TransferStatus = "holds" | "confirmed" | "conflict";
-
-// Whether Rayat agrees with a transfer. It holds until a version of SS01 applied after it was made,
-// or after the head last kept it: that version confirms it when it names the new trainer and no
-// longer the one replaced, and is in conflict with it otherwise, the section gone from it too.
-export function transferStatus(
-  transfer: { fromNumber: string; toNumber: string; since: Date },
-  ss01:
-    | { appliedAt: Date; trainers: readonly string[] | undefined }
-    | undefined,
-): TransferStatus {
-  if (!ss01 || ss01.appliedAt <= transfer.since) return "holds";
-  const trainers = ss01.trainers ?? [];
-  return trainers.includes(transfer.toNumber) &&
-    !trainers.includes(transfer.fromNumber)
-    ? "confirmed"
-    : "conflict";
+  const order = transfers
+    .map((transfer, index) => ({ transfer, index }))
+    .sort((a, b) => a.transfer.week - b.transfer.week);
+  const start = [...rayat];
+  const confirmed = new Map<number, number>();
+  for (const { transfer, index } of [...order].reverse()) {
+    const place = start.indexOf(transfer.toNumber);
+    if (place !== -1 && !start.includes(transfer.fromNumber)) {
+      confirmed.set(index, place);
+      start[place] = transfer.fromNumber;
+    }
+  }
+  const statuses: TransferStatus[] = [];
+  const steps: { week: number; place: number; number: string }[] = [];
+  const places = [...start];
+  for (const { transfer, index } of order) {
+    const place = confirmed.get(index) ?? places.indexOf(transfer.fromNumber);
+    if (place === -1) {
+      statuses[index] = "otherTrainer";
+      continue;
+    }
+    statuses[index] = confirmed.has(index)
+      ? "confirmed"
+      : transfer.since < uploadedAt
+        ? "conflict"
+        : "holds";
+    places[place] = transfer.toNumber;
+    steps.push({ week: transfer.week, place, number: transfer.toNumber });
+  }
+  return {
+    statuses,
+    trainersInWeek(week: number) {
+      const trainers = [...start];
+      for (const step of steps) {
+        if (step.week <= week) trainers[step.place] = step.number;
+      }
+      return [...new Set(trainers)];
+    },
+  };
 }
 
 // A task's statuses (section 3); overdue is a flag on top of them, not one of them.

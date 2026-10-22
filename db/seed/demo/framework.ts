@@ -17,12 +17,14 @@ import { demoAccounts } from "./accounts.ts";
 import { deviceOf } from "./device.ts";
 
 // The demo term's general framework (Step 15): ten college-wide items under the axes, entered and
-// published by the vice-dean, in the log. Each names its axis by code, its audience by role key, and
-// its evidence by the extensions the college accepts.
+// published by the vice-dean, in the log. Each names its axis by code, its audience by role key or
+// each section's trainer, and its evidence by the extensions the college accepts. The exam copy
+// reaches each trainer of each section: twice a co-taught one, and none without a trainer yet
+// (lead review C).
 // Written once, while the active term has no framework.
 const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
   axis: string;
-  role: "trainer" | "head";
+  role: "trainer" | "head" | "eachSection";
 })[] = [
   {
     axis: "1",
@@ -40,7 +42,7 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
   },
   {
     axis: "2",
-    role: "trainer",
+    role: "eachSection",
     title: "نسخة الاختبار ونموذج الإجابة",
     kind: "exam_copy",
     due: { type: "afterEvent", eventKind: "exam", weeks: 0 },
@@ -204,11 +206,15 @@ export async function seedDemoFramework({ db }: { db: Db }, collegeId: string) {
   for (const { axis, role, ...item } of ITEMS) {
     const axisId = axes.get(axis);
     const roleId = roleIds.get(role);
-    if (!axisId || !roleId)
+    if (!axisId || (!roleId && role !== "eachSection"))
       throw new Error(`seed:demo: no axis ${axis} or role ${role}`);
     const added = await addItem(
       draft.id,
-      { ...item, axisId, appliesTo: { type: "role", roleId } },
+      {
+        ...item,
+        axisId,
+        appliesTo: roleId ? { type: "role", roleId } : { type: "eachSection" },
+      },
       change,
       accepted,
       db,

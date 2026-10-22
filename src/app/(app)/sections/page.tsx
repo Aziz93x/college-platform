@@ -11,6 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
+import { searchCommands } from "@/components/motion/lib/command-search";
 import { PageHeader } from "@/components/page-header";
 import {
   listSections,
@@ -26,14 +27,11 @@ import {
   requireViewer,
 } from "@/modules/access";
 import { listDepartments } from "@/modules/org";
-import {
-  calendarOf,
-  calendarSettings,
-  findTerm,
-  termWeeks,
-} from "@/modules/terms";
+import { termWeeks } from "@/modules/terms";
 import { wallClock } from "@/platform/i18n/time-zone";
-import { viewedTerm } from "../_shell/term.ts";
+import { toLatinDigits } from "@/platform/validation/digits";
+import { termCalendar, viewedTerm } from "../_shell/term.ts";
+import { SectionsFilters } from "./sections-filters.tsx";
 import {
   CancelTransferButton,
   KeepTransferButton,
@@ -50,21 +48,37 @@ const badges = {
   holds: "pending",
   confirmed: "success",
   conflict: "alert",
+  otherTrainer: "alert",
 } as const;
 
-// The sections of the term on view in the departments where the viewer transfers them (Step 17):
-// each with its course, schedule, numbers and trainers this week, and the transfers made, with
-// what Rayat says of each. A closed term's are shown, and nothing changes them.
-export default async function SectionsPage() {
+// A transfer the head must look at: a newer SS01 is in conflict with it, or it changes nothing.
+const needsHead = (transfer: SectionTransfer) =>
+  transfer.status === "conflict" || transfer.status === "otherTrainer";
+
+// The sections of the term on view (Step 17), one department at a time (ADR-0021): each with its
+// course, schedule, numbers and trainers this week, and the transfers made, with what Rayat says
+// of each, those that need the head first (ADR-0020). Whoever holds sections.transfer transfers
+// the sections of their departments; whoever imports Rayat reads every department's. A closed
+// term's are shown, and nothing changes them.
+export default async function SectionsPage({
+  searchParams,
+}: PageProps<"/sections">) {
   await connection();
   const viewer = await requireViewer();
-  const held = permittedDepartments(viewer, "sections.transfer");
-  if (held !== "college" && held.length === 0) forbidden();
+  const transfers = permittedDepartments(viewer, "sections.transfer");
+  const imports = permittedDepartments(viewer, "rayat.import");
+  const reads =
+    imports === "college" || imports.length > 0 ? "college" : transfers;
+  if (reads !== "college" && reads.length === 0) forbidden();
   const scope = { collegeId: viewer.collegeId };
-  const [t, { term }] = await Promise.all([
+  const [t, { term }, params] = await Promise.all([
     getTranslations("sections"),
     viewedTerm(viewer.collegeId, authorize(viewer, "term.manage", scope)),
+    searchParams,
   ]);
+  const one = (value: string | string[] | undefined) =>
+    typeof value === "string" ? value : "";
+  const query = one(params.q).slice(0, 100);
   const header = (
     <PageHeader title={t("title")} description={t("description")} />
   );
@@ -80,33 +94,35 @@ export default async function SectionsPage() {
     );
   }
 
-  const [messages, format, timeZone, calendar, settings, departments] =
-    await Promise.all([
-      getMessages(),
-      getFormatter(),
-      getTimeZone(),
-      findTerm(viewer.collegeId, term.id),
-      calendarSettings(viewer.collegeId),
-      listDepartments(viewer.collegeId),
-    ]);
+  const [messages, format, timeZone, found, departments] = await Promise.all([
+    getMessages(),
+    getFormatter(),
+    getTimeZone(),
+    termCalendar(viewer.collegeId, term.id),
+    listDepartments(viewer.collegeId),
+  ]);
   // This week: the last numbered week begun by today, the first before the term starts.
   const today = wallClock(new Date(), timeZone).slice(0, 10);
   const week =
-    (calendar
-      ? termWeeks(
-          calendarOf(calendar, calendar.events, settings, calendar.breaks),
-        )
-      : []
-    )
+    (found ? termWeeks(found.calendar) : [])
       .filter((each) => each.number !== null && each.startsOn <= today)
       .at(-1)?.number ?? 1;
   const { sections, gone } = await listSections(
     viewer.collegeId,
     term.id,
-    held,
+    reads,
     week,
   );
-  if (sections.length === 0 && gone.length === 0) {
+  // The departments with sections, or with transfers of sections SS01 dropped, in the college's
+  // order; the one chosen, or the first.
+  const present = new Set([
+    ...sections.map((section) => section.departmentId),
+    ...gone.map((transfer) => transfer.departmentId),
+  ]);
+  const shown = departments.filter(({ id }) => present.has(id));
+  const department =
+    shown.find(({ id }) => id === one(params.department)) ?? shown[0];
+  if (!department) {
     return (
       <>
         {header}
@@ -119,19 +135,47 @@ export default async function SectionsPage() {
   }
 
   const open = term.status !== "closed";
-  const shown = [...new Set(sections.map((section) => section.departmentId))];
-  const candidates = open
-    ? new Map(
-        await Promise.all(
-          shown.map(
-            async (id) =>
-              [id, await transferCandidates(viewer.collegeId, id)] as const,
-          ),
-        ),
-      )
-    : new Map();
+  const transfersHere =
+    open && (transfers === "college" || transfers.includes(department.id));
+  const own = sections.filter(
+    (section) => section.departmentId === department.id,
+  );
   const name = (trainer: Trainer) =>
     trainer.name ?? t("notOnPlatform", { number: trainer.number });
+  // The search's matches, in the page's order: by reference, course, or trainer by name or number.
+  const matched = query.trim()
+    ? new Set(
+        searchCommands(
+          own.map((section) => ({
+            section,
+            label: section.course.name,
+            keywords: [
+              section.ref,
+              section.course.code,
+              ...section.trainers.flatMap((trainer) => [
+                trainer.number,
+                trainer.name ?? "",
+              ]),
+            ],
+          })),
+          toLatinDigits(query),
+        ).map(({ section }) => section),
+      )
+    : undefined;
+  const listed = own.filter((section) => !matched || matched.has(section));
+  const waiting = listed.filter((section) => section.transfers.some(needsHead));
+  const ordered = [
+    ...waiting,
+    ...listed.filter((section) => !waiting.includes(section)),
+  ];
+  const goneHere = gone.filter(
+    (transfer) => transfer.departmentId === department.id,
+  );
+  const candidates = transfersHere
+    ? ((await transferCandidates(viewer.collegeId, [department.id])).get(
+        department.id,
+      ) ?? [])
+    : [];
   const transferLine = (transfer: SectionTransfer) =>
     t("transfers.line", {
       week: transfer.week,
@@ -160,7 +204,18 @@ export default async function SectionsPage() {
         </p>
       )}
       <div className="flex flex-col gap-8">
-        {gone.length > 0 ? (
+        <SectionsFilters
+          departments={shown.length > 1 ? shown : []}
+          department={department.id}
+          query={query}
+          results={listed.length}
+        />
+        {transfersHere && waiting.length > 0 ? (
+          <p className="px-1 text-sm">
+            {t("needsHead", { count: waiting.length })}
+          </p>
+        ) : null}
+        {goneHere.length > 0 ? (
           <section
             aria-labelledby="sections-gone"
             className="flex flex-col gap-3 rounded-xl border border-alert/40 bg-card px-5 py-4 shadow-xs sm:px-6"
@@ -174,7 +229,7 @@ export default async function SectionsPage() {
               </p>
             </div>
             <ul className="flex flex-col gap-3">
-              {gone.map((transfer) => (
+              {goneHere.map((transfer) => (
                 <li
                   key={transfer.id}
                   className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
@@ -192,7 +247,7 @@ export default async function SectionsPage() {
                       {transferMeta(transfer)}
                     </p>
                   </div>
-                  {open ? (
+                  {transfersHere ? (
                     <CancelTransferButton
                       id={transfer.id}
                       sectionRef={transfer.sectionRef}
@@ -203,56 +258,48 @@ export default async function SectionsPage() {
             </ul>
           </section>
         ) : null}
-        {shown.map((departmentId) => {
-          const department = departments.find(({ id }) => id === departmentId);
-          return (
-            <section
-              key={departmentId}
-              aria-labelledby={`department-${departmentId}`}
-              className="flex flex-col gap-4"
-            >
-              <h2
-                id={`department-${departmentId}`}
-                className={
-                  shown.length > 1 ? "px-1 font-medium text-base" : "sr-only"
-                }
-              >
-                {department?.name}
-              </h2>
-              <ul className="flex flex-col gap-4">
-                {sections
-                  .filter((section) => section.departmentId === departmentId)
-                  .map((section) => (
-                    <li key={section.ref}>
-                      <SectionCard
-                        section={section}
-                        name={name}
-                        transferLine={transferLine}
-                        transferMeta={transferMeta}
-                        transfer={
-                          open && section.trainers.length > 0 ? (
-                            <TransferButton
-                              termId={term.id}
-                              sectionRef={section.ref}
-                              trainers={section.trainers.map((trainer) => ({
-                                number: trainer.number,
-                                label: name(trainer),
-                              }))}
-                              candidates={candidates.get(departmentId) ?? []}
-                              weeks={term.weeks}
-                              week={week}
-                              reasonLength={transferLengths.reason}
-                            />
-                          ) : null
-                        }
-                        open={open}
+        <section
+          aria-labelledby={`department-${department.id}`}
+          className="flex flex-col gap-4"
+        >
+          <h2
+            id={`department-${department.id}`}
+            className={
+              shown.length > 1 ? "px-1 font-medium text-base" : "sr-only"
+            }
+          >
+            {department.name}
+          </h2>
+          <ul className="flex flex-col gap-4">
+            {ordered.map((section) => (
+              <li key={section.ref}>
+                <SectionCard
+                  section={section}
+                  name={name}
+                  transferLine={transferLine}
+                  transferMeta={transferMeta}
+                  transfer={
+                    transfersHere && section.trainers.length > 0 ? (
+                      <TransferButton
+                        termId={term.id}
+                        sectionRef={section.ref}
+                        trainers={section.trainers.map((trainer) => ({
+                          number: trainer.number,
+                          label: name(trainer),
+                        }))}
+                        candidates={candidates}
+                        weeks={term.weeks}
+                        week={week}
+                        reasonLength={transferLengths.reason}
                       />
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          );
-        })}
+                    ) : null
+                  }
+                  changes={transfersHere}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </NextIntlClientProvider>
   );
@@ -266,14 +313,15 @@ async function SectionCard({
   transferLine,
   transferMeta,
   transfer,
-  open,
+  changes,
 }: {
   section: Section;
   name: (trainer: Trainer) => string;
   transferLine: (transfer: SectionTransfer) => string;
   transferMeta: (transfer: SectionTransfer) => string;
   transfer: ReactNode;
-  open: boolean;
+  /** The viewer keeps and cancels the section's transfers. */
+  changes: boolean;
 }) {
   const [t, format] = await Promise.all([
     getTranslations("sections"),
@@ -383,9 +431,19 @@ async function SectionCard({
                 {transferMeta(each)}
               </p>
               {each.status === "conflict" ? (
-                <p className="text-sm">{t("transfers.conflict")}</p>
+                <p className="text-sm">
+                  {t("transfers.conflict", { from: name(each.from) })}
+                </p>
               ) : null}
-              {open ? (
+              {each.status === "otherTrainer" ? (
+                <p className="text-sm">
+                  {t("transfers.otherTrainer", {
+                    from: name(each.from),
+                    week: each.week,
+                  })}
+                </p>
+              ) : null}
+              {changes ? (
                 <div className="flex flex-wrap items-start gap-2">
                   {each.status === "conflict" ? (
                     <KeepTransferButton id={each.id} />

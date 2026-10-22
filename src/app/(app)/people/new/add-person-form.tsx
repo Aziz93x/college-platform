@@ -38,9 +38,12 @@ const FIELD_OF: Partial<Record<RowError, Field>> = {
 export function AddPersonForm({
   roles,
   departments,
+  filled = {},
 }: {
   roles: { key: string; label: string }[];
   departments: string[];
+  /** What the form starts with, such as a trainer Rayat names (ADR-0022). */
+  filled?: { employeeNumber?: string; role?: string; department?: string };
 }) {
   const t = useTranslations("people");
   const ui = useTranslations("ui");
@@ -48,9 +51,12 @@ export function AddPersonForm({
   const id = useId();
   const step = usePasswordStep();
   const blank = { employeeNumber: "", name: "", email: "" };
-  const [person, setPerson] = useState(blank);
-  const [role, setRole] = useState(NONE);
-  const [department, setDepartment] = useState(NONE);
+  const [person, setPerson] = useState({
+    ...blank,
+    employeeNumber: filled.employeeNumber ?? "",
+  });
+  const [role, setRole] = useState(filled.role ?? NONE);
+  const [department, setDepartment] = useState(filled.department ?? NONE);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [refusal, setRefusal] = useState<string>();
   const [running, setRunning] = useState(false);

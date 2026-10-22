@@ -119,7 +119,8 @@ export async function announcementReads(
     .where(
       and(
         eq(notifications.collegeId, collegeId),
-        eq(notifications.kind, "announcement"),
+        // Written out, so the planner matches the partial index on announcements.
+        sql`${notifications.kind} = 'announcement'`,
         inArray(announcementId, [...announcementIds]),
       ),
     )

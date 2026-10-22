@@ -158,7 +158,11 @@ async function currentImport(
   kind: RayatKind,
 ) {
   const [current] = await db
-    .select({ id: rayatImports.id, appliedAt: rayatImports.appliedAt })
+    .select({
+      id: rayatImports.id,
+      uploadedAt: rayatImports.uploadedAt,
+      appliedAt: rayatImports.appliedAt,
+    })
     .from(rayatImports)
     .where(
       and(
@@ -173,20 +177,62 @@ async function currentImport(
   return current;
 }
 
-// The version of a term's report in force: when it was applied, and its records; undefined before
-// its first import is applied.
+// The version of a term's report in force: when its file was uploaded and when it was applied, and
+// its records; undefined before its first import is applied.
 export async function rayatVersion<K extends RayatKind>(
   collegeId: string,
   termId: string,
   kind: K,
-  db: Db = getDb(),
+  db: Db | Tx = getDb(),
 ) {
   const current = await currentImport(db, collegeId, termId, kind);
   if (!current?.appliedAt) return undefined;
   return {
+    uploadedAt: current.uploadedAt,
     appliedAt: current.appliedAt,
     records: await recordsOf(db, kind, current.id),
   };
+}
+
+// A term's upload of a report waiting to be applied: when it was uploaded, and its records;
+// undefined while none waits.
+export async function pendingRayat<K extends RayatKind>(
+  collegeId: string,
+  termId: string,
+  kind: K,
+  db: Db | Tx = getDb(),
+) {
+  const [pending] = await db
+    .select({ id: rayatImports.id, uploadedAt: rayatImports.uploadedAt })
+    .from(rayatImports)
+    .where(
+      and(
+        eq(rayatImports.collegeId, collegeId),
+        eq(rayatImports.termId, termId),
+        eq(rayatImports.kind, kind),
+        eq(rayatImports.status, "pending"),
+      ),
+    );
+  if (!pending) return undefined;
+  return {
+    uploadedAt: pending.uploadedAt,
+    records: await recordsOf(db, kind, pending.id),
+  };
+}
+
+// An import of the college's: its term and report, for whoever acts on it.
+export async function findRayatImport(
+  collegeId: string,
+  importId: string,
+  db: Db | Tx = getDb(),
+) {
+  const [found] = await db
+    .select({ termId: rayatImports.termId, kind: rayatImports.kind })
+    .from(rayatImports)
+    .where(
+      and(eq(rayatImports.collegeId, collegeId), eq(rayatImports.id, importId)),
+    );
+  return found;
 }
 
 // The column map that reads a kind of report, and its version; undefined while none is stored.

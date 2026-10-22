@@ -44,6 +44,11 @@ const RADIUS = 8;
 const GAP = 8;
 // The surface starts as a thin lip flush against the trigger's edge.
 const LIP = 8;
+// The room the open panel leaves to the screen's edge, its border's thickness, and the least
+// height of a list that scrolls: about three options.
+const MARGIN = 8;
+const EDGE = 2;
+const MIN_LIST = 136;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const ITEM_VARIANTS: Variants = {
@@ -341,7 +346,10 @@ export function SelectContent({
 }) {
   const ctx = useSelectContext("SelectContent");
   const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  // The list's height while it is taller than the room on the side it opens to: it then scrolls.
+  const [limit, setLimit] = useState<number>();
   const { open, progress, reduce, setPlacement } = ctx;
   const { activeId, onKeyDown } = useListbox({
     open,
@@ -375,17 +383,21 @@ export function SelectContent({
     return () => observer.disconnect();
   }, [present]);
 
-  // On open, flip upward when there isn't room below and there's more above.
+  // On open, flip upward when there isn't room below and there's more above, and bound the list to
+  // the room on that side, so a long list scrolls instead of running off the screen (lead review C).
   useLayoutEffect(() => {
     if (!open) return;
     const trigger = document.getElementById(ctx.triggerId);
-    const node = panelRef.current;
-    if (!trigger || !node) return;
+    const list = listRef.current;
+    if (!trigger || !list) return;
     const rect = trigger.getBoundingClientRect();
-    const h = node.offsetHeight;
-    const below = window.innerHeight - rect.bottom;
-    const above = rect.top;
-    setPlacement(below < h + 16 && above > below ? "top" : "bottom");
+    const h = list.scrollHeight + EDGE;
+    const below = window.innerHeight - rect.bottom - GAP - MARGIN;
+    const above = rect.top - GAP - MARGIN;
+    const top = below < h && above > below;
+    const room = Math.max(top ? above : below, MIN_LIST) - EDGE;
+    setPlacement(top ? "top" : "bottom");
+    setLimit(h - EDGE > room ? room : undefined);
   }, [open, ctx.triggerId, setPlacement]);
 
   const isTop = ctx.placement === "top";
@@ -458,9 +470,11 @@ export function SelectContent({
     >
       <ActiveOptionContext.Provider value={activeId}>
         <m.div
+          ref={listRef}
           initial={false}
           animate={open ? "show" : "hidden"}
-          className="p-1"
+          style={{ maxHeight: limit }}
+          className="overflow-y-auto overscroll-contain p-1"
         >
           {children}
         </m.div>

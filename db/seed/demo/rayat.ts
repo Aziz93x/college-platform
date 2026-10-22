@@ -75,7 +75,9 @@ export type DemoRayatDepartment = {
 // trainees' names, mobile numbers and grades included: the import drops them. Each course has two
 // sections that meet on two days, an eighth of them remote; a section now and then has more
 // trainees than seats; SF01 registers each section's trainees, a few dropped or withdrawn; SO01
-// gives some of them unexcused absence, barring those past a quarter of the course's hours.
+// gives some of them unexcused absence, barring those past a quarter of the course's hours. In the
+// third department, the first course's second section is taught by two trainers, one each day, and
+// the last course's second section has no trainer yet (lead review C).
 export function demoRayatFiles(
   random: () => number,
   term: { name: string; code: string },
@@ -144,6 +146,15 @@ export function demoRayatFiles(
           department.trainers[
             (position * 2 + section) % department.trainers.length
           ];
+        // The second day's trainer: another for a co-taught section, none for one without a trainer.
+        const third = index === 2 && section === 1;
+        const untaught = third && position === courses.length - 1;
+        const second =
+          third && position === 0
+            ? department.trainers[
+                (position * 2 + section + 1) % department.trainers.length
+              ]
+            : trainer;
         const first = between(0, DAYS.length - 3);
         const time = pick(TIMES);
         const shared = {
@@ -157,13 +168,16 @@ export function demoRayatFiles(
           capacity,
           enrolled,
           remaining: capacity - enrolled,
-          trainerNumber: trainer.employeeNumber,
         };
-        for (const day of [DAYS[first], DAYS[first + 2]]) {
+        for (const [day, teacher] of [
+          [DAYS[first], trainer],
+          [DAYS[first + 2], second],
+        ] as const) {
           add(
             "ss01",
             {
               ...shared,
+              trainerNumber: untaught ? "" : teacher.employeeNumber,
               day,
               time,
               building: remote ? "" : `المبنى ${index + 1}`,
@@ -185,7 +199,7 @@ export function demoRayatFiles(
               "الحد الأقصى للائحة الانتظار": 0,
               "المسجلون على لائحة الانتظار": 0,
               "المتبقي على لائحة الانتظار": 0,
-              "اسم المدرب": trainer.name,
+              "اسم المدرب": untaught ? "" : teacher.name,
             },
           );
         }
@@ -258,7 +272,8 @@ export const demoVisitor = {
 // and applied by the vice-dean, and a newer SF01 the head uploaded, waiting to be applied: a few
 // trainees withdrawn and two registered late, the diff to review. The head imports because the
 // admin gave the head's role the key on the roles page (ADR-0019). Written once, while the term has
-// no import.
+// no import. Gives the SS01 Rayat exports next, a trainee more in the first section, which
+// seedDemoSections() applies after a head's transfer that it does not know of (ADR-0020).
 export async function seedDemoRayat(
   { db, random }: { db: Db; random: () => number },
   collegeId: string,
@@ -270,7 +285,7 @@ export async function seedDemoRayat(
     .from(rayatImports)
     .where(eq(rayatImports.termId, term.id))
     .limit(1);
-  if (made) return;
+  if (made) return undefined;
 
   const changeBy = async ({ email }: { email: string }) => {
     const [user] = await db
@@ -367,4 +382,31 @@ export async function seedDemoRayat(
     ],
     head,
   );
+
+  // The next SS01: the first section's meeting rows with a trainee more, from its remaining seats.
+  const [ss01Header, ...ss01Rows] = files.ss01;
+  const column = (field: keyof typeof rayatColumns.ss01) =>
+    ss01Header.indexOf(rayatColumns.ss01[field]);
+  const [ref, enrolled, remaining] = [
+    column("sectionRef"),
+    column("enrolled"),
+    column("remaining"),
+  ];
+  const first = ss01Rows[0][ref];
+  return {
+    newerSs01: [
+      ss01Header,
+      ...ss01Rows.map((row) =>
+        row[ref] === first
+          ? row.map((cell, at) =>
+              at === enrolled
+                ? String(Number(cell) + 1)
+                : at === remaining
+                  ? String(Number(cell) - 1)
+                  : cell,
+            )
+          : row,
+      ),
+    ],
+  };
 }

@@ -13,6 +13,7 @@ import {
   setSetting,
   settingsRegistry,
 } from "@/modules/settings";
+import { strandedBySetting } from "@/modules/terms";
 import { latinDigits } from "@/platform/validation/form";
 
 // The settings screen saves and resets one setting at a time. Each needs the setting's own
@@ -46,10 +47,16 @@ export const saveSettingAction = viewerAction
   .action(async ({ parsedInput, ctx: { viewer, requirePermission } }) => {
     const { key: setting, value } = parsedInput;
     requirePermission(settingsRegistry[setting].permission);
-    // A value its schema refuses never asks for the password.
-    if (!settingsRegistry[setting].schema.safeParse(value).success) {
-      return { status: "invalid" as const };
-    }
+    // A value its schema refuses never asks for the password, nor one that would leave a term's
+    // events outside it (lead review C).
+    const parsed = settingsRegistry[setting].schema.safeParse(value);
+    if (!parsed.success) return { status: "invalid" as const };
+    const stranded = await strandedBySetting(
+      viewer.collegeId,
+      setting,
+      parsed.data,
+    );
+    if (stranded) return { status: "eventsOutside" as const, ...stranded };
     const requestHeaders = await headers();
     const refused = await confirmPassword(
       setting,
@@ -73,6 +80,12 @@ export const resetSettingAction = viewerAction
   .action(async ({ parsedInput, ctx: { viewer, requirePermission } }) => {
     const { key: setting } = parsedInput;
     requirePermission(settingsRegistry[setting].permission);
+    const stranded = await strandedBySetting(
+      viewer.collegeId,
+      setting,
+      settingsRegistry[setting].default,
+    );
+    if (stranded) return { status: "eventsOutside" as const, ...stranded };
     const requestHeaders = await headers();
     const refused = await confirmPassword(
       setting,

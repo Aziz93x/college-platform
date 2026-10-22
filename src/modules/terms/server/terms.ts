@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { addDays } from "../../../platform/i18n/time-zone.ts";
@@ -81,6 +81,59 @@ export async function calendarSettings(collegeId: string, db?: Db) {
 
 export type CalendarSettings = Awaited<ReturnType<typeof calendarSettings>>;
 
+// The settings that count a term's weeks, which calendarSettings() reads.
+const calendarKeys = [
+  "locale.weekStart",
+  "calendar.workingDays",
+  "calendar.skipHolidayWeeks",
+] as const;
+
+// The events of the college's terms that are not closed which a new value of a setting that counts
+// their weeks would leave outside their term, with the first such term's name: as a holiday's new
+// days may not (Audit 5), nor may the settings (lead review C). Undefined for another setting, and
+// for a value that leaves every event in its term. The value is one the setting's schema took.
+export async function strandedBySetting(
+  collegeId: string,
+  key: string,
+  value: unknown,
+  db: Db = getDb(),
+) {
+  if (!calendarKeys.some((each) => each === key)) return undefined;
+  const [weekStart, count, skipHolidayWeeks, listed] = await Promise.all([
+    getSetting("locale.weekStart", { collegeId }, db),
+    getSetting("calendar.workingDays", { collegeId }, db),
+    getSetting("calendar.skipHolidayWeeks", { collegeId }, db),
+    listTermCalendars(collegeId, db),
+  ]);
+  const raw = {
+    "locale.weekStart": weekStart,
+    "calendar.workingDays": count,
+    "calendar.skipHolidayWeeks": skipHolidayWeeks,
+    [key]: value,
+  } as {
+    "locale.weekStart": typeof weekStart;
+    "calendar.workingDays": typeof count;
+    "calendar.skipHolidayWeeks": typeof skipHolidayWeeks;
+  };
+  const settings = {
+    workingDays: workingDays(
+      weekdays.indexOf(raw["locale.weekStart"]),
+      raw["calendar.workingDays"],
+    ),
+    skipHolidayWeeks: raw["calendar.skipHolidayWeeks"],
+  };
+  for (const term of listed.filter((each) => each.status !== "closed")) {
+    const left = outside(
+      calendarOf(term, term.events, settings, term.breaks),
+      term.events,
+    );
+    if (left.length > 0) {
+      return { term: term.name, events: left.map(({ title }) => title) };
+    }
+  }
+  return undefined;
+}
+
 // The college's terms, the latest first.
 export async function listTerms(collegeId: string, db: Db = getDb()) {
   return db
@@ -88,6 +141,37 @@ export async function listTerms(collegeId: string, db: Db = getDb()) {
     .from(terms)
     .where(eq(terms.collegeId, collegeId))
     .orderBy(desc(terms.startsOn), desc(terms.id));
+}
+
+// The college's terms, the latest first, each with its calendar as findTerm() gives it: three reads
+// whatever the number of terms (lead review C).
+export async function listTermCalendars(collegeId: string, db: Db = getDb()) {
+  const listed = await listTerms(collegeId, db);
+  if (listed.length === 0) return [];
+  const earliest = listed.reduce(
+    (first, term) => (term.startsOn < first ? term.startsOn : first),
+    listed[0].startsOn,
+  );
+  const [events, breaks] = await Promise.all([
+    db
+      .select({ termId: calendarEvents.termId, ...eventColumns })
+      .from(calendarEvents)
+      .where(
+        inArray(
+          calendarEvents.termId,
+          listed.map((term) => term.id),
+        ),
+      )
+      .orderBy(asc(calendarEvents.startsOn), asc(calendarEvents.endsOn)),
+    holidaysFrom(collegeId, earliest, db),
+  ]);
+  return listed.map((term) => ({
+    ...term,
+    events: events
+      .filter((event) => event.termId === term.id)
+      .map(({ termId: _, ...event }) => event),
+    breaks: breaks.filter((range) => range.endsOn >= term.startsOn),
+  }));
 }
 
 async function eventsOf(termId: string, db: Db | Tx) {

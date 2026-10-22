@@ -1,3 +1,5 @@
+-- A head's transfers of a term's sections from one trainer to another (Step 17); the sections are
+-- SS01's in force. Its inverse drops section_transfers.
 CREATE TABLE "section_transfers" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"college_id" uuid NOT NULL,

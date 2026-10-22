@@ -25,7 +25,7 @@ describe("occurrences", () => {
 });
 
 describe("departmentsReached", () => {
-  it("joins each department's role holders and sections, a department with sections and no one in it yet too", () => {
+  it("joins each department's role holders and its sections' trainers, a department with sections and no one in it yet too", () => {
     expect(
       departmentsReached(
         [
@@ -33,21 +33,27 @@ describe("departmentsReached", () => {
           { departmentId: "a", roleId: "head", count: 1 },
           { departmentId: "b", roleId: "trainer", count: 2 },
         ],
-        { a: 10, c: 3 },
+        { a: { trainers: 11 }, c: { trainers: 3 } },
       ),
     ).toEqual([
-      { roles: { trainer: 4, head: 1 }, sections: 10 },
-      { roles: {}, sections: 3 },
-      { roles: { trainer: 2 }, sections: 0 },
+      { roles: { trainer: 4, head: 1 }, sectionTrainers: 11 },
+      { roles: {}, sectionTrainers: 3 },
+      { roles: { trainer: 2 }, sectionTrainers: 0 },
     ]);
   });
 });
 
 describe("countTasks", () => {
   it("counts each item for each holder or section, each time it is due, and the departments it reaches", () => {
-    const electrical = { roles: { [TRAINER]: 12, [HEAD]: 1 }, sections: 0 };
-    const mechanical = { roles: { [TRAINER]: 8, [HEAD]: 1 }, sections: 0 };
-    const general = { roles: {}, sections: 0 };
+    const electrical = {
+      roles: { [TRAINER]: 12, [HEAD]: 1 },
+      sectionTrainers: 0,
+    };
+    const mechanical = {
+      roles: { [TRAINER]: 8, [HEAD]: 1 },
+      sectionTrainers: 0,
+    };
+    const general = { roles: {}, sectionTrainers: 0 };
     expect(
       countTasks(
         [
@@ -71,15 +77,16 @@ describe("countTasks", () => {
     ).toEqual({ tasks: 28, departments: 2 });
   });
 
-  it("counts nothing for no items, and sections once there are some", () => {
-    expect(countTasks([], [{ roles: {}, sections: 30 }], TERM)).toEqual({
+  it("counts nothing for no items, and each trainer of each section once there are sections", () => {
+    expect(countTasks([], [{ roles: {}, sectionTrainers: 30 }], TERM)).toEqual({
       tasks: 0,
       departments: 0,
     });
+    // 29 sections, one of them taught by two trainers: 30 trainers' tasks each week.
     expect(
       countTasks(
         [{ appliesTo: { type: "eachSection" }, due: { type: "weekly" } }],
-        [{ roles: {}, sections: 30 }],
+        [{ roles: {}, sectionTrainers: 30 }],
         TERM,
       ),
     ).toEqual({ tasks: 540, departments: 1 });

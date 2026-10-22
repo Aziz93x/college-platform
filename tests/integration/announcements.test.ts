@@ -271,3 +271,40 @@ describe("reading and withdrawing", () => {
     ]);
   });
 });
+
+describe("a role held for one term", () => {
+  it("does not reach someone whose role in the department was for a term that has closed (lead review C)", async () => {
+    const [{ id: past }] = await query(
+      `insert into terms (college_id, name, starts_on, weeks, status)
+       values ($1, 'A closed term', '2025-08-24', 18, 'closed') returning id`,
+      [collegeId],
+    );
+    people.rana = await database.db.transaction(
+      async (tx) =>
+        (
+          await createAccount(
+            {
+              collegeId,
+              name: "rana",
+              email: "rana@college.example",
+              employeeNumber: "790001",
+            },
+            tx,
+            "password-rana",
+          )
+        ).userId,
+    );
+    await query(
+      `insert into memberships (college_id, user_id, role_id, department_id, term_id)
+       select $1, $2, id, $3, $4 from roles where college_id = $1 and key = 'trainer'`,
+      [collegeId, people.rana, mechanical, past],
+    );
+    const result = await publishAnnouncement(
+      { departmentId: mechanical, title: "تذكير", body: "الاجتماع غدًا" },
+      change("head"),
+      database.db,
+    );
+    if (result.status !== "published") throw new Error(result.status);
+    expect(await told(result.id)).toEqual(["maha"]);
+  });
+});

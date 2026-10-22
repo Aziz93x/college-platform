@@ -8,12 +8,14 @@ import {
 } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import {
+  announcementReads,
   chooseNotification,
   latestUnread,
   listNotifications,
   markRead,
   notificationChoices,
   notify,
+  retractAnnouncement,
   unreadCount,
 } from "../../src/modules/notifications/index.ts";
 import { createTestDatabase } from "./support/database.ts";
@@ -225,6 +227,7 @@ describe("a kind turned off", () => {
       membershipRemoved: true,
       weeklyDigest: false,
       announcement: true,
+      transferConflict: true,
     });
     // Turning on what was never turned off changes nothing.
     expect(
@@ -371,4 +374,22 @@ it("reads a person's page and the bell's newest through their indexes, in their 
   expect(newest).toHaveLength(2);
   expect(newest[0]).toBe("Limit");
   expect(newest[1]).toMatch(/^notifications_(unread|user_time)_idx$/);
+});
+
+it("finds an announcement's notifications for its read counts and its withdrawal through their index (lead review C)", async () => {
+  const many = await person("Many Announcements", "2098");
+  await query(
+    `insert into notifications (college_id, user_id, kind, params)
+     select $1, $2, case when n % 7 = 0 then 'membershipAdded' else 'announcement' end,
+       jsonb_build_object('announcementId', 'a' || (n % 500))
+     from generate_series(1, 20000) n`,
+    [collegeId, many],
+  );
+  await query("analyze notifications");
+  const recorder = recording(database.pool);
+  await announcementReads(collegeId, ["a1", "a2"], recorder.db);
+  await retractAnnouncement(collegeId, "a3", recorder.db);
+  for (const plan of await recorder.plans()) {
+    expect(plan).toContain("notifications_announcement_idx");
+  }
 });

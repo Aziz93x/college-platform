@@ -121,12 +121,13 @@ export const navigation = [
     icon: FileSpreadsheet,
     permission: "rayat.import",
   },
-  // The term's sections as Rayat has them, which a head transfers in their department (Step 17).
+  // The term's sections as Rayat has them, which a head transfers in their department (Step 17)
+  // and whoever imports Rayat reads (ADR-0021).
   {
     id: "sections",
     href: "/sections",
     icon: Presentation,
-    permission: "sections.transfer",
+    permission: ["sections.transfer", "rayat.import"],
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.
