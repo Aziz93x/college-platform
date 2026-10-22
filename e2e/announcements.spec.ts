@@ -98,7 +98,9 @@ test(
       await expect(head.getByText(made.name)).toBeVisible();
       await announce(head, "اجتماع القسم", "نجتمع يوم الأحد.\n\nفي القاعة ٣.");
       await announce(head, "تسليم الخطط", "قبل نهاية الأسبوع.");
-      const live = head.getByRole("listitem");
+      const live = head
+        .getByRole("region", { name: text.list.title })
+        .getByRole("listitem");
       await expect(live).toHaveCount(2);
       await expect(live.first()).toContainText("تسليم الخطط");
 
