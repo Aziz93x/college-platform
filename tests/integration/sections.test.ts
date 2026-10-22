@@ -22,12 +22,12 @@ import {
   closeTerm,
   createTerm,
 } from "../../src/modules/terms/index.ts";
-import { createTestDatabase } from "./support/database.ts";
+import { createSharedTestDatabase } from "./support/database.ts";
 import { rayatTable } from "./support/rayat-table.ts";
 
 // A term's sections, read from Rayat's SS01 in force with SF01's registrations, their trainers
 // matched by employee number, and a head's transfers of them (Step 17).
-let database: Awaited<ReturnType<typeof createTestDatabase>>;
+let database: Awaited<ReturnType<typeof createSharedTestDatabase>>;
 let collegeId: string;
 let termId: string;
 let electrical: string;
@@ -113,7 +113,9 @@ const section = async (ref: string, week = 1) =>
   ).sections.find((each) => each.ref === ref);
 
 beforeAll(async () => {
-  database = await createTestDatabase();
+  // Shared: the people a section goes to are read through the directory, whose lockout settings
+  // come through getDb().
+  database = await createSharedTestDatabase();
   collegeId = await seedBase(database.db, {
     name: "Test College",
     shortName: "TC",
