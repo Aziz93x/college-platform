@@ -2,6 +2,7 @@ import {
   Building2,
   CalendarCheck,
   CalendarRange,
+  ClipboardList,
   Contact,
   FileSpreadsheet,
   History,
@@ -80,8 +81,8 @@ export const navigation = [
     href: "/settings",
     icon: Settings,
     // Every key that edits a setting (src/modules/settings/domain/registry.ts): the vice-dean's
-    // counts a term's weeks there.
-    permission: ["settings.manage", "term.manage"],
+    // count a term's weeks and keep the catalogs there.
+    permission: ["settings.manage", "term.manage", "framework.publish"],
     group: "administration",
   },
   {
@@ -128,6 +129,13 @@ export const navigation = [
     href: "/sections",
     icon: Presentation,
     permission: ["sections.transfer", "rayat.import"],
+  },
+  // The section templates a head prepares for their department's sections in the term (Step 18).
+  {
+    id: "templates",
+    href: "/templates",
+    icon: ClipboardList,
+    permission: "plan.edit",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

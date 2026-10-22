@@ -329,6 +329,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "rayatImport.apply",
       // The head of Electrical's transfer of a section (Step 17).
       "sectionTransfer.create",
+      // The heads' section templates (Step 18).
+      "sectionTemplate.create",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -701,6 +703,50 @@ it("has the head of Electrical transfer a section to another trainer of the depa
     demoVisitor.employeeNumber,
   ]);
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
+});
+
+it("gives Electrical the plan's section templates and Mechanical its exam copies and analysis, each on an axis and added by its department's head (Step 18)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select d.name as department, t.kind, a.code as axis, t.applies_to ->> 'type' as reach,
+      exists (
+        select 1 from memberships m join roles r on r.id = m.role_id and r.key = 'head'
+        where m.user_id::text = e.actor_id and m.department_id = t.department_id
+      ) as "byItsHead",
+      u.email
+    from section_templates t
+    join departments d on d.id = t.department_id
+    join axes a on a.id = t.axis_id
+    join audit_events e on e.entity_id = t.id::text and e.action = 'sectionTemplate.create'
+    join users u on u.id::text = e.actor_id
+    order by t.department_id, t.position`);
+  const of = (name: string) =>
+    rows
+      .filter(({ department }) => department === name)
+      .map(({ kind, axis, reach }) => `${kind} ${axis} ${reach}`);
+  // A course's work once for all its trainer's sections of it, and the grade analysis section by
+  // section (the owner's answers, 22 October 2026).
+  expect(of(demoDepartments[1].name)).toEqual([
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "homework 5 eachCourse",
+    "grade_analysis 3 eachSection",
+    "e_learning 7 eachCourse",
+    "training_practice 6 eachCourse",
+  ]);
+  expect(of(demoDepartments[2].name)).toEqual([
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "grade_analysis 3 eachSection",
+  ]);
+  expect(of(demoDepartments[0].name)).toEqual([]);
+  expect(rows.every(({ byItsHead }) => byItsHead)).toBe(true);
+  expect(
+    rows
+      .filter(({ department }) => department === demoDepartments[1].name)
+      .every(({ email }) => email === demoAccounts.head.email),
+  ).toBe(true);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

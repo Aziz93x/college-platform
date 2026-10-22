@@ -4,7 +4,7 @@ import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { roles } from "../../access/index.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
 import { calendarEventKinds, terms } from "../../terms/index.ts";
-import type { FrameworkItemInput } from "../domain/inputs.ts";
+import { type FrameworkItemInput, reachesTrainers } from "../domain/inputs.ts";
 import { frameworkItems, frameworks } from "./schema.ts";
 
 // Who changes a framework, for the audit event. The caller has authorized them.
@@ -183,24 +183,30 @@ async function draftOf(tx: Tx, collegeId: string, id: string) {
   return draft.termStatus === "closed" ? ("closed" as const) : draft;
 }
 
-// Whether an item names only what the college offers: file types it accepts (files.acceptedTypes,
-// which the caller reads), a kind of day a calendar has, and one of its own roles (Audit 5).
+// Whether an item names only file types the college accepts (files.acceptedTypes, which the caller
+// reads) and, for a rule after a calendar day, a kind of day a calendar has (Audit 5). A section
+// template's service asks the same (Step 18).
+export function offersItem(
+  input: Pick<FrameworkItemInput, "due" | "evidence">,
+  accepted: readonly string[],
+) {
+  return (
+    input.evidence.types.every((type) => accepted.includes(type)) &&
+    (input.due.type !== "afterEvent" ||
+      (calendarEventKinds as readonly string[]).includes(input.due.eventKind))
+  );
+}
+
+// Whether an item names only what the college offers, as offersItem() asks, and one of its own
+// roles (Audit 5).
 async function offered(
   tx: Tx,
   collegeId: string,
   input: FrameworkItemInput,
   accepted: string[],
 ) {
-  if (input.evidence.types.some((type) => !accepted.includes(type))) {
-    return false;
-  }
-  if (
-    input.due.type === "afterEvent" &&
-    !(calendarEventKinds as readonly string[]).includes(input.due.eventKind)
-  ) {
-    return false;
-  }
-  if (input.appliesTo.type === "eachSection") return true;
+  if (!offersItem(input, accepted)) return false;
+  if (reachesTrainers(input.appliesTo)) return true;
   const [role] = await tx
     .select({ id: roles.id })
     .from(roles)

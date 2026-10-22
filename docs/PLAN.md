@@ -55,7 +55,7 @@ Each step heading carries a size: S is about one session, M two or three, L four
 
 - **A setting or permission key arrives with the step that first reads or checks it.** Nothing read or checked the five settings and six keys below, though the settings screen and the roles grid offered them, so on 22 October they left the registries, the seeds, the messages and the tests. `task.complete`, a seventh key first listed here, stayed: Step 17 reads it, since a section moves only to someone who holds it. The step named beside each of the others adds it back:
   - settings: `files.maxSizeMb` (Step 25), `reminders.dueTomorrow` and `reminders.nothingUploaded` (Step 27), `review.sampleRate` and `review.weeklyCap` (Step 29);
-  - keys: `plan.edit` and `plan.publish` (Steps 19 and 20), `assignment.manage` (21 and 22), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
+  - keys: `plan.edit` (Step 18), `plan.publish` (Steps 19 and 20), `assignment.manage` (21 and 22), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
 - **No more animated components.** The BeUI components already in `src/components/motion/` stay. A new screen uses them, the shadcn/Radix components or native controls. A new BeUI component comes in only for something none of these can do, and its pull request says why.
 - **Review screenshots stay out of git.** Reviews still save them under `docs/reviews/<report>/` to look at, but git ignores those folders, and each report says in words what a screenshot showed. The screenshots already committed in `docs/reviews/ux-10/` stay.
 - **Measure and load-test at the trial's size.** Seeds, timings and load tests use the trial's numbers, as Step 43's seed and Step 45's k6 run already do. Runs at 2,000 people or 300,000 log events, and the paging that lead review B proposed for them (its note in Step 43), wait until the platform is to serve more than the trial.
@@ -193,7 +193,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 - `grade_analysis`: counts per grade band, pass rate, average, follow-up actions; never trainee names.
 - `homework`: title, week, sample files.
 - `e_learning`: checklist (course shell, content, activities) and evidence.
-- `training_practice`: methods from a catalog, description, evidence.
+- `training_practice`: the methods its trainer used, description, evidence.
 - `advising_log`: sessions and notes, without names.
 - `meeting_minutes`, `initiative`, `professional_development`, `profile_section`.
 
@@ -1062,6 +1062,12 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 15:** the registry is `taskKinds`, and the shapes are `dueRule`, `evidencePolicy` and `appliesTo` (a role's holders in each department, or each section's trainer), all in `src/modules/framework/domain/inputs.ts`; export the shapes from the module when templates use them. A rule after a calendar day counts each day of that kind in the term ("after each exam week"). The wizard copies the framework through `openNextTerm()`'s last argument, which the templates' copy joins.
 
+**Notes from the owner (22 October 2026): what a trainer does in a course.** They replace the catalogs in this step's list.
+
+- **No college lists.** Exam types, training methods and kinds of development are what a trainer does in a course, so the trainer writes them in the task in their own words, and no setting holds them. Each section's grade analysis takes the bands its trainer gives it, each a lower bound with its trainees.
+- **Per course or per section.** A template, like a framework item, reaches each section's trainer or each course's trainer once for all their sections of it (`appliesTo`: `eachSection` or `eachCourse`). A course's work, such as its exam copies, homework samples, e-learning and training practices, comes once per course; a section's own, such as its grade analysis, once per section.
+- **The portfolio.** All of it goes into the course's portfolio as a whole, not section by section (Step 31).
+
 > **Checkpoint: Audit 6.** Run `/audit 16-18`.
 
 #### Step 19. Department plan editor (L)
@@ -1081,6 +1087,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **The editor:** previews the weeks each anchored item lands in, and flags one that falls past the term's end.
 - **On the calendar:** these items form the department's layer, which its trainers see in the department's color (Step 24).
 
+**Note from Step 18:** a department's section templates are the per-section and per-course part of its plan (`section_templates`, `src/modules/planning`): the head edits them on `/templates` with `plan.edit`, each with a framework item's fields and reaching each section's trainer or each course's trainer (`sectionTemplateInput`), and they stay drafts until the plan is published. Take them into the plan's version when it publishes, and count them in its preview for each trainer of each section or each course of the department (the owner's rule under Step 20). The framework's items for those trainers are the college's templates, which `/templates` shows read-only. The wizard copies a term's templates into the next (`copyTemplatesInto()`), but a draft term shows only to whoever holds `term.manage` (Step 13), so a head edits the next term's templates once it is active: decide here whether `plan.edit` shows the next term while it is a draft. The item sheet, its words and its choices are shared in `src/app/(app)/_items`.
+
 #### Step 20. Generation engine (L)
 
 **Goal:** tasks appear for the right person, section and week, every time.
@@ -1096,6 +1104,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 17, as lead review C left it:** a section is SS01's in force, by its Rayat reference in the term; there is no table of sections (`listSections()`, `src/modules/academics`). Its trainers in a week come from `readTransfers(rayat, uploadedAt, transfers)` (`src/modules/academics/domain/transfers.ts`), whose `trainersInWeek(week)` gives Rayat's employee numbers with each confirmed transfer undone for the weeks before it, and each transfer that holds or is in conflict in place of the trainer it replaced from its week on. A transfer that changes nothing changes no week. A number no person has is a trainer not on the platform, whose tasks wait for them. `transferTasks()` holds the rule for tasks: the replaced trainer's open tasks of the section move to the new trainer, and their completed work stays with them, marked with the last week they taught it. Apply it when a transfer is made, and generate a transfer's later weeks for the new trainer. Cancelling a transfer gives its open tasks back.
 
 **Note from lead review C (the owner's rule, 2026-10-22):** an item for each section's trainer makes one task for each trainer of the section, as the engine's key (item, occurrence, assignee and section) has it: a section Rayat gives two trainers makes two, and a section with no trainer yet makes none. The framework's preview counts the same, with `sectionCounts()` giving each department's section trainers and the sections without one, which the preview names apart. The demo has a section with two trainers, one with none, and the exam copy for each section's trainer, so "the published preview equals the tasks generated" is checked on both.
+
+**Note from Step 18 (the owner's answers, 22 October 2026):** an item for each course's trainer (`appliesTo`: `eachCourse`) makes one task for each trainer of each course in the department, covering all their sections of it: its key names the course (Rayat's `courseCode`) where an item for each section's trainer names the section. `sectionCounts()` gives each department's course trainers beside its section trainers (`trainerCounts()`, `src/modules/academics/domain/counts.ts`), and `countTasks()` counts them. Decide here what a transfer does to a course's task while its trainer keeps other sections of the course. The demo framework's exam copy reaches each course's trainer and its grade analysis each section's trainer, so the preview is checked on both.
 
 > **Checkpoint: UX review 2.** Run `/ux-review 11-20` (audit log, notifications, term and framework, Rayat import, sections, templates, plan editor).
 
@@ -1255,6 +1265,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - The head's note on returned work moves to Step 29, which records it.
 - **You (added to Done when):** with Step 41's stack in demo mode, open a demo task on a real iPhone and on an Android phone, add camera evidence and mark it done. Do it once through `pnpm local:share` on cellular, and once on the college Wi-Fi with the exported root trusted. Claude Code records what emulation missed in `docs/ops/ios.md`, which Step 39 completes, and fixes it in this step's pull request.
 
+**Note from Step 18:** each kind's payload is a list of fields (`kindFields`, `src/modules/framework/domain/payloads.ts`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`, both in `src/app/(app)/_kinds`). The card puts the editor before the evidence, and its action checks a payload with `payloadSchema(kind)`. The page passes both the kind's fields (`kindFields[kind]`) and the editor `payloadLimits`: a client component imports only types from a module, whose index would bring its server code into the browser's bundle. The trainer writes a course's exam types, methods and kinds of development in their own words, and gives each section's grade analysis its bands (the owner's notes under Step 18). Files are the task's evidence, not its payload: an exam copy's paper and key, homework samples.
+
 #### Step 27. Notifications in the work loop (S)
 
 **Goal:** few messages, all useful.
@@ -1322,6 +1334,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 - BeUI here: bouncy accordion (the axes).
 
+**Note from the owner (22 October 2026):** a trainer's portfolio holds each course's work as a whole, not section by section: the course's exam copies, homework samples, e-learning and training practices once, and under the course each of its sections' grade analyses (the notes under Step 18).
+
 **Note from Step 14:** the closing group (axes 12 and 13, code `closing` in `db/seed/base.ts`) is the optional one; nothing marks it optional yet, so this step adds that marker when it treats the group differently.
 
 > **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
@@ -1340,6 +1354,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** approval freezes an immutable snapshot (Step 32 adds its PDF and hash), the change view is correct, and the confidentiality tests pass.
 
 **Note from ADR-0008:** Step 31 runs first, so the approval snapshot, the change view and the trainer-by-axis grid read its portfolio view by axis, curation included.
+
+**Note from Step 18:** an exam copy's payload names its exam's day (`examOn`), which the confidentiality rule reads.
 
 > **Checkpoint: UX review 3.** Run `/ux-review 21-30` (Today, My work, section page, task card, uploads, review inbox, missing grid).
 
@@ -1404,6 +1420,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** every metric has a fixture test, and a full refresh takes under 5 s on demo data.
 
 **Note from ADR-0008:** indicator mappings per task kind are added here (moved from Step 18), and the improvement-plan count joins with Step 38.
+
+**Note from Step 18:** a grade analysis counts its trainees in each band its trainer gives the section (payload `bands`, each by its lower bound), the grade distribution's source, so two sections' bands may differ; a training practice lists the methods its trainer wrote (`methods`).
 
 #### Step 35. Indicator screens (M)
 

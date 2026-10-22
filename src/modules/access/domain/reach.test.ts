@@ -21,6 +21,7 @@ const head = actor([{ permission: "accounts.resetPassword", departmentId: A }]);
 
 // The seeded keys of the roles a college-wide key could reach (db/seed/base.ts).
 const headKeys: PermissionKey[] = [
+  "plan.edit",
   "sections.transfer",
   "accounts.resetPassword",
   "accounts.linkEmployeeNumber",

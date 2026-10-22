@@ -14,6 +14,7 @@ import { createRandom } from "./demo/random.ts";
 import { seedDemoRayat } from "./demo/rayat.ts";
 import { seedDemoSections } from "./demo/sections.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
+import { seedDemoTemplates } from "./demo/templates.ts";
 import { DEMO_TERM_WEEKS, seedDemoTerms } from "./demo/terms.ts";
 
 const MAX_SEED = 2 ** 32 - 1;
@@ -78,6 +79,7 @@ try {
     await seedDemoFramework(ctx, collegeId);
     const rayat = await seedDemoRayat(ctx, collegeId);
     await seedDemoSections(ctx, collegeId, week, rayat?.newerSs01);
+    await seedDemoTemplates(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,
     );

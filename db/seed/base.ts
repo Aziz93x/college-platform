@@ -24,9 +24,9 @@ export const systemRole = {
 
 // The roles every college starts with and the keys each holds, as the brief describes them
 // (docs/PLAN.md, section 1). A key arrives with the step that first checks it (section 0): the
-// head's plan, assignment, review and approval keys with Steps 19 to 30, the college's indicators
-// with Step 35, and the secretary's and the quality reviewer's with their screens (Steps 33 and
-// 37). Admins change all of it on the grid.
+// head's plan with Step 18, its publishing, assignment, review and approval keys with Steps 19 to
+// 30, the college's indicators with Step 35, and the secretary's and the quality reviewer's with
+// their screens (Steps 33 and 37). Admins change all of it on the grid.
 export const defaultRoles: {
   key: string;
   labels: Record<string, string>;
@@ -51,6 +51,7 @@ export const defaultRoles: {
     key: "head",
     labels: { ar: "رئيس القسم" },
     permissions: [
+      "plan.edit",
       "sections.transfer",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",

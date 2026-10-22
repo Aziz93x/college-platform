@@ -27,12 +27,24 @@ export const frameworkLimits = {
   files: 20,
 } as const;
 
-// Whom an item reaches: each holder of a role in each department, or each section's trainer.
-const appliesTo = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("role"), roleId: z.uuid() }),
+// Whom an item reaches: each holder of a role in each department, each trainer of each section, or
+// each trainer of each course once for all their sections of it. A course's work, such as its exam
+// copies and training practices, goes into its portfolio as a whole, and a section's own, such as
+// its grade analysis, section by section (the owner's answers, 22 October 2026).
+const trainers = z.discriminatedUnion("type", [
   z.object({ type: z.literal("eachSection") }),
+  z.object({ type: z.literal("eachCourse") }),
+]);
+export type TrainerReach = z.infer<typeof trainers>;
+const appliesTo = z.union([
+  z.object({ type: z.literal("role"), roleId: z.uuid() }),
+  trainers,
 ]);
 export type AppliesTo = z.infer<typeof appliesTo>;
+
+// Whether an item reaches trainers through their sections or courses, not a role's holders.
+export const reachesTrainers = (applies: AppliesTo): applies is TrainerReach =>
+  applies.type === "eachSection" || applies.type === "eachCourse";
 
 // When an item is due: in a week of the term, every week, every so many weeks, or so many weeks
 // after each day of the term's calendar of a kind, such as each exam week.
@@ -85,3 +97,10 @@ export const frameworkItemInput = z.object({
     .pipe(z.string().max(frameworkLimits.notes)),
 });
 export type FrameworkItemInput = z.infer<typeof frameworkItemInput>;
+
+// A head's section template (Step 18): an item for the trainers of the department's sections, each
+// once per section or once per course of theirs, with a framework item's other fields.
+export const sectionTemplateInput = frameworkItemInput.extend({
+  appliesTo: trainers,
+});
+export type SectionTemplateInput = z.infer<typeof sectionTemplateInput>;

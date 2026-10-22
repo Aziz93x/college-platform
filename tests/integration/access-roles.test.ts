@@ -110,6 +110,7 @@ describe("listRoles", () => {
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
+      "plan.edit",
       "sections.transfer",
     ]);
   });

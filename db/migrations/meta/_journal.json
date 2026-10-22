@@ -141,6 +141,13 @@
       "when": 1792700033531,
       "tag": "0019_announcement_index",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792707033247,
+      "tag": "0020_section_templates",
+      "breakpoints": true
     }
   ]
 }
