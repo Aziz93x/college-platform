@@ -11,13 +11,7 @@ import { Input } from "@/components/motion/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useDateRangeWords } from "@/components/use-date-range-words";
-import {
-  kindFields,
-  type Payload,
-  type PayloadField,
-  payloadLimits,
-  type TaskKind,
-} from "@/modules/framework";
+import type { Payload, PayloadField, PayloadLimits } from "@/modules/framework";
 import { firstDayOfWeek } from "@/platform/i18n/language";
 import { toLatinDigits } from "@/platform/validation/digits";
 import { foldCase, oneLine } from "@/platform/validation/text";
@@ -34,17 +28,20 @@ function readNumber(text: string) {
   return /^\d{1,6}(\.\d{1,2})?$/.test(latin) ? Number(latin) : undefined;
 }
 
-// What a task of a kind asks its trainer, drawn from the kind's fields (Step 18): the task card
-// puts it before the evidence (Step 26). It holds the payload being filled; the service checks it
-// with the kind's schema when it is saved.
+// What a task asks its trainer, drawn from its kind's fields (Step 18): the task card puts it before
+// the evidence (Step 26). It holds the payload being filled; the service checks it with the kind's
+// schema when it is saved. The page passes the kind's fields (kindFields[kind]) and payloadLimits:
+// a client component takes no value from a module, whose index brings its server code.
 export function PayloadEditor({
-  kind,
+  fields,
+  limits,
   value,
   onChange,
   today,
   weeks,
 }: {
-  kind: TaskKind;
+  fields: readonly PayloadField[];
+  limits: PayloadLimits;
   value: Payload;
   onChange: (value: Payload) => void;
   /** The college's today, which the calendar marks. */
@@ -52,7 +49,6 @@ export function PayloadEditor({
   /** The term's weeks, the most a week field counts to. */
   weeks: number;
 }) {
-  const fields: readonly PayloadField[] = kindFields[kind];
   const set = (name: string, field: unknown) =>
     onChange({ ...value, [name]: field });
   return (
@@ -63,6 +59,7 @@ export function PayloadEditor({
           field={field}
           value={value[field.name]}
           onChange={(next) => set(field.name, next)}
+          limits={limits}
           today={today}
           weeks={weeks}
         />
@@ -75,12 +72,14 @@ function PayloadInput({
   field,
   value,
   onChange,
+  limits,
   today,
   weeks,
 }: {
   field: PayloadField;
   value: unknown;
   onChange: (value: unknown) => void;
+  limits: PayloadLimits;
   today: string;
   weeks: number;
 }) {
@@ -125,7 +124,7 @@ function PayloadInput({
           label={shown}
           hint={hint}
           autoComplete="off"
-          maxLength={payloadLimits.line}
+          maxLength={limits.line}
           value={String(value ?? "")}
           onChange={onChange}
         />
@@ -138,7 +137,7 @@ function PayloadInput({
           <Textarea
             aria-labelledby={`${id}-label`}
             aria-describedby={hint ? `${id}-hint` : undefined}
-            maxLength={payloadLimits.paragraph}
+            maxLength={limits.paragraph}
             value={String(value ?? "")}
             onChange={(event) => onChange(event.target.value)}
           />
@@ -190,6 +189,7 @@ function PayloadInput({
           {note}
           <WordsField
             label={label}
+            limits={limits}
             value={(value as string[] | undefined) ?? []}
             onChange={onChange}
           />
@@ -200,6 +200,7 @@ function PayloadInput({
         <BandsField
           label={label}
           hint={note}
+          limits={limits}
           value={(value as Band[] | undefined) ?? []}
           onChange={onChange}
         />
@@ -209,6 +210,7 @@ function PayloadInput({
         <SessionsField
           label={label}
           hint={note}
+          limits={limits}
           value={(value as Session[] | undefined) ?? []}
           onChange={onChange}
           day={day}
@@ -249,10 +251,12 @@ function NumberField({
 // once whatever its letters' case.
 function WordsField({
   label,
+  limits,
   value,
   onChange,
 }: {
   label: string;
+  limits: PayloadLimits;
   value: string[];
   onChange: (value: string[]) => void;
 }) {
@@ -260,14 +264,14 @@ function WordsField({
   const read = (typed: string, items: string[]): ListEntry => {
     const word = oneLine(typed);
     if (!word) return undefined;
-    if (word.length > payloadLimits.word) {
-      return { problem: t("tooLong", { max: payloadLimits.word }) };
+    if (word.length > limits.word) {
+      return { problem: t("tooLong", { max: limits.word }) };
     }
     if (items.some((item) => foldCase(item) === foldCase(word))) {
       return { problem: t("duplicate") };
     }
-    if (items.length >= payloadLimits.words) {
-      return { problem: t("tooMany", { max: payloadLimits.words }) };
+    if (items.length >= limits.words) {
+      return { problem: t("tooMany", { max: limits.words }) };
     }
     return { item: word };
   };
@@ -292,11 +296,13 @@ function WordsField({
 function BandsField({
   label,
   hint,
+  limits,
   value,
   onChange,
 }: {
   label: string;
   hint: ReactNode;
+  limits: PayloadLimits;
   value: Band[];
   onChange: (value: Band[]) => void;
 }) {
@@ -346,14 +352,14 @@ function BandsField({
             />
             <CountField
               label={t("bandTrainees")}
-              digits={String(payloadLimits.count).length}
+              digits={String(limits.count).length}
               value={band.count}
               onChange={(count) => change(index, { count })}
             />
           </div>
         </div>
       ))}
-      {value.length < payloadLimits.bands ? (
+      {value.length < limits.bands ? (
         <Button
           type="button"
           variant="outline"
@@ -402,12 +408,14 @@ function CountField({
 function SessionsField({
   label,
   hint,
+  limits,
   value,
   onChange,
   day,
 }: {
   label: string;
   hint: ReactNode;
+  limits: PayloadLimits;
   value: Session[];
   onChange: (value: Session[]) => void;
   day: (chosen: string | undefined, choose: (day: string) => void) => ReactNode;
@@ -445,13 +453,13 @@ function SessionsField({
           <Textarea
             aria-labelledby={`${id}-${index}`}
             aria-label={t("sessionNotes")}
-            maxLength={payloadLimits.paragraph}
+            maxLength={limits.paragraph}
             value={session.notes}
             onChange={(event) => change(index, { notes: event.target.value })}
           />
         </div>
       ))}
-      {value.length < payloadLimits.sessions ? (
+      {value.length < limits.sessions ? (
         <Button
           type="button"
           variant="outline"

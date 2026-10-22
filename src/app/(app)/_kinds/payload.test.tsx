@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   kindFields,
   type Payload,
+  payloadLimits,
   type TaskKind,
   taskKinds,
 } from "@/modules/framework";
@@ -71,7 +72,8 @@ describe("PayloadEditor", () => {
   it.each(taskKinds)("asks for each field of a %s", (kind) => {
     const html = render(
       <PayloadEditor
-        kind={kind}
+        fields={kindFields[kind]}
+        limits={payloadLimits}
         value={{}}
         onChange={() => {}}
         today="2026-10-22"
@@ -86,7 +88,8 @@ describe("PayloadEditor", () => {
   it("names each band the trainer gave the section in words, and says no names go in", () => {
     const html = render(
       <PayloadEditor
-        kind="grade_analysis"
+        fields={kindFields.grade_analysis}
+        limits={payloadLimits}
         value={filled.grade_analysis}
         onChange={() => {}}
         today="2026-10-22"
@@ -107,7 +110,8 @@ describe("PayloadEditor", () => {
   it("lists each method the trainer wrote, each with its remove button, and the field for the next", () => {
     const html = render(
       <PayloadEditor
-        kind="training_practice"
+        fields={kindFields.training_practice}
+        limits={payloadLimits}
         value={filled.training_practice}
         onChange={() => {}}
         today="2026-10-22"
@@ -124,7 +128,8 @@ describe("PayloadEditor", () => {
   it("starts an analysis with no band, and names a band by its place until its bound is typed", () => {
     const empty = render(
       <PayloadEditor
-        kind="grade_analysis"
+        fields={kindFields.grade_analysis}
+        limits={payloadLimits}
         value={{}}
         onChange={() => {}}
         today="2026-10-22"
@@ -135,7 +140,8 @@ describe("PayloadEditor", () => {
     expect(empty).not.toContain(messages.kinds.bandTrainees);
     const typing = render(
       <PayloadEditor
-        kind="grade_analysis"
+        fields={kindFields.grade_analysis}
+        limits={payloadLimits}
         value={{ bands: [{ from: 85, count: 9 }, {}] }}
         onChange={() => {}}
         today="2026-10-22"
@@ -153,7 +159,8 @@ describe("PayloadEditor", () => {
     expect(
       render(
         <PayloadEditor
-          kind="professional_development"
+          fields={kindFields.professional_development}
+          limits={payloadLimits}
           value={filled.professional_development}
           onChange={() => {}}
           today="2026-10-22"
@@ -163,7 +170,8 @@ describe("PayloadEditor", () => {
     ).toContain(`${label("provider")} (اختياري)`);
     const sessions = render(
       <PayloadEditor
-        kind="advising_log"
+        fields={kindFields.advising_log}
+        limits={payloadLimits}
         value={filled.advising_log}
         onChange={() => {}}
         today="2026-10-22"
@@ -177,7 +185,9 @@ describe("PayloadEditor", () => {
 
 describe("PayloadView", () => {
   it.each(taskKinds)("shows each field of a filled %s", (kind) => {
-    const html = render(<PayloadView kind={kind} value={filled[kind]} />);
+    const html = render(
+      <PayloadView fields={kindFields[kind]} value={filled[kind]} />,
+    );
     for (const { name } of kindFields[kind]) {
       expect(html, name).toContain(label(name));
     }
@@ -185,7 +195,10 @@ describe("PayloadView", () => {
 
   it("writes an analysis's bands, rates and type in the college's words", () => {
     const html = render(
-      <PayloadView kind="grade_analysis" value={filled.grade_analysis} />,
+      <PayloadView
+        fields={kindFields.grade_analysis}
+        value={filled.grade_analysis}
+      />,
     );
     expect(html).toContain("من 90 إلى 100٪: 4 متدربين");
     expect(html).toContain("أقل من 60٪: متدربان");
@@ -196,20 +209,24 @@ describe("PayloadView", () => {
 
   it("writes days, weeks, boxes and lists as words", () => {
     expect(
-      render(<PayloadView kind="exam_copy" value={filled.exam_copy} />),
+      render(
+        <PayloadView fields={kindFields.exam_copy} value={filled.exam_copy} />,
+      ),
     ).toContain("20 ديسمبر 2026");
     expect(
-      render(<PayloadView kind="homework" value={filled.homework} />),
+      render(
+        <PayloadView fields={kindFields.homework} value={filled.homework} />,
+      ),
     ).toContain("الأسبوع 4");
     const checklist = render(
-      <PayloadView kind="e_learning" value={filled.e_learning} />,
+      <PayloadView fields={kindFields.e_learning} value={filled.e_learning} />,
     );
     expect(checklist.match(/<dd[^>]*>نعم<\/dd>/g)).toHaveLength(2);
     expect(checklist).toMatch(/<dd[^>]*>لا<\/dd>/);
     expect(
       render(
         <PayloadView
-          kind="training_practice"
+          fields={kindFields.training_practice}
           value={filled.training_practice}
         />,
       ),
@@ -217,7 +234,7 @@ describe("PayloadView", () => {
     expect(
       render(
         <PayloadView
-          kind="professional_development"
+          fields={kindFields.professional_development}
           value={filled.professional_development}
         />,
       ),

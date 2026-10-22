@@ -17,11 +17,10 @@ import {
 } from "@/components/motion/select";
 import { Switch } from "@/components/motion/switch";
 import { Button } from "@/components/ui/button";
-import {
-  type DueRule,
-  type FrameworkItemInput,
-  reachesTrainers,
-  type TaskKind,
+import type {
+  DueRule,
+  FrameworkItemInput,
+  TaskKind,
 } from "@/modules/framework";
 
 // An item of the framework (Step 15), or a section template (Step 18), which reaches its
@@ -78,9 +77,9 @@ export const draftOf = (
   // A new item reaches each section's trainer, as most of the framework's do (lead review C).
   applies: !item
     ? EACH_SECTION
-    : reachesTrainers(item.appliesTo)
-      ? item.appliesTo.type
-      : item.appliesTo.roleId,
+    : "roleId" in item.appliesTo
+      ? item.appliesTo.roleId
+      : item.appliesTo.type,
   dueType: item?.due.type ?? "week",
   week: item?.due.type === "week" ? item.due.week : 1,
   every: item?.due.type === "everyWeeks" ? item.due.every : 2,

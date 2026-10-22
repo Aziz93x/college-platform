@@ -17,6 +17,7 @@ export const payloadLimits = {
   sessions: 50,
   count: 10_000,
 } as const;
+export type PayloadLimits = typeof payloadLimits;
 
 // A field of what a task of a kind carries once its trainer fills it in: a line or a paragraph of
 // text, a day, a week of the term, a percentage, a box ticked or not, a list of short entries, the

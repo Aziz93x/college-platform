@@ -2,30 +2,26 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment } from "react";
-import {
-  kindFields,
-  type Payload,
-  type PayloadField,
-  type TaskKind,
-} from "@/modules/framework";
+import type { Payload, PayloadField } from "@/modules/framework";
 import { useBandWords } from "./band-words.ts";
 
 // A day as the college's calendar writes it.
 const dayOf = (day: string) => new Date(`${day}T00:00:00Z`);
 
-// What a trainer filled in for a task of a kind, each of its fields with its words (Step 18): the
-// task card, the review and the portfolio show it (Steps 26, 29 and 31).
+// What a trainer filled in for a task, each field of its kind with its words (Step 18): the task
+// card, the review and the portfolio show it (Steps 26, 29 and 31).
 export function PayloadView({
-  kind,
+  fields,
   value,
 }: {
-  kind: TaskKind;
+  /** The kind's fields (kindFields[kind]), which the page passes: a client component takes no
+   * value from a module, whose index brings its server code. */
+  fields: readonly PayloadField[];
   value: Payload;
 }) {
   const t = useTranslations("kinds");
   const format = useFormatter();
   const bandWords = useBandWords();
-  const fields: readonly PayloadField[] = kindFields[kind];
   const day = (text: string) =>
     format.dateTime(dayOf(text), { dateStyle: "long", timeZone: "UTC" });
 

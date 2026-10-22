@@ -15,6 +15,7 @@ export {
   kindFields,
   type Payload,
   type PayloadField,
+  type PayloadLimits,
   payloadLimits,
 } from "./domain/payloads.ts";
 export {
