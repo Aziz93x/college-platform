@@ -271,6 +271,8 @@ test(
     await bell(page).click();
     await foot.hover();
     await expect(foot).toHaveAttribute("aria-expanded", "true");
+    // A card under the pointer is tinted, and its muted words keep their contrast on it.
+    await panel(page).getByRole("link").last().hover();
     expect(await seriousViolations(page)).toEqual([]);
   },
 );
