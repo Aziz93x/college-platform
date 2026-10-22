@@ -4,6 +4,15 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0017: announcements (the owner's request)
+
+- A head announces to everyone in their department, and the dean and the vice-dean to the college or one department, with a new scoped key, `announcements.publish`, which the roles grid moves like any other. An announcement is a title and a short text whose paragraphs are kept.
+- Publishing tells every enabled account in the scope but its author at once, and a toast says how many it reached. On their next page, and right after signing in, each opens in the middle of the page over the page blurred, the newest first, until it is closed with its button or Escape; closing reads it, so it does not come back, and it stays in the notification center. The preferences say announcements always come, and the preference action refuses to turn them off.
+- `/announcements` holds the form and the live announcements of the viewer's scopes. Their author withdraws their own, and the key across the college anyone's, in a sheet; a withdrawn announcement leaves every bell and center, read or not. Publishing and withdrawing write `announcement.publish` and `announcement.withdraw`, which the log names by the announcement's title.
+- Migration `0013` adds the `announcements` table; the notifications carry the announcement's id. The shared dialog takes an overlay class, for the blur.
+- `seed:demo` publishes the head of Electrical's announcement and the dean's; the demo accounts the tests sign in as have read them, and the invited trainer meets the dean's at the first sign-in, which the production stack's smoke closes.
+- Tests: the input's tidying; the services on a real database (who is reached, refusals, withdrawal, the events); the actions' scopes and the permission matrix's rows; every action's audit event; the log's words; the seed; and end-to-end on the desktop and the iPhone, in a department the test makes: two announcements newest first over the page blurred, axe and 44 px targets on the dialog, closing for good, withdrawal from the center, the trainer refused the page, and the preferences' row.
+
 ### Lead review B: section B (Step 41, Steps 7 to 12)
 
 - One switch on the roles grid no longer hands a role the admins' accounts. A key held across the college reaches an account only when its holder holds, across the college, every key of that account that requires two-factor and, for an account with a role across the college, every key it holds: an admin still reaches everyone, and a vice-dean given temporary passwords helps trainers, never an admin or a head. Editing and disabling someone check the same reach, the person's page offers only what reaches, and the grid says whom each account key reaches (ADR-0014, decisions 3 and 4 amended).

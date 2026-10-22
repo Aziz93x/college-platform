@@ -95,7 +95,7 @@ const reaches = async (actor: string) => {
   );
 };
 
-it("lets a vice-dean given temporary passwords help the trainers and the dean, whose one key it holds, never the admin or a head", async () => {
+it("lets a vice-dean given temporary passwords help the trainers and the dean, whose keys it holds, never the admin or a head", async () => {
   expect(await reaches("viceDean")).toEqual({
     admin: false,
     viceDean: true,

@@ -72,7 +72,7 @@ function NotificationCardContent({ item }: { item: NotificationStackItem }) {
         ) : null}
       </span>
       {item.description ? (
-        <span className="text-muted-foreground text-xs leading-relaxed transition-colors group-hover/card:text-foreground">
+        <span className="line-clamp-2 text-muted-foreground text-xs leading-relaxed transition-colors group-hover/card:text-foreground">
           {item.description}
         </span>
       ) : null}

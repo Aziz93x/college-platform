@@ -237,7 +237,7 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
   ).toBeVisible();
 });
 
-test("on a phone, the admin's six pages leave four tabs and More, whose sheet opens the rest", async ({
+test("on a phone, the admin's seven pages leave four tabs and More, whose sheet opens the rest", async ({
   page,
   isMobile,
 }) => {
@@ -252,7 +252,11 @@ test("on a phone, the admin's six pages leave four tabs and More, whose sheet op
   ]);
   await bar.getByRole("button", { name: shell.more }).click();
   const sheet = page.getByRole("dialog", { name: shell.moreTitle });
-  await expect(sheet.getByRole("link")).toHaveText([nav.settings, nav.audit]);
+  await expect(sheet.getByRole("link")).toHaveText([
+    nav.settings,
+    nav.audit,
+    nav.announcements,
+  ]);
   await sheet.getByRole("link", { name: nav.audit }).click();
   await expect(page).toHaveURL("/audit");
   await expect(sheet).toBeHidden();

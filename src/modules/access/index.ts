@@ -32,6 +32,7 @@ export { createFirstAdmin } from "./server/first-admin.ts";
 export { loadAccess } from "./server/load-access.ts";
 export {
   disableAccount,
+  enabledPeopleIn,
   listDirectory,
   type PersonEntry,
 } from "./server/people.ts";

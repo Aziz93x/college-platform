@@ -134,6 +134,13 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
       return lookups.setting(id) ?? id;
     case "college":
       return lookups.college;
+    // An announcement by its title, as it was published or withdrawn (ADR-0017).
+    case "announcement": {
+      const diff = entry.diff ?? {};
+      const said =
+        isRecord(diff.to) && "title" in diff.to ? diff.to : diff.from;
+      return isRecord(said) && typeof said.title === "string" ? said.title : id;
+    }
     case "membership": {
       const diff = entry.diff ?? {};
       const held = (isRecord(diff.to) ? diff.to : diff.from) as

@@ -224,6 +224,7 @@ describe("a kind turned off", () => {
       membershipAdded: true,
       membershipRemoved: true,
       weeklyDigest: false,
+      announcement: true,
     });
     // Turning on what was never turned off changes nothing.
     expect(

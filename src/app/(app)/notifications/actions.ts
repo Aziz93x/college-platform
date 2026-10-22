@@ -8,6 +8,7 @@ import { requestMeta } from "@/modules/identity";
 import {
   chooseNotification,
   isNotificationKind,
+  isOptional,
   markRead,
   type NotificationKind,
 } from "@/modules/notifications";
@@ -17,10 +18,12 @@ import {
 // it needs no key; the services keep to them and write the audit events. After a change the page
 // is drawn again, so the bell shows its new count at once.
 
+// A kind its people may turn off: an announcement is not one (ADR-0017).
 const kind = z
   .string()
   .refine(isNotificationKind)
-  .transform((value) => value as NotificationKind);
+  .transform((value) => value as NotificationKind)
+  .refine(isOptional);
 
 // The notifications named (one opened, or those on show), or all of them unread.
 export const markReadAction = viewerAction

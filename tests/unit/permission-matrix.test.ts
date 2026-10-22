@@ -20,6 +20,8 @@ vi.mock("../../src/modules/access/server/viewer.ts", () => ({
 
 // The domain functions the actions reach, each answering as if it succeeded.
 const ID = "0199b2a4-6c1e-7d3a-9f00-3c5e8a1b2c4d";
+// The department the matrix holds keys in, where the people its account actions touch are.
+const DEPARTMENT = "0199b2a4-6c1e-7d3a-9f00-000000000001";
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -79,6 +81,21 @@ vi.mock("@/modules/identity", async (importOriginal) => ({
   requestMeta: () => ({ ip: "10.0.30.1", userAgent: "matrix" }),
   turnOffTwoFactor: async () => "off",
   turnOffOwnTwoFactor: async () => ({ status: "off" }),
+}));
+// An announcement someone else made, to the matrix's department (ADR-0017).
+vi.mock("@/modules/announcements", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/announcements")>()),
+  publishAnnouncement: async () => ({
+    status: "published",
+    id: ID,
+    reached: 1,
+  }),
+  findAnnouncement: async () => ({
+    id: ID,
+    authorId: "someone-else",
+    departmentId: DEPARTMENT,
+  }),
+  withdrawAnnouncement: async () => ({ status: "withdrawn", removed: 1 }),
 }));
 vi.mock("@/platform/files/table", () => ({
   readTable: async () => [
@@ -263,6 +280,27 @@ const checked: {
     input: { userId: ID, employeeNumber: "2002" },
     inDepartment: true,
   },
+  // An announcement to the matrix's department needs the key there; to the college, across it.
+  {
+    module: "(app)/announcements/actions.ts",
+    action: "publishAnnouncementAction",
+    permission: "announcements.publish",
+    input: { departmentId: DEPARTMENT, title: "A meeting", body: "Sunday." },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/announcements/actions.ts",
+    action: "publishAnnouncementAction",
+    permission: "announcements.publish",
+    input: { departmentId: null, title: "A holiday", body: "Sunday." },
+  },
+  // Someone else's: only across the college.
+  {
+    module: "(app)/announcements/actions.ts",
+    action: "withdrawAnnouncementAction",
+    permission: "announcements.publish",
+    input: { id: ID },
+  },
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others
@@ -286,7 +324,6 @@ const roles: { key: string; permissions: readonly PermissionKey[] }[] = [
   ...defaultRoles,
   { key: "no key", permissions: [] },
 ];
-const DEPARTMENT = "0199b2a4-6c1e-7d3a-9f00-000000000001";
 
 const viewerFor = (
   role: (typeof roles)[number],

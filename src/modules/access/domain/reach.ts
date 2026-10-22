@@ -12,7 +12,7 @@ export type AccountHolder = {
 // actor a power they lack (lead review B). Held across the college, it reaches someone when the
 // actor holds across the college every key of theirs that requires two-factor and, for someone with
 // a role across the college, every key of theirs: an admin reaches everyone, and a vice-dean given
-// temporary passwords helps trainers and the dean, whose one key they hold, never an admin or a
+// temporary passwords helps trainers and the dean, whose keys they hold, never an admin or a
 // head. Held in some departments, it reaches the people who hold a role in one of them, none across
 // the college, and no key that requires two-factor: a head helps their own trainers, never the
 // dean, an admin or another head.
