@@ -165,7 +165,7 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
     }
     // A portfolio axis by its title before the change (Step 14).
     case "axis": {
-      const was = (entry.diff ?? {}).from;
+      const was = entry.diff?.from;
       return isRecord(was) && typeof was.title === "string" ? was.title : id;
     }
     // An announcement by its title, as it was published or withdrawn (ADR-0017).

@@ -127,6 +127,10 @@ vi.mock("@/modules/terms", async (importOriginal) => ({
   removeCalendarEvent: async () => ({ status: "saved" }),
   updateHoliday: async () => ({ status: "saved" }),
 }));
+vi.mock("@/modules/axes", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/axes")>()),
+  updateAxis: async () => ({ status: "saved" }),
+}));
 vi.mock("@/platform/files/table", () => ({
   readTable: async () => [
     ["employeeNumber", "name", "email"],
@@ -352,6 +356,13 @@ const checked: {
     permission: "term.manage" as const,
     input,
   })),
+  // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
+  {
+    module: "(app)/axes/actions.ts",
+    action: "updateAxisAction",
+    permission: "axes.manage",
+    input: { id: ID, title: "E-learning", description: "" },
+  },
 ];
 
 // Actions anyone may call, or anyone signed in, on purpose: signing in is public, and the others

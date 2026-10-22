@@ -4,6 +4,13 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 14: portfolio axes catalog
+
+- The portfolio's axes are data: migration `0015` adds `axis_groups` and `axes`, each found by its code, with its title, description and place. The base seed adds the 11 axes in 3 groups and the closing group (axes 12 and 13), and adds nothing that is already there. The titles are provisional until the owner gives the administration's list: the plan names axes 4 and 7 to 13, and the others are named after the work the plan files under them.
+- `/axes`, in the administration group, lists the groups and their axes for whoever holds the new key `axes.manage`, which only the admin holds by default. The admin corrects an axis's title and description in a sheet, which writes `axis.update`; the log names the axis by its title before the change.
+- Every axis is the administration's, so the one key guards them all and no per-axis lock is stored (a note under Step 15).
+- Tests: the seed's axes and groups, once, keeping an axis the admin renamed; the correction, unchanged and not found, in the log; the permission matrix, where a vice-dean renames no axis; every action's audit event; and end-to-end on the desktop and the iPhone, the admin correcting an axis's description with axe and 44 px targets, and a trainer refused the page.
+
 ### ADR-0018 amended: Founding Day, each year's holidays in their year, and approval (the owner's request)
 
 - Founding Day joins the college's holidays for the ten years. It is 22 February in the Umm al-Qura year it falls in, moved off the weekend as the official rule says: a Friday gives the Thursday before, and a Saturday the Sunday after.

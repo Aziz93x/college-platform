@@ -973,6 +973,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** this step creates the kinds registry with the kind keys its items use, and Step 18 adds each kind's payload, editor and view. The due-rule and evidence-policy shapes are defined here, and Step 18 reuses them. The counting function is unit-tested on fixtures; per-section counts come from real sections once Step 17 has created them.
 
+**Note from Step 14:** the axes are `axes` and `axis_groups` (`src/modules/axes`), found by their code (`axes_code_unique`); `listAxes()` gives the groups in order with their axes. An item that points at an axis needs `unique(college_id, id)` on `axes` for its composite foreign key, added with the first such table. Every axis is the administration's, so `axes.manage`, the admin's key, guards them all and no per-axis `locked` column is stored; add one only if a college may add axes of its own.
+
 **Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
@@ -1212,6 +1214,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Done when:** each kind of entry is stored under its configured axis, and changing the mapping setting moves it (tests); the readiness board counts complete profiles.
 
+**Note from Step 14:** the mapping setting names each axis by its code ("4", "7"...), the key the base seed gives the administration's axes.
+
 > **Checkpoint: Lead review E.** Run `/lead-review E`, then tag `v0.5-E`.
 
 ### Section F. Review and portfolios (steps 29 to 33)
@@ -1250,6 +1254,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Notes from Step 5**
 
 - BeUI here: bouncy accordion (the axes).
+
+**Note from Step 14:** the closing group (axes 12 and 13, code `closing` in `db/seed/base.ts`) is the optional one; nothing marks it optional yet, so this step adds that marker when it treats the group differently.
 
 > **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
 
