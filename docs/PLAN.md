@@ -948,6 +948,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 11:** the date range picker is `src/components/motion/date-range-picker`, controlled, with its words from `dateRange` in `messages/ar.json`; `useDateRangeWords` (`src/components/use-date-range-words.ts`, shared with the design catalog since UX review 1) builds them. Its days are calendar dates (YYYY-MM-DD): `startOfDay()` and `wallClock()` in `src/platform/i18n/time-zone.ts` turn them into instants on the college's clock and back.
 
+**Note from ADR-0018 (the owner's request):** the Eid breaks, ten years ahead. The base seed adds the college's Eid al-Fitr and Eid al-Adha breaks for the current Hijri year and the nine after it, each estimated from the averages of past Saudi calendars (docs/reviews/eid-breaks.md) and fitted to whole weeks, with Eid's date from the Umm al-Qura calendar Intl carries. Every term counts the breaks that fall in it with its own holidays, and the vice-dean adjusts each year's break on `/terms` once it is announced (`holiday.update`); a break that has begun stays as it was.
+
 #### Step 14. Portfolio axes catalog (S)
 
 **Goal:** the administration's axes are data, protected from accidental change.
