@@ -36,7 +36,8 @@ const permissions = {
   "framework.publish": { area: "term", requiresTwoFactor: false },
   // Endorse the framework's draft before it is published, where the college asks for it (Step 15).
   "framework.endorse": { area: "term", requiresTwoFactor: false },
-  // Upload Rayat's reports (Step 16).
+  // Upload, apply and roll back Rayat's reports (Step 16). A file is the whole college's, so the key
+  // held in a department does what it does held across the college (ADR-0019).
   "rayat.import": { area: "term", requiresTwoFactor: false },
   // Edit a department's plan, and publish it to generate its tasks (Steps 19 and 20).
   "plan.edit": { area: "planning", requiresTwoFactor: false },

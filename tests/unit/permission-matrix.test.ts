@@ -409,7 +409,8 @@ const checked: {
     permission: "framework.endorse",
     input: { draftId: ID },
   },
-  // Rayat's reports for a term, the vice-dean's across the college (Step 16).
+  // Rayat's reports for a term, the college's: the key held anywhere imports them, the vice-dean's
+  // across the college or a head's in a department (Step 16, ADR-0019).
   ...[
     [
       "uploadRayatAction",
@@ -423,6 +424,7 @@ const checked: {
     action: action as string,
     permission: "rayat.import" as const,
     input,
+    inDepartment: true as const,
   })),
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {

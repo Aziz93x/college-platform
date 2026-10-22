@@ -86,6 +86,18 @@ const enrollment = (traineeNumber: string, changes = {}) => ({
   ...changes,
 });
 
+const absence = (traineeNumber: string) => ({
+  termCode: "14481",
+  term: TERM,
+  department: ELECTRICAL,
+  subjectCode: "كهر",
+  courseNumber: "101",
+  traineeNumber,
+  courseStatus: "منتظم",
+  absencePercent: "5",
+  absenceHours: "2",
+});
+
 async function upload<K extends RayatKind>(
   kind: K,
   rows: Parameters<typeof table<K>>[1],
@@ -298,6 +310,53 @@ describe("a term's version of a report", () => {
       "rayatImport.discard",
       "rayatImport.upload",
       "rayatImport.rollback",
+    ]);
+  });
+
+  // A head imports the college's reports as the vice-dean does, and the page names who did what
+  // (ADR-0019).
+  it("names who uploaded each version and, when someone else applied it, who applied it", async () => {
+    const head = await database.db.transaction(
+      async (tx) =>
+        (
+          await createAccount(
+            {
+              collegeId,
+              name: "head",
+              email: "head@college.example",
+              employeeNumber: "600002",
+            },
+            tx,
+            "password-head",
+          )
+        ).userId,
+    );
+    const byHead = (rows: ReturnType<typeof absence>[]) =>
+      uploadRayat(
+        "so01",
+        termId,
+        table("so01", rows),
+        { collegeId, actorId: head },
+        database.db,
+      );
+    const first = await pending("so01", [absence("444100001")]);
+    await applyRayat(first.importId, change(), database.db);
+    const second = await byHead([absence("444100002")]);
+    if (second.status !== "pending") throw new Error(second.status);
+    await applyRayat(second.importId, change(), database.db);
+    await byHead([absence("444100003")]);
+    expect(
+      (await listRayatImports(collegeId, termId, database.db))
+        .filter(({ kind }) => kind === "so01")
+        .map(({ status, uploadedBy, appliedBy }) => ({
+          status,
+          uploadedBy,
+          appliedBy,
+        })),
+    ).toEqual([
+      { status: "pending", uploadedBy: "head", appliedBy: null },
+      { status: "applied", uploadedBy: "head", appliedBy: "viceDean" },
+      { status: "applied", uploadedBy: "viceDean", appliedBy: null },
     ]);
   });
 

@@ -125,6 +125,7 @@ describe("listDirectory", () => {
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",
         "announcements.publish",
+        "rayat.import",
       ]),
     );
     expect(

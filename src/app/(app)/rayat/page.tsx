@@ -6,7 +6,11 @@ import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
-import { authorize, requireViewer } from "@/modules/access";
+import {
+  authorize,
+  permittedDepartments,
+  requireViewer,
+} from "@/modules/access";
 import {
   listRayatImports,
   type RayatDiff,
@@ -24,14 +28,16 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// Rayat's reports for the term on view (Step 16), for whoever holds rayat.import across the
-// college: for each report, the version in force, an upload waiting with its diff, a new file to
-// check, and the versions before. A closed term's are shown, and nothing changes them.
+// Rayat's reports for the term on view (Step 16), for whoever holds rayat.import, across the
+// college or in a department (ADR-0019): for each report, the version in force and who uploaded and
+// applied it, an upload waiting with its diff, a new file to check, and the versions before. A
+// closed term's are shown, and nothing changes them.
 export default async function RayatPage() {
   await connection();
   const viewer = await requireViewer();
+  const held = permittedDepartments(viewer, "rayat.import");
+  if (held !== "college" && held.length === 0) forbidden();
   const scope = { collegeId: viewer.collegeId };
-  if (!authorize(viewer, "rayat.import", scope)) forbidden();
   const [t, { term }] = await Promise.all([
     getTranslations("rayat"),
     viewedTerm(viewer.collegeId, authorize(viewer, "term.manage", scope)),
@@ -125,13 +131,23 @@ export default async function RayatPage() {
                   </h3>
                   <p className="mt-1 text-sm">
                     {current
-                      ? t("current.line", {
-                          records: records(kind, current.records),
-                          by: by(current.uploadedBy),
-                          at: when(current.appliedAt ?? current.uploadedAt),
-                        })
+                      ? records(kind, current.records)
                       : t("current.none")}
                   </p>
+                  {current ? (
+                    <Facts
+                      facts={[
+                        [
+                          t("facts.updated"),
+                          when(current.appliedAt ?? current.uploadedAt),
+                        ],
+                        [t("facts.uploadedBy"), by(current.uploadedBy)],
+                        ...(current.appliedBy
+                          ? [[t("facts.appliedBy"), current.appliedBy] as const]
+                          : []),
+                      ]}
+                    />
+                  ) : null}
                 </div>
                 {current && open ? (
                   <div className="shrink-0">
@@ -150,10 +166,14 @@ export default async function RayatPage() {
                       {t("pending.line", {
                         records: records(kind, pending.records),
                         rows: pending.rows,
-                        by: by(pending.uploadedBy),
-                        at: when(pending.uploadedAt),
                       })}
                     </p>
+                    <Facts
+                      facts={[
+                        [t("facts.uploadedBy"), by(pending.uploadedBy)],
+                        [t("facts.uploadedAt"), when(pending.uploadedAt)],
+                      ]}
+                    />
                   </div>
                   <DiffView kind={kind} diff={pending.diff} />
                   {open ? <PendingButtons importId={pending.id} /> : null}
@@ -196,6 +216,24 @@ export default async function RayatPage() {
         })}
       </div>
     </NextIntlClientProvider>
+  );
+}
+
+// Who did what to a version, and when, each fact under its label.
+function Facts({
+  facts,
+}: {
+  facts: readonly (readonly [label: string, value: string])[];
+}) {
+  return (
+    <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+      {facts.map(([label, value]) => (
+        <div key={label} className="min-w-0">
+          <dt className="text-muted-foreground text-xs">{label}</dt>
+          <dd className="text-sm">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

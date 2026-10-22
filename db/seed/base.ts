@@ -62,6 +62,7 @@ export const defaultRoles: {
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
+      "rayat.import",
     ],
   },
   { key: "secretary", labels: { ar: "أمين القسم" }, permissions: [] },

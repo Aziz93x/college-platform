@@ -31,4 +31,4 @@ The plan gave Rayat's uploads to the vice-dean alone (section 1), and Step 16 ch
 
 - A head and the vice-dean can each replace the other's version. The page shows who did it, the log keeps the history, and either of them can roll back the version in force.
 - The permission matrix allows the Rayat actions to the key held in a department, and the actions check it themselves rather than through their metadata, which requires the key across the college.
-- `seed:demo`: the head of Electrical uploads the newer SF01 that waits for review, so the page shows a second name beside the vice-dean's.
+- `seed:demo`: the head of Electrical uploads SO01, which the vice-dean applies, and the newer SF01 that waits for review. The page then shows both names, and an applier beside an uploader.
