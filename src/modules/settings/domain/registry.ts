@@ -56,6 +56,7 @@ export type SettingUnit =
   | "megabytes"
   | "percent"
   | "items"
+  | "weeks"
   | "hourOfDay";
 
 // The permission key (src/modules/access) that edits a setting: the platform's own settings take
@@ -169,6 +170,15 @@ export const settingsRegistry = {
     permission: TERM,
     schema: z.boolean(),
     default: true,
+  },
+  // The usual length of a term: a new term's form starts from it.
+  "calendar.termWeeks": {
+    scope: "college",
+    group: "calendar",
+    permission: TERM,
+    schema: z.int().min(1).max(52),
+    default: 18,
+    unit: "weeks",
   },
   // Whether holding a key that requires two-factor makes its holder set it up before anything else.
   // Off, two-factor is each person's own choice on their profile (ADR-0014).

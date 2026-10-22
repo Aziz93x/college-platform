@@ -27,6 +27,7 @@ export function useDateRangeWords(label: string): DateRangePickerWords {
     help: t("help"),
     startChosen: (date) => t("startChosen", { date }),
     rangeChosen: (from, to) => t("rangeChosen", { from, to }),
+    dayChosen: (date) => t("dayChosen", { date }),
     unavailable: t("unavailable"),
     cleared: t("cleared"),
     chooseStart: t("chooseStart"),

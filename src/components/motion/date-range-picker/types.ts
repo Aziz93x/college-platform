@@ -25,6 +25,8 @@ export interface DateRangePickerWords {
   help: string;
   startChosen: (date: string) => string;
   rangeChosen: (from: string, to: string) => string;
+  // The one day chosen where the picker chooses one (single).
+  dayChosen: (date: string) => string;
   unavailable: string;
   cleared: string;
   chooseStart: string;
@@ -56,4 +58,6 @@ export interface DateRangePickerProps {
   children?: ReactNode;
   /** Close an open popover after a complete range. Default false. */
   closeOnSelect?: boolean;
+  /** Choose one day: a tap completes the value, from and to that day. Default false. */
+  single?: boolean;
 }

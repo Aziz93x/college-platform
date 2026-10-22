@@ -670,8 +670,11 @@ function DateRangePickerTrigger({
   });
   const sameYear =
     ctx.value?.to && ctx.value.from.slice(0, 4) === ctx.value.to.slice(0, 4);
+  // One day reads as that day: a day chosen alone, or a range that starts and ends on it.
   const summary = ctx.value
-    ? `${(sameYear ? format : ctx.shortFormat).format(parse(ctx.value.from))} – ${ctx.value.to ? ctx.shortFormat.format(parse(ctx.value.to)) : ctx.words.unchosen}`
+    ? ctx.value.to === ctx.value.from
+      ? ctx.shortFormat.format(parse(ctx.value.from))
+      : `${(sameYear ? format : ctx.shortFormat).format(parse(ctx.value.from))} – ${ctx.value.to ? ctx.shortFormat.format(parse(ctx.value.to)) : ctx.words.unchosen}`
     : (placeholder ?? ctx.words.placeholder);
   return (
     <MorphPopoverTrigger>
