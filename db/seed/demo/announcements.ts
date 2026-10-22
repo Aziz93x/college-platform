@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { enabledPeopleIn } from "../../../src/modules/access/index.ts";
 import { announcements } from "../../../src/modules/announcements/index.ts";
 import { auditEvents } from "../../../src/modules/audit/index.ts";
-import { users } from "../../../src/modules/identity/index.ts";
+import { people, users } from "../../../src/modules/identity/index.ts";
 import { notifications } from "../../../src/modules/notifications/index.ts";
 import { listDepartments } from "../../../src/modules/org/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
@@ -51,7 +51,7 @@ export async function seedDemoAnnouncements(
     .limit(1);
   if (made) return;
 
-  const [log, departments, cast] = await Promise.all([
+  const [log, departments, cast, staff] = await Promise.all([
     db
       .select({
         action: auditEvents.action,
@@ -78,7 +78,14 @@ export async function seedDemoAnnouncements(
           Object.values(demoAccounts).map(({ email }) => email),
         ),
       ),
+    db
+      .select({ userId: people.userId, employeeNumber: people.employeeNumber })
+      .from(people)
+      .where(eq(people.collegeId, collegeId)),
   ]);
+  const numbers = new Map(
+    staff.map(({ userId, employeeNumber }) => [userId, employeeNumber]),
+  );
   const byEmail = new Map(cast.map((user) => [user.email, user]));
   // The accounts the tests sign in as, all but the invited trainer, who never signed in.
   const tested = new Set(
@@ -126,9 +133,14 @@ export async function seedDemoAnnouncements(
       body: announcement.body,
       createdAt: new Date(at),
     });
+    // By employee number, so each draw below falls to the same person on every database.
     const recipients = (
       await enabledPeopleIn(collegeId, department?.id ?? null, db)
-    ).filter((userId) => userId !== author.id);
+    )
+      .filter((userId) => userId !== author.id)
+      .sort((a, b) =>
+        (numbers.get(a) ?? "").localeCompare(numbers.get(b) ?? ""),
+      );
     const readings = recipients.map((userId) => {
       const next = nextSignIn(userId, at)?.createdAt.getTime();
       if (tested.has(userId)) {
