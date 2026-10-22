@@ -4,6 +4,19 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 5: steps 13-15
+
+- The end-to-end tests of a term no longer pass or fail by the date. They take today on the college's clock, as the pages do: the holiday the approval test makes falls on a Friday at least two days ahead, and the trainer's journey, now on the demo trainer, accepts a week of an Eid break as this week. The production stack's smoke runs the terms', the axes' and the framework's specs.
+- A term's weeks write a tinted row's days and contents in the foreground: the muted grey measured 4.18:1 on this week's row and 3.97:1 on a holiday week's. The terms list's dates turn to the foreground under the pointer. The token test checks the holiday week's tint (`muted/40`), and the term journey runs axe on a term with a holiday week.
+- An evidence policy names file extensions that the college accepts (`files.acceptedTypes`). The sheet offers the setting's list in capitals, and the five fixed kinds and their words are gone. An item's service refuses a file type the college does not accept, a kind of day no calendar has, and a role that is not one of the college's, with `notOffered`; the page no longer guards against them.
+- A closed term's framework changes no more: its draft takes no item, no endorsement and no publication, and the page shows the term's framework to those who prepare it as it shows it to everyone.
+- The task count takes a rule as due only in the term's weeks: "a week after each exam" counts no task for finals in the term's last week, as week 19 of 18 counts none (a note under Step 20). The members a framework reaches count each person once, whatever memberships they hold.
+- Adjusting a holiday is refused when its new days would leave a term's events outside the term, naming the term and the events, as the term's own changes are. `calendarOf()` and `outside()` moved into the terms module's domain.
+- A note under Step 9: `term.manage` edits the calendar settings without asking for two-factor, as the owner keeps two-factor optional.
+- `seed:demo`: the vice-dean has approved the coming holiday as estimated, and the framework's version 2 waits as a draft with the grade analysis two weeks after each exam. The term's one-term secretary is a trainer who is not already the department's secretary.
+- Tests: the wizard's framework copy in the actions' audit test; a draft term hidden from the demo trainer, at its address and in the switcher; an item refused for what the college does not offer, and a closed term's draft refused; holders counted once; a holiday adjustment that would strand the finals; the seed's approved holiday and draft.
+- docs/reviews/audit-15.md holds the report and its resolution. Two enhancements wait in docs/BACKLOG.md.
+
 ### Step 15: the general framework
 
 - The vice-dean, or whoever holds `framework.publish`, prepares the term's general framework on `/framework`: a draft of college-wide items that every department plan inherits. Migration `0016` adds `frameworks` and `framework_items`. Each item has:

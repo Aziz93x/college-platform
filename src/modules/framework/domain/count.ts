@@ -6,13 +6,15 @@ export type Department = {
   sections: number;
 };
 
-// What the term holds that rules count on: its numbered weeks, and its calendar's days of each kind.
+// What the term holds that rules count on: its numbered weeks, and for each kind of day of its
+// calendar, the last numbered week of each such day.
 export type TermShape = {
   weeks: number;
-  events: Readonly<Record<string, number>>;
+  events: Readonly<Record<string, readonly number[]>>;
 };
 
-// How many times a rule is due in the term.
+// How many times a rule is due in the term: a task due past its last week is not one of its tasks
+// (Audit 5).
 export function occurrences(due: DueRule, term: TermShape) {
   switch (due.type) {
     case "week":
@@ -22,7 +24,9 @@ export function occurrences(due: DueRule, term: TermShape) {
     case "everyWeeks":
       return Math.floor(term.weeks / due.every);
     case "afterEvent":
-      return term.events[due.eventKind] ?? 0;
+      return (term.events[due.eventKind] ?? []).filter(
+        (week) => week + due.weeks <= term.weeks,
+      ).length;
   }
 }
 

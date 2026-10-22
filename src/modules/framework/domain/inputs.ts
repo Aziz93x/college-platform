@@ -18,15 +18,6 @@ export const taskKinds = [
 ] as const;
 export type TaskKind = (typeof taskKinds)[number];
 
-// The kinds of file evidence may be, as the upload will check them.
-export const evidenceTypes = [
-  "pdf",
-  "image",
-  "word",
-  "excel",
-  "powerpoint",
-] as const;
-
 // How long an item's words may be, how many weeks a rule may count and how many files evidence
 // may hold. They only keep a slip of the keyboard out of the database.
 export const frameworkLimits = {
@@ -63,11 +54,15 @@ const dueRule = z.discriminatedUnion("type", [
 ]);
 export type DueRule = z.infer<typeof dueRule>;
 
-// What evidence an item asks for: whether it is required, the kinds of file it accepts, how many,
-// and whether the head approves it.
+// What evidence an item asks for: whether it is required, the file extensions it accepts, how many
+// files, and whether the head approves it. The extensions are among the college's
+// files.acceptedTypes, which the upload checks (Step 25); the item's service checks them against it.
 const evidencePolicy = z.object({
   required: z.boolean(),
-  types: z.array(z.enum(evidenceTypes)).min(1),
+  types: z
+    .array(z.string().regex(/^[a-z0-9]{1,10}$/))
+    .min(1)
+    .refine((types) => new Set(types).size === types.length),
   maxFiles: z.int().min(1).max(frameworkLimits.files),
   requiresApproval: z.boolean(),
 });

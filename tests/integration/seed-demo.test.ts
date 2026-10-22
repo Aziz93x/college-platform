@@ -106,7 +106,8 @@ it("gives db:seed's college the demo values, settings and departments, then a se
   );
 });
 
-// Each demo person, by employee number, with their roles as "key" or "key:department".
+// Each demo person, by employee number, with their roles for every term as "key" or
+// "key:department"; the role held for one term is the demo term's own (Step 13).
 const demoPeople = async (pool: Pool) =>
   (
     await pool.query(`
@@ -116,7 +117,7 @@ const demoPeople = async (pool: Pool) =>
       from users u
       join people p on p.user_id = u.id
       join accounts a on a.user_id = u.id and a.provider_id = 'credential'
-      join memberships m on m.user_id = u.id
+      join memberships m on m.user_id = u.id and m.term_id is null
       join roles r on r.id = m.role_id
       left join departments d on d.id = m.department_id
       group by p.employee_number, u.id, a.password
@@ -306,10 +307,12 @@ it("writes three weeks of the college's history, every event in the past and by 
       "term.create",
       "calendarEvent.create",
       "term.activate",
-      // The vice-dean's framework for it (Step 15).
+      "holiday.approve",
+      // The vice-dean's framework for it, and its version 2 in the making (Step 15).
       "framework.create",
       "frameworkItem.create",
       "framework.publish",
+      "frameworkItem.update",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -501,6 +504,47 @@ it("starts the demo term on the day that puts today in week 9, counted past the 
     [term.id],
   );
   expect(held).toEqual([{ key: "secretary", name: demoDepartments[1].name }]);
+  // Held for that term only: not by its secretary for every term (Audit 5).
+  const { rows: everyTerm } = await pool.query(
+    `select m.id from memberships m join memberships held
+       on held.user_id = m.user_id and held.role_id = m.role_id
+         and held.department_id = m.department_id
+     where held.term_id = $1 and m.term_id is null`,
+    [term.id],
+  );
+  expect(everyTerm).toEqual([]);
+});
+
+it("approves the coming holiday, and keeps the framework's version 2 as a draft beside the published one (Audit 5)", async () => {
+  const { pool } = await seededDatabase();
+  const today = wallClock(
+    new Date(),
+    settingsRegistry["locale.timeZone"].default,
+  ).slice(0, 10);
+  const { rows: approved } = await pool.query(
+    `select to_char(starts_on, 'YYYY-MM-DD') as "startsOn" from holidays where adjusted`,
+  );
+  const { rows: coming } = await pool.query(
+    `select to_char(starts_on, 'YYYY-MM-DD') as "startsOn" from holidays
+     where starts_on > $1 order by starts_on, key limit 1`,
+    [today],
+  );
+  expect(approved).toEqual(coming);
+  const { rows: versions } = await pool.query(
+    "select version, status from frameworks order by version",
+  );
+  expect(versions).toEqual([
+    { version: 1, status: "published" },
+    { version: 2, status: "draft" },
+  ]);
+  const { rows: changed } = await pool.query(
+    `select f.version, i.due from framework_items i join frameworks f on f.id = i.framework_id
+     where i.kind = 'grade_analysis' order by f.version`,
+  );
+  expect(changed).toEqual([
+    { version: 1, due: { type: "afterEvent", eventKind: "exam", weeks: 1 } },
+    { version: 2, due: { type: "afterEvent", eventKind: "exam", weeks: 2 } },
+  ]);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

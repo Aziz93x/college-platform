@@ -20,14 +20,19 @@ import { listAxes } from "@/modules/axes";
 import {
   countTasks,
   type DueRule,
-  evidenceTypes,
   type FrameworkItemInput,
   frameworkLimits,
   taskKinds,
   termFramework,
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
-import { calendarEventKinds, findTerm } from "@/modules/terms";
+import {
+  calendarEventKinds,
+  calendarOf,
+  calendarSettings,
+  findTerm,
+  termWeeks,
+} from "@/modules/terms";
 import { viewedTerm } from "../_shell/term.ts";
 import { FrameworkDraft, ItemWords } from "./framework-draft.tsx";
 
@@ -77,6 +82,8 @@ export default async function FrameworkPage() {
     members,
     calendar,
     needsEndorsement,
+    accepted,
+    settings,
   ] = await Promise.all([
     getMessages(),
     getLocale(),
@@ -88,6 +95,8 @@ export default async function FrameworkPage() {
     countMembers(viewer.collegeId),
     findTerm(viewer.collegeId, term.id),
     getSetting("framework.requireEndorsement", scope),
+    getSetting("files.acceptedTypes", scope),
+    calendarSettings(viewer.collegeId),
   ]);
   const language = locale.split("-")[0];
   const axes = groups.flatMap((group) => group.axes);
@@ -102,10 +111,11 @@ export default async function FrameworkPage() {
       .filter((role) => !role.system)
       .map((role) => [role.id, roleLabel(role.labels, language)]),
   );
+  // The items' services take only a calendar's kinds (Audit 5).
   const eventWords = (kind: string) =>
-    (calendarEventKinds as readonly string[]).includes(kind)
-      ? calendarWords(kind as (typeof calendarEventKinds)[number])
-      : kind;
+    calendarWords(kind as (typeof calendarEventKinds)[number]);
+  // A file type as people know it: its extension in capitals.
+  const typeWords = (type: string) => type.toUpperCase();
   const dueWords = (due: DueRule) => {
     switch (due.type) {
       case "week":
@@ -134,9 +144,7 @@ export default async function FrameworkPage() {
       evidence: [
         t("evidenceText", {
           required: String(item.evidence.required),
-          types: format.list(
-            item.evidence.types.map((type) => t(`evidenceTypes.${type}`)),
-          ),
+          types: format.list(item.evidence.types.map(typeWords)),
           max: item.evidence.maxFiles,
         }),
         ...(item.evidence.requiresApproval ? [t("approvalText")] : []),
@@ -155,9 +163,18 @@ export default async function FrameworkPage() {
       return all;
     }, {}),
   );
-  const events: Record<string, number> = {};
-  for (const { kind } of calendar?.events ?? []) {
-    events[kind] = (events[kind] ?? 0) + 1;
+  // Each day of the calendar by the last numbered week it falls in.
+  const weeks = calendar
+    ? termWeeks(
+        calendarOf(calendar, calendar.events, settings, calendar.breaks),
+      )
+    : [];
+  const events: Record<string, number[]> = {};
+  for (const event of calendar?.events ?? []) {
+    const last = weeks
+      .filter((week) => week.number !== null && week.startsOn <= event.endsOn)
+      .at(-1)?.number;
+    if (last) events[event.kind] = [...(events[event.kind] ?? []), last];
   }
   const { draft, published } = framework;
   const impact = draft
@@ -166,7 +183,10 @@ export default async function FrameworkPage() {
         countTasks(draft.items, departments, { weeks: term.weeks, events }),
       )
     : undefined;
-  const preparing = manage || (endorse && needsEndorsement && Boolean(draft));
+  // A closed term's framework changes no more (Audit 5), so there everyone only reads it.
+  const open = term.status !== "closed";
+  const preparing =
+    open && (manage || (endorse && needsEndorsement && Boolean(draft)));
 
   return (
     <>
@@ -213,9 +233,9 @@ export default async function FrameworkPage() {
                   value: kind,
                   label: calendarWords(kind),
                 })),
-                evidenceTypes: evidenceTypes.map((type) => ({
+                evidenceTypes: accepted.map((type) => ({
                   value: type,
-                  label: t(`evidenceTypes.${type}`),
+                  label: typeWords(type),
                 })),
                 dueTypes: DUE_TYPES.map((type) => ({
                   value: type,
@@ -254,12 +274,12 @@ export default async function FrameworkPage() {
               ))}
             </ol>
           </section>
-        ) : manage && !draft ? (
+        ) : open && manage && !draft ? (
           <EmptyState
             title={t("empty.title")}
             description={t("empty.description")}
           />
-        ) : manage ? null : (
+        ) : open && manage ? null : (
           <EmptyState
             title={t("notPublished.title")}
             description={t("notPublished.description")}

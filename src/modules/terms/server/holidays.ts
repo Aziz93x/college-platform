@@ -1,10 +1,15 @@
-import { and, asc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, ne, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { getSetting, weekdays } from "../../settings/index.ts";
 import { type BreakRule, estimateBreak, weekend } from "../domain/holidays.ts";
-import type { Day } from "../domain/weeks.ts";
-import { holidays } from "./schema.ts";
+import {
+  calendarOf,
+  type Day,
+  outside,
+  type TermCalendar,
+} from "../domain/weeks.ts";
+import { calendarEvents, holidays, terms } from "./schema.ts";
 
 const columns = {
   id: holidays.id,
@@ -60,10 +65,52 @@ export function holidaysFrom(
     .orderBy(asc(holidays.startsOn), asc(holidays.key));
 }
 
+// The events of the college's open terms that a holiday on new days would leave outside their term,
+// with the first such term's name: a term ends sooner or later as its breaks move (Audit 5).
+async function stranded(
+  tx: Tx,
+  collegeId: string,
+  id: string,
+  days: { startsOn: Day; endsOn: Day },
+  settings: Pick<TermCalendar, "skipHolidayWeeks" | "workingDays">,
+) {
+  const open = await tx
+    .select({
+      id: terms.id,
+      name: terms.name,
+      startsOn: terms.startsOn,
+      weeks: terms.weeks,
+    })
+    .from(terms)
+    .where(and(eq(terms.collegeId, collegeId), ne(terms.status, "closed")));
+  for (const term of open) {
+    const events = await tx
+      .select({
+        kind: calendarEvents.kind,
+        title: calendarEvents.title,
+        startsOn: calendarEvents.startsOn,
+        endsOn: calendarEvents.endsOn,
+      })
+      .from(calendarEvents)
+      .where(eq(calendarEvents.termId, term.id));
+    const breaks = (await holidaysFrom(collegeId, term.startsOn, tx)).filter(
+      (each) => each.id !== id,
+    );
+    const left = outside(
+      calendarOf(term, events, settings, [...breaks, days]),
+      events,
+    );
+    if (left.length > 0) {
+      return { term: term.name, events: left.map(({ title }) => title) };
+    }
+  }
+}
+
 // Sets a holiday's days as they were announced, marks it approved, and records holiday.update with
 // its days before and after; the same days approve an estimate as it is, recorded as
 // holiday.approve. A holiday that has begun by today stays as it was, so the terms that counted it
-// keep their weeks, and none moves to a day that has passed.
+// keep their weeks, and none moves to a day that has passed, nor to days that would leave a term's
+// events outside it, as the term's own changes may not (Audit 5).
 export async function updateHoliday(
   id: string,
   days: { startsOn: Day; endsOn: Day },
@@ -74,10 +121,20 @@ export async function updateHoliday(
     userAgent?: string | null;
   },
   today: Day,
+  settings: Pick<TermCalendar, "skipHolidayWeeks" | "workingDays">,
   db: Db = getDb(),
-): Promise<{
-  status: "notFound" | "begun" | "past" | "saved" | "approved" | "unchanged";
-}> {
+): Promise<
+  | {
+      status:
+        | "notFound"
+        | "begun"
+        | "past"
+        | "saved"
+        | "approved"
+        | "unchanged";
+    }
+  | { status: "eventsOutside"; term: string; events: string[] }
+> {
   return db.transaction(async (tx) => {
     const [current] = await tx
       .select(columns)
@@ -115,6 +172,8 @@ export async function updateHoliday(
       );
       return { status: "approved" };
     }
+    const left = await stranded(tx, change.collegeId, id, days, settings);
+    if (left) return { status: "eventsOutside", ...left };
     await tx
       .update(holidays)
       .set({ ...days, adjusted: true, updatedAt: sql`now()` })

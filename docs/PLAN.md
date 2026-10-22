@@ -831,6 +831,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - A person's roles are memberships: a role across the college or in one department (`addMembership()`, `removeMembership()` in `src/modules/access`, each audited). The import's role column becomes memberships through `addMembership()`; `joinRole()` is for the seeds and the tests only. A person's department is the department of their department-scoped memberships.
 - A head's help for their own trainers checks the key in the trainer's department: `ctx.requirePermission("accounts.resetPassword", { departmentId })`, which a head's department-scoped membership passes and nothing outside it does. Give the head role that key on the grid's default (`db/seed/base.ts`) with this step.
 - **From Audit 3:** the base seed gives a default role its keys only when it creates the role, so a re-run never undoes the grid; a college that exists already, such as a running production-like stack, gets no new default key from it. Add each new default key in this step's migration too: `insert into role_permissions (role_id, permission) select id, 'accounts.resetPassword' from roles where key = 'head' on conflict do nothing`. The keys of Steps 33 and 37 arrive the same way.
+- **From Audit 5:** a setting that a role's own key also edits follows that key's two-factor mark, not `settings.manage`'s. `term.manage` edits the three calendar settings (Step 13) and asks for no two-factor, as the owner keeps two-factor optional (ADR-0014); marking it would make the demo vice-dean enter a code at every sign-in.
 
 > **Checkpoint: UX review 1.** Run `/ux-review 1-10` (login, shell, design page, settings, departments, roles, people).
 >
@@ -1055,7 +1056,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Done when:** property-based tests (fast-check) prove that generation is idempotent and never changes completed work; for every demo framework and plan, the published preview equals the tasks generated; and generation for the full demo data set takes under 10 s.
 
-**Note from Step 15:** the preview's count is `countTasks()` (`src/modules/framework/domain/count.ts`): each item, in each department, once per holder or section it reaches and per time its rule is due (`occurrences()`). The engine generates exactly those, so the two agree by construction. A published version never changes; the engine reads the latest published version of the term.
+**Note from Step 15:** the preview's count is `countTasks()` (`src/modules/framework/domain/count.ts`): each item, in each department, once per holder or section it reaches and per time its rule is due (`occurrences()`). A rule is due only in the term's numbered weeks: "a week after each exam" counts no task for the finals in the term's last week, as week 19 of 18 counts none (Audit 5). The engine generates exactly those, so the two agree by construction. A published version never changes; the engine reads the latest published version of the term.
 
 **Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
 

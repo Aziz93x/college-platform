@@ -8,8 +8,9 @@ import { findCollegeId } from "../src/modules/org/index.ts";
 import { settingsRegistry } from "../src/modules/settings/index.ts";
 import { umAlQuraYear } from "../src/modules/terms/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
-import { addDays } from "../src/platform/i18n/time-zone.ts";
+import { addDays, wallClock } from "../src/platform/i18n/time-zone.ts";
 import { type TestAccount, test } from "./support/accounts.ts";
+import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 import { signedIn } from "./support/pages.ts";
 import { expect } from "./support/test.ts";
@@ -23,8 +24,15 @@ const today = createTranslator({ locale, messages, namespace: "today" });
 const shell = createTranslator({ locale, messages, namespace: "shell" });
 // Tests that write to the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
+// Today on the college's clock, as the pages take it: the runner's UTC day is already behind it
+// from 21:00 in Riyadh (Audit 5).
+const collegeDay = () =>
+  wallClock(new Date(), settingsRegistry["locale.timeZone"].default).slice(
+    0,
+    10,
+  );
 // This Umm al-Qura year, and as the page writes it.
-const thisYear = umAlQuraYear(new Date().toISOString().slice(0, 10));
+const thisYear = umAlQuraYear(collegeDay());
 const yearWords = (year: number) =>
   new Intl.NumberFormat(locale, { useGrouping: false }).format(year);
 
@@ -177,6 +185,9 @@ test(
       await expect(rows).toHaveCount(19);
       await expect(rows.nth(3)).toContainText(text.weeks.holiday);
       await expect(rows.nth(4)).toContainText(t("weeks.number", { number: 4 }));
+      // The holiday week's tinted row keeps its text readable (Audit 5).
+      expect(await seriousViolations(page)).toEqual([]);
+      await page.reload();
       // Week 8 now starts five weeks after the holiday's Sunday.
       await add("exam", "اختبارات منتصف الفصل", [
         addDays(first, 56),
@@ -210,6 +221,30 @@ test(
       await expect(copied.filter({ hasText: "إجازة منتصف الفصل" })).toHaveCount(
         0,
       );
+
+      // Both terms are still drafts, which only those who manage terms see: the demo trainer finds
+      // the new one neither at its address nor in the header's switcher (Audit 5).
+      const trainer = await (
+        await browser.newContext({ storageState: STORAGE.trainer })
+      ).newPage();
+      await trainer.goto(page.url());
+      await expect(
+        trainer.getByRole("heading", { name: messages.pages.notFound.title }),
+      ).toBeVisible();
+      await trainer
+        .locator("header")
+        .getByRole("button", {
+          name: new RegExp(
+            `${shell("term.open", { name: ".+" })}|${shell("term.openWithWeek", { name: ".+", week: ".+" })}`,
+          ),
+        })
+        .click();
+      const terms = trainer.getByRole("list", { name: shell("term.list") });
+      await expect(terms.getByRole("button").first()).toBeVisible();
+      await expect(
+        terms.getByRole("button", { name: new RegExp(`${name}|${next}`) }),
+      ).toHaveCount(0);
+      await trainer.context().close();
     } finally {
       await made.remove([name, next]);
     }
@@ -221,15 +256,14 @@ test(
   DATABASE,
   async ({ browser, account }) => {
     const made = await viceDean(account);
-    // A holiday of the test's own on the coming Friday and Saturday's weekend, so no term's weeks
-    // move whatever today is.
+    // A holiday of the test's own on a Friday and Saturday's weekend, so no term's weeks move
+    // whatever today is. It is at least two days ahead on the college's clock, so it has not
+    // begun when the test approves it, whatever the hour.
     const number = randomInt(100_000, 999_999);
     const name = `إجازة الاختبار ${number}`;
-    const today = new Date().toISOString().slice(0, 10);
-    const friday = addDays(
-      today,
-      (5 - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7 || 7,
-    );
+    const today = collegeDay();
+    const ahead = (5 - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7;
+    const friday = addDays(today, ahead < 2 ? ahead + 7 : ahead);
     await made.pool.query(
       `insert into holidays (college_id, key, name, hijri_year, starts_on, ends_on)
        select college_id, $1, $2, $3, $4, $4 from holidays limit 1`,
@@ -287,41 +321,44 @@ test(
   },
 );
 
-test("a trainer sees the term and its week in the header and on Today, its calendar from the switcher, and no terms page", async ({
-  browser,
-  account,
-}) => {
-  const person = await account();
-  const page = await signedIn(browser, {
-    identifier: person.employeeNumber,
-    password: person.password,
-  });
-  // The demo term puts today in week 9 of 18 (seed:demo --week 9), or in a week of an Eid break
-  // just before it.
-  await expect(
-    page.getByText(
-      new RegExp(
-        `^(${today("term.week", { number: 9, weeks: 18 })}|${today("term.holiday")})$`,
+test.describe("a trainer", () => {
+  test.use({ storageState: STORAGE.trainer });
+
+  test("sees the term and its week in the header and on Today, its calendar from the switcher, and no terms page", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    // The demo term puts today in week 9 of 18 (seed:demo --week 9), or in a week of an Eid break
+    // just before it, which Today and the header both call a holiday week.
+    await expect(
+      page
+        .locator("main")
+        .getByText(
+          new RegExp(
+            `^(${today("term.week", { number: 9, weeks: 18 })}|${today("term.holiday")})$`,
+          ),
+        ),
+    ).toBeVisible();
+    const switcher = page.locator("header").getByRole("button", {
+      name: new RegExp(
+        `${shell("term.week", { number: 9 })}|${shell("term.holiday")}`,
       ),
-    ),
-  ).toBeVisible();
-  const switcher = page.locator("header").getByRole("button", {
-    name: new RegExp(
-      `${shell("term.week", { number: 9 })}|${shell("term.holiday")}`,
-    ),
+    });
+    await switcher.click();
+    await page.getByRole("link", { name: shell("term.calendar") }).click();
+    await expect(
+      page
+        .getByRole("region", { name: text.weeks.title })
+        .locator('[aria-current="date"]'),
+    ).toContainText(
+      new RegExp(`${t("weeks.number", { number: 9 })}|${text.weeks.holiday}`),
+    );
+    await expect(
+      page.getByRole("button", { name: text.calendar.add }),
+    ).toHaveCount(0);
+    await page.goto("/terms");
+    await expect(
+      page.getByRole("heading", { name: messages.pages.forbidden.title }),
+    ).toBeVisible();
   });
-  await switcher.click();
-  await page.getByRole("link", { name: shell("term.calendar") }).click();
-  await expect(
-    page
-      .getByRole("region", { name: text.weeks.title })
-      .locator('[aria-current="date"]'),
-  ).toContainText(t("weeks.number", { number: 9 }));
-  await expect(
-    page.getByRole("button", { name: text.calendar.add }),
-  ).toHaveCount(0);
-  await page.goto("/terms");
-  await expect(
-    page.getByRole("heading", { name: messages.pages.forbidden.title }),
-  ).toBeVisible();
 });

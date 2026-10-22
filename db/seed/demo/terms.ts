@@ -19,6 +19,7 @@ import {
   terms,
   termWeeks,
   umAlQuraYear,
+  updateHoliday,
 } from "../../../src/modules/terms/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
 import { addDays, wallClock } from "../../../src/platform/i18n/time-zone.ts";
@@ -180,8 +181,29 @@ export async function seedDemoTerms(
   }
   await activateTerm(created.id, change, db);
 
+  // The vice-dean has approved the coming holiday as it was estimated; the others wait for their
+  // announcement (ADR-0018).
+  const coming = (await holidaysFrom(collegeId, today, db)).find(
+    (each) => each.startsOn > today,
+  );
+  if (coming) {
+    const approved = await updateHoliday(
+      coming.id,
+      { startsOn: coming.startsOn, endsOn: coming.endsOn },
+      change,
+      today,
+      settings,
+      db,
+    );
+    if (approved.status !== "approved") {
+      throw new Error(
+        `seed:demo: ${coming.name} was not approved (${approved.status})`,
+      );
+    }
+  }
+
   // Electrical's secretary for this term only: its first trainer by employee number who is not one
-  // the tests sign in as.
+  // the tests sign in as, nor its secretary for every term already (Audit 5).
   const [electrical] = (await listDepartments(collegeId, db)).filter(
     ({ name }) => name === demoDepartments[1].name,
   );
@@ -205,6 +227,10 @@ export async function seedDemoTerms(
         entry.memberships.some(
           ({ roleId, departmentId }) =>
             roleId === trainer.id && departmentId === electrical.id,
+        ) &&
+        !entry.memberships.some(
+          ({ roleId, departmentId }) =>
+            roleId === secretary.id && departmentId === electrical.id,
         ),
     )
     .sort((a, b) => a.employeeNumber.localeCompare(b.employeeNumber));

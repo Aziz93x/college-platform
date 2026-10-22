@@ -12,6 +12,7 @@ export {
   termLimits,
 } from "./domain/inputs.ts";
 export {
+  calendarOf,
   type DayRange,
   type TermCalendar,
   type TermWeek,
@@ -30,7 +31,6 @@ export {
   activeTerm,
   addCalendarEvent,
   type CalendarSettings,
-  calendarOf,
   calendarSettings,
   closeTerm,
   createTerm,

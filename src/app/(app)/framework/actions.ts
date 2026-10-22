@@ -30,6 +30,10 @@ async function changeBy(viewer: Viewer) {
   };
 }
 
+// The file types evidence may be, as the college accepts them.
+const accepted = (viewer: Viewer) =>
+  getSetting("files.acceptedTypes", { collegeId: viewer.collegeId });
+
 // Draws the page again after a change that took.
 const drawn = <T extends { status: string }>(result: T, ...took: string[]) => {
   if (took.includes(result.status)) refresh();
@@ -47,14 +51,30 @@ export const addItemAction = viewerAction
   .metadata({ name: "addFrameworkItem", permission: "framework.publish" })
   .inputSchema(frameworkItemInput.extend({ draftId: z.uuid() }))
   .action(async ({ parsedInput: { draftId, ...item }, ctx: { viewer } }) =>
-    drawn(await addItem(draftId, item, await changeBy(viewer)), "saved"),
+    drawn(
+      await addItem(
+        draftId,
+        item,
+        await changeBy(viewer),
+        await accepted(viewer),
+      ),
+      "saved",
+    ),
   );
 
 export const updateItemAction = viewerAction
   .metadata({ name: "updateFrameworkItem", permission: "framework.publish" })
   .inputSchema(frameworkItemInput.extend({ itemId: z.uuid() }))
   .action(async ({ parsedInput: { itemId, ...item }, ctx: { viewer } }) =>
-    drawn(await updateItem(itemId, item, await changeBy(viewer)), "saved"),
+    drawn(
+      await updateItem(
+        itemId,
+        item,
+        await changeBy(viewer),
+        await accepted(viewer),
+      ),
+      "saved",
+    ),
   );
 
 export const removeItemAction = viewerAction

@@ -635,6 +635,7 @@ describe("the college's holidays (ADR-0018)", () => {
         { startsOn: "2027-02-19", endsOn: "2027-03-13" },
         change(),
         today,
+        settings,
         database.db,
       ),
     ).resolves.toEqual({ status: "saved" });
@@ -677,7 +678,7 @@ describe("the college's holidays (ADR-0018)", () => {
     // The same days again change nothing; a day that has passed, or a break begun, is refused.
     const days = { startsOn: "2027-02-19", endsOn: "2027-03-13" };
     await expect(
-      updateHoliday(fitr.id, days, change(), today, database.db),
+      updateHoliday(fitr.id, days, change(), today, settings, database.db),
     ).resolves.toEqual({ status: "unchanged" });
     await expect(
       updateHoliday(
@@ -685,11 +686,19 @@ describe("the college's holidays (ADR-0018)", () => {
         { startsOn: "2026-10-22", endsOn: "2027-03-13" },
         change(),
         today,
+        settings,
         database.db,
       ),
     ).resolves.toEqual({ status: "past" });
     await expect(
-      updateHoliday(fitr.id, days, change(), "2027-02-19", database.db),
+      updateHoliday(
+        fitr.id,
+        days,
+        change(),
+        "2027-02-19",
+        settings,
+        database.db,
+      ),
     ).resolves.toEqual({ status: "begun" });
     await expect(
       updateHoliday(
@@ -697,23 +706,74 @@ describe("the college's holidays (ADR-0018)", () => {
         days,
         { ...change(), collegeId: otherCollegeId },
         today,
+        settings,
         database.db,
       ),
     ).resolves.toEqual({ status: "notFound" });
+  });
+
+  it("are not moved to days that would leave a term's events outside it (Audit 5)", async () => {
+    // The finals in the last week of the term of 1448, which ends on 19 June past both breaks.
+    const [{ id }] = await query(
+      "select id from terms where name = 'الفصل الثاني 1448'",
+    );
+    const finals = {
+      kind: "exam" as const,
+      title: "Finals",
+      startsOn: "2027-06-13",
+      endsOn: "2027-06-17",
+    };
+    await expect(
+      addCalendarEvent(id, finals, change(), settings, database.db),
+    ).resolves.toMatchObject({ status: "saved" });
+    // Eid al-Adha's break shorter by its first week: the term would end on 12 June.
+    const adha = await breakOf("eid-al-adha");
+    await expect(
+      updateHoliday(
+        adha.id,
+        { startsOn: "2027-05-12", endsOn: adha.endsOn },
+        change(),
+        "2026-10-22",
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({
+      status: "eventsOutside",
+      term: "الفصل الثاني 1448",
+      events: ["Finals"],
+    });
+    expect(await breakOf("eid-al-adha")).toMatchObject({
+      startsOn: adha.startsOn,
+      adjusted: false,
+    });
   });
 
   it("are approved by the vice-dean as estimated, once, in the log", async () => {
     const adha = await breakOf("eid-al-adha");
     const days = { startsOn: adha.startsOn, endsOn: adha.endsOn };
     await expect(
-      updateHoliday(adha.id, days, change(), "2026-10-22", database.db),
+      updateHoliday(
+        adha.id,
+        days,
+        change(),
+        "2026-10-22",
+        settings,
+        database.db,
+      ),
     ).resolves.toEqual({ status: "approved" });
     expect(await breakOf("eid-al-adha")).toMatchObject({
       ...days,
       adjusted: true,
     });
     await expect(
-      updateHoliday(adha.id, days, change(), "2026-10-22", database.db),
+      updateHoliday(
+        adha.id,
+        days,
+        change(),
+        "2026-10-22",
+        settings,
+        database.db,
+      ),
     ).resolves.toEqual({ status: "unchanged" });
     expect(
       await query(

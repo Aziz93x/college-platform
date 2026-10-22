@@ -74,7 +74,7 @@ type Draft = {
 
 const EACH_SECTION = "eachSection";
 
-const draftOf = (
+export const draftOf = (
   item: FrameworkItemInput | undefined,
   options: Options,
 ): Draft => ({
@@ -95,7 +95,12 @@ const draftOf = (
       : (options.eventKinds[0]?.value ?? ""),
   after: item?.due.type === "afterEvent" ? item.due.weeks : 1,
   required: item?.evidence.required ?? true,
-  types: item?.evidence.types ?? ["pdf"],
+  // Only the types the college still accepts: one it no longer offers cannot be unticked.
+  types: item
+    ? item.evidence.types.filter((type) =>
+        options.evidenceTypes.some(({ value }) => value === type),
+      )
+    : options.evidenceTypes.slice(0, 1).map(({ value }) => value),
   maxFiles: item?.evidence.maxFiles ?? 1,
   approval: item?.evidence.requiresApproval ?? false,
   notes: item?.notes ?? "",
@@ -123,7 +128,7 @@ const inputOf = (draft: Draft): FrameworkItemInput => ({
           : { type: "weekly" },
   evidence: {
     required: draft.required,
-    types: draft.types as FrameworkItemInput["evidence"]["types"],
+    types: draft.types,
     maxFiles: draft.maxFiles,
     requiresApproval: draft.approval,
   },
@@ -618,6 +623,7 @@ const REFUSALS = {
   notEndorsed: true,
   closed: true,
   notFound: true,
+  notOffered: true,
 } as const;
 
 // An item in words: its title, then its axis and kind, whom it reaches and when, and its evidence.

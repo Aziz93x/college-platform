@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarRange, Check, LoaderCircle, Pencil, Save } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionSwapButton } from "@/components/motion/action-swap";
@@ -44,6 +44,7 @@ export function HolidayBreaks({
   const t = useTranslations("terms.breaks");
   const ui = useTranslations("ui");
   const refusals = useTranslations("actions");
+  const format = useFormatter();
   const locale = useLocale();
   const id = useId();
   const [editing, setEditing] = useState<BreakView>();
@@ -96,7 +97,8 @@ export function HolidayBreaks({
       setError(undefined);
       const result = await updateHolidayAction({ id: current.id, ...days });
       setRunning(false);
-      switch (result?.data?.status) {
+      const outcome = result?.data;
+      switch (outcome?.status) {
         case "saved":
         case "approved":
         case "unchanged":
@@ -108,6 +110,14 @@ export function HolidayBreaks({
           return;
         case "past":
           setError(t("past"));
+          return;
+        case "eventsOutside":
+          setError(
+            t("eventsOutside", {
+              term: outcome.term,
+              events: format.list(outcome.events),
+            }),
+          );
           return;
         case "notFound":
           setError(t("gone"));

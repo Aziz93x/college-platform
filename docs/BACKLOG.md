@@ -25,6 +25,11 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - A calendar sweep in CI: each night, `seed:demo` with the clock moved to each day of the week (a 12-line preload around `Date`), then the specs that read demo data (`--grep-invert @database`). It finds a test that passes only on some days before it turns CI red, as the notification tests did; Step 13's terms and Step 27's reminders add more rules about dates. About 1 h, plus seven short runs a night (enhancement 2).
 - A random stream per record in the demo seed: each person's and each week's draws from `createRandom(hash(seed, key))` instead of one shared stream, so a new draw, or the calendar, no longer shifts every later person's data. Audit 4 fixed the demo trainer's notifications by hand; this removes the cause for the rest. About 1 h, and the demo data changes once: do it with Step 43's larger seed (enhancement 3).
 
+## Audit 5 (docs/reviews/audit-15.md)
+
+- A guard for the production stack's list of specs: a unit test that fails on any `e2e/*.spec.ts` that is neither in `e2e/stack.config.ts`'s `testMatch` nor named in a short list of excluded specs, each with its reason. Audits 4 and 5 each found specs missing from the list. Writing it means recording why the design catalog's, the identity font's and the streaming specs stay out today, which nothing says; `announcements.spec.ts` stays out because each of its tests makes accounts in the database. About 30 min (enhancement 1).
+- The calendar sweep above, without moving the clock: a clock moved months ahead signs the demo trainer out (Audit 5, P1). One college holiday over this week, inserted before `seed:demo`, gives the state of a day in an Eid break, and the specs that read demo data then run on it (`--grep-invert @database`). About 1 h, plus one short run a night (enhancement 3).
+
 ## UX review 1: should fix (docs/reviews/ux-10.md)
 
 Every score is 4 or above without these; the review ranks them after its must-fix items, which its PR fixed.
