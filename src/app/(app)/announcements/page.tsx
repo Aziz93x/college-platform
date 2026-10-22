@@ -22,7 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // Where whoever holds announcements.publish announces, to the departments it is held in or, held
 // across the college, to the college and any department (ADR-0017); and what is live there, newest
-// first. Its author withdraws their own, and the key across the college anyone's.
+// first. Its author withdraws their own, and the key across the college anyone's; whoever may
+// withdraw one sees how many have read it.
 export default async function AnnouncementsPage() {
   await connection();
   const viewer = await requireViewer();
@@ -86,6 +87,15 @@ export default async function AnnouncementsPage() {
                         })}
                       </time>
                     </p>
+                    {/* How many have read it, for whoever may withdraw it (ADR-0017, decision 7). */}
+                    {college || announcement.authorId === viewer.userId ? (
+                      <p className="mt-1 font-medium text-xs tabular-nums">
+                        {t("list.reads", {
+                          read: announcement.read,
+                          reached: announcement.reached,
+                        })}
+                      </p>
+                    ) : null}
                     <p className="mt-2 whitespace-pre-line text-pretty text-sm leading-relaxed">
                       {announcement.body}
                     </p>

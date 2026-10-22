@@ -1523,6 +1523,7 @@
       "emptyTitle": "لا إعلانات منشورة الآن",
       "emptyDescription": "ما تنشره يظهر هنا، ويمكنك سحبه متى شئت.",
       "college": "الكلية كلها",
+      "reads": "{reached, plural, =0 {لم يصل إلى أحد} other {{read, plural, =0 {لم يقرأه أحد بعد من {reached}} other {قرأه # من {reached}}}}}",
       "withdraw": "سحب",
       "withdrawLabel": "سحب «{title}»"
     },

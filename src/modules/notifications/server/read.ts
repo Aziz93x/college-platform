@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { type Db, getDb } from "../../../platform/db/client.ts";
 import { notifications } from "./schema.ts";
 
@@ -98,3 +98,35 @@ export async function listNotifications(
       rows.length > limit && last ? { at: last.at, id: last.id } : undefined,
   };
 }
+
+// How many each announcement reached, and how many of them have read it (ADR-0017, decision 7): its
+// notifications, counted by the announcement each names. An announcement none of them names, one
+// withdrawn, is not in the map.
+export async function announcementReads(
+  collegeId: string,
+  announcementIds: readonly string[],
+  db: Db = getDb(),
+) {
+  if (announcementIds.length === 0) return new Map<string, Reads>();
+  const announcementId = sql<string>`${notifications.params} ->> 'announcementId'`;
+  const rows = await db
+    .select({
+      id: announcementId,
+      reached: count(),
+      read: count(notifications.readAt),
+    })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.collegeId, collegeId),
+        eq(notifications.kind, "announcement"),
+        inArray(announcementId, [...announcementIds]),
+      ),
+    )
+    .groupBy(announcementId);
+  return new Map<string, Reads>(
+    rows.map(({ id, reached, read }) => [id, { reached, read }]),
+  );
+}
+
+type Reads = { reached: number; read: number };

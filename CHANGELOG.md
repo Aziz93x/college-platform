@@ -48,6 +48,10 @@ All notable changes are recorded here. Each entry names the plan step from docs/
   - Checked against the announced breaks, the estimate is exact in most years and at most two days off.
 - `/terms` lists the breaks as estimated or adjusted. The vice-dean sets each one to its announced days in a sheet, which writes `holiday.update`. A break that has begun no longer changes.
 - Every term counts the breaks that fall in it with its own holidays. One adjustment moves the weeks of every term it touches, and the term's page lists the breaks with its calendar, marked as the college's.
+### ADR-0017 amended: how many have read an announcement (the owner's answer)
+
+- Whoever may withdraw a live announcement, its author or the key held across the college, sees on `/announcements` how many of those it reached have read it ("قرأه 12 من 15", or none yet), counted from its notifications as each is closed or opened from the bell. Who read it is not shown.
+- Tests: the count on a real database, before and after a reading; and end-to-end on the desktop and the iPhone, the head's page reading none, then both read once the trainer closes them.
 
 ### ADR-0017: announcements (the owner's request)
 
