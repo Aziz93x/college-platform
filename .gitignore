@@ -45,6 +45,9 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 
+# review screenshots: reviewers look at them on disk, and the reports describe them (docs/PLAN.md section 0)
+/docs/reviews/*/
+
 # licensed or non-public brand assets: identity:sync fetches them, never commit them (ADR-0004)
 *.woff
 *.woff2
