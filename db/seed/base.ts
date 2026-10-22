@@ -25,7 +25,7 @@ export const defaultRoles: {
   {
     key: "dean",
     labels: { ar: "العميد" },
-    permissions: ["indicators.view.college"],
+    permissions: ["indicators.view.college", "announcements.publish"],
   },
   {
     key: "vice-dean",
@@ -35,6 +35,7 @@ export const defaultRoles: {
       "framework.publish",
       "rayat.import",
       "indicators.view.college",
+      "announcements.publish",
     ],
   },
   {
@@ -48,6 +49,7 @@ export const defaultRoles: {
       "portfolio.approve",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
+      "announcements.publish",
     ],
   },
   { key: "secretary", labels: { ar: "أمين القسم" }, permissions: [] },

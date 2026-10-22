@@ -25,6 +25,9 @@ const permissions = {
     area: "organization",
     requiresTwoFactor: true,
   },
+  // Announce to everyone in a department, or held across the college, to the college, and
+  // withdraw what was announced there (ADR-0017). It changes no one's access.
+  "announcements.publish": { area: "organization", requiresTwoFactor: false },
   // Terms and their calendars (Step 13).
   "term.manage": { area: "term", requiresTwoFactor: false },
   // Publish the term's general framework (Step 15).

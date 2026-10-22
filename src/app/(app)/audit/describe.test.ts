@@ -200,6 +200,57 @@ describe("describeEvent", () => {
       ).changes,
     ).toEqual([{ field: "العدد", after: "3" }]);
   });
+
+  it("names an announcement by its title, where it went and how many it reached or was taken from (ADR-0017)", () => {
+    const said = { entityType: "announcement", entityId: "a1" };
+    expect(
+      describeEvent(
+        entry({
+          ...said,
+          action: "announcement.publish",
+          diff: {
+            to: {
+              title: "اجتماع القسم",
+              departmentId: ELECTRICAL,
+              reached: 14,
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "نشر إعلان",
+      subject: "اجتماع القسم",
+      changes: [
+        { field: "العنوان", after: "اجتماع القسم" },
+        { field: "المكان", after: "التقنية الكهربائية" },
+        { field: "وصل إلى", after: "14" },
+      ],
+    });
+    expect(
+      describeEvent(
+        entry({
+          ...said,
+          action: "announcement.withdraw",
+          diff: {
+            from: { title: "اجتماع القسم", departmentId: null },
+            to: { retracted: 14 },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "سحب إعلان",
+      subject: "اجتماع القسم",
+      changes: [
+        { field: "العنوان", before: "اجتماع القسم" },
+        { field: "المكان", before: "الكلية كلها" },
+        { field: "سُحب من", after: "14" },
+      ],
+    });
+  });
 });
 
 it("has a word for every action the log records, and for its group", () => {

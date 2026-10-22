@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { type Db, getDb } from "../../../platform/db/client.ts";
+import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import {
   type AccountState,
   accountState,
@@ -42,6 +42,40 @@ export type PersonEntry = {
   }[];
   permissions: AccountHolder["permissions"];
 };
+
+// Whom an announcement to a scope reaches (ADR-0017): the college's enabled accounts, or those of
+// them who hold a role in the department.
+export async function enabledPeopleIn(
+  collegeId: string,
+  departmentId: string | null,
+  db: Db | Tx = getDb(),
+) {
+  const rows = await db
+    .select({ userId: people.userId })
+    .from(people)
+    .innerJoin(users, eq(users.id, people.userId))
+    .where(
+      and(
+        eq(people.collegeId, collegeId),
+        isNull(users.disabledAt),
+        departmentId === null
+          ? undefined
+          : inArray(
+              people.userId,
+              db
+                .select({ userId: memberships.userId })
+                .from(memberships)
+                .where(
+                  and(
+                    eq(memberships.collegeId, collegeId),
+                    eq(memberships.departmentId, departmentId),
+                  ),
+                ),
+            ),
+      ),
+    );
+  return rows.map(({ userId }) => userId);
+}
 
 // The college's people by name: everyone, the people who hold a role in one of these departments,
 // or one person.

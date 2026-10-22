@@ -33,6 +33,9 @@ export const auditActions = [
   "notification.read",
   "notification.mute",
   "notification.unmute",
+  // An announcement to a department or the college, and its withdrawal (ADR-0017).
+  "announcement.publish",
+  "announcement.withdraw",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -44,6 +47,7 @@ const auditEntities = [
   "role",
   "membership",
   "setting",
+  "announcement",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

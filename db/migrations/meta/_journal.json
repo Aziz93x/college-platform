@@ -92,6 +92,13 @@
       "when": 1792638660924,
       "tag": "0012_paging_indexes_in_query_order",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792649816404,
+      "tag": "0013_announcements",
+      "breakpoints": true
     }
   ]
 }

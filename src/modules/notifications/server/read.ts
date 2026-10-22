@@ -47,6 +47,27 @@ export function latestUnread(reader: Reader, limit: number, db: Db = getDb()) {
     .limit(limit);
 }
 
+// A person's unread announcements, newest first: what opens over the page until each is closed
+// (ADR-0017).
+export function unreadAnnouncements(
+  reader: Reader,
+  limit: number,
+  db: Db = getDb(),
+) {
+  return db
+    .select(columns)
+    .from(notifications)
+    .where(
+      and(
+        theirs(reader),
+        isNull(notifications.readAt),
+        eq(notifications.kind, "announcement"),
+      ),
+    )
+    .orderBy(desc(notifications.createdAt), desc(notifications.id))
+    .limit(limit);
+}
+
 // A page of a person's notifications, read or not, newest first by (created_at, id).
 export async function listNotifications(
   reader: Reader,
