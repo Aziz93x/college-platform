@@ -11,6 +11,14 @@ export {
   taskKinds,
 } from "./domain/inputs.ts";
 export {
+  type Catalogs,
+  gradeBands,
+  kindFields,
+  type Payload,
+  type PayloadField,
+  payloadLimits,
+} from "./domain/payloads.ts";
+export {
   addItem,
   copyFrameworkInto,
   endorseDraft,
