@@ -1,6 +1,6 @@
 # ADR-0017: Announcements
 
-- Status: accepted (2026-10-22: the owner asked for it)
+- Status: accepted (2026-10-22: the owner asked for it); amended 2026-10-22 (decision 7: the owner said yes to read counts)
 - Date: 2026-10-22
 - Source: the owner's request; docs/PLAN.md, Steps 9 and 12
 - Builds on: ADR-0015 (the bell opens a notification), Step 12's notifications
@@ -27,7 +27,8 @@ Nothing in the plan lets a head say something to the whole department. The bell 
    - Several wait one behind another, the newest first.
 4. **`/announcements` holds the form and what is live.** It lists the live announcements of the scopes the viewer announces to, newest first. Their author withdraws their own, and the key held across the college withdraws anyone's; withdrawing, confirmed in a sheet, takes it from every bell and center, read or not. The page comes last in the navigation, so Today still leads an admin setting the college up to its departments.
 5. **Each publication and withdrawal writes its audit event** (`announcement.publish`, `announcement.withdraw`), with the scope and how many it reached.
-6. **Not now:** how many have read it ("seen by 12 of 15"), unless the owner asks; editing a published announcement (withdraw it and publish again); attachments and scheduling.
+6. **Not now:** editing a published announcement (withdraw it and publish again); attachments and scheduling.
+7. **How many have read it** (the owner's answer, 2026-10-22: "نعم"). Whoever may withdraw a live announcement, its author or the key held across the college, sees on `/announcements` how many of those it reached have read it ("قرأه 12 من 15"), counted from its notifications as each is closed or opened from the bell. Who read it is not shown: the count is what was asked, and it needs no table of its own.
 
 ## Consequences
 

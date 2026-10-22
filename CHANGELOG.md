@@ -4,6 +4,11 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0017 amended: how many have read an announcement (the owner's answer)
+
+- Whoever may withdraw a live announcement, its author or the key held across the college, sees on `/announcements` how many of those it reached have read it ("قرأه 12 من 15", or none yet), counted from its notifications as each is closed or opened from the bell. Who read it is not shown.
+- Tests: the count on a real database, before and after a reading; and end-to-end on the desktop and the iPhone, the head's page reading none, then both read once the trainer closes them.
+
 ### ADR-0017: announcements (the owner's request)
 
 - A head announces to everyone in their department, and the dean and the vice-dean to the college or one department, with a new scoped key, `announcements.publish`, which the roles grid moves like any other. An announcement is a title and a short text whose paragraphs are kept.

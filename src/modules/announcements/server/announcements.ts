@@ -3,7 +3,11 @@ import { type Db, getDb } from "../../../platform/db/client.ts";
 import { enabledPeopleIn } from "../../access/index.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { users } from "../../identity/index.ts";
-import { notifyAll, retractAnnouncement } from "../../notifications/index.ts";
+import {
+  announcementReads,
+  notifyAll,
+  retractAnnouncement,
+} from "../../notifications/index.ts";
 import { departments } from "../../org/index.ts";
 import type { AnnouncementInput } from "../domain/inputs.ts";
 import { announcements } from "./schema.ts";
@@ -165,13 +169,13 @@ export async function withdrawAnnouncement(
 }
 
 // The live announcements the page shows: all the college's, or those to these departments, newest
-// first, the latest fifty.
-export function listAnnouncements(
+// first, the latest fifty; each with how many it reached and how many of them have read it.
+export async function listAnnouncements(
   collegeId: string,
   scope: "college" | readonly string[],
   db: Db = getDb(),
 ) {
-  return db
+  const live = await db
     .select({
       id: announcements.id,
       title: announcements.title,
@@ -196,4 +200,14 @@ export function listAnnouncements(
     )
     .orderBy(desc(announcements.createdAt), desc(announcements.id))
     .limit(50);
+  const reads = await announcementReads(
+    collegeId,
+    live.map(({ id }) => id),
+    db,
+  );
+  return live.map((announcement) => ({
+    ...announcement,
+    reached: reads.get(announcement.id)?.reached ?? 0,
+    read: reads.get(announcement.id)?.read ?? 0,
+  }));
 }
