@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { writeAudit } from "../../audit/index.ts";
@@ -465,8 +466,11 @@ export type RayatImport = {
   records: number;
   diff: RayatDiff;
   uploadedAt: Date;
+  // Names, null for someone no longer on the platform. The applier is named only when they are not
+  // the uploader (ADR-0019).
   uploadedBy: string | null;
   appliedAt: Date | null;
+  appliedBy: string | null;
   rolledBackAt: Date | null;
 };
 
@@ -476,6 +480,7 @@ export async function listRayatImports(
   termId: string,
   db: Db = getDb(),
 ): Promise<RayatImport[]> {
+  const appliers = alias(users, "appliers");
   const rows = await db
     .select({
       id: rayatImports.id,
@@ -485,12 +490,16 @@ export async function listRayatImports(
       records: rayatImports.recordCount,
       diff: rayatImports.diff,
       uploadedAt: rayatImports.uploadedAt,
+      uploaderId: rayatImports.uploadedBy,
       uploadedBy: users.name,
       appliedAt: rayatImports.appliedAt,
+      applierId: rayatImports.appliedBy,
+      appliedBy: appliers.name,
       rolledBackAt: rayatImports.rolledBackAt,
     })
     .from(rayatImports)
     .leftJoin(users, eq(users.id, rayatImports.uploadedBy))
+    .leftJoin(appliers, eq(appliers.id, rayatImports.appliedBy))
     .where(
       and(
         eq(rayatImports.collegeId, collegeId),
@@ -506,8 +515,9 @@ export async function listRayatImports(
       current.set(row.kind, row.id);
     }
   }
-  return rows.map((row) => ({
+  return rows.map(({ uploaderId, applierId, ...row }) => ({
     ...row,
+    appliedBy: applierId === uploaderId ? null : row.appliedBy,
     current: current.get(row.kind) === row.id,
   }));
 }

@@ -1,5 +1,10 @@
 import { and, eq } from "drizzle-orm";
-import { listDirectory, roles } from "../../../src/modules/access/index.ts";
+import {
+  listDirectory,
+  listRoles,
+  roles,
+  setRolePermissions,
+} from "../../../src/modules/access/index.ts";
 import { users } from "../../../src/modules/identity/index.ts";
 import { listDepartments } from "../../../src/modules/org/index.ts";
 import {
@@ -241,9 +246,11 @@ export function demoRayatFiles(
   return files;
 }
 
-// The demo term's three reports, uploaded and applied by the vice-dean (Step 16), and a newer SF01
-// waiting to be applied: a few trainees withdrawn and two registered late, the diff the vice-dean
-// reviews. Written once, while the term has no import.
+// The demo term's three reports (Step 16), uploaded by the vice-dean and the head of Electrical
+// and applied by the vice-dean, and a newer SF01 the head uploaded, waiting to be applied: a few
+// trainees withdrawn and two registered late, the diff to review. The head imports because the
+// admin gave the head's role the key on the roles page (ADR-0019). Written once, while the term has
+// no import.
 export async function seedDemoRayat(
   { db, random }: { db: Db; random: () => number },
   collegeId: string,
@@ -257,16 +264,34 @@ export async function seedDemoRayat(
     .limit(1);
   if (made) return;
 
-  const [viceDean] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, demoAccounts.viceDean.email));
-  if (!viceDean) throw new Error("seed:demo: the vice-dean is missing");
-  const change = {
-    collegeId,
-    actorId: viceDean.id,
-    ...(await deviceOf(db, collegeId, viceDean.id)),
+  const changeBy = async ({ email }: { email: string }) => {
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email));
+    if (!user) throw new Error(`seed:demo: ${email} is missing`);
+    return {
+      collegeId,
+      actorId: user.id,
+      ...(await deviceOf(db, collegeId, user.id)),
+    };
   };
+  const viceDean = await changeBy(demoAccounts.viceDean);
+  const head = await changeBy(demoAccounts.head);
+  const headRole = (await listRoles(collegeId, db)).find(
+    ({ key }) => key === "head",
+  );
+  if (!headRole) throw new Error("seed:demo: the head's role is missing");
+  await setRolePermissions(
+    headRole.id,
+    {
+      permissions: [
+        ...new Set([...headRole.permissions, "rayat.import" as const]),
+      ],
+    },
+    await changeBy(demoAccounts.admin),
+    db,
+  );
   const [trainer] = await db
     .select({ id: roles.id })
     .from(roles)
@@ -297,8 +322,12 @@ export async function seedDemoRayat(
     }),
   );
 
-  const upload = async (kind: RayatKind, table: string[][]) => {
-    const result = await uploadRayat(kind, term.id, table, change, db);
+  const upload = async (
+    kind: RayatKind,
+    table: string[][],
+    by: typeof viceDean,
+  ) => {
+    const result = await uploadRayat(kind, term.id, table, by, db);
     if (result.status !== "pending") {
       throw new Error(`seed:demo: ${kind} was not imported (${result.status})`);
     }
@@ -306,20 +335,24 @@ export async function seedDemoRayat(
   };
   // SF01 is applied without its last two rows, which the newer one adds.
   const [header, ...rows] = files.sf01;
-  await applyRayat(await upload("ss01", files.ss01), change, db);
+  await applyRayat(await upload("ss01", files.ss01, viceDean), viceDean, db);
   await applyRayat(
-    await upload("sf01", [header, ...rows.slice(0, -2)]),
-    change,
+    await upload("sf01", [header, ...rows.slice(0, -2)], viceDean),
+    viceDean,
     db,
   );
-  await applyRayat(await upload("so01", files.so01), change, db);
+  await applyRayat(await upload("so01", files.so01, head), viceDean, db);
   const status = header.indexOf(rayatColumns.sf01.registrationStatus);
-  await upload("sf01", [
-    header,
-    ...rows.map((row, at) =>
-      [5, 300, 600].includes(at)
-        ? row.map((cell, column) => (column === status ? "منسحب" : cell))
-        : row,
-    ),
-  ]);
+  await upload(
+    "sf01",
+    [
+      header,
+      ...rows.map((row, at) =>
+        [5, 300, 600].includes(at)
+          ? row.map((cell, column) => (column === status ? "منسحب" : cell))
+          : row,
+      ),
+    ],
+    head,
+  );
 }

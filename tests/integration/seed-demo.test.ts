@@ -559,37 +559,53 @@ it("approves the coming holiday, and keeps the framework's version 2 as a draft 
   ]);
 });
 
-it("imports the demo term's SS01, SF01 and SO01 as the vice-dean, every section taught by its department's trainers, and leaves a newer SF01 to review (Step 16)", async () => {
+it("imports the demo term's SS01, SF01 and SO01 as the vice-dean and the head of Electrical, whose role the admin gave the key, every section taught by its department's trainers, and leaves the head's newer SF01 to review (Step 16, ADR-0019)", async () => {
   const { pool } = await seededDatabase();
   const { rows: imports } = await pool.query(
-    `select i.kind, i.status, u.email, i.diff - 'samples' as counts
+    `select i.kind, i.status, u.email as "uploadedBy", a.email as "appliedBy",
+       i.diff - 'samples' as counts
      from rayat_imports i join users u on u.id = i.uploaded_by
+     left join users a on a.id = i.applied_by
      order by i.uploaded_at`,
   );
   const viceDean = demoAccounts.viceDean.email;
+  const head = demoAccounts.head.email;
+  // The head imports because the admin gave the head's role the key on the roles page.
+  const { rows: grants } = await pool.query(
+    `select u.email from audit_events e
+     join users u on u.id::text = e.actor_id
+     join roles r on r.id::text = e.entity_id
+     where e.action = 'role.update' and r.key = 'head'
+       and e.diff->'to'->'permissions' ? 'rayat.import'`,
+  );
+  expect(grants).toEqual([{ email: demoAccounts.admin.email }]);
   expect(imports).toEqual([
     {
       kind: "ss01",
       status: "applied",
-      email: viceDean,
+      uploadedBy: viceDean,
+      appliedBy: viceDean,
       counts: expect.objectContaining({ removed: 0 }),
     },
     {
       kind: "sf01",
       status: "applied",
-      email: viceDean,
+      uploadedBy: viceDean,
+      appliedBy: viceDean,
       counts: expect.objectContaining({ removed: 0 }),
     },
     {
       kind: "so01",
       status: "applied",
-      email: viceDean,
+      uploadedBy: head,
+      appliedBy: viceDean,
       counts: expect.objectContaining({ removed: 0 }),
     },
     {
       kind: "sf01",
       status: "pending",
-      email: viceDean,
+      uploadedBy: head,
+      appliedBy: null,
       counts: expect.objectContaining({ added: 2, removed: 0, changed: 3 }),
     },
   ]);

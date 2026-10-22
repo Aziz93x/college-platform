@@ -1927,12 +1927,11 @@
     "current": {
       "title": "النسخة المطبقة",
       "none": "لم تُطبَّق نسخة من هذا التقرير بعد.",
-      "line": "{records}، رفعها {by} {at}",
       "unknown": "شخص لم يعد في المنصة"
     },
     "pending": {
       "title": "ملف بانتظار التطبيق",
-      "line": "{records} من {rows, plural, one {صف واحد} two {صفين} few {# صفوف} many {# صفًا} other {# صف}}، رفعه {by} {at}",
+      "line": "{records} من {rows, plural, one {صف واحد} two {صفين} few {# صفوف} many {# صفًا} other {# صف}}",
       "apply": "طبّق الملف",
       "applying": "جارٍ التطبيق…",
       "discard": "ألغِ الملف",
@@ -1940,6 +1939,12 @@
       "applied": "طُبّق الملف وصار النسخة المطبقة.",
       "discarded": "أُلغي الملف.",
       "gone": "لم يعد هذا الملف بانتظار التطبيق. حدّث الصفحة."
+    },
+    "facts": {
+      "updated": "آخر تحديث",
+      "uploadedBy": "رفع الملف",
+      "appliedBy": "طبّقه",
+      "uploadedAt": "وقت الرفع"
     },
     "diff": {
       "added": "أُضيف {count}",
