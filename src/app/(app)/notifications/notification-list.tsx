@@ -116,7 +116,15 @@ function NotificationItem({
             {notification.title}
           </span>
           {notification.description ? (
-            <span className="mt-0.5 block text-muted-foreground text-xs leading-relaxed transition-colors group-hover/row:text-foreground">
+            <span
+              className={cn(
+                "mt-0.5 block text-xs leading-relaxed transition-colors group-hover/row:text-foreground",
+                // The muted grey measures 4.2:1 on an unread row's tint (Audit 4).
+                notification.unread
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
               {notification.description}
             </span>
           ) : null}
@@ -124,7 +132,10 @@ function NotificationItem({
         <span className="flex shrink-0 flex-col items-end gap-1.5">
           <time
             dateTime={notification.iso}
-            className="text-muted-foreground text-xs tabular-nums transition-colors group-hover/row:text-foreground"
+            className={cn(
+              "text-xs tabular-nums transition-colors group-hover/row:text-foreground",
+              notification.unread ? "text-foreground" : "text-muted-foreground",
+            )}
           >
             {notification.time}
           </time>
