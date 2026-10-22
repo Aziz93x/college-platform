@@ -4,6 +4,7 @@ import {
   rolePermissions,
   roles,
 } from "../../src/modules/access/index.ts";
+import { type AxisCatalog, seedAxes } from "../../src/modules/axes/index.ts";
 import { colleges } from "../../src/modules/org/index.ts";
 import {
   type BreakRule,
@@ -96,6 +97,50 @@ export const holidayRules: (BreakRule & { key: string; name: string })[] = [
 ];
 export const HOLIDAY_YEARS = 10;
 
+// The portfolio's axes as the administration numbers them, in three groups and the optional
+// closing group (Step 14). Provisional until the owner gives the administration's list: the plan
+// names axes 4 and 7 to 13, and the others are named after the work the plan files under them.
+// The admin corrects a title on /axes.
+export const portfolioAxes: AxisCatalog = [
+  {
+    code: "1",
+    title: "المجموعة الأولى",
+    axes: [
+      { code: "1", title: "الخطط التدريبية" },
+      { code: "2", title: "الاختبارات" },
+      { code: "3", title: "تحليل نتائج الاختبارات" },
+    ],
+  },
+  {
+    code: "2",
+    title: "المجموعة الثانية",
+    axes: [
+      { code: "4", title: "الملف المهني" },
+      { code: "5", title: "الواجبات" },
+      { code: "6", title: "الممارسات التدريبية" },
+      { code: "7", title: "التدريب الإلكتروني" },
+      { code: "8", title: "الإرشاد التدريبي" },
+    ],
+  },
+  {
+    code: "3",
+    title: "المجموعة الثالثة",
+    axes: [
+      { code: "9", title: "التكليفات" },
+      { code: "10", title: "المبادرات والمشاركات" },
+      { code: "11", title: "المؤشرات" },
+    ],
+  },
+  {
+    code: "closing",
+    title: "الخاتمة",
+    axes: [
+      { code: "12", title: "الخاتمة" },
+      { code: "13", title: "التطلعات" },
+    ],
+  },
+];
+
 // The Umm al-Qura years whose holidays a seed run on this day adds: this one and the nine after it.
 export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
   const year = umAlQuraYear(today);
@@ -105,7 +150,8 @@ export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
 // Idempotent: inserts the one college only while none exists and never updates it, and each of its
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
 // nothing and never undoes the grid; and the holidays of the years ahead it does not have yet,
-// leaving those it has, adjusted or not. Returns the id of the first college, the one db:seed made.
+// leaving those it has, adjusted or not; and the portfolio's axes it does not have yet. Returns the
+// id of the first college, the one db:seed made.
 export async function seedBase(
   db: Db,
   college: { name: string; shortName: string },
@@ -144,6 +190,7 @@ export async function seedBase(
   });
   // After the transaction: the estimate reads the college's weekend from its settings.
   await estimateHolidays(collegeId, holidayRules, holidayYears(), db);
+  await seedAxes(collegeId, portfolioAxes, db);
   return collegeId;
 }
 

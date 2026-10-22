@@ -47,6 +47,8 @@ export const auditActions = [
   // A year's holiday adjusted, or approved as estimated, by the vice-dean (ADR-0018).
   "holiday.update",
   "holiday.approve",
+  // A portfolio axis's title or description corrected by the admin (Step 14).
+  "axis.update",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -61,6 +63,7 @@ const auditEntities = [
   "announcement",
   "term",
   "holiday",
+  "axis",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

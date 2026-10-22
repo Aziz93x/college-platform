@@ -111,6 +111,7 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#activateTermAction": ["term.activate"],
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
   "(app)/terms/actions.ts#updateHolidayAction": ["holiday.update"],
+  "(app)/axes/actions.ts#updateAxisAction": ["axis.update"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -448,6 +449,14 @@ describe("every server action writes its event", () => {
        from holidays where starts_on > current_date order by starts_on limit 1`,
     );
     await expectWrites(`${terms}#updateHolidayAction`, next);
+
+    // A portfolio axis's description (Step 14).
+    const [axis] = await query("select id, title from axes where code = '7'");
+    await expectWrites("(app)/axes/actions.ts#updateAxisAction", {
+      id: axis.id,
+      title: axis.title,
+      description: "Courses on the learning platform",
+    });
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

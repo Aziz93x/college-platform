@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { afterAll, expect, it } from "vitest";
-import { defaultRoles, seedBase, systemRole } from "../../db/seed/base.ts";
+import {
+  defaultRoles,
+  portfolioAxes,
+  seedBase,
+  systemRole,
+} from "../../db/seed/base.ts";
 import { createTestDatabase } from "./support/database.ts";
 
 const databases: Awaited<ReturnType<typeof createTestDatabase>>[] = [];
@@ -54,6 +59,28 @@ it("gives the college its system role and the default roles with their keys, onc
       permissions: [...permissions].sort(),
     })),
   ]);
+});
+
+it("gives the college the 11 axes in 3 groups and the closing group, once, and keeps an axis the admin renamed", async () => {
+  const { db, pool } = await freshDatabase();
+  await seedBase(db, college);
+  await pool.query("update axes set title = 'محور معدّل' where code = '7'");
+  await seedBase(db, college);
+
+  const { rows } = await pool.query(`
+    select g.code as group, array_agg(a.code order by a.position) as axes
+    from axis_groups g join axes a on a.group_id = g.id
+    group by g.id order by g.position`);
+  expect(rows).toEqual(
+    portfolioAxes.map((group) => ({
+      group: group.code,
+      axes: group.axes.map(({ code }) => code),
+    })),
+  );
+  expect(rows.slice(0, 3).flatMap((group) => group.axes)).toHaveLength(11);
+  expect(
+    (await pool.query("select title from axes where code = '7'")).rows,
+  ).toEqual([{ title: "محور معدّل" }]);
 });
 
 it("leaves a default role's keys as the admins set them when it runs again", async () => {

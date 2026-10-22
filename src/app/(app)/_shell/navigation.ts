@@ -4,6 +4,7 @@ import {
   CalendarRange,
   Contact,
   History,
+  Layers,
   type LucideIcon,
   Megaphone,
   Settings,
@@ -85,6 +86,14 @@ export const navigation = [
     href: "/audit",
     icon: History,
     permission: "audit.view",
+    group: "administration",
+  },
+  // The portfolio's axes, the administration's catalog (Step 14).
+  {
+    id: "axes",
+    href: "/axes",
+    icon: Layers,
+    permission: "axes.manage",
     group: "administration",
   },
   // The vice-dean's terms and their calendars (Step 13). After the administration's pages, so Today
