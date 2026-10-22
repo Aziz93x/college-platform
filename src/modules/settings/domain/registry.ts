@@ -38,7 +38,6 @@ export const settingGroups = [
   "platform",
   "locale",
   "calendar",
-  "catalogs",
   "security",
   "files",
   "rayat",
@@ -67,20 +66,6 @@ export type SettingUnit =
 // vice-dean's for how a term's weeks are counted (Step 13).
 const MANAGE = "settings.manage";
 const TERM = "term.manage";
-const FRAMEWORK = "framework.publish";
-
-// A catalog's words (Step 18): each on one line, as many as a list on a phone keeps readable, no
-// two the same in any case of their Latin letters. A payload's word fits one (payloadLimits.word).
-const catalogWords = z
-  .array(z.string().trim().min(1).max(100))
-  .min(1)
-  .max(50)
-  .refine(
-    (words) =>
-      new Set(words.map((word) => foldCase(oneLine(word)))).size ===
-      words.length,
-  )
-  .nullable();
 
 // A Rayat report's column map: the header of each column the platform reads, by what it reads it
 // as (src/modules/rayat, which a unit test keeps these fields in step with), no two the same in any
@@ -219,43 +204,6 @@ export const settingsRegistry = {
     schema: z.int().min(1).max(52),
     default: 18,
     unit: "weeks",
-  },
-  // The college's catalogs, the vice-dean's (Step 18): the exam types an exam copy and a grade
-  // analysis name, the methods a training practice chooses from and the kinds of professional
-  // development, each null until the base seed writes the college's own words; and each grade
-  // band's lower bound above 0. A task keeps the words it chose, so a change reaches later tasks.
-  "catalogs.examTypes": {
-    scope: "college",
-    group: "catalogs",
-    permission: FRAMEWORK,
-    schema: catalogWords,
-    default: null,
-  },
-  "catalogs.trainingMethods": {
-    scope: "college",
-    group: "catalogs",
-    permission: FRAMEWORK,
-    schema: catalogWords,
-    default: null,
-  },
-  "catalogs.developmentTypes": {
-    scope: "college",
-    group: "catalogs",
-    permission: FRAMEWORK,
-    schema: catalogWords,
-    default: null,
-  },
-  "catalogs.gradeBands": {
-    scope: "college",
-    group: "catalogs",
-    permission: FRAMEWORK,
-    schema: z
-      .array(z.int().min(1).max(99))
-      .min(1)
-      .max(9)
-      .refine((bounds) => new Set(bounds).size === bounds.length),
-    default: [90, 80, 70, 60],
-    unit: "percent",
   },
   // Whether holding a key that requires two-factor makes its holder set it up before anything else.
   // Off, two-factor is each person's own choice on their profile (ADR-0014).

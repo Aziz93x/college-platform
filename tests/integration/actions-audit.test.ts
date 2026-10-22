@@ -616,10 +616,11 @@ describe("every server action writes its event", () => {
     // Electrical's section template, added and corrected; the wizard copies it into the next term,
     // and the term's own is then taken out (Step 18).
     const templates = "(app)/templates/actions.ts";
-    const { appliesTo: _, ...examCopy } = {
+    const examCopy = {
       ...analysis,
       title: "Midterm exam copy",
       kind: "exam_copy",
+      appliesTo: { type: "eachCourse" },
     };
     const template = await expectWrites(`${templates}#addTemplateAction`, {
       termId: term.id,

@@ -6,7 +6,6 @@ import {
   seedBase,
   systemRole,
 } from "../../db/seed/base.ts";
-import { catalogWords } from "../../db/seed/catalogs.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
 import { createTestDatabase } from "./support/database.ts";
 
@@ -114,30 +113,6 @@ it("gives the college Rayat's column maps, once, and keeps a map an admin change
     key: sf01,
     value: changed,
     version: 2,
-  });
-});
-
-it("gives the college the catalogs' words, once, and keeps a catalog the vice-dean changed (Step 18)", async () => {
-  const { db, pool } = await freshDatabase();
-  const collegeId = await seedBase(db, college);
-  const catalogs = async () =>
-    Object.fromEntries(
-      (
-        await pool.query(
-          "select key, value from settings where key like 'catalogs.%' order by key",
-        )
-      ).rows.map(({ key, value }) => [key.replace("catalogs.", ""), value]),
-    );
-  expect(await catalogs()).toEqual(catalogWords);
-  const methods = [...catalogWords.trainingMethods, "التعلم باللعب"];
-  await pool.query(
-    "update settings set value = $2, version = 2 where college_id = $1 and key = 'catalogs.trainingMethods'",
-    [collegeId, JSON.stringify(methods)],
-  );
-  await seedBase(db, college);
-  expect(await catalogs()).toEqual({
-    ...catalogWords,
-    trainingMethods: methods,
   });
 });
 

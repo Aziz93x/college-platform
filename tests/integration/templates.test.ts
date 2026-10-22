@@ -42,10 +42,12 @@ const change = (who = "head") => ({ collegeId, actorId: people[who] });
 // The file types the college accepts, as the template actions read them from files.acceptedTypes.
 const accepted = ["pdf", "docx", "xlsx"];
 
+// An exam copy, the work of each course once for all its trainer's sections of it.
 const template = (title: string): SectionTemplateInput => ({
   title,
   axisId,
   kind: "exam_copy",
+  appliesTo: { type: "eachCourse" },
   due: { type: "week", week: 7 },
   evidence: {
     required: true,
@@ -169,7 +171,7 @@ describe("a department's section templates", () => {
     });
   });
 
-  it("changes, says when nothing changed, and is taken out, each change on the log", async () => {
+  it("changes, whom it reaches too, says when nothing changed, and is taken out, each change on the log", async () => {
     const added = await addTemplate(
       termId,
       electrical,
@@ -188,9 +190,11 @@ describe("a department's section templates", () => {
         database.db,
       ),
     ).resolves.toEqual({ status: "unchanged" });
+    // A section's own analysis: each section's trainer, section by section.
     const analysis: SectionTemplateInput = {
       ...template("تحليل نتائج كل اختبار"),
       kind: "grade_analysis",
+      appliesTo: { type: "eachSection" },
       due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
     };
     await expect(

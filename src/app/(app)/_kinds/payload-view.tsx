@@ -50,9 +50,7 @@ export function PayloadView({
         });
       case "check":
         return given ? t("yes") : t("no");
-      case "choice":
-        return String(given ?? "");
-      case "choices":
+      case "words":
         return format.list((given as string[] | undefined) ?? []);
       case "bands": {
         const bands = [...((given as { from: number; count: number }[]) ?? [])]

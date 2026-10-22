@@ -25,7 +25,7 @@ describe("occurrences", () => {
 });
 
 describe("departmentsReached", () => {
-  it("joins each department's role holders and its sections' trainers, a department with sections and no one in it yet too", () => {
+  it("joins each department's role holders and its sections' and courses' trainers, a department with sections and no one in it yet too", () => {
     expect(
       departmentsReached(
         [
@@ -33,12 +33,16 @@ describe("departmentsReached", () => {
           { departmentId: "a", roleId: "head", count: 1 },
           { departmentId: "b", roleId: "trainer", count: 2 },
         ],
-        { a: { trainers: 11 }, c: { trainers: 3 } },
+        { a: { trainers: 11, courses: 6 }, c: { trainers: 3, courses: 2 } },
       ),
     ).toEqual([
-      { roles: { trainer: 4, head: 1 }, sectionTrainers: 11 },
-      { roles: {}, sectionTrainers: 3 },
-      { roles: { trainer: 2 }, sectionTrainers: 0 },
+      {
+        roles: { trainer: 4, head: 1 },
+        sectionTrainers: 11,
+        courseTrainers: 6,
+      },
+      { roles: {}, sectionTrainers: 3, courseTrainers: 2 },
+      { roles: { trainer: 2 }, sectionTrainers: 0, courseTrainers: 0 },
     ]);
   });
 });
@@ -48,12 +52,14 @@ describe("countTasks", () => {
     const electrical = {
       roles: { [TRAINER]: 12, [HEAD]: 1 },
       sectionTrainers: 0,
+      courseTrainers: 0,
     };
     const mechanical = {
       roles: { [TRAINER]: 8, [HEAD]: 1 },
       sectionTrainers: 0,
+      courseTrainers: 0,
     };
-    const general = { roles: {}, sectionTrainers: 0 };
+    const general = { roles: {}, sectionTrainers: 0, courseTrainers: 0 };
     expect(
       countTasks(
         [
@@ -77,18 +83,33 @@ describe("countTasks", () => {
     ).toEqual({ tasks: 28, departments: 2 });
   });
 
-  it("counts nothing for no items, and each trainer of each section once there are sections", () => {
-    expect(countTasks([], [{ roles: {}, sectionTrainers: 30 }], TERM)).toEqual({
+  it("counts nothing for no items, each trainer of each section once there are sections, and each trainer of each course once for all its sections", () => {
+    // 29 sections, one of them taught by two trainers, of 12 trainers' courses.
+    const sections = { roles: {}, sectionTrainers: 30, courseTrainers: 12 };
+    expect(countTasks([], [sections], TERM)).toEqual({
       tasks: 0,
       departments: 0,
     });
-    // 29 sections, one of them taught by two trainers: 30 trainers' tasks each week.
+    // 30 trainers' tasks each week.
     expect(
       countTasks(
         [{ appliesTo: { type: "eachSection" }, due: { type: "weekly" } }],
-        [{ roles: {}, sectionTrainers: 30 }],
+        [sections],
         TERM,
       ),
     ).toEqual({ tasks: 540, departments: 1 });
+    // An exam copy for each course after each exam: 12 × 2.
+    expect(
+      countTasks(
+        [
+          {
+            appliesTo: { type: "eachCourse" },
+            due: { type: "afterEvent", eventKind: "exam", weeks: 0 },
+          },
+        ],
+        [sections],
+        TERM,
+      ),
+    ).toEqual({ tasks: 24, departments: 1 });
   });
 });

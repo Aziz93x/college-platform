@@ -23,6 +23,7 @@ import {
   departmentsReached,
   type FrameworkItemInput,
   frameworkLimits,
+  reachesTrainers,
   termFramework,
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
@@ -107,8 +108,8 @@ export default async function FrameworkPage() {
     open && (manage || (endorse && needsEndorsement && Boolean(draft)));
 
   // The tasks the draft would create, for whoever prepares it: each department's holders of each
-  // role and its sections' trainers in Rayat's SS01 in force (Step 17), and the term's weeks and
-  // calendar; and the sections an item for each section's trainer misses, having none yet.
+  // role and its sections' and courses' trainers in Rayat's SS01 in force (Step 17), and the term's
+  // weeks and calendar; and the sections an item for their trainers misses, having none yet.
   const draftImpact = async (items: readonly FrameworkItemInput[]) => {
     const [members, sections, found] = await Promise.all([
       countMembers(viewer.collegeId),
@@ -124,7 +125,7 @@ export default async function FrameworkPage() {
         .at(-1)?.number;
       if (last) events[event.kind] = [...(events[event.kind] ?? []), last];
     }
-    const untaught = items.some((item) => item.appliesTo.type === "eachSection")
+    const untaught = items.some((item) => reachesTrainers(item.appliesTo))
       ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
       : 0;
     return t("impact", {

@@ -45,8 +45,8 @@ const ITEM = {
   },
   notes: "",
 };
-// A section template: a framework item but whom it reaches (Step 18).
-const { appliesTo: _, ...TEMPLATE } = ITEM;
+// A section template: a framework item for each course's trainers or each section's (Step 18).
+const TEMPLATE = { ...ITEM, appliesTo: { type: "eachCourse" } };
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),

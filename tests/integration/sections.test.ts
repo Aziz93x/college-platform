@@ -275,8 +275,8 @@ describe("a term's sections", () => {
     await expect(
       sectionCounts(collegeId, termId, database.db),
     ).resolves.toEqual({
-      [electrical]: { trainers: 3, untaught: 1 },
-      [mechanical]: { trainers: 1, untaught: 0 },
+      [electrical]: { trainers: 3, untaught: 1, courses: 3 },
+      [mechanical]: { trainers: 1, untaught: 0, courses: 1 },
     });
   });
 

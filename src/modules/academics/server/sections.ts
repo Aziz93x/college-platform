@@ -8,6 +8,7 @@ import { notify } from "../../notifications/index.ts";
 import { listDepartments } from "../../org/index.ts";
 import { pendingRayat, rayatVersion } from "../../rayat/index.ts";
 import { terms } from "../../terms/index.ts";
+import { trainerCounts } from "../domain/counts.ts";
 import type { TransferInput } from "../domain/inputs.ts";
 import { readTransfers, type TransferStatus } from "../domain/transfers.ts";
 import { sectionTransfers } from "./schema.ts";
@@ -371,25 +372,16 @@ export async function unmatchedTrainers(
     });
 }
 
-// What each department's sections in SS01 in force give a framework's or a plan's items for each
-// section's trainer (Step 15): a task for each trainer of each section, and none for a section with
-// no trainer yet, which the preview names apart (the owner's rule, lead review C).
+// What each department's sections in SS01 in force give a framework's or a plan's items for their
+// trainers (trainerCounts()).
 export async function sectionCounts(
   collegeId: string,
   termId: string,
   db: Db = getDb(),
 ) {
-  const counts: Record<string, { trainers: number; untaught: number }> = {};
-  for (const { departmentId, trainerNumbers } of (
-    await rayatVersion(collegeId, termId, "ss01", db)
-  )?.records ?? []) {
-    counts[departmentId] ??= { trainers: 0, untaught: 0 };
-    const count = counts[departmentId];
-    const trainers = new Set(trainerNumbers).size;
-    count.trainers += trainers;
-    if (trainers === 0) count.untaught += 1;
-  }
-  return counts;
+  return trainerCounts(
+    (await rayatVersion(collegeId, termId, "ss01", db))?.records ?? [],
+  );
 }
 
 // A section of the term in SS01 in force, with its department, where transferring it is checked.

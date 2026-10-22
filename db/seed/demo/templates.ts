@@ -23,12 +23,15 @@ const evidence = (
 // Electrical's section templates for the demo term (Step 18), as the plan's examples list them: the
 // midterm and final exam copies, each with the head's approval, quizzes, three homework samples, a
 // grade analysis a week after each exam, the course on the e-learning platform and the training
-// practices. Each names its axis by code.
+// practices. Each names its axis by code. A course's work reaches each of its trainers once for all
+// their sections of it, and the grade analysis each section's trainer, section by section (the
+// owner's answers, 22 October 2026).
 const ELECTRICAL: Template[] = [
   {
     axis: "2",
     title: "نسخة الاختبار الفصلي ونموذج إجابته",
     kind: "exam_copy",
+    appliesTo: { type: "eachCourse" },
     due: { type: "week", week: 7 },
     evidence: evidence(["pdf", "docx"], 2, true),
     notes: "تُسلّم قبل أسبوع الاختبار الفصلي.",
@@ -37,6 +40,7 @@ const ELECTRICAL: Template[] = [
     axis: "2",
     title: "نسخة الاختبار النهائي ونموذج إجابته",
     kind: "exam_copy",
+    appliesTo: { type: "eachCourse" },
     due: { type: "week", week: 16 },
     evidence: evidence(["pdf", "docx"], 2, true),
     notes: "",
@@ -45,6 +49,7 @@ const ELECTRICAL: Template[] = [
     axis: "2",
     title: "الاختبارات القصيرة",
     kind: "exam_copy",
+    appliesTo: { type: "eachCourse" },
     due: { type: "everyWeeks", every: 4 },
     evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic"], 2),
     notes: "",
@@ -53,6 +58,7 @@ const ELECTRICAL: Template[] = [
     axis: "5",
     title: "ثلاث عينات من الواجبات",
     kind: "homework",
+    appliesTo: { type: "eachCourse" },
     due: { type: "week", week: 10 },
     evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic"], 3),
     notes: "عينة مرتفعة وعينة متوسطة وعينة منخفضة.",
@@ -61,6 +67,7 @@ const ELECTRICAL: Template[] = [
     axis: "3",
     title: "تحليل نتائج الشعبة",
     kind: "grade_analysis",
+    appliesTo: { type: "eachSection" },
     due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
     evidence: evidence(["xlsx", "pdf"], 2),
     notes: "دون أسماء المتدربين.",
@@ -69,6 +76,7 @@ const ELECTRICAL: Template[] = [
     axis: "7",
     title: "تجهيز المقرر على منصة التدريب الإلكتروني",
     kind: "e_learning",
+    appliesTo: { type: "eachCourse" },
     due: { type: "week", week: 2 },
     evidence: evidence(["jpg", "jpeg", "png", "heic", "pdf"], 3),
     notes: "",
@@ -77,6 +85,7 @@ const ELECTRICAL: Template[] = [
     axis: "6",
     title: "الممارسات التدريبية في الشعبة",
     kind: "training_practice",
+    appliesTo: { type: "eachCourse" },
     due: { type: "week", week: 9 },
     evidence: evidence(["pdf", "jpg", "jpeg", "png", "heic", "docx"], 5),
     notes: "",

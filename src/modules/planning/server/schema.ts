@@ -13,6 +13,7 @@ import { axes } from "../../axes/index.ts";
 import type {
   DueRule,
   EvidencePolicy,
+  SectionTemplateInput,
   TaskKind,
 } from "../../framework/index.ts";
 import { colleges, departments } from "../../org/index.ts";
@@ -23,10 +24,10 @@ const createdAt = () =>
 const updatedAt = () =>
   timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
 
-// A head's section template for a term (Step 18): an item of the department's plan that reaches
-// each trainer of each of its sections, in the order the head gave it. The framework's items for
-// each section's trainer are the college's; these are the department's own. They are its drafts
-// until Step 19 publishes the plan, and the next term starts with a copy of them.
+// A head's section template for a term (Step 18): an item of the department's plan that reaches the
+// trainers of its sections, once per section or once per course of theirs, in the order the head
+// gave it. The framework's items for those trainers are the college's; these are the department's
+// own. They are its drafts until Step 19 publishes the plan, and the next term starts with a copy.
 export const sectionTemplates = pgTable(
   "section_templates",
   {
@@ -40,6 +41,9 @@ export const sectionTemplates = pgTable(
     title: text().notNull(),
     axisId: uuid("axis_id").notNull(),
     kind: text().$type<TaskKind>().notNull(),
+    appliesTo: jsonb("applies_to")
+      .$type<SectionTemplateInput["appliesTo"]>()
+      .notNull(),
     due: jsonb().$type<DueRule>().notNull(),
     evidence: jsonb().$type<EvidencePolicy>().notNull(),
     notes: text().notNull().default(""),

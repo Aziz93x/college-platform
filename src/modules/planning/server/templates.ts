@@ -22,6 +22,7 @@ const templateColumns = {
   title: sectionTemplates.title,
   axisId: sectionTemplates.axisId,
   kind: sectionTemplates.kind,
+  appliesTo: sectionTemplates.appliesTo,
   due: sectionTemplates.due,
   evidence: sectionTemplates.evidence,
   notes: sectionTemplates.notes,

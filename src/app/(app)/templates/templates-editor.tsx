@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { reachesTrainers } from "@/modules/framework";
 import {
   type ItemInput,
   type ItemLimits,
@@ -75,9 +76,11 @@ export function TemplatesEditor({
       }
     });
 
+  // A template's sheet offers no roles, so it reaches each section's or each course's trainers.
   const save = (input: ItemInput) => {
     const current = editing;
-    if (!current) return;
+    if (!current || !reachesTrainers(input.appliesTo)) return;
+    const template = { ...input, appliesTo: input.appliesTo };
     const closed = () => {
       toast.success(t("saved"));
       setEditing(undefined);
@@ -86,8 +89,8 @@ export function TemplatesEditor({
       "save",
       () =>
         current === "new"
-          ? addTemplateAction({ termId, departmentId, ...input })
-          : updateTemplateAction({ templateId: current.id, ...input }),
+          ? addTemplateAction({ termId, departmentId, ...template })
+          : updateTemplateAction({ templateId: current.id, ...template }),
       { saved: closed, unchanged: closed },
     );
   };

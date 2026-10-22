@@ -95,11 +95,9 @@ export function FrameworkDraft({
     setError(undefined);
   };
 
-  // An item of the framework always says whom it reaches: its sheet offers the roles.
-  const save = (input: ItemInput) => {
+  const save = (item: ItemInput) => {
     const current = editing;
-    if (!current || !draft || !input.appliesTo) return;
-    const item = { ...input, appliesTo: input.appliesTo };
+    if (!current || !draft) return;
     const closed = () => {
       toast.success(t("saved"));
       setEditing(undefined);

@@ -3,23 +3,15 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useId, useState } from "react";
+import { type ListEntry, ListField } from "@/components/list-field";
 import { AdaptiveStepper } from "@/components/motion/adaptive-stepper";
 import { Checkbox } from "@/components/motion/checkbox";
 import { DateRangePickerDropdown } from "@/components/motion/date-range-picker";
 import { Input } from "@/components/motion/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/motion/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useDateRangeWords } from "@/components/use-date-range-words";
 import {
-  type Catalogs,
-  gradeBands,
   kindFields,
   type Payload,
   type PayloadField,
@@ -28,9 +20,11 @@ import {
 } from "@/modules/framework";
 import { firstDayOfWeek } from "@/platform/i18n/language";
 import { toLatinDigits } from "@/platform/validation/digits";
+import { foldCase, oneLine } from "@/platform/validation/text";
 import { useBandWords } from "./band-words.ts";
 
-type Band = { from: number; count: number };
+// A band as its trainer types it: its lower bound and its trainees, each missing until typed.
+type Band = { from?: number; count?: number };
 type Session = { on: string; notes: string };
 
 // A number typed in either digits, with a decimal point, Latin or Arabic, or a comma; undefined
@@ -42,19 +36,17 @@ function readNumber(text: string) {
 
 // What a task of a kind asks its trainer, drawn from the kind's fields (Step 18): the task card
 // puts it before the evidence (Step 26). It holds the payload being filled; the service checks it
-// with the kind's schema and the college's catalogs when it is saved.
+// with the kind's schema when it is saved.
 export function PayloadEditor({
   kind,
   value,
   onChange,
-  catalogs,
   today,
   weeks,
 }: {
   kind: TaskKind;
   value: Payload;
   onChange: (value: Payload) => void;
-  catalogs: Catalogs;
   /** The college's today, which the calendar marks. */
   today: string;
   /** The term's weeks, the most a week field counts to. */
@@ -71,7 +63,6 @@ export function PayloadEditor({
           field={field}
           value={value[field.name]}
           onChange={(next) => set(field.name, next)}
-          catalogs={catalogs}
           today={today}
           weeks={weeks}
         />
@@ -84,14 +75,12 @@ function PayloadInput({
   field,
   value,
   onChange,
-  catalogs,
   today,
   weeks,
 }: {
   field: PayloadField;
   value: unknown;
   onChange: (value: unknown) => void;
-  catalogs: Catalogs;
   today: string;
   weeks: number;
 }) {
@@ -134,6 +123,7 @@ function PayloadInput({
       return (
         <Input
           label={shown}
+          hint={hint}
           autoComplete="off"
           maxLength={payloadLimits.line}
           value={String(value ?? "")}
@@ -193,56 +183,23 @@ function PayloadInput({
           onCheckedChange={onChange}
         />
       );
-    case "choice":
+    case "words":
       return (
         <div className="flex flex-col gap-1.5">
           {caption}
-          <Select
-            aria-labelledby={`${id}-label`}
-            value={String(value ?? "")}
-            onValueChange={onChange}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t("choose")} />
-            </SelectTrigger>
-            <SelectContent>
-              {catalogs[field.catalog].map((word) => (
-                <SelectItem key={word} value={word}>
-                  {word}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {note}
+          <WordsField
+            label={label}
+            value={(value as string[] | undefined) ?? []}
+            onChange={onChange}
+          />
         </div>
       );
-    case "choices": {
-      const chosen = (value as string[] | undefined) ?? [];
-      return (
-        <fieldset className="flex flex-col gap-2 px-1">
-          <legend className="mb-1 font-medium text-sm">{label}</legend>
-          {catalogs[field.catalog].map((word) => (
-            <Checkbox
-              key={word}
-              label={word}
-              checked={chosen.includes(word)}
-              onCheckedChange={(checked) =>
-                onChange(
-                  checked
-                    ? [...chosen, word]
-                    : chosen.filter((each) => each !== word),
-                )
-              }
-            />
-          ))}
-        </fieldset>
-      );
-    }
     case "bands":
       return (
         <BandsField
           label={label}
           hint={note}
-          catalogs={catalogs}
           value={(value as Band[] | undefined) ?? []}
           onChange={onChange}
         />
@@ -288,56 +245,141 @@ function NumberField({
   );
 }
 
-// The trainees in each of the college's grade bands, a count for each band.
+// Short entries the trainer writes one at a time, such as the training methods of a course, each
+// once whatever its letters' case.
+function WordsField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
+  const t = useTranslations("kinds");
+  const read = (typed: string, items: string[]): ListEntry => {
+    const word = oneLine(typed);
+    if (!word) return undefined;
+    if (word.length > payloadLimits.word) {
+      return { problem: t("tooLong", { max: payloadLimits.word }) };
+    }
+    if (items.some((item) => foldCase(item) === foldCase(word))) {
+      return { problem: t("duplicate") };
+    }
+    if (items.length >= payloadLimits.words) {
+      return { problem: t("tooMany", { max: payloadLimits.words }) };
+    }
+    return { item: word };
+  };
+  return (
+    <ListField
+      label={label}
+      items={value}
+      onChange={onChange}
+      read={read}
+      words={{
+        placeholder: t("entry"),
+        add: t("add"),
+        remove: (item) => t("remove", { item }),
+      }}
+    />
+  );
+}
+
+// The trainees in each grade band of a section, the bands as its trainer gives them: each a lower
+// bound in percent and its trainees, added one at a time. Each band reads from its bound to the
+// next one up, the highest to 100.
 function BandsField({
   label,
   hint,
-  catalogs,
   value,
   onChange,
 }: {
   label: string;
   hint: ReactNode;
-  catalogs: Catalogs;
   value: Band[];
   onChange: (value: Band[]) => void;
 }) {
+  const t = useTranslations("kinds");
   const bandWords = useBandWords();
-  const bands = gradeBands(catalogs.gradeBands);
-  const count = (from: number) =>
-    value.find((band) => band.from === from)?.count;
+  const id = useId();
+  const froms = value.flatMap(({ from }) => (from === undefined ? [] : [from]));
+  const change = (index: number, next: Band) =>
+    onChange(
+      value.map((band, at) => (at === index ? { ...band, ...next } : band)),
+    );
   return (
-    <fieldset className="flex flex-col gap-2 px-1">
+    <fieldset className="flex flex-col gap-3 px-1">
       <legend className="mb-1 font-medium text-sm">{label}</legend>
       {hint}
-      {bands.map((band) => (
-        <CountField
-          key={band.from}
-          label={bandWords(band)}
-          value={count(band.from)}
-          onChange={(next) =>
-            onChange(
-              bands.map(({ from }) => ({
-                from,
-                count: from === band.from ? next : (count(from) ?? 0),
-              })),
-            )
-          }
-        />
+      {value.map((band, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a band has no id until its task keeps it, so its place is its identity.
+        <div key={index} className="flex flex-col gap-2 rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium text-sm">
+              {band.from === undefined
+                ? t("band", { number: index + 1 })
+                : bandWords({
+                    from: band.from,
+                    to: Math.min(
+                      100,
+                      ...froms.filter((from) => from > (band.from ?? 0)),
+                    ),
+                  })}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("removeBand", { number: index + 1 })}
+              onClick={() => onChange(value.filter((_, at) => at !== index))}
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          </div>
+          <div id={`${id}-${index}`} className="grid gap-2 sm:grid-cols-2">
+            <CountField
+              label={t("bandFrom")}
+              digits={2}
+              value={band.from}
+              onChange={(from) => change(index, { from })}
+            />
+            <CountField
+              label={t("bandTrainees")}
+              digits={String(payloadLimits.count).length}
+              value={band.count}
+              onChange={(count) => change(index, { count })}
+            />
+          </div>
+        </div>
       ))}
+      {value.length < payloadLimits.bands ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={() => onChange([...value, {}])}
+        >
+          <Plus aria-hidden />
+          {t("addBand")}
+        </Button>
+      ) : null}
     </fieldset>
   );
 }
 
-// A count of trainees typed in either digits; none while the field is empty.
+// A whole number typed in either digits; none while the field is empty or holds something else.
 function CountField({
   label,
+  digits,
   value,
   onChange,
 }: {
   label: string;
+  /** The most digits the number may have. */
+  digits: number;
   value: number | undefined;
-  onChange: (value: number) => void;
+  onChange: (value: number | undefined) => void;
 }) {
   const [typed, setTyped] = useState(value === undefined ? "" : String(value));
   return (
@@ -345,12 +387,12 @@ function CountField({
       label={label}
       inputMode="numeric"
       autoComplete="off"
-      maxLength={String(payloadLimits.count).length}
+      maxLength={digits}
       value={typed}
       onChange={(text) => {
         setTyped(text);
         const latin = toLatinDigits(text.trim());
-        onChange(/^\d+$/.test(latin) ? Number(latin) : 0);
+        onChange(/^\d+$/.test(latin) ? Number(latin) : undefined);
       }}
     />
   );

@@ -5,14 +5,13 @@ export {
   type FrameworkItemInput,
   frameworkItemInput,
   frameworkLimits,
+  reachesTrainers,
   type SectionTemplateInput,
   sectionTemplateInput,
   type TaskKind,
   taskKinds,
 } from "./domain/inputs.ts";
 export {
-  type Catalogs,
-  gradeBands,
   kindFields,
   type Payload,
   type PayloadField,

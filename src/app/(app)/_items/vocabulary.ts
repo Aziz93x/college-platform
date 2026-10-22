@@ -1,5 +1,5 @@
 import type { getFormatter, getTranslations } from "next-intl/server";
-import { type DueRule, taskKinds } from "@/modules/framework";
+import { type DueRule, reachesTrainers, taskKinds } from "@/modules/framework";
 import { calendarEventKinds } from "@/modules/terms";
 import type { ItemInput, ItemOptions } from "./item-sheet.tsx";
 import type { ItemView } from "./item-words.tsx";
@@ -22,7 +22,7 @@ export function itemVocabulary({
   calendarWords: Awaited<ReturnType<typeof getTranslations<"terms.kinds">>>;
   format: Awaited<ReturnType<typeof getFormatter>>;
   axes: readonly { id: string; code: string; title: string }[];
-  /** The roles an item may reach, by id; none for a section template. */
+  /** The roles an item may reach, by id; none for a section template, which reaches trainers. */
   roles?: ReadonlyMap<string, string>;
   accepted: readonly string[];
 }) {
@@ -52,16 +52,14 @@ export function itemVocabulary({
         });
     }
   };
-  // A section template reaches each section's trainer of its department.
   const view = (item: ItemInput & { id: string }): ItemView => ({
     ...item,
     words: {
       axis: axisWords.get(item.axisId) ?? "",
       kind: t(`kinds.${item.kind}`),
-      appliesTo:
-        !item.appliesTo || item.appliesTo.type === "eachSection"
-          ? t("eachSection")
-          : (roles?.get(item.appliesTo.roleId) ?? ""),
+      appliesTo: reachesTrainers(item.appliesTo)
+        ? t(item.appliesTo.type)
+        : (roles?.get(item.appliesTo.roleId) ?? ""),
       due: dueWords(item.due),
       evidence: [
         t("evidenceText", {

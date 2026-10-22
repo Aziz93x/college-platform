@@ -11,7 +11,11 @@ import {
   requireViewer,
 } from "@/modules/access";
 import { listAxes } from "@/modules/axes";
-import { frameworkLimits, termFramework } from "@/modules/framework";
+import {
+  frameworkLimits,
+  reachesTrainers,
+  termFramework,
+} from "@/modules/framework";
 import { listDepartments } from "@/modules/org";
 import { listTemplates } from "@/modules/planning";
 import { getSetting } from "@/modules/settings";
@@ -105,8 +109,8 @@ export default async function TemplatesPage({
     axes: groups.flatMap((group) => group.axes),
     accepted,
   });
-  const fromFramework = (published?.items ?? []).filter(
-    (item) => item.appliesTo.type === "eachSection",
+  const fromFramework = (published?.items ?? []).filter((item) =>
+    reachesTrainers(item.appliesTo),
   );
 
   return (

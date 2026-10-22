@@ -4,7 +4,7 @@ import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { roles } from "../../access/index.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
 import { calendarEventKinds, terms } from "../../terms/index.ts";
-import type { FrameworkItemInput } from "../domain/inputs.ts";
+import { type FrameworkItemInput, reachesTrainers } from "../domain/inputs.ts";
 import { frameworkItems, frameworks } from "./schema.ts";
 
 // Who changes a framework, for the audit event. The caller has authorized them.
@@ -206,7 +206,7 @@ async function offered(
   accepted: string[],
 ) {
   if (!offersItem(input, accepted)) return false;
-  if (input.appliesTo.type === "eachSection") return true;
+  if (reachesTrainers(input.appliesTo)) return true;
   const [role] = await tx
     .select({ id: roles.id })
     .from(roles)

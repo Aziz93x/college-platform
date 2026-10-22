@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import { symmetricDecrypt, verifyPassword } from "better-auth/crypto";
 import type { Pool } from "pg";
 import { afterAll, expect, it } from "vitest";
-import { catalogWords } from "../../db/seed/catalogs.ts";
 import {
   DEMO_PASSWORD,
   DEMO_TOTP_SECRET,
@@ -87,8 +86,7 @@ it("gives db:seed's college the demo values, settings and departments, then a se
     ]),
   );
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
-  // The demo's own settings, and Rayat's column maps and the catalogs' words every college starts
-  // with.
+  // The demo's own settings, and Rayat's column maps every college starts with.
   expect(
     (await pool.query("select key, value from settings order by key")).rows,
   ).toEqual(
@@ -96,9 +94,6 @@ it("gives db:seed's college the demo values, settings and departments, then a se
       ...Object.entries(demoSettings),
       ...Object.entries(rayatColumns).map(
         ([kind, value]) => [`rayat.columns.${kind}`, value] as const,
-      ),
-      ...Object.entries(catalogWords).map(
-        ([catalog, value]) => [`catalogs.${catalog}`, value] as const,
       ),
     ]
       .sort(([a], [b]) => a.localeCompare(b, "en"))
@@ -713,7 +708,7 @@ it("has the head of Electrical transfer a section to another trainer of the depa
 it("gives Electrical the plan's section templates and Mechanical its exam copies and analysis, each on an axis and added by its department's head (Step 18)", async () => {
   const { pool } = await seededDatabase();
   const { rows } = await pool.query(`
-    select d.name as department, t.kind, a.code as axis,
+    select d.name as department, t.kind, a.code as axis, t.applies_to ->> 'type' as reach,
       exists (
         select 1 from memberships m join roles r on r.id = m.role_id and r.key = 'head'
         where m.user_id::text = e.actor_id and m.department_id = t.department_id
@@ -728,20 +723,22 @@ it("gives Electrical the plan's section templates and Mechanical its exam copies
   const of = (name: string) =>
     rows
       .filter(({ department }) => department === name)
-      .map(({ kind, axis }) => `${kind} ${axis}`);
+      .map(({ kind, axis, reach }) => `${kind} ${axis} ${reach}`);
+  // A course's work once for all its trainer's sections of it, and the grade analysis section by
+  // section (the owner's answers, 22 October 2026).
   expect(of(demoDepartments[1].name)).toEqual([
-    "exam_copy 2",
-    "exam_copy 2",
-    "exam_copy 2",
-    "homework 5",
-    "grade_analysis 3",
-    "e_learning 7",
-    "training_practice 6",
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "homework 5 eachCourse",
+    "grade_analysis 3 eachSection",
+    "e_learning 7 eachCourse",
+    "training_practice 6 eachCourse",
   ]);
   expect(of(demoDepartments[2].name)).toEqual([
-    "exam_copy 2",
-    "exam_copy 2",
-    "grade_analysis 3",
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "grade_analysis 3 eachSection",
   ]);
   expect(of(demoDepartments[0].name)).toEqual([]);
   expect(rows.every(({ byItsHead }) => byItsHead)).toBe(true);

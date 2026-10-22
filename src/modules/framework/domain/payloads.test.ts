@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { type TaskKind, taskKinds } from "./inputs.ts";
 import {
-  type Catalogs,
-  fromCatalogs,
-  gradeBands,
   kindFields,
   type Payload,
   payloadLimits,
   payloadSchema,
 } from "./payloads.ts";
 
-const catalogs: Catalogs = {
-  examTypes: ["Midterm", "Final"],
-  trainingMethods: ["Project", "Case study"],
-  developmentTypes: ["Workshop"],
-  gradeBands: [90, 80, 70, 60],
-};
 const bands = [
   { from: 90, count: 4 },
   { from: 80, count: 7 },
@@ -81,11 +72,12 @@ describe("payloadSchema", () => {
     week: [0, 53, 2.5, "4"],
     percent: [-1, 100.5, "90"],
     check: ["yes", 1],
-    choice: ["", "x".repeat(payloadLimits.word + 1)],
-    choices: [
+    words: [
       [],
       ["Project", "project"],
-      Array.from({ length: payloadLimits.choices + 1 }, (_, i) => `m${i}`),
+      [""],
+      ["x".repeat(payloadLimits.word + 1)],
+      Array.from({ length: payloadLimits.words + 1 }, (_, i) => `m${i}`),
     ],
     bands: [
       [],
@@ -93,6 +85,10 @@ describe("payloadSchema", () => {
       [...bands, { from: 90, count: 1 }],
       [{ from: 100, count: 1 }],
       [{ from: 90, count: -1 }],
+      Array.from({ length: payloadLimits.bands + 1 }, (_, i) => ({
+        from: i * 9,
+        count: 1,
+      })),
     ],
     sessions: [[], [{ on: "2026-10-05", notes: "" }], [{ notes: "x" }]],
   };
@@ -133,69 +129,23 @@ describe("payloadSchema", () => {
   });
 });
 
-describe("gradeBands", () => {
-  it("runs from each bound to the one above, the highest to 100 and the lowest from 0", () => {
-    expect(gradeBands([90, 80, 70, 60])).toEqual([
-      { from: 90, to: 100 },
-      { from: 80, to: 90 },
-      { from: 70, to: 80 },
-      { from: 60, to: 70 },
-      { from: 0, to: 60 },
-    ]);
-  });
-
-  it("reads bounds in any order, once each, and only above 0 and below 100", () => {
-    expect(gradeBands([60, 85, 60, 0, 100])).toEqual([
-      { from: 85, to: 100 },
-      { from: 60, to: 85 },
-      { from: 0, to: 60 },
-    ]);
-  });
-});
-
-describe("fromCatalogs", () => {
-  it.each(
-    taskKinds,
-  )("accepts a %s that chooses from the college's catalogs", (kind) => {
-    expect(fromCatalogs(kind, filled[kind], catalogs)).toBe(true);
-  });
-
-  it("refuses a type, a method or a development type the catalogs no longer offer", () => {
-    expect(
-      fromCatalogs(
-        "exam_copy",
-        { ...filled.exam_copy, examType: "Quiz" },
-        catalogs,
-      ),
-    ).toBe(false);
-    expect(
-      fromCatalogs(
-        "training_practice",
-        { ...filled.training_practice, methods: ["Project", "Flipped"] },
-        catalogs,
-      ),
-    ).toBe(false);
-    expect(
-      fromCatalogs(
-        "professional_development",
-        { ...filled.professional_development, developmentType: "Course" },
-        catalogs,
-      ),
-    ).toBe(false);
-  });
-
-  it("refuses an analysis whose bands are not the college's, or not all of them", () => {
-    for (const changed of [
-      bands.slice(1),
-      bands.map((band) => (band.from === 60 ? { ...band, from: 50 } : band)),
-    ]) {
-      expect(
-        fromCatalogs(
-          "grade_analysis",
-          { ...filled.grade_analysis, bands: changed },
-          catalogs,
-        ),
-      ).toBe(false);
-    }
-  });
+it("keeps what the trainer writes, tidied, and the bands they give a section's analysis", () => {
+  expect(
+    payloadSchema("training_practice").parse({
+      methods: ["  Case   study ", "Project"],
+      description: "Groups.",
+    }).methods,
+  ).toEqual(["Case study", "Project"]);
+  const own = [
+    { from: 85, count: 9 },
+    { from: 50, count: 12 },
+    { from: 0, count: 1 },
+  ];
+  expect(
+    payloadSchema("grade_analysis").parse({
+      ...filled.grade_analysis,
+      examType: "  Practical   exam ",
+      bands: own,
+    }),
+  ).toMatchObject({ examType: "Practical exam", bands: own });
 });

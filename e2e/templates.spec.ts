@@ -16,7 +16,7 @@ const { templates: text, framework } = messages;
 // Tests that write to the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 
-test("the head of Electrical sees the framework's items for each section's trainer above the department's own templates (Step 18)", async ({
+test("the head of Electrical sees the framework's items for its trainers above the department's own templates (Step 18)", async ({
   browser,
   hasTouch,
 }) => {
@@ -37,15 +37,16 @@ test("the head of Electrical sees the framework's items for each section's train
   await expect(own.getByRole("listitem").first()).toContainText(
     "نسخة الاختبار الفصلي ونموذج إجابته",
   );
+  // An exam copy is a course's work: once for all its trainer's sections of it.
   await expect(own.getByRole("listitem").first()).toContainText(
-    framework.eachSection,
+    framework.eachCourse,
   );
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) expect(await smallTargets(page.locator("main"))).toEqual([]);
 });
 
 test(
-  "a head adds a template for each of their department's sections, corrects it and takes it out (Step 18)",
+  "a head adds a template for each course's trainers in their department, corrects it and takes it out (Step 18)",
   DATABASE,
   async ({ browser, account, hasTouch }) => {
     const url = process.env.DATABASE_URL;
@@ -102,13 +103,26 @@ test(
 
       await own.getByRole("button", { name: text.add }).click();
       const sheet = page.getByRole("dialog", { name: text.addTitle });
-      // A template reaches each section's trainer: its sheet does not ask whom.
-      await expect(
-        sheet.getByRole("button", {
-          name: new RegExp(`^${framework.fields.appliesTo}`),
-        }),
-      ).toHaveCount(0);
       await sheet.getByLabel(framework.fields.title).fill("عينات الواجبات");
+      // A template reaches trainers, never a role: each section's, or each course's once for all
+      // their sections of it.
+      const reach = sheet.getByRole("button", {
+        name: new RegExp(`^${framework.fields.appliesTo}`),
+      });
+      await reach.click();
+      await expect(page.getByRole("option")).toHaveText([
+        framework.eachSection,
+        framework.eachCourse,
+      ]);
+      const perCourse = page.getByRole("option", {
+        name: framework.eachCourse,
+        exact: true,
+      });
+      if (hasTouch) await perCourse.tap();
+      else await perCourse.click();
+      await expect(reach).toHaveAccessibleName(
+        `${framework.fields.appliesTo} ${framework.eachCourse}`,
+      );
       const kind = sheet.getByRole("button", {
         name: new RegExp(`^${framework.fields.kind}`),
       });
@@ -127,6 +141,9 @@ test(
       await expect(own.getByRole("listitem")).toHaveCount(1);
       await expect(own.getByRole("listitem")).toContainText(
         framework.kinds.homework,
+      );
+      await expect(own.getByRole("listitem")).toContainText(
+        framework.eachCourse,
       );
 
       await own

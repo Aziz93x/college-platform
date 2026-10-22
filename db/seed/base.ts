@@ -14,7 +14,6 @@ import {
 } from "../../src/modules/terms/index.ts";
 import { parseSeedEnv } from "../../src/platform/config/env.ts";
 import { createDb, type Db } from "../../src/platform/db/client.ts";
-import { catalogWords } from "./catalogs.ts";
 import { rayatColumns } from "./rayat-columns.ts";
 
 // The role that holds every permission. pnpm admin:create makes its first member.
@@ -150,8 +149,8 @@ export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
 
 // Idempotent: inserts the one college only while none exists and never updates it, and each of its
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
-// nothing and never undoes the grid; Rayat's column maps and the catalogs' words while the college
-// has none, leaving those an admin or the vice-dean changed; and the holidays of the years ahead it does not have yet, leaving those it has,
+// nothing and never undoes the grid; Rayat's column maps while the college has none, leaving those
+// an admin changed; and the holidays of the years ahead it does not have yet, leaving those it has,
 // adjusted or not; and the portfolio's axes it does not have yet. Returns the id of the first
 // college, the one db:seed made.
 export async function seedBase(
@@ -190,18 +189,13 @@ export async function seedBase(
     }
     await tx
       .insert(settings)
-      .values([
-        ...Object.entries(rayatColumns).map(([kind, value]) => ({
+      .values(
+        Object.entries(rayatColumns).map(([kind, value]) => ({
           collegeId: row.id,
           key: `rayat.columns.${kind}`,
           value,
         })),
-        ...Object.entries(catalogWords).map(([catalog, value]) => ({
-          collegeId: row.id,
-          key: `catalogs.${catalog}`,
-          value,
-        })),
-      ])
+      )
       .onConflictDoNothing();
     return row.id;
   });

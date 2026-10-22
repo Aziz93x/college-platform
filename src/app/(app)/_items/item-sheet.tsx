@@ -17,23 +17,21 @@ import {
 } from "@/components/motion/select";
 import { Switch } from "@/components/motion/switch";
 import { Button } from "@/components/ui/button";
-import type {
-  DueRule,
-  FrameworkItemInput,
-  SectionTemplateInput,
-  TaskKind,
+import {
+  type DueRule,
+  type FrameworkItemInput,
+  reachesTrainers,
+  type TaskKind,
 } from "@/modules/framework";
 
-// An item of the framework (Step 15), or a section template (Step 18), which has no say in whom it
-// reaches: each section's trainer of its department.
-export type ItemInput = SectionTemplateInput & {
-  appliesTo?: FrameworkItemInput["appliesTo"];
-};
+// An item of the framework (Step 15), or a section template (Step 18), which reaches its
+// department's trainers once per section or once per course.
+export type ItemInput = FrameworkItemInput;
 
 type Option = { value: string; label: string };
 
-// The choices the sheet offers, as the page words them. Without roles, it does not ask whom the
-// item reaches.
+// The choices the sheet offers, as the page words them. Without roles, an item reaches only the
+// trainers of each section or each course.
 export type ItemOptions = {
   axes: Option[];
   kinds: Option[];
@@ -68,6 +66,7 @@ type Draft = {
 };
 
 const EACH_SECTION = "eachSection";
+const EACH_COURSE = "eachCourse";
 
 export const draftOf = (
   item: ItemInput | undefined,
@@ -77,9 +76,10 @@ export const draftOf = (
   axisId: item?.axisId ?? options.axes[0]?.value ?? "",
   kind: item?.kind ?? (options.kinds[0]?.value as TaskKind),
   // A new item reaches each section's trainer, as most of the framework's do (lead review C).
-  applies:
-    !item?.appliesTo || item.appliesTo.type === "eachSection"
-      ? EACH_SECTION
+  applies: !item
+    ? EACH_SECTION
+    : reachesTrainers(item.appliesTo)
+      ? item.appliesTo.type
       : item.appliesTo.roleId,
   dueType: item?.due.type ?? "week",
   week: item?.due.type === "week" ? item.due.week : 1,
@@ -101,16 +101,14 @@ export const draftOf = (
   notes: item?.notes ?? "",
 });
 
-const inputOf = (draft: Draft, reach: boolean): ItemInput => ({
+const inputOf = (draft: Draft): ItemInput => ({
   title: draft.title,
   axisId: draft.axisId,
   kind: draft.kind,
-  ...(reach && {
-    appliesTo:
-      draft.applies === EACH_SECTION
-        ? { type: "eachSection" as const }
-        : { type: "role" as const, roleId: draft.applies },
-  }),
+  appliesTo:
+    draft.applies === EACH_SECTION || draft.applies === EACH_COURSE
+      ? { type: draft.applies }
+      : { type: "role", roleId: draft.applies },
   due:
     draft.dueType === "week"
       ? { type: "week", week: draft.week }
@@ -132,9 +130,9 @@ const inputOf = (draft: Draft, reach: boolean): ItemInput => ({
   notes: draft.notes,
 });
 
-// An item's fields in a sheet, added or corrected: its title, axis and kind, whom it reaches where
-// the page asks, when it is due, and the evidence it asks for. The page saves what it gives, and
-// says what the server refused.
+// An item's fields in a sheet, added or corrected: its title, axis and kind, whom it reaches, when
+// it is due, and the evidence it asks for. The page saves what it gives, and says what the server
+// refused.
 export function ItemSheet({
   title,
   description,
@@ -170,7 +168,7 @@ export function ItemSheet({
     if (!form.title.trim()) return setProblem(t("titleRequired"));
     if (form.types.length === 0) return setProblem(t("typesRequired"));
     setProblem(undefined);
-    onSave(inputOf(form, Boolean(options.roles)));
+    onSave(inputOf(form));
   };
 
   const number = (value: number) => format.number(value);
@@ -264,12 +262,11 @@ export function ItemSheet({
         />
         {select("axisId", t("fields.axis"), options.axes)}
         {select("kind", t("fields.kind"), options.kinds)}
-        {options.roles
-          ? select("applies", t("fields.appliesTo"), [
-              { value: EACH_SECTION, label: t("eachSection") },
-              ...options.roles,
-            ])
-          : null}
+        {select("applies", t("fields.appliesTo"), [
+          { value: EACH_SECTION, label: t("eachSection") },
+          { value: EACH_COURSE, label: t("eachCourse") },
+          ...(options.roles ?? []),
+        ])}
         {select("dueType", t("fields.due"), options.dueTypes)}
         {form.dueType === "week" ? stepper("week", 1, limits.weeks) : null}
         {form.dueType === "everyWeeks"

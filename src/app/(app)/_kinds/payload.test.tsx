@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  type Catalogs,
   kindFields,
   type Payload,
   type TaskKind,
@@ -24,13 +23,6 @@ const render = (node: ReactNode) =>
       {node}
     </NextIntlClientProvider>,
   );
-
-const catalogs: Catalogs = {
-  examTypes: ["الاختبار الفصلي الأول", "الاختبار النهائي"],
-  trainingMethods: ["المشروع", "دراسة الحالة", "التدريب المعكوس"],
-  developmentTypes: ["ورشة عمل", "دورة تدريبية"],
-  gradeBands: [90, 80, 70, 60],
-};
 
 // A payload of each kind as a trainer fills it in.
 const filled: Record<TaskKind, Payload> = {
@@ -82,7 +74,6 @@ describe("PayloadEditor", () => {
         kind={kind}
         value={{}}
         onChange={() => {}}
-        catalogs={catalogs}
         today="2026-10-22"
         weeks={18}
       />,
@@ -92,13 +83,12 @@ describe("PayloadEditor", () => {
     }
   });
 
-  it("asks for a count in each of the college's grade bands, and says no names go in", () => {
+  it("names each band the trainer gave the section in words, and says no names go in", () => {
     const html = render(
       <PayloadEditor
         kind="grade_analysis"
         value={filled.grade_analysis}
         onChange={() => {}}
-        catalogs={catalogs}
         today="2026-10-22"
         weeks={18}
       />,
@@ -114,21 +104,49 @@ describe("PayloadEditor", () => {
     expect(html).toContain(messages.kinds.hints.actions);
   });
 
-  it("offers each training method of the catalog, the chosen ones ticked", () => {
+  it("lists each method the trainer wrote, each with its remove button, and the field for the next", () => {
     const html = render(
       <PayloadEditor
         kind="training_practice"
         value={filled.training_practice}
         onChange={() => {}}
-        catalogs={catalogs}
         today="2026-10-22"
         weeks={18}
       />,
     );
-    for (const method of catalogs.trainingMethods) {
-      expect(html).toContain(method);
+    for (const method of ["المشروع", "دراسة الحالة"]) {
+      expect(html).toContain(messages.kinds.remove.replace("{item}", method));
     }
-    expect(html.match(/aria-checked="true"/g)).toHaveLength(2);
+    expect(html).toContain(`placeholder="${messages.kinds.entry}"`);
+    expect(html).toContain(messages.kinds.hints.methods);
+  });
+
+  it("starts an analysis with no band, and names a band by its place until its bound is typed", () => {
+    const empty = render(
+      <PayloadEditor
+        kind="grade_analysis"
+        value={{}}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    expect(empty).toContain(messages.kinds.addBand);
+    expect(empty).not.toContain(messages.kinds.bandTrainees);
+    const typing = render(
+      <PayloadEditor
+        kind="grade_analysis"
+        value={{ bands: [{ from: 85, count: 9 }, {}] }}
+        onChange={() => {}}
+        today="2026-10-22"
+        weeks={18}
+      />,
+    );
+    expect(typing).toContain("من 85 إلى 100٪");
+    expect(typing).toContain("الفئة 2");
+    expect(typing).toContain(
+      messages.kinds.removeBand.replace("{number}", "2"),
+    );
   });
 
   it("marks an optional field and holds each advising session", () => {
@@ -138,7 +156,6 @@ describe("PayloadEditor", () => {
           kind="professional_development"
           value={filled.professional_development}
           onChange={() => {}}
-          catalogs={catalogs}
           today="2026-10-22"
           weeks={18}
         />,
@@ -149,7 +166,6 @@ describe("PayloadEditor", () => {
         kind="advising_log"
         value={filled.advising_log}
         onChange={() => {}}
-        catalogs={catalogs}
         today="2026-10-22"
         weeks={18}
       />,

@@ -10,6 +10,7 @@ CREATE TABLE "section_templates" (
 	"title" text NOT NULL,
 	"axis_id" uuid NOT NULL,
 	"kind" text NOT NULL,
+	"applies_to" jsonb NOT NULL,
 	"due" jsonb NOT NULL,
 	"evidence" jsonb NOT NULL,
 	"notes" text DEFAULT '' NOT NULL,
