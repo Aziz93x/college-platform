@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { listRoles, roleLabel } from "../../../src/modules/access/index.ts";
 import { auditEvents } from "../../../src/modules/audit/index.ts";
@@ -22,7 +23,7 @@ import { demoSettings } from "./settings.ts";
 // each role the log shows the admin giving, told to its holder at that moment; each Sunday's digest
 // of what the week before left unread, on the college's digest day, hour and clock, but for the
 // two trainers who turned the digest off; and each read at its holder's next sign-in in the log, or
-// left for later. Drawn from the log, and each reading and each digest turned off writes its event
+// left for later, a digest with the last of what it counts if that comes first (ADR-0015). Drawn from the log, and each reading and each digest turned off writes its event
 // there, so the two agree. The demo trainer, whom the end-to-end tests and the screenshots sign in
 // as, has read everything, without a draw, whatever day the seed runs (Audit 4). Written once,
 // while the college has none, so a re-run adds nothing.
@@ -104,6 +105,7 @@ export async function seedDemoNotifications(
     if (!role || !to.userId) continue;
     const label = roleLabel(role.labels, language);
     rows.push({
+      id: randomUUID(),
       collegeId,
       userId: to.userId,
       kind: "membershipAdded",
@@ -163,19 +165,28 @@ export async function seedDemoNotifications(
     for (const [userId, theirs] of unread) {
       const off = muted.get(userId);
       if (off !== undefined && off < at) continue;
+      const own = readAt(userId, at);
+      const reads = theirs.map((row) => row.readAt?.getTime());
+      const last = reads.every((time) => time !== undefined)
+        ? Math.max(...(reads as number[]))
+        : undefined;
       rows.push({
         collegeId,
         userId,
         kind: "weeklyDigest",
         params: digestOf(
-          theirs.map(({ kind, params }) => ({
+          theirs.map(({ id, kind, params }) => ({
+            id: id as string,
             kind,
             params: params as Record<string, unknown>,
           })),
         ),
         onceKey: digestKey(moment),
         createdAt: moment.at,
-        readAt: readAt(userId, at),
+        readAt:
+          last !== undefined && (!own || last < own.getTime())
+            ? new Date(last)
+            : own,
       });
     }
   }

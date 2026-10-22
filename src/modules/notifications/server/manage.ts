@@ -16,21 +16,26 @@ type Change = {
 };
 
 // Marks a person's notifications read, those named or all they have unread, and records
-// notification.read with how many. Already read, or not theirs, changes and writes nothing.
+// notification.read with how many. A digest is read with the last of what it counts (ADR-0015), in
+// the same reading; one sent before that keeps no ids and stays. Already read, or not theirs,
+// changes and writes nothing.
 export async function markRead(
   which: { ids: readonly string[] } | "all",
   change: Change,
   db: Db = getDb(),
 ) {
   return db.transaction(async (tx) => {
+    const unread = and(
+      eq(notifications.collegeId, change.collegeId),
+      eq(notifications.userId, change.actorId),
+      isNull(notifications.readAt),
+    );
     const marked = await tx
       .update(notifications)
       .set({ readAt: sql`now()` })
       .where(
         and(
-          eq(notifications.collegeId, change.collegeId),
-          eq(notifications.userId, change.actorId),
-          isNull(notifications.readAt),
+          unread,
           which === "all"
             ? undefined
             : inArray(notifications.id, [...which.ids]),
@@ -38,6 +43,19 @@ export async function markRead(
       )
       .returning({ id: notifications.id });
     if (marked.length === 0) return 0;
+    const digests = await tx
+      .update(notifications)
+      .set({ readAt: sql`now()` })
+      .where(
+        and(
+          unread,
+          eq(notifications.kind, "weeklyDigest"),
+          sql`${notifications.params} ? 'ids'`,
+          sql`not exists (select 1 from ${notifications} as counted where counted.read_at is null and counted.id in (select jsonb_array_elements_text(${notifications.params} -> 'ids')::uuid))`,
+        ),
+      )
+      .returning({ id: notifications.id });
+    const count = marked.length + digests.length;
     await writeAudit(
       {
         collegeId: change.collegeId,
@@ -45,13 +63,13 @@ export async function markRead(
         action: "notification.read",
         entityType: "user",
         entityId: change.actorId,
-        diff: { count: marked.length },
+        diff: { count },
         ip: change.ip,
         userAgent: change.userAgent,
       },
       tx,
     );
-    return marked.length;
+    return count;
   });
 }
 

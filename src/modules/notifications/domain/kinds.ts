@@ -32,6 +32,7 @@ export type Sent = { kind: string; params: Record<string, unknown> };
 export type NotificationParams = {
   membershipAdded: Held;
   membershipRemoved: Held;
-  // How many notifications of the week are still unread, and the newest of them.
-  weeklyDigest: { count: number; latest: Sent[] };
+  // How many notifications of the week are still unread, the newest of them, and which they are
+  // (ADR-0015; a digest sent before it has no ids).
+  weeklyDigest: { count: number; latest: Sent[]; ids: string[] };
 };

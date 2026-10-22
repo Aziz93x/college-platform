@@ -342,7 +342,7 @@ describe("reading", () => {
           collegeId,
           userId: once,
           kind: "weeklyDigest",
-          params: { count: 1, latest: [] },
+          params: { count: 1, latest: [], ids: [] },
           onceKey: "weeklyDigest:2026-10-25",
         },
         database.db,

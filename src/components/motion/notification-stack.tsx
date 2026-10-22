@@ -6,9 +6,11 @@ import * as m from "motion/react-m";
 import {
   type FocusEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type ReactNode,
   useCallback,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -24,10 +26,17 @@ export type NotificationStackItem = {
   title: ReactNode;
   description?: ReactNode;
   trailing?: ReactNode;
+  /** The page the card opens. */
+  href: string;
 };
 
 export interface NotificationStackProps {
   items: NotificationStackItem[];
+  /** A card opening, before its link is followed: preventDefault to follow it some other way. */
+  onOpen?: (
+    item: NotificationStackItem,
+    event: MouseEvent<HTMLAnchorElement>,
+  ) => void;
   onViewAll?: () => void;
   maxVisible?: number;
   /** How many there are, in the page's digits. */
@@ -39,7 +48,7 @@ export interface NotificationStackProps {
     viewAll: string;
     /** Shown when there is nothing to stack. */
     empty: string;
-    /** The stack's name while closed and once open, with the count. */
+    /** The footer's name while closed and once open, with the count. */
     expand: string;
     open: string;
   };
@@ -71,10 +80,12 @@ function NotificationCardContent({ item }: { item: NotificationStackItem }) {
   );
 }
 
-// Cards stacked behind the newest, which spring apart into a list on hover, focus or tap; the second
-// activation opens the whole list (onViewAll).
+// Cards stacked behind the newest, each a link to what it is about, which spring apart into a list
+// on hover, keyboard focus or a tap on the stack's foot; the foot's second activation opens the
+// whole list (onViewAll). Closed, the newest card opens with one tap (ADR-0015).
 export function NotificationStack({
   items,
+  onOpen,
   onViewAll,
   maxVisible = 3,
   count,
@@ -82,10 +93,12 @@ export function NotificationStack({
   className,
 }: NotificationStackProps) {
   const reduce = useReducedMotion();
+  const listId = useId();
   const hasFocus = useRef(false);
-  const rootRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLButtonElement>(null);
   const hover = useHoverGesture();
-  // What the last gesture on the stack was, and whether it was already
+  // What the last gesture on the foot was, and whether the stack was already
   // expanded when that gesture started. A click reports neither.
   const tap = useTapGesture<boolean>();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -100,8 +113,8 @@ export function NotificationStack({
 
   // A pointer leaving the stack is what collapses it, and a finger never
   // leaves: without this the stack stays open for good once tapped, and the
-  // next tap follows `onViewAll` instead of closing. The tap that lands
-  // somewhere else stands in for the pointer leaving, and it is consumed
+  // next tap on the foot follows `onViewAll` instead of closing. The tap that
+  // lands somewhere else stands in for the pointer leaving, and it is consumed
   // rather than passed through.
   useDismiss(tapExpanded && isExpanded, collapse, rootRef, {
     behavior: "consume",
@@ -134,28 +147,41 @@ export function NotificationStack({
     );
   }
 
-  const handleBlur = (event: FocusEvent<HTMLButtonElement>) => {
+  const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
+    // Moving between the cards and the foot changes nothing.
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    // Only the keyboard's focus opens the list. A browser that focuses a link
+    // or a button on contact would otherwise spread the cards under the finger
+    // mid-tap, and the tap would land on whatever moved there.
+    if (!(event.target as Element).matches(":focus-visible")) return;
+    hasFocus.current = true;
+    setIsExpanded(true);
+  };
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
     hasFocus.current = false;
     collapse();
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // A key press is the start of a keyboard activation, never part of a tap:
     // whatever a taken-away gesture left behind must not be read as one.
     tap.drop();
-    if (event.key !== "Escape") return;
+    if (event.key !== "Escape" || !isExpanded) return;
     // The stack closes first; the panel around it closes on the next Escape.
-    if (isExpanded) event.stopPropagation();
+    event.stopPropagation();
     event.preventDefault();
+    // The cards the closed stack hides cannot keep the focus: it goes to the
+    // foot, which opens them again.
+    footRef.current?.focus();
     collapse();
   };
 
-  const handleClick = () => {
+  const handleFootClick = () => {
     const gesture = tap.take();
-    // Read from where the gesture started, not from now: a browser that
-    // focuses the stack on contact expands it mid-tap, and the first tap would
-    // then follow `onViewAll` instead of opening the list it was meant to.
+    // Read from where the gesture started, not from now: a pointer that came
+    // to rest on the stack has opened it already, and its click leads on.
     const wasExpanded = gesture ? gesture.state : isExpanded;
 
     if (!wasExpanded) {
@@ -173,43 +199,26 @@ export function NotificationStack({
   };
 
   return (
-    <m.button
+    // biome-ignore lint/a11y/noStaticElementInteractions: the hover, the keyboard's focus and Escape act on the stack as a whole; the cards and the foot are its controls
+    <div
       ref={rootRef}
-      type="button"
-      initial={false}
-      aria-expanded={isExpanded}
-      aria-label={isExpanded ? labels.open : labels.expand}
       // A tap reports as a hover on its way past — enter, leave, then click —
       // so an unfiltered hover path expands, collapses and expands again in
-      // the space of one tap. The tap has its own route through `handleClick`.
-      onPointerEnter={(event: PointerEvent<HTMLButtonElement>) => {
+      // the space of one tap. The tap has its own route through the foot.
+      onPointerEnter={(event: PointerEvent<HTMLDivElement>) => {
         if (hover.enter(event)) setIsExpanded(true);
       }}
-      onPointerLeave={(event: PointerEvent<HTMLButtonElement>) => {
+      onPointerLeave={(event: PointerEvent<HTMLDivElement>) => {
         if (hover.leave(event) && !hasFocus.current) collapse();
       }}
-      onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
-        tap.start(event, isExpanded);
-      }}
-      // The platform can take the gesture away mid-press — a scroll, a system
-      // swipe — and no click follows it.
-      onPointerCancel={tap.drop}
-      onFocus={() => {
-        hasFocus.current = true;
-        setIsExpanded(true);
-      }}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      onClick={handleClick}
-      className={cn(
-        "relative z-10 block w-full cursor-pointer rounded-xl text-start text-foreground outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        className,
-      )}
+      className={cn("relative z-10 block w-full text-foreground", className)}
     >
       {/* In flow, so the open list pushes down what follows the stack (the bell's panel grows with
           it) rather than rising over what comes before it. */}
-      <span className="relative block p-2">
+      <div className="relative p-2">
         <m.span
           aria-hidden
           layout
@@ -217,12 +226,16 @@ export function NotificationStack({
           transition={backgroundTransition}
           className="absolute inset-0 rounded-xl bg-muted"
         />
-        <span className={cn("relative z-10 grid gap-1", !isExpanded && "pb-2")}>
+        <ol
+          id={listId}
+          className={cn("relative z-10 grid gap-1", !isExpanded && "pb-2")}
+        >
           {visibleItems.map((item, index) => {
-            const isPrimary = index === 0;
+            // Closed, the cards behind the newest show only their edges.
+            const hidden = index > 0 && !isExpanded;
 
             return (
-              <m.span
+              <m.li
                 key={item.id}
                 layout="position"
                 initial={false}
@@ -233,30 +246,45 @@ export function NotificationStack({
                     : `inset(0px ${index * STACK_INSET}px round 8px)`,
                 }}
                 transition={cardTransition}
-                className="block rounded-lg border border-border/60 bg-background px-3.5"
+                aria-hidden={hidden || undefined}
+                className="block rounded-lg border border-border/60 bg-background"
                 style={{
                   zIndex: visibleItems.length - index,
                   gridColumn: 1,
                   gridRow: isExpanded ? index + 1 : 1,
                 }}
               >
-                <span
+                <a
+                  href={item.href}
+                  onClick={(event) => onOpen?.(item, event)}
                   className={cn(
-                    "block",
-                    !isPrimary && !isExpanded && "invisible",
+                    "block rounded-[inherit] px-3.5 text-start outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                    hidden && "invisible",
                   )}
                 >
                   <NotificationCardContent item={item} />
-                </span>
-              </m.span>
+                </a>
+              </m.li>
             );
           })}
-        </span>
+        </ol>
 
-        <m.span
+        <m.button
+          ref={footRef}
+          type="button"
           layout="position"
           transition={transition}
-          className="relative z-10 mt-2 flex min-h-9 items-center gap-2 px-1"
+          aria-expanded={isExpanded}
+          aria-controls={listId}
+          aria-label={isExpanded ? labels.open : labels.expand}
+          onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+            tap.start(event, isExpanded);
+          }}
+          // The platform can take the gesture away mid-press — a scroll, a system
+          // swipe — and no click follows it.
+          onPointerCancel={tap.drop}
+          onClick={handleFootClick}
+          className="relative z-10 mt-2 flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-primary px-1.5 font-medium text-primary-foreground text-xs shadow-[inset_0_1px_2px_rgb(0_0_0/0.2),inset_0_-1px_0_rgb(255_255_255/0.16)]">
             {count}
@@ -273,8 +301,8 @@ export function NotificationStack({
               )}
             />
           </span>
-        </m.span>
-      </span>
-    </m.button>
+        </m.button>
+      </div>
+    </div>
   );
 }
