@@ -189,7 +189,12 @@ test(
       .locator("ol > li")
       .first();
     await expect(latest).toContainText(audit.actions.person.update);
-    await latest.getByRole("button").click();
+    // The keyboard opens the row: the saved toast can sit over it, and a toast waits while it is
+    // hovered, so with the pointer left on the toast a click would wait until the test times out.
+    // What changed is in the row while it is closed too, so its state shows that it opened.
+    const row = latest.getByRole("button");
+    await row.press("Enter");
+    await expect(row).toHaveAttribute("aria-expanded", "true");
     await expect(latest.locator("del")).toHaveText(person.name);
     await expect(latest.locator("ins")).toHaveText(renamed);
   },
