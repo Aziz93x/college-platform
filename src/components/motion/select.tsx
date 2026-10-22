@@ -309,11 +309,25 @@ export function SelectTrigger({
   );
 }
 
-export function SelectValue({ className }: { className?: string }) {
+export function SelectValue({
+  placeholder,
+  className,
+}: {
+  /** What the trigger says while nothing is chosen. */
+  placeholder?: string;
+  className?: string;
+}) {
   const ctx = useSelectContext("SelectValue");
+  const label = ctx.labelFor(ctx.value);
   return (
-    <span className={cn("truncate text-foreground", className)}>
-      {ctx.labelFor(ctx.value)}
+    <span
+      className={cn(
+        "truncate",
+        label === undefined ? "text-muted-foreground" : "text-foreground",
+        className,
+      )}
+    >
+      {label ?? placeholder}
     </span>
   );
 }
