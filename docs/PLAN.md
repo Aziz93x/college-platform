@@ -51,6 +51,15 @@ When several checkpoints land on the same step, run them in this order: audit, t
 
 Each step heading carries a size: S is about one session, M two or three, L four or more. A step that spans sessions continues on its branch.
 
+**Notes from the owner (22 October 2026): build at the trial's size.** The trial is about 40 trainers in three departments, with the dean and the vice-dean. From now on, these rules win over older text in this plan.
+
+- **A setting or permission key arrives with the step that first reads or checks it.** These six settings and ten keys change nothing yet, though the settings screen and the roles grid offer them. The next audit takes them out of the registries, the seeds, the messages and the tests, and the step named beside each adds it back:
+  - settings: `files.maxSizeMb` and `files.acceptedTypes` (Step 25), `reminders.dueTomorrow` and `reminders.nothingUploaded` (Step 27), `review.sampleRate` and `review.weeklyCap` (Step 29);
+  - keys: `term.manage` (Step 13), `framework.publish` (15), `rayat.import` (16), `plan.edit` and `plan.publish` (19 and 20), `assignment.manage` (21 and 22), `task.complete` (26), `review.decide` (29), `portfolio.approve` (30), `indicators.view.college` (35).
+- **No more animated components.** The BeUI components already in `src/components/motion/` stay. A new screen uses them, the shadcn/Radix components or native controls. A new BeUI component comes in only for something none of these can do, and its pull request says why.
+- **Review screenshots stay out of git.** Reviews still save them under `docs/reviews/<report>/` to look at, but git ignores those folders, and each report says in words what a screenshot showed. The screenshots already committed in `docs/reviews/ux-10/` stay.
+- **Measure and load-test at the trial's size.** Seeds, timings and load tests use the trial's numbers, as Step 43's seed and Step 45's k6 run already do. Runs at 2,000 people or 300,000 log events, and the paging that lead review B proposed for them (its note in Step 43), wait until the platform is to serve more than the trial.
+
 ## 1. Product brief
 
 **The goal is one loop that the whole college fills together, so each portfolio builds itself during the term instead of being assembled by hand at its end.** The vice-dean sets the term and its general framework. Each head builds the department plan on it. The platform generates every trainer's tasks per section with due weeks. Trainers complete them and attach evidence in place. Heads review a sample and approve each portfolio twice a term. Trainer, department and college portfolios and indicators stay current, and the dean and vice-dean follow execution.
