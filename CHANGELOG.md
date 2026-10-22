@@ -72,7 +72,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - Migration `0013` adds the `announcements` table; the notifications carry the announcement's id. The shared dialog takes an overlay class, for the blur.
 - `seed:demo` publishes the head of Electrical's announcement and the dean's; the demo accounts the tests sign in as have read them, and the invited trainer meets the dean's at the first sign-in, which the production stack's smoke closes.
 - Tests: the input's tidying; the services on a real database (who is reached, refusals, withdrawal, the events); the actions' scopes and the permission matrix's rows; every action's audit event; the log's words; the seed; and end-to-end on the desktop and the iPhone, in a department the test makes: two announcements newest first over the page blurred, axe and 44 px targets on the dialog, closing for good, withdrawal from the center, the trainer refused the page, and the preferences' row.
-- Fixed: axe could check a page while the page header's eyebrow still faded in, so the dialog's check, made right after the trainer's sign-in, failed on that line's contrast at random, on `main` too. `seriousViolations()` now waits for the page's animations that end. The 44 px check, `smallTargets()`, measures once the controls have stopped moving: on the phone, the bell's stack was measured while its cards still spread, and a card under its neighbour failed at random.
+- Fixed: axe could check a page while the page header's eyebrow still faded in, so the dialog's check, made right after the trainer's sign-in, failed on that line's contrast at random, on `main` too. `seriousViolations()` now waits for the page's animations that end.
 
 ### Lead review B: section B (Step 41, Steps 7 to 12)
 
@@ -121,6 +121,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 - `seed:demo` tells each role's holder when the log shows it given, sends each Sunday's digest of what the week left unread, and has each read at its holder's next sign-in in the log or left for later.
 - The toasts' region is named "رسائل الحالة" now that the platform has notifications of its own.
 - Tests: integration tests for the delivery and a kind turned off (`tests/integration/notifications.test.ts`), the digest's words for a fixture as a snapshot, once per week, late within the day and on the college's changed day and hour (`tests/integration/notification-digest.test.ts`), the demo notifications and both actions' events; unit tests for the digest's moment on the college's clock across a clock change, the notifications' words and the new actions in the permission matrix; end-to-end tests where a role the admin gives reaches its holder's bell, panel and center and is read, a kind turned off reaches the person no more, and "mark all read" empties the bell, with the phone's header, axe and 44 px targets.
+- Fixed: the 44 px check, `smallTargets()`, measured the bell's stack on the phone while its cards still spread, so a card under its neighbour failed at random. It now measures once the controls have stopped moving.
 
 ### Step 11: audit log and history
 
