@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   CalendarRange,
   Contact,
+  FileSpreadsheet,
   History,
   Layers,
   type LucideIcon,
@@ -110,6 +111,13 @@ export const navigation = [
     id: "framework",
     href: "/framework",
     icon: ScrollText,
+  },
+  // Rayat's reports for the term, uploaded and applied by the vice-dean (Step 16).
+  {
+    id: "rayat",
+    href: "/rayat",
+    icon: FileSpreadsheet,
+    permission: "rayat.import",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

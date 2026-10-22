@@ -35,6 +35,13 @@ it.each([
     { kind: "text", maxLength: 80, nullable: true },
   ],
   ["a list of texts", z.array(z.string()).min(1), { kind: "list" }],
+  [
+    "a text for each field",
+    z
+      .object({ term: z.string().max(100), room: z.string().max(60) })
+      .nullable(),
+    { kind: "columns", fields: ["term", "room"], maxLength: 60 },
+  ],
 ])("draws %s from its schema", (_name, schema, control) => {
   expect(controlFor(schema)).toEqual(control);
 });

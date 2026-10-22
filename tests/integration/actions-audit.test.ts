@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase, systemRole } from "../../db/seed/base.ts";
+import { rayatColumns, rayatHeaders } from "../../db/seed/rayat-columns.ts";
 import { joinRole } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import { notify } from "../../src/modules/notifications/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
+import { csvLines } from "../../src/platform/files/table.ts";
 import { base32Bytes, totp } from "../support/totp.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
 
@@ -122,6 +124,10 @@ const writes: Record<string, string[]> = {
   "(app)/framework/actions.ts#removeItemAction": ["frameworkItem.delete"],
   "(app)/framework/actions.ts#endorseDraftAction": ["framework.endorse"],
   "(app)/framework/actions.ts#publishDraftAction": ["framework.publish"],
+  "(app)/rayat/actions.ts#uploadRayatAction": ["rayatImport.upload"],
+  "(app)/rayat/actions.ts#applyRayatAction": ["rayatImport.apply"],
+  "(app)/rayat/actions.ts#discardRayatAction": ["rayatImport.discard"],
+  "(app)/rayat/actions.ts#rollbackRayatAction": ["rayatImport.rollback"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -443,6 +449,49 @@ describe("every server action writes its event", () => {
     await expectWrites(`${terms}#removeCalendarEventAction`, {
       termId: term.id,
       eventId,
+    });
+
+    // The term's SF01: uploaded and applied, a newer one uploaded and discarded, and the version
+    // rolled back (Step 16).
+    const rayat = "(app)/rayat/actions.ts";
+    const sf01 = (registrationStatus: string) => {
+      const values: Record<string, string> = {
+        term: spring.name,
+        department: "Electrical",
+        courseCode: "ELC 101",
+        sectionRef: "30101",
+        traineeNumber: "441100001",
+        registrationStatus,
+        traineeStatus: "Active",
+      };
+      const columns = Object.entries(rayatColumns.sf01);
+      const row = rayatHeaders.sf01.map(
+        (header) =>
+          values[columns.find(([, name]) => name === header)?.[0] ?? ""] ?? "",
+      );
+      return {
+        termId: term.id,
+        kind: "sf01",
+        file: new File([csvLines([rayatHeaders.sf01, row])], "sf01.csv"),
+      };
+    };
+    const first = await expectWrites(
+      `${rayat}#uploadRayatAction`,
+      sf01("Registered"),
+    );
+    expect(first.status).toBe("pending");
+    await expectWrites(`${rayat}#applyRayatAction`, {
+      importId: first.importId,
+    });
+    const newer = await expectWrites(
+      `${rayat}#uploadRayatAction`,
+      sf01("Withdrawn"),
+    );
+    await expectWrites(`${rayat}#discardRayatAction`, {
+      importId: newer.importId,
+    });
+    await expectWrites(`${rayat}#rollbackRayatAction`, {
+      importId: first.importId,
     });
 
     // The term's framework: a draft and its items, endorsed and published, then the next version

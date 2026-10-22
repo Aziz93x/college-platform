@@ -27,6 +27,7 @@ export default defineConfig({
     "health.spec.ts",
     "notifications.spec.ts",
     "people.spec.ts",
+    "rayat.spec.ts",
     "roles.spec.ts",
     "security.spec.ts",
     "settings.spec.ts",

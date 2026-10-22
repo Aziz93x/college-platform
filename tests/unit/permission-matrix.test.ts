@@ -153,6 +153,13 @@ vi.mock("@/modules/framework", async (importOriginal) => ({
   endorseDraft: async () => ({ status: "endorsed" }),
   publishDraft: async () => ({ status: "published" }),
 }));
+vi.mock("@/modules/rayat", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/rayat")>()),
+  uploadRayat: async () => ({ status: "pending", importId: ID }),
+  applyRayat: async () => ({ status: "applied" }),
+  discardRayat: async () => ({ status: "discarded" }),
+  rollbackRayat: async () => ({ status: "rolledBack" }),
+}));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
   updateAxis: async () => ({ status: "saved" }),
@@ -402,6 +409,21 @@ const checked: {
     permission: "framework.endorse",
     input: { draftId: ID },
   },
+  // Rayat's reports for a term, the vice-dean's across the college (Step 16).
+  ...[
+    [
+      "uploadRayatAction",
+      { termId: ID, kind: "ss01", file: new File(["x"], "ss01.xlsx") },
+    ],
+    ["applyRayatAction", { importId: ID }],
+    ["discardRayatAction", { importId: ID }],
+    ["rollbackRayatAction", { importId: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/rayat/actions.ts",
+    action: action as string,
+    permission: "rayat.import" as const,
+    input,
+  })),
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {
     module: "(app)/axes/actions.ts",

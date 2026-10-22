@@ -279,6 +279,39 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names a Rayat import by its report and term, and counts what it changed (Step 16)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "rayatImport",
+          entityId: "i1",
+          action: "rayatImport.upload",
+          diff: {
+            termId: SPRING,
+            report: "sf01",
+            records: 765,
+            added: 2,
+            removed: 0,
+            changed: 3,
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "رفع تقرير من رايات",
+      subject: "SF01 · الفصل الثاني 1447",
+      changes: [
+        { field: "الفصل التدريبي", after: "الفصل الثاني 1447" },
+        { field: "التقرير", after: "SF01" },
+        { field: "السجلات", after: "765" },
+        { field: "أُضيف", after: "2" },
+        { field: "حُذف", after: "0" },
+        { field: "تغيّر", after: "3" },
+      ],
+    });
+  });
+
   it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
     expect(
       describeEvent(

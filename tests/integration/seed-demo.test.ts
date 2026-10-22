@@ -11,6 +11,7 @@ import {
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
+import { rayatColumns } from "../../db/seed/rayat-columns.ts";
 import { settingsRegistry } from "../../src/modules/settings/index.ts";
 import {
   activeTerm,
@@ -83,10 +84,16 @@ it("gives db:seed's college the demo values, settings and departments, then a se
     ]),
   );
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
+  // The demo's own settings, and Rayat's column maps every college starts with.
   expect(
     (await pool.query("select key, value from settings order by key")).rows,
   ).toEqual(
-    Object.entries(demoSettings)
+    [
+      ...Object.entries(demoSettings),
+      ...Object.entries(rayatColumns).map(
+        ([kind, value]) => [`rayat.columns.${kind}`, value] as const,
+      ),
+    ]
       .sort(([a], [b]) => a.localeCompare(b, "en"))
       .map(([key, value]) => ({ key, value })),
   );
@@ -247,6 +254,8 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "read_at",
     "endorsed_at",
     "published_at",
+    "uploaded_at",
+    "applied_at",
   ];
   // The log names its records by their ids, in its columns and in what changed, so each id reads
   // the same there.
@@ -313,6 +322,9 @@ it("writes three weeks of the college's history, every event in the past and by 
       "frameworkItem.create",
       "framework.publish",
       "frameworkItem.update",
+      // The term's Rayat reports, and a newer SF01 waiting to be applied (Step 16).
+      "rayatImport.upload",
+      "rayatImport.apply",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -545,6 +557,57 @@ it("approves the coming holiday, and keeps the framework's version 2 as a draft 
     { version: 1, due: { type: "afterEvent", eventKind: "exam", weeks: 1 } },
     { version: 2, due: { type: "afterEvent", eventKind: "exam", weeks: 2 } },
   ]);
+});
+
+it("imports the demo term's SS01, SF01 and SO01 as the vice-dean, every section taught by its department's trainers, and leaves a newer SF01 to review (Step 16)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows: imports } = await pool.query(
+    `select i.kind, i.status, u.email, i.diff - 'samples' as counts
+     from rayat_imports i join users u on u.id = i.uploaded_by
+     order by i.uploaded_at`,
+  );
+  const viceDean = demoAccounts.viceDean.email;
+  expect(imports).toEqual([
+    {
+      kind: "ss01",
+      status: "applied",
+      email: viceDean,
+      counts: expect.objectContaining({ removed: 0 }),
+    },
+    {
+      kind: "sf01",
+      status: "applied",
+      email: viceDean,
+      counts: expect.objectContaining({ removed: 0 }),
+    },
+    {
+      kind: "so01",
+      status: "applied",
+      email: viceDean,
+      counts: expect.objectContaining({ removed: 0 }),
+    },
+    {
+      kind: "sf01",
+      status: "pending",
+      email: viceDean,
+      counts: expect.objectContaining({ added: 2, removed: 0, changed: 3 }),
+    },
+  ]);
+  const { rows: departments } = await pool.query(`
+    select d.name, count(*)::int > 0 as sections,
+      bool_and(exists (
+        select 1 from people p
+        join memberships m on m.user_id = p.user_id
+        join roles r on r.id = m.role_id and r.key = 'trainer'
+        where m.department_id = s.department_id and p.employee_number = any(s.trainer_numbers)
+      )) as taught
+    from rayat_sections s join departments d on d.id = s.department_id
+    group by d.name order by d.name`);
+  expect(departments).toEqual(
+    demoDepartments
+      .map(({ name }) => ({ name, sections: true, taught: true }))
+      .sort((a, b) => (a.name < b.name ? -1 : 1)),
+  );
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

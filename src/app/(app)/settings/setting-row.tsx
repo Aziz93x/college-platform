@@ -16,13 +16,24 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import { resetSettingAction, saveSettingAction } from "./actions.ts";
 import { parseWhole, SettingField } from "./setting-field.tsx";
-import { type SettingView, sameValue } from "./setting-view.ts";
+import {
+  readColumns,
+  resettable,
+  type SettingView,
+  sameValue,
+} from "./setting-view.ts";
 import { type SettingWords, useSettingWords } from "./use-setting-words.ts";
 
 // What a field holds while it is edited: a number field the text typed, in the page's digits.
 function fieldValue(setting: SettingView, value: unknown, words: SettingWords) {
   if (setting.control.kind === "number") return words.number(Number(value));
   if (setting.control.kind === "text") return value ?? "";
+  if (setting.control.kind === "columns") {
+    return (
+      value ??
+      Object.fromEntries(setting.control.fields.map((field) => [field, ""]))
+    );
+  }
   return value;
 }
 
@@ -58,6 +69,10 @@ function readField(
   if (control.kind === "list" && (shown as string[]).length === 0) {
     return { error: words.t("errors.empty") };
   }
+  if (control.kind === "columns") {
+    const read = readColumns(control.fields, shown as Record<string, string>);
+    return read.error ? { error: words.t(`errors.${read.error}`) } : read;
+  }
   return { value: shown };
 }
 
@@ -89,7 +104,9 @@ export function SettingRow({
   const dirty =
     editing &&
     (read.error !== undefined || !sameValue(read.value, setting.value));
-  const atDefault = sameValue(setting.value, setting.defaultValue);
+  // A setting with no default to go back to offers neither its default nor a reset.
+  const atDefault =
+    sameValue(setting.value, setting.defaultValue) || !resettable(setting);
 
   const [saved, setSaved] = useState(false);
   const [asking, setAsking] = useState<Action | null>(null);

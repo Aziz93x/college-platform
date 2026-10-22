@@ -4,6 +4,7 @@ import {
   BellRing,
   CalendarRange,
   ClipboardCheck,
+  FileSpreadsheet,
   FolderUp,
   Languages,
   type LucideIcon,
@@ -31,6 +32,7 @@ const GROUP_ICONS: Record<SettingGroup, LucideIcon> = {
   calendar: CalendarRange,
   security: ShieldCheck,
   files: FolderUp,
+  rayat: FileSpreadsheet,
   review: ClipboardCheck,
   reminders: BellRing,
 };

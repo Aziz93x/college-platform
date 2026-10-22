@@ -243,7 +243,7 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
   ).toBeVisible();
 });
 
-test("on a phone, the admin's ten pages leave four tabs and More, whose sheet opens the rest", async ({
+test("on a phone, the admin's eleven pages leave four tabs and More, whose sheet opens the rest", async ({
   page,
   isMobile,
 }) => {
@@ -264,6 +264,7 @@ test("on a phone, the admin's ten pages leave four tabs and More, whose sheet op
     nav.axes,
     nav.terms,
     nav.framework,
+    nav.rayat,
     nav.announcements,
   ]);
   await sheet.getByRole("link", { name: nav.audit }).click();
