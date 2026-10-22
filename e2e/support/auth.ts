@@ -43,6 +43,9 @@ export async function enterCode(page: Page, key: Buffer) {
 
 // Signs out from the account menu, which carries the person's name, and lands on the login page.
 // A press before React has hydrated the menu's button only focuses it, so the press waits for that.
+// The menu then grows out of the button, its items moving with it, before a person can see them: a
+// press then can start on an item and end on the heading, which presses nothing. So the press waits
+// for the grid's reveal, the last of the opening animations, to finish.
 export async function signOut(page: Page, person: { name: string }) {
   const trigger = page.getByRole("button", {
     name: accountMenu.open.replace("{name}", person.name),
@@ -55,6 +58,7 @@ export async function signOut(page: Page, person: { name: string }) {
     )
     .toBe(true);
   await trigger.click();
+  await expect(page.getByRole("menu")).toHaveCSS("clip-path", "inset(0%)");
   await page.getByRole("menuitem", { name: accountMenu.signOut }).click();
   await expect(page).toHaveURL("/");
 }
