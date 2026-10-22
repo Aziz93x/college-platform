@@ -1,0 +1,33 @@
+# Temporary: finds out why "Docker images" and "Production stack" fail since about 02:10 UTC on
+# 22 October 2026, on commits that passed before. Builds the app image on each Ubuntu at once and
+# writes the build's last lines into an annotation. Delete with the pull request that adds it.
+name: Diagnose the image build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build app on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04, ubuntu-26.04]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Runner
+        run: echo "::notice title=Runner::$ImageOS $ImageVersion, kernel $(uname -r), $(docker version --format 'Docker {{.Server.Version}}'), $(docker buildx version)"
+      - name: Build app
+        run: |
+          set -o pipefail
+          docker buildx build --progress=plain --load -f docker/Dockerfile --target app -t college-app . 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: The build's last lines
+        if: failure()
+        run: |
+          tail -n 60 "$RUNNER_TEMP/build.log" | python3 -c 'import sys; t = sys.stdin.read(); print("::error title=Build app::" + t.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
