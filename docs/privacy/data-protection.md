@@ -1,7 +1,7 @@
 # Data protection: the platform's record of personal data
 
 - Status: draft, for the controller and its data protection officer to confirm
-- Date: 2026-10-21, updated on 2026-10-22 for Steps 10 to 13, ADR-0014 and ADR-0017 as merged (#21 to #24, #29, #30 and #32)
+- Date: 2026-10-21, updated on 2026-10-22 for Steps 10 to 15, ADR-0014 and ADR-0017 as merged (#21 to #24, #29, #30, #32, #35 and #36)
 - Decisions: ADR-0013 (proposed)
 - Related: `docs/privacy/privacy-notice.md` (the notice, in Arabic), `docs/ops/breach-response.md` (the incident runbook, in Arabic), `docs/ops/hosting-options.md` (the request to the General Administration)
 
@@ -88,7 +88,7 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 
 ## What the platform keeps
 
-### Today (Steps 1 to 13)
+### Today (Steps 1 to 15)
 
 | Data | About | Where | Why | Who sees it |
 | --- | --- | --- | --- | --- |
@@ -106,8 +106,9 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 | What a person was told: the kind, its details (a role and its department, the week's unread count and the newest notifications, or an announcement), and when it was sent and read | Staff | `notifications` (Step 12) | Telling people what changed for them, in the platform only | The person. For an announcement, its author and the holders of `announcements.publish` across the college see how many of those it reached have read it, never who (ADR-0017). |
 | Which kinds each person receives | Staff | `notification_prefs` (Step 12) | The same | The person |
 | What a head, the dean or the vice-dean announced: a title and a short text, its author, the department or the whole college it went to, and when it was published and withdrawn | Staff: the author, and anyone the text names | `announcements` (ADR-0017) | Telling a department or the college something at once | Everyone it reached, as a notification until it is withdrawn. On `/announcements`, while it is live, whoever announces to its scope. A withdrawn one keeps its row, which no screen shows. |
+| Who endorsed the draft of a term's general framework, who published each version, and when. A change to the draft's items clears its endorsement. | Staff: the dean and the vice-dean as seeded (`framework.endorse`, `framework.publish`) | `frameworks` (Step 15) | Accountability for the version every department's plan inherits | No screen names them. Everyone in the college reads the published version and its date; whoever prepares or endorses the draft sees that it is endorsed. The audit events of both name the person. |
 
-Colleges, departments, roles, settings, terms, their calendars and the Eid breaks (Step 13, ADR-0018) hold no personal data. Their audit events name whoever changed them.
+Colleges, departments, roles, settings, terms, their calendars and the Eid breaks (Step 13, ADR-0018), the portfolio axes (Step 14) and the framework's items (Step 15) hold no personal data. Their audit events name whoever changed them.
 
 ### Planned
 
@@ -164,7 +165,7 @@ The schedule follows a few rules:
 | Rayat files and people files | Never stored | Read in memory and discarded | People files: Step 10, as built. Rayat files: Step 16. |
 | Trainee rows from SF01 and SO01 | None, if counts replace them (ADR-0013). Otherwise until the term closes, plus one term. | | Step 16 |
 | A staff member who leaves | Sign-in ends the day they leave. The name and employee number stay with their records. | Step 10 disables the account and deletes its sessions. ADR-0013 adds the password hash and the two-factor secrets. | Step 10; ADR-0013 |
-| Evidence, reviews, approvals, portfolios, indicators and minutes | The college's records schedule for training records | | **To confirm** with the corporation's records office |
+| Each term's frameworks with who endorsed and published them (Step 15); evidence, reviews, approvals, portfolios, indicators and minutes | The college's records schedule for training records | | **To confirm** with the corporation's records office |
 
 ## People's rights
 

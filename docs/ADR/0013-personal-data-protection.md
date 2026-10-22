@@ -1,7 +1,7 @@
 # ADR-0013: Personal data protection
 
 - Status: proposed
-- Date: 2026-10-21, revised on 2026-10-22 for Steps 10 to 12 and ADR-0014 as merged (#21 to #24)
+- Date: 2026-10-21, revised on 2026-10-22 for Steps 10 to 12, ADR-0014 and ADR-0017 as merged (#21 to #24, #29 and #30)
 - Source: the owner's review. The plan never named the PDPL, SDAIA, the NCA or the NDMO, and it had no privacy notice, no retention periods and no breach procedure. The record that answers it is `docs/privacy/data-protection.md`.
 - Builds on:
   - ADR-0004: the public repository.
