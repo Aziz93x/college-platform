@@ -182,9 +182,13 @@ jobs:
             node -e "fetch('https://github.com', { signal: AbortSignal.timeout(5000) }).then(() => process.exit(1), () => console.log('no route out'))"
       - name: The worker's Chromium prints an Arabic page to PDF on that network
         run: docker compose -p college-demo -f docker/compose.yml --env-file docker/.env exec -T worker node worker/print-check.ts
-      - run: pnpm exec playwright install --with-deps chromium
+      # WebKit for the safari project (playwright.config.ts), which runs here because the stack serves
+      # HTTPS: WebKit keeps no Secure cookie over plain http, and the session cookie is Secure everywhere.
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - name: The end-to-end smoke against Caddy
         run: pnpm exec playwright test --config e2e/stack.config.ts
+        env:
+          E2E_WEBKIT: "1"
       - name: The stack comes back by itself after Docker restarts
         run: |
           sudo systemctl restart docker
