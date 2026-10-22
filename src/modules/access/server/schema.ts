@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "../../identity/index.ts";
 import { colleges, departments } from "../../org/index.ts";
+import { terms } from "../../terms/index.ts";
 
 // Roles are data: each college names its own, and the permission keys in code are what they hold.
 export const roles = pgTable(
@@ -49,7 +50,7 @@ export const rolePermissions = pgTable(
 );
 
 // Who holds which role, and where: across the college, or in one of its departments. A person
-// holds a role once in each scope. The optional term arrives with terms (Step 13).
+// holds a role once in each scope, in every term or in one (Step 13).
 export const memberships = pgTable(
   "memberships",
   {
@@ -65,13 +66,16 @@ export const memberships = pgTable(
       .references(() => colleges.id),
     // Null: the whole college. Otherwise one of the college's departments (the key below).
     departmentId: uuid("department_id"),
+    // Null: every term. Otherwise one of the college's terms (the key below): the role gives its keys
+    // while that term is the active one, so a person can hold a role in one term and not the next.
+    termId: uuid("term_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (table) => [
     unique("memberships_scope_unique")
-      .on(table.userId, table.roleId, table.departmentId)
+      .on(table.userId, table.roleId, table.departmentId, table.termId)
       .nullsNotDistinct(),
     // A role's members: the grid's list, the last-admin rule and the first admin's check.
     index("memberships_role_id_index").on(table.roleId),
@@ -79,6 +83,11 @@ export const memberships = pgTable(
       name: "memberships_department_fk",
       columns: [table.collegeId, table.departmentId],
       foreignColumns: [departments.collegeId, departments.id],
+    }),
+    foreignKey({
+      name: "memberships_term_fk",
+      columns: [table.collegeId, table.termId],
+      foreignColumns: [terms.collegeId, terms.id],
     }),
   ],
 );

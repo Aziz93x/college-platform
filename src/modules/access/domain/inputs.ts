@@ -14,11 +14,13 @@ export const rolePermissionsInput = z.object({
     .refine((keys) => new Set(keys).size === keys.length),
 });
 
-// Who holds the role, and where: across the college (null) or in one of its departments.
+// Who holds the role, and where: across the college (null) or in one of its departments; and when:
+// in every term (null or left out) or in one (Step 13).
 export const membershipInput = z.object({
   userId: z.uuid(),
   roleId: z.uuid(),
   departmentId: z.uuid().nullable(),
+  termId: z.uuid().nullable().optional(),
 });
 
 export type RoleInput = z.infer<typeof roleInput>;

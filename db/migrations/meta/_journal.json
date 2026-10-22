@@ -99,6 +99,13 @@
       "when": 1792649816404,
       "tag": "0013_announcements",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792654264091,
+      "tag": "0014_terms_and_calendar",
+      "breakpoints": true
     }
   ]
 }

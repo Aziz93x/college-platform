@@ -26,6 +26,7 @@ const words = Object.assign(
 
 const HIND = "0199b2a4-0000-7000-8000-000000000001";
 const ELECTRICAL = "0199b2a4-0000-7000-8000-00000000000d";
+const SPRING = "0199b2a4-0000-7000-8000-0000000000a1";
 const lookups: Lookups = {
   person: (id) => (id === HIND ? "هند القحطاني" : undefined),
   department: (id) => (id === ELECTRICAL ? "التقنية الكهربائية" : undefined),
@@ -35,9 +36,12 @@ const lookups: Lookups = {
   setting: (key) => (key === "review.weeklyCap" ? "الحد الأسبوعي" : undefined),
   notificationKind: (kind) =>
     kind === "weeklyDigest" ? "ملخص الأسبوع" : undefined,
+  term: (id) => (id === SPRING ? "الفصل الثاني 1447" : undefined),
+  calendarKind: (kind) => (kind === "holiday" ? "إجازة" : undefined),
   college: "الكلية التقنية",
   labels: (labels) => labels.ar,
   dateTime: (iso) => `at ${iso}`,
+  day: (day) => `day ${day}`,
   list: (items) => items.join(" / "),
 };
 
@@ -250,6 +254,67 @@ describe("describeEvent", () => {
         { field: "سُحب من", after: "14" },
       ],
     });
+  });
+
+  it("names a term, the kind and days of what its calendar gained, its status, and the term a role is held in (Step 13)", () => {
+    const term = { entityType: "term", entityId: SPRING };
+    expect(
+      describeEvent(
+        entry({
+          ...term,
+          action: "calendarEvent.create",
+          diff: {
+            to: {
+              kind: "holiday",
+              title: "إجازة عيد الفطر",
+              startsOn: "2026-03-15",
+              endsOn: "2026-03-28",
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "إضافة إلى تقويم الفصل",
+      subject: "الفصل الثاني 1447",
+      changes: [
+        { field: "النوع", after: "إجازة" },
+        { field: "العنوان", after: "إجازة عيد الفطر" },
+        { field: "يبدأ في", after: "day 2026-03-15" },
+        { field: "ينتهي في", after: "day 2026-03-28" },
+      ],
+    });
+    expect(
+      describeEvent(
+        entry({
+          ...term,
+          action: "term.activate",
+          diff: { from: { status: "draft" }, to: { status: "active" } },
+        }),
+        lookups,
+        words,
+      ).changes,
+    ).toEqual([{ field: "الحالة", before: "مسودة", after: "نشط" }]);
+    expect(
+      describeEvent(
+        entry({
+          action: "membership.create",
+          entityType: "membership",
+          entityId: "m1",
+          diff: {
+            to: {
+              userId: HIND,
+              role: "head",
+              departmentId: ELECTRICAL,
+              termId: SPRING,
+            },
+          },
+        }),
+        lookups,
+        words,
+      ).changes,
+    ).toContainEqual({ field: "الفصل التدريبي", after: "الفصل الثاني 1447" });
   });
 });
 

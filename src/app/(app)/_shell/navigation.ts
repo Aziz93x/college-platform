@@ -74,7 +74,9 @@ export const navigation = [
     id: "settings",
     href: "/settings",
     icon: Settings,
-    permission: "settings.manage",
+    // Every key that edits a setting (src/modules/settings/domain/registry.ts): the vice-dean's
+    // counts a term's weeks there.
+    permission: ["settings.manage", "term.manage"],
     group: "administration",
   },
   {

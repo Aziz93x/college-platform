@@ -1,6 +1,11 @@
 import { CalendarCheck } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import {
+  type SettingKey,
+  settingControl,
+  settingsRegistry,
+} from "@/modules/settings";
+import {
   isCurrent,
   type NavigationItem,
   navigation,
@@ -94,6 +99,24 @@ describe("visibleNavigation", () => {
       ),
     ).toEqual(["today", "departments", "roles", "settings"]);
   });
+});
+
+// The settings page shows each setting with a control to whoever holds the key that edits it (Step
+// 13 gave the vice-dean how a term's weeks are counted), so its item opens for every one of those
+// keys. The page order, edited on a role's page, has no control there.
+it("opens the settings page for every key that edits a setting it shows", () => {
+  const settings = navigation.find(({ id }) => id === "settings");
+  const shown = (Object.keys(settingsRegistry) as SettingKey[]).filter((key) =>
+    settingControl(key),
+  );
+  for (const permission of shown.map(
+    (key) => settingsRegistry[key].permission,
+  )) {
+    expect(
+      visibleNavigation(navigation, new Set([permission])).map(({ id }) => id),
+      permission,
+    ).toContain(settings?.id);
+  }
 });
 
 describe("orderFor", () => {

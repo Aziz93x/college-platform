@@ -36,6 +36,14 @@ export const auditActions = [
   // An announcement to a department or the college, and its withdrawal (ADR-0017).
   "announcement.publish",
   "announcement.withdraw",
+  // A term, its status and its calendar's days, the vice-dean's (Step 13).
+  "term.create",
+  "term.update",
+  "term.activate",
+  "term.close",
+  "calendarEvent.create",
+  "calendarEvent.update",
+  "calendarEvent.delete",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -48,6 +56,7 @@ const auditEntities = [
   "membership",
   "setting",
   "announcement",
+  "term",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];
