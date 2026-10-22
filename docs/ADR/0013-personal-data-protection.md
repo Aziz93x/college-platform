@@ -1,12 +1,13 @@
 # ADR-0013: Personal data protection
 
 - Status: proposed
-- Date: 2026-10-21, revised the same day for Steps 10 to 12 as merged (#21, #22 and #23)
+- Date: 2026-10-21, revised on 2026-10-22 for Steps 10 to 12 and ADR-0014 as merged (#21 to #24)
 - Source: the owner's review. The plan never named the PDPL, SDAIA, the NCA or the NDMO, and it had no privacy notice, no retention periods and no breach procedure. The record that answers it is `docs/privacy/data-protection.md`.
 - Builds on:
   - ADR-0004: the public repository.
   - ADR-0005: errors tracked in the platform, and kept inside the Kingdom.
   - ADR-0009: sign-in and sessions.
+  - ADR-0014: two-factor is the college's choice, off by default.
   - docs/PLAN.md: principle 4 (history is append-only), and sections 7 and 8 (the data stays in the Kingdom).
   - Step 11 as merged: `purge_audit_events()` (migration 0010), the one way past the append-only triggers, run as the table owner, and the `audit.retentionMonths` setting.
 

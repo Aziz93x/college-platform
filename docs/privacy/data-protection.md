@@ -1,7 +1,7 @@
 # Data protection: the platform's record of personal data
 
 - Status: draft, for the controller and its data protection officer to confirm
-- Date: 2026-10-21, updated the same day for Steps 10 to 12 as merged (#21, #22 and #23)
+- Date: 2026-10-21, updated on 2026-10-22 for Steps 10 to 12 and ADR-0014 as merged (#21 to #24)
 - Decisions: ADR-0013 (proposed)
 - Related: `docs/privacy/privacy-notice.md` (the notice, in Arabic), `docs/ops/breach-response.md` (the incident runbook, in Arabic), `docs/ops/hosting-options.md` (the request to the General Administration)
 
@@ -64,7 +64,7 @@ They bind government entities, so the college's systems. The controls that touch
 
 | Control | Asks | Platform today | Gap, and where it closes |
 | --- | --- | --- | --- |
-| 2-2-3-2 | Multi-factor authentication for remote access and privileged accounts, based on an assessment of the impact of authentication failure and bypass | TOTP is required before any key that needs it (the system role holds them all); ADR-0009 | Write the authentication impact assessment. Remote administration of the server waits for the hosting decision (Section K of the plan). |
+| 2-2-3-2 | Multi-factor authentication for remote access and privileged accounts, based on an assessment of the impact of authentication failure and bypass | Two-factor is the college's choice: `auth.requireTwoFactor`, off by default (ADR-0014). While it is on, whoever holds a key that requires it sets up TOTP first, and the system role holds them all (ADR-0009). Anyone may turn it on for their own account. | Turn the setting on before real data arrives, or record the owner's written choice (the go-live checklist, ADR-0014). Write the authentication impact assessment. Remote administration of the server waits for the hosting decision (Section K of the plan). |
 | 2-2-3-5 | Periodic review of identities and access rights | The roles grid; every membership change is audited (Step 9) and shows in Step 11's audit screen and each record's history | No prompt to review: ADR-0013 adds a list of the memberships no admin has confirmed within a set period |
 | 2-7-2 | Protect data by its classification | Department scopes; no trainee names stored; trainee data shown as counts only (Step 34); exam copies hidden until the exam date (Step 30) | The classification itself, for the data owner (below) |
 | 2-8-3-3 | Encrypt data in transit and at rest, by classification | HTTPS everywhere through Caddy, HSTS on the real host (Step 47); two-factor secrets encrypted with `AUTH_SECRET` | The database, files and the current dump are not encrypted at rest: disk encryption on the server (option A) or the provider's (option B); encrypted backups in Step 42 |
@@ -74,7 +74,7 @@ They bind government entities, so the college's systems. The controls that touch
 | 2-15-3-1 | A web application firewall | None, and none is planned | Decide with the hosting: the provider's on option B, the college's network on option A |
 | 2-15-3-2 | A multi-tier architecture | Only Caddy publishes ports, and CI proves it. But Caddy, the app, the worker and PostgreSQL share one internal network, so the web tier can reach the database. | Split the networks so that Caddy reaches only the app (Step 40) |
 | 2-15-3-3 | Secure protocols such as HTTPS | HTTPS only; the session cookie is `Secure` everywhere | |
-| 2-15-3-5 | For external web applications: the authentication factors set by an assessment of the impact of authentication failure and bypass | Staff sign in with a password; TOTP for the keys that require it | The same impact assessment as 2-2-3-2. Revisit for option B, where the platform is reachable from the internet. |
+| 2-15-3-5 | For external web applications: the authentication factors set by an assessment of the impact of authentication failure and bypass | Staff sign in with a password; TOTP when the college requires it for their keys, or when they turn it on themselves (ADR-0014) | The same impact assessment as 2-2-3-2. Revisit for option B, where the platform is reachable from the internet. |
 
 The NCA's Data Cybersecurity Controls (DCC-1:2022), the data extension of ECC, also bind government entities. The DPO maps them against the classification below.
 
@@ -95,13 +95,13 @@ ECC-1:2018 had a control requiring hosting inside the Kingdom (4-2-3-3). ECC-2:2
 | Name, email (lowercase), two-factor flag, "must change password" flag, when the account was disabled (Step 10) | Staff | `users` | The account | The person; admins |
 | Employee number, college | Staff | `people` | Signing in by employee number; matching Rayat's sections to trainers (Step 17) | The person; admins; heads in their department |
 | Password hash. A temporary password, for a new account or after a reset, is shown once to hand over and never kept in clear (Step 10). | Staff | `accounts` | Checking the password | Nobody: one-way |
-| TOTP secret and backup codes, encrypted with `AUTH_SECRET` | Admins, and from Step 10 heads (`accounts.resetPassword` requires two-factor) | `two_factors` | Two-factor sign-in | Nobody: encrypted |
+| TOTP secret and backup codes, encrypted with `AUTH_SECRET`. Turning two-factor off deletes both (ADR-0014). | Staff who turned it on, and, while `auth.requireTwoFactor` is on, whoever holds a key that requires it | `two_factors` | Two-factor sign-in | Nobody: encrypted |
 | Session token, IP address, user agent, remembered, last seen, when the password was last typed | Staff | `sessions` | Keeping someone signed in; idle timeout; re-authentication | Nobody in the interface |
 | Short-lived verification values | Staff | `verifications` | Better Auth's internals; it deletes expired ones the next time anyone checks a two-factor code | Nobody |
 | The identifier as typed, with the address, and a count | Anyone who tries to sign in, with or without an account | `sign_in_attempts` | Limits per identifier and address | Nobody |
 | The identifier as typed, and a count | Same | `sign_in_lockouts` | Lockout | Nobody |
 | Who holds which role, across the college or in a department | Staff | `memberships` | Authorization | Holders of `roles.manage` |
-| Who did what to which record, its changes, IP address and user agent | Staff | `audit_events` | Accountability and security investigation | Holders of `audit.view`, which requires two-factor: the system role by default. Step 11's audit screen shows the IP address and the device, and its CSV export writes them out; each export is itself audited (`audit.export`). The history under each record shows its events without them. |
+| Who did what to which record, its changes, IP address and user agent | Staff | `audit_events` | Accountability and security investigation | Holders of `audit.view`: the system role by default. The key requires two-factor while `auth.requireTwoFactor` is on (ADR-0014). Step 11's audit screen shows the IP address and the device, and its CSV export writes them out; each export is itself audited (`audit.export`). The history under each record shows its events without them. |
 | A people file: employee number, name, email, department and role on each row | Staff | Not stored. Read in memory for the preview, then its rows are sent back for the import (Step 10). | Creating accounts and memberships | The admin who imports it |
 | What a person was told: the kind, its details (a role and its department, or the week's unread count and the newest notifications), and when it was sent and read | Staff | `notifications` (Step 12) | Telling people what changed for them, in the platform only | The person |
 | Which kinds each person receives | Staff | `notification_prefs` (Step 12) | The same | The person |
@@ -215,6 +215,7 @@ On 21 October 2026, the tree held no real phone or national ID number, and no re
 - [ ] Approve the retention schedule, and give the records schedule for training records.
 - [ ] Decide how trainees are told, within 30 days of each import.
 - [ ] Decide whether SDAIA is notified of every incident or only when harm is likely.
+- [ ] Turn on `auth.requireTwoFactor` before real data arrives, as ECC-2:2024 2-2-3-2 asks for privileged accounts, or record the owner's written choice (ADR-0014).
 - [ ] Carry out the impact assessment, and the authentication impact assessment for ECC-2:2024 2-2-3-2 and 2-15-3-5, before go-live.
 - [ ] Map the NCA's Data Cybersecurity Controls (DCC-1:2022) against the classification.
 - [ ] Register in the national register of controllers if required (mandatory for public entities in the draft amendments).
