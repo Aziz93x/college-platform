@@ -39,10 +39,11 @@ export function ComboboxContent({
   const [portalReady, setPortalReady] = useState(false);
   const [side, setSide] = useState<Side>("bottom");
   const [morphReady, setMorphReady] = useState(false);
+  // Followed while open only: a closed list has nowhere to be.
   const layout = usePopoverPortalPosition(
     context.triggerRef,
     measureRef,
-    portalReady,
+    portalReady && context.open,
   );
 
   useEffect(() => setPortalReady(true), []);

@@ -132,6 +132,36 @@ for (const { id, trigger, role, name, open } of OVERLAYS) {
   });
 }
 
+// A transform moves a field without a scroll or a resize, as a sheet sliding in moves its first
+// field, which opens its list as the sheet takes focus (UX review 2: the transfer sheet's list once
+// stayed where the field had been, over it).
+test("the combobox's list follows its field when the field moves", async ({
+  page,
+}) => {
+  const field = page.getByRole("combobox", { name: design.combobox.label });
+  await field.click();
+  const list = page.getByRole("listbox", { name: design.combobox.list });
+  await expect(list).toBeVisible();
+  await field.evaluate((node) => {
+    const sample = node.closest<HTMLElement>("[data-primitive]");
+    if (sample) sample.style.transform = "translateY(-160px)";
+  });
+  // The gap between the field and its list, whether the list opened below it or above it.
+  await expect
+    .poll(async () => {
+      const [box, panel] = await Promise.all([
+        field.boundingBox(),
+        list.boundingBox(),
+      ]);
+      if (!box || !panel) return Number.POSITIVE_INFINITY;
+      return Math.min(
+        Math.abs(panel.y - (box.y + box.height)),
+        Math.abs(box.y - (panel.y + panel.height)),
+      );
+    })
+    .toBeLessThan(24);
+});
+
 test("the bottom sheet takes focus, keeps Tab inside and gives focus back on close", async ({
   page,
 }) => {

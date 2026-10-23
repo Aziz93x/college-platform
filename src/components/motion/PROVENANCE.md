@@ -273,3 +273,7 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   its place. Drawn after the value, the increment's resting circle covered the number's first digit
   at the upper bound ("18" read "8"). The fieldset takes `min-w-0`, so a narrow row can shrink it
   below its 13.5rem: at 200% text that width set the term pages' least width (F1).
+- `lib/popover-position.ts`: while active, the panel follows its trigger frame by frame, since a
+  trigger can move without a scroll or a resize: the transfer sheet focuses its trainer picker as
+  it slides in, which opens the list, and the list stayed where the field had been, over it.
+  `combobox/content.tsx` is active only while its list is open, so a closed one follows nothing.
