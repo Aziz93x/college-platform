@@ -3,6 +3,7 @@ import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { wallClock } from "../../../platform/i18n/time-zone.ts";
 import { sectionPlaces } from "../../academics/index.ts";
 import { roleHolders } from "../../access/index.ts";
+import { assignedItems, dueWeekOf } from "../../assignments/index.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { dueWeeks, publishedItems } from "../../framework/index.ts";
 import { people } from "../../identity/index.ts";
@@ -40,14 +41,16 @@ export type Generated = {
 
 // A term's sources and what they reach, as the engine reads them on a day: the items of the latest
 // published framework and of each department's latest published plan (Step 19), each with the weeks
-// its rule is due; the holders of each role and the places of each section, by department; and the
-// week the term has reached on the college's clock.
+// its rule is due, and of each assignment (Step 21), due in its last week; the holders of each role
+// and the places of each section, by department; and the week the term has reached on the college's
+// clock.
 async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   const [
     term,
     settings,
     published,
     planned,
+    assigned,
     holders,
     sections,
     numbers,
@@ -57,6 +60,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     calendarSettings(collegeId, db),
     publishedItems(collegeId, termId, db),
     publishedPlanItems(collegeId, termId, db),
+    assignedItems(collegeId, termId, db),
     roleHolders(collegeId, db),
     sectionPlaces(collegeId, termId, db),
     db
@@ -70,25 +74,34 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   const weeks = termWeeks(calendar);
   const shape = { weeks: term.weeks, periods: term.periods };
 
-  // A plan's items reach their own department alone.
+  // A plan's items reach their own department alone, and an assignment's its person there, once,
+  // at its end (the owner's answers, 23 October 2026).
   const items: SourceItem[] = [
-    ...(published?.items ?? []).map((item) => ({
-      ...item,
-      source: "framework" as const,
-      departmentId: undefined,
+    ...[
+      ...(published?.items ?? []).map((item) => ({
+        ...item,
+        source: "framework" as const,
+        departmentId: undefined,
+      })),
+      ...planned.map((item) => ({ ...item, source: "plan" as const })),
+    ].map((item) => ({
+      source: item.source,
+      departmentId: item.departmentId,
+      origin: item.origin,
+      title: item.title,
+      axisId: item.axisId,
+      kind: item.kind,
+      appliesTo: item.appliesTo,
+      weeks: dueWeeks(item.due, shape),
+      evidence: item.evidence,
     })),
-    ...planned.map((item) => ({ ...item, source: "plan" as const })),
-  ].map((item) => ({
-    source: item.source,
-    departmentId: item.departmentId,
-    origin: item.origin,
-    title: item.title,
-    axisId: item.axisId,
-    kind: item.kind,
-    appliesTo: item.appliesTo,
-    weeks: dueWeeks(item.due, shape),
-    evidence: item.evidence,
-  }));
+    ...assigned.map(({ userId, toWeek, ...item }) => ({
+      ...item,
+      source: "assignment" as const,
+      appliesTo: { type: "person" as const, userId },
+      weeks: [dueWeekOf(toWeek, term.weeks)],
+    })),
+  ];
 
   const departments = new Map<
     string,
@@ -138,7 +151,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   return { term, version: published?.version, items, reach, now };
 }
 
-// The term's tasks from its framework and its plans, as the engine compares them.
+// The term's tasks from its framework, its plans and its assignments, as the engine compares them.
 async function termTasks(db: Db, termId: string): Promise<Task[]> {
   const rows = await db
     .select({
@@ -274,8 +287,8 @@ async function applyChanges(
   return { created, updated, reassigned, cancelled: cancelled.length };
 }
 
-// Generates a term's tasks from its latest published framework and plans (docs/PLAN.md, section 3;
-// Steps 19 and 20): a task for each slot they call for that has none; the new words, week and due
+// Generates a term's tasks from its latest published framework and plans and its assignments
+// (docs/PLAN.md, section 3; Steps 19 to 21): a task for each slot they call for that has none; the new words, week and due
 // day for tasks not started, and the new holder of a section's place for work still to do; tasks no
 // longer called for cancelled, when not started; finished work never touched. It applies one
 // department at a time, telling `progress` how many of the term's tasks it has gone through, and

@@ -60,12 +60,13 @@ describe("loadAccess", () => {
 
     const access = await loadAccess(userId, collegeId);
     // The viewer role across the college, the head's keys in the department.
-    expect(access.grants).toHaveLength(7);
+    expect(access.grants).toHaveLength(8);
     expect(access.grants).toEqual(
       expect.arrayContaining([
         { permission: "design.view", departmentId: null },
         { permission: "plan.edit", departmentId },
         { permission: "plan.publish", departmentId },
+        { permission: "assignment.manage", departmentId },
         { permission: "sections.transfer", departmentId },
         { permission: "accounts.resetPassword", departmentId },
         { permission: "accounts.linkEmployeeNumber", departmentId },
@@ -77,6 +78,7 @@ describe("loadAccess", () => {
         "design.view",
         "plan.edit",
         "plan.publish",
+        "assignment.manage",
         "sections.transfer",
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",

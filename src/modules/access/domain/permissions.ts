@@ -43,6 +43,10 @@ const permissions = {
   "plan.edit": { area: "planning", requiresTwoFactor: false },
   // Publish a department's plan, whose tasks are then generated (Step 19).
   "plan.publish": { area: "planning", requiresTwoFactor: false },
+  // Assign a department's responsibilities to its people for a term and revoke them, and keep the
+  // department's own templates (Step 21). Assigning a template that grants a role, as the
+  // secretary's does, gives that role in the department for the term: the keys the admin gave it.
+  "assignment.manage": { area: "planning", requiresTwoFactor: false },
   // Transfer a section of the term from one trainer to another, from a week on (Step 17).
   "sections.transfer": { area: "planning", requiresTwoFactor: false },
   // Complete one's own tasks and attach their evidence (Step 26). Step 17 already reads it: a

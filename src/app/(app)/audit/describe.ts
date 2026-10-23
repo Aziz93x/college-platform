@@ -265,6 +265,37 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
           ].join(" · ")
         : id;
     }
+    // A department's own template of assignments by its title and department; an item of it by
+    // its title first, then its template's (Step 21).
+    case "assignmentTemplate": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) &&
+        typeof was.title === "string" &&
+        typeof was.departmentId === "string"
+        ? [
+            words("quoted", { title: was.title }),
+            ...(typeof was.template === "string" ? [was.template] : []),
+            lookups.department(was.departmentId) ?? was.departmentId,
+          ].join(" · ")
+        : id;
+    }
+    // An assignment by its person, then its template's title, its department and its term
+    // (Step 21).
+    case "assignment": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) &&
+        typeof was.title === "string" &&
+        typeof was.departmentId === "string" &&
+        typeof was.termId === "string"
+        ? `${format("userId", was.userId, lookups, words)}: ${[
+            was.title,
+            lookups.department(was.departmentId) ?? was.departmentId,
+            lookups.term(was.termId) ?? was.termId,
+          ].join(" · ")}`
+        : id;
+    }
     // A portfolio axis by its title before the change (Step 14).
     case "axis": {
       const was = entry.diff?.from;

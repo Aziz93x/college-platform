@@ -4,6 +4,10 @@ import {
   rolePermissions,
   roles,
 } from "../../src/modules/access/index.ts";
+import {
+  seedAssignmentTemplates,
+  type TemplateCatalog,
+} from "../../src/modules/assignments/index.ts";
 import { type AxisCatalog, seedAxes } from "../../src/modules/axes/index.ts";
 import { colleges } from "../../src/modules/org/index.ts";
 import { settings } from "../../src/modules/settings/index.ts";
@@ -55,6 +59,7 @@ export const defaultRoles: {
     permissions: [
       "plan.edit",
       "plan.publish",
+      "assignment.manage",
       "sections.transfer",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
@@ -196,6 +201,106 @@ export const examPeriodTypes: ExamPeriodType[] = [
   },
 ];
 
+// The six responsibilities of today's app (Step 21), which every department assigns and none
+// changes, each with its items as today's app lists them, under axis 9, the assignments'. Evidence
+// is welcome and not required, as today's app asks. The secretary's grants the secretary's role in
+// the department for the term it is assigned in (the owner's answers, 23 October 2026).
+const welcome = { required: false, maxFiles: 5, requiresApproval: false };
+const general = (titles: string[]) =>
+  titles.map((title) => ({ title, kind: "general" as const }));
+export const assignmentCatalog: TemplateCatalog = [
+  {
+    key: "secretary",
+    title: "أمين القسم",
+    axis: "9",
+    grants: "secretary",
+    evidence: welcome,
+    items: general([
+      "تنظيم سجلات القسم وحفظها.",
+      "تنظيم محاضر اجتماعات القسم وحفظها.",
+      "متابعة توصيات الاجتماعات وقراراتها.",
+      "متابعة الأعمال الإدارية المسندة إليه.",
+    ]),
+  },
+  {
+    key: "specialty-supervisor",
+    title: "مشرف التخصص",
+    axis: "9",
+    evidence: welcome,
+    items: general([
+      "متابعة المناهج التدريبية وتطويرها.",
+      "رفع التحديات المتعلقة بالتخصص إلى رئيس القسم.",
+      "تسجيل الأعطال ومتابعتها.",
+      "حصر المستلزمات التدريبية.",
+      "حصر الخامات التدريبية.",
+      "حصر التجهيزات التدريبية.",
+      "متابعة طلبات الصيانة.",
+    ]),
+  },
+  {
+    key: "workshops-supervisor",
+    title: "مشرف الورش والمعامل",
+    axis: "9",
+    evidence: welcome,
+    items: general([
+      "متابعة جاهزية الورش.",
+      "متابعة جاهزية المعامل.",
+      "متابعة جاهزية التجهيزات التدريبية.",
+      "متابعة جرد العهد وتحديث سجلاتها.",
+    ]),
+  },
+  {
+    key: "schedule-coordinator",
+    title: "منسق الجداول",
+    axis: "9",
+    evidence: welcome,
+    items: general([
+      "إعداد الجداول التدريبية قبل بداية الفصل.",
+      "متابعة التعديلات على الجداول.",
+      "معالجة التعارضات بالتنسيق مع رئيس القسم.",
+      "متابعة تسجيل الشعب والجداول.",
+      "متابعة جدولة الاختبارات الفصلية والنهائية وفق التنظيمات.",
+      "رفع النسخة النهائية من الجداول.",
+      "توثيق التعديلات والأعمال المرتبطة بالجداول.",
+    ]),
+  },
+  {
+    key: "cooperative-training-coordinator",
+    title: "منسق التدريب التعاوني",
+    axis: "9",
+    evidence: welcome,
+    items: general([
+      "متابعة قوائم المتدربين المسجلين في التدريب التعاوني.",
+      "متابعة المتدربين خلال فترة التدريب التعاوني.",
+      "متابعة حالات المتدربين وتحديثها.",
+      "متابعة سجلات الإشراف على المتدربين.",
+      "متابعة تقييمات التدريب التعاوني.",
+      "متابعة المشروع الإنتاجي عند تطبيقه بديلًا عن التدريب التعاوني.",
+      "إعداد التقارير المتعلقة بالتدريب التعاوني ورفعها.",
+      "توثيق أعمال التدريب التعاوني وإرفاق الشواهد المتاحة.",
+    ]),
+  },
+  {
+    key: "safety-supervisor",
+    title: "مشرف السلامة",
+    axis: "9",
+    evidence: welcome,
+    items: general([
+      "متابعة تطبيق اشتراطات السلامة في الورش.",
+      "متابعة تطبيق اشتراطات السلامة في المعامل.",
+      "تنفيذ جولات السلامة وتوثيقها.",
+      "تسجيل المخاطر والملاحظات.",
+      "متابعة معالجة مخاطر السلامة وملاحظاتها.",
+      "متابعة الالتزام بمعدات الوقاية الشخصية.",
+      "متابعة الالتزام بالزي وحذاء السلامة حسب متطلبات التدريب.",
+      "متابعة اللوحات والإرشادات الخاصة بالسلامة.",
+      "متابعة إجراءات الوقاية في الورش والمعامل.",
+      "المشاركة في متابعة إجراءات الإخلاء وخططه.",
+      "توثيق أعمال السلامة وإرفاق الشواهد المتاحة.",
+    ]),
+  },
+];
+
 // The Umm al-Qura years whose holidays a seed run on this day adds: this one and the nine after it.
 export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
   const year = umAlQuraYear(today);
@@ -206,8 +311,8 @@ export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
 // nothing and never undoes the grid; Rayat's column maps and the default roles' order of pages while
 // the college has none, leaving those an admin changed; and the holidays of the years ahead it does not have yet, leaving those it has,
-// adjusted or not; and the portfolio's axes and exam-period types it does not have yet. Returns the
-// id of the first college, the one db:seed made.
+// adjusted or not; and the portfolio's axes, exam-period types and shared assignment templates it
+// does not have yet. Returns the id of the first college, the one db:seed made.
 export async function seedBase(
   db: Db,
   college: { name: string; shortName: string },
@@ -263,6 +368,8 @@ export async function seedBase(
   await estimateHolidays(collegeId, holidayRules, holidayYears(), db);
   await seedAxes(collegeId, portfolioAxes, db);
   await seedExamPeriodTypes(collegeId, examPeriodTypes, db);
+  // After the axes, which the templates' tasks go under.
+  await seedAssignmentTemplates(collegeId, assignmentCatalog, db);
   return collegeId;
 }
 

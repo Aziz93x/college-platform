@@ -119,6 +119,7 @@ describe("listDirectory", () => {
       new Set([
         "plan.edit",
         "plan.publish",
+        "assignment.manage",
         "sections.transfer",
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",

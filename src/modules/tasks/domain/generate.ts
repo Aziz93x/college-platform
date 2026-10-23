@@ -10,10 +10,11 @@ import { openStatuses, type TaskStatus } from "./status.ts";
 // call for, and what to change so that the term's tasks are those and no others, which running it
 // again finds nothing to do for.
 
-// An item as the engine reads it: its source, the framework or a department's plan, whose items
-// reach their own department alone (Step 19); the item it was first entered as, which names its
-// tasks in every version; what its tasks say, whom it reaches, and the weeks its rule is due
-// (dueWeeks()).
+// An item as the engine reads it: its source, the framework, a department's plan or an assignment,
+// whose items reach their own department alone (Steps 19 and 21); the item it was first entered as,
+// which names its tasks in every version; what its tasks say, whom it reaches, and the weeks its
+// rule is due (dueWeeks()). A template's item assigned to several people is an item for each, with
+// the same words.
 export type SourceItem = {
   source: TaskSource;
   departmentId?: string;
@@ -26,8 +27,9 @@ export type SourceItem = {
   evidence: EvidencePolicy;
 };
 
-// Where a task comes from: the term's general framework, or a department's plan (Step 19).
-export type TaskSource = "framework" | "plan";
+// Where a task comes from: the term's general framework, a department's plan (Step 19), or a
+// template assigned to a person (Step 21).
+export type TaskSource = "framework" | "plan" | "assignment";
 
 // What a department holds that items reach: the people who hold each role in it, and each of its
 // sections with its course, by Rayat's code, and its places, each place by the trainer Rayat gave it

@@ -6,6 +6,10 @@ export {
   weeksOutside,
 } from "./domain/count.ts";
 export {
+  type AssignmentItemInput,
+  type AssignmentTemplateInput,
+  assignmentItemInput,
+  assignmentTemplateInput,
   type DueRule,
   type EvidencePolicy,
   type FrameworkItemInput,

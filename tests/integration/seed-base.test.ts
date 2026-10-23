@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterAll, expect, it } from "vitest";
 import {
+  assignmentCatalog,
   defaultNavigationOrder,
   defaultRoles,
   examPeriodTypes,
@@ -9,6 +10,7 @@ import {
   systemRole,
 } from "../../db/seed/base.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
+import { getSetting } from "../../src/modules/settings/index.ts";
 import { createTestDatabase } from "./support/database.ts";
 
 const databases: Awaited<ReturnType<typeof createTestDatabase>>[] = [];
@@ -106,6 +108,58 @@ it("gives the college the four types of exam period in order, once, and keeps on
       short_name: code === "first-periodic" ? "الدوري ١" : shortName,
     })),
   );
+});
+
+it("gives the college the six shared assignment templates under axis 9 with their items, the secretary's granting its role, once, and keeps one already there (Step 21)", async () => {
+  const { db, pool } = await freshDatabase();
+  const collegeId = await seedBase(db, college);
+  await pool.query(
+    `update assignment_template_items set title = 'بند معدّل'
+     where position = 0 and template_id = (select id from assignment_templates where key = 'safety-supervisor')`,
+  );
+  await seedBase(db, college);
+
+  const { rows } = await pool.query(`
+    select t.key, t.title, t.department_id, a.code as axis, r.key as grants,
+      array_agg(i.title order by i.position) as items
+    from assignment_templates t
+    join axes a on a.id = t.axis_id
+    left join roles r on r.id = t.grants_role_id
+    join assignment_template_items i on i.template_id = t.id
+    group by t.id, a.code, r.key order by t.id`);
+  expect(rows).toEqual(
+    assignmentCatalog.map((template) => ({
+      key: template.key,
+      title: template.title,
+      department_id: null,
+      axis: "9",
+      grants: template.grants ?? null,
+      items: template.items.map(({ title }, index) =>
+        template.key === "safety-supervisor" && index === 0
+          ? "بند معدّل"
+          : title,
+      ),
+    })),
+  );
+  expect(rows.flatMap(({ items }) => items)).toHaveLength(41);
+  // Evidence is welcome and not required, of every type the college accepts.
+  expect(
+    (
+      await pool.query(
+        "select distinct kind, evidence from assignment_template_items",
+      )
+    ).rows,
+  ).toEqual([
+    {
+      kind: "general",
+      evidence: {
+        required: false,
+        types: await getSetting("files.acceptedTypes", { collegeId }, db),
+        maxFiles: 5,
+        requiresApproval: false,
+      },
+    },
+  ]);
 });
 
 it("gives the college Rayat's column maps, once, and keeps a map an admin changed (Step 16)", async () => {
@@ -212,6 +266,11 @@ it.each([
     college: "seeded before Step 19 its new key through migration 0023",
     migration: "0023_department_plans.sql",
     added: ["plan.publish"],
+  },
+  {
+    college: "seeded before Step 21 its new key through migration 0026",
+    migration: "0026_assignments.sql",
+    added: ["assignment.manage"],
   },
 ])("gives the head of a college $college, once", async ({
   migration,

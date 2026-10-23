@@ -407,6 +407,74 @@ describe("describeEvent", () => {
     });
   });
 
+  it("names an assignment by its person, template, department and term, with its weeks, and a template's item by its title and its template's (Step 21)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "assignment",
+          entityId: "a1",
+          action: "assignment.create",
+          diff: {
+            to: {
+              termId: SPRING,
+              departmentId: ELECTRICAL,
+              title: "مشرف السلامة",
+              userId: HIND,
+              fromWeek: 3,
+              toWeek: 9,
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "تكليف منسوب",
+      subject:
+        "هند القحطاني: مشرف السلامة · التقنية الكهربائية · الفصل الثاني 1447",
+      changes: expect.arrayContaining([
+        { field: "من الأسبوع", after: "3" },
+        { field: "إلى الأسبوع", after: "9" },
+      ]),
+    });
+    expect(
+      describeEvent(
+        entry({
+          entityType: "assignmentTemplate",
+          entityId: "t1",
+          action: "assignmentTemplateItem.update",
+          diff: {
+            from: {
+              departmentId: ELECTRICAL,
+              template: "مسؤول العهد",
+              title: "جرد العهد",
+              kind: "general",
+            },
+            to: {
+              departmentId: ELECTRICAL,
+              template: "مسؤول العهد",
+              title: "جرد العهد في نهاية الفصل",
+              kind: "meeting_minutes",
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "تعديل مهمة في قالب تكليف",
+      subject: "«جرد العهد في نهاية الفصل» · مسؤول العهد · التقنية الكهربائية",
+      changes: [
+        {
+          field: "العنوان",
+          before: "جرد العهد",
+          after: "جرد العهد في نهاية الفصل",
+        },
+        { field: "النوع", before: "general", after: "محضر اجتماع" },
+      ],
+    });
+  });
+
   it("names a Rayat import by its report and term, and counts what it changed (Step 16)", () => {
     expect(
       describeEvent(
@@ -656,6 +724,19 @@ const typical = {
     },
   },
   plan: { diff: { from: { departmentId: ELECTRICAL, termId: SPRING } } },
+  assignmentTemplate: {
+    diff: { to: { departmentId: ELECTRICAL, title: "مسؤول العهد" } },
+  },
+  assignment: {
+    diff: {
+      to: {
+        termId: SPRING,
+        departmentId: ELECTRICAL,
+        title: "أمين القسم",
+        userId: HIND,
+      },
+    },
+  },
 } satisfies Record<AuditEntity, Partial<AuditEntry>>;
 
 it.each(
