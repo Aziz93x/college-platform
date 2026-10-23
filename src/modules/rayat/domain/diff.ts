@@ -1,3 +1,4 @@
+import { canonical } from "../../../platform/validation/text.ts";
 import { identity, type RayatRecords, recordKey, recordKeys } from "./check.ts";
 import type { RayatKind } from "./reports.ts";
 
@@ -18,16 +19,6 @@ export type RayatDiff = {
     changed: { key: string[]; fields: string[] }[];
   };
 };
-
-// A value as one text whatever the order of its objects' keys, which a jsonb column does not keep.
-const canonical = (value: unknown) =>
-  JSON.stringify(value, (_, inner) =>
-    inner && typeof inner === "object" && !Array.isArray(inner)
-      ? Object.fromEntries(
-          Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1)),
-        )
-      : inner,
-  );
 
 export function diffRecords<K extends RayatKind>(
   kind: K,

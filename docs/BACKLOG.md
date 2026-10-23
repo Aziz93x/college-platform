@@ -30,6 +30,12 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 - A guard for the production stack's list of specs: a unit test that fails on any `e2e/*.spec.ts` that is neither in `e2e/stack.config.ts`'s `testMatch` nor named in a short list of excluded specs, each with its reason. Audits 4 and 5 each found specs missing from the list. Writing it means recording why the design catalog's, the identity font's and the streaming specs stay out today, which nothing says; `announcements.spec.ts` stays out because each of its tests makes accounts in the database. About 30 min (enhancement 1).
 - The calendar sweep above, without moving the clock: a clock moved months ahead signs the demo trainer out (Audit 5, P1). One college holiday over this week, inserted before `seed:demo`, gives the state of a day in an Eid break, and the specs that read demo data then run on it (`--grep-invert @database`). About 1 h, plus one short run a night (enhancement 3).
 
+## Audit 6 (docs/reviews/audit-18.md)
+
+- Each kind's payload editor in the design catalog: `/design` shows each kind's `PayloadEditor` with its `PayloadView` beside it, and an end-to-end test fills each on desktop and iPhone with axe and the 44 px check, so the editor is checked on a screen before Step 26 mounts it on the task card. About 1 h; with UX review 2 or Step 26 (enhancement 1).
+- For the owner: show a head every published framework item their trainers receive, those for the trainer's role too, and warn in the sheet when a template has the kind and reach of one of them ("يطلب الإطار العام هذا من المدربين: «…»"), so Step 20 never generates the same work twice. About 45 min; a flow proposal, so an ADR and a note under Step 19, whose plan shows the inherited items locked, once the owner accepts it (enhancement 3).
+- The audit log's words for an item's fields: a framework item's or a section template's axis, kind and reach, and its due rule and evidence policy in the words `itemVocabulary()` builds, where the log shows an id, a kind's key and JSON today (Steps 15 and 18). About 30 min; for UX review 2, which reviews the audit log (minor 2's second half).
+
 ## UX review 1: should fix (docs/reviews/ux-10.md)
 
 Every score is 4 or above without these; the review ranks them after its must-fix items, which its PR fixed.
@@ -69,5 +75,5 @@ The owner chose on 2026-10-22, and the review's pull request built what was chos
 
 Each one that the owner accepts gets an ADR and a note under its step before it is built (`/lead-review`). Proposals 2 and 3 were fixed in the review's pull request; 5 and 7 are notes under Steps 43 and 40. The owner accepted proposals 1 and 6 on 2026-10-22, and the review's pull request built them: ADR-0015 (a notification opens from the bell, and a digest is read with the last of what it counts) and ADR-0016 (a role given from the person's page).
 
-- 4. One re-authentication helper for the actions: the password schema, `confirmPassword()` and `changeBy()` are copied in three action files. 30 min; take it with the next step that adds a sensitive action.
+- 4. One re-authentication helper for the actions: the password schema and `confirmPassword()` are copied in three action files, and `changeBy()` in eight, with `drawn()` in four (Audit 6). 30 min; take it with the next step that adds a sensitive action.
 - To watch: `e2e/people.spec.ts:488` (the account menu leads to changing the password) failed once in the review's full run, with no request after the press on the bloom menu's item, and passed 30 times since.

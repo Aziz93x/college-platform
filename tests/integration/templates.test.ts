@@ -25,8 +25,8 @@ import {
 import { createTestDatabase } from "./support/database.ts";
 
 // A head's section templates (Step 18): the department's items for each trainer of each of its
-// sections in a term, kept in order, each on an axis of the college, refused once the term has
-// closed, and copied by the Step 13 wizard into the next term.
+// sections, or of each of its courses, in a term, kept in order, each on an axis of the college,
+// refused once the term has closed, and copied by the Step 13 wizard into the next term.
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 let collegeId: string;
 let termId: string;

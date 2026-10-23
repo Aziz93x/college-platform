@@ -13,7 +13,10 @@ import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
-import { unmatchedTrainers } from "../../src/modules/academics/index.ts";
+import {
+  sectionCounts,
+  unmatchedTrainers,
+} from "../../src/modules/academics/index.ts";
 import { settingsRegistry } from "../../src/modules/settings/index.ts";
 import {
   activeTerm,
@@ -705,7 +708,28 @@ it("has the head of Electrical transfer a section to another trainer of the depa
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
 });
 
-it("gives Electrical the plan's section templates and Mechanical its exam copies and analysis, each on an axis and added by its department's head (Step 18)", async () => {
+// The owner's answer of 22 October 2026: a course's work reaches its trainer once for all their
+// sections of it, so each department shows it (Audit 6).
+it("has a trainer teach both sections of a course in each department, so an item for each course's trainer gives fewer tasks than one for each section's", async () => {
+  const { db, pool } = await seededDatabase();
+  const {
+    rows: [{ id: collegeId }],
+  } = await pool.query("select id from colleges");
+  const term = await activeTerm(collegeId, db);
+  if (!term) throw new Error("no active term");
+  const counts = await sectionCounts(collegeId, term.id, db);
+  const { rows: departments } = await pool.query(
+    "select id, name from departments order by name",
+  );
+  expect(
+    departments.map(({ id, name }) => ({
+      name,
+      fewer: counts[id].courses < counts[id].trainers,
+    })),
+  ).toEqual(departments.map(({ name }) => ({ name, fewer: true })));
+});
+
+it("gives Electrical and Mechanical section templates of their own, each on an axis and added by its department's head (Step 18)", async () => {
   const { pool } = await seededDatabase();
   const { rows } = await pool.query(`
     select d.name as department, t.kind, a.code as axis, t.applies_to ->> 'type' as reach,
@@ -724,22 +748,28 @@ it("gives Electrical the plan's section templates and Mechanical its exam copies
     rows
       .filter(({ department }) => department === name)
       .map(({ kind, axis, reach }) => `${kind} ${axis} ${reach}`);
-  // A course's work once for all its trainer's sections of it, and the grade analysis section by
+  // A course's work once for all its trainer's sections of it, and a section's work section by
   // section (the owner's answers, 22 October 2026).
   expect(of(demoDepartments[1].name)).toEqual([
     "exam_copy 2 eachCourse",
     "exam_copy 2 eachCourse",
-    "exam_copy 2 eachCourse",
-    "homework 5 eachCourse",
-    "grade_analysis 3 eachSection",
-    "e_learning 7 eachCourse",
-    "training_practice 6 eachCourse",
+    "general 6 eachSection",
+    "homework 5 eachSection",
   ]);
   expect(of(demoDepartments[2].name)).toEqual([
     "exam_copy 2 eachCourse",
-    "exam_copy 2 eachCourse",
-    "grade_analysis 3 eachSection",
+    "general 6 eachSection",
   ]);
+  // None is an item the term's published framework already gives the same trainers: its kind,
+  // reach and due rule (Audit 6).
+  const { rows: repeated } = await pool.query(`
+    select t.title from section_templates t
+    where exists (
+      select 1 from framework_items i join frameworks f on f.id = i.framework_id
+      where f.status = 'published' and f.term_id = t.term_id and i.kind = t.kind
+        and i.applies_to = t.applies_to and i.due = t.due
+    )`);
+  expect(repeated).toEqual([]);
   expect(of(demoDepartments[0].name)).toEqual([]);
   expect(rows.every(({ byItsHead }) => byItsHead)).toBe(true);
   expect(

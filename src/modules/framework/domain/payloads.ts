@@ -7,7 +7,8 @@ import {
 import { frameworkLimits, type TaskKind } from "./inputs.ts";
 
 // How long a payload's words may be and how many entries its lists may hold. They only keep a slip
-// of the keyboard out of the database.
+// of the keyboard out of the database. A band's trainees take as many digits as their limit has, so
+// it is the most those digits write.
 export const payloadLimits = {
   line: 200,
   paragraph: 2000,
@@ -15,7 +16,7 @@ export const payloadLimits = {
   words: 20,
   bands: 10,
   sessions: 50,
-  count: 10_000,
+  count: 9_999,
 } as const;
 export type PayloadLimits = typeof payloadLimits;
 
@@ -153,5 +154,42 @@ export function payloadSchema(kind: TaskKind) {
   const fields: readonly PayloadField[] = kindFields[kind];
   return z.strictObject(
     Object.fromEntries(fields.map((field) => [field.name, fieldSchema(field)])),
+  );
+}
+
+// A field's value before its trainer gives one, as its editor shows it: a box unticked, the week
+// the task card opens in, an empty text or list. A day or a percentage shows nothing until chosen
+// or typed, so it has none.
+function blankValue(field: PayloadField, week: number): unknown {
+  switch (field.type) {
+    case "check":
+      return false;
+    case "week":
+      return week;
+    case "line":
+    case "paragraph":
+      return "";
+    case "words":
+    case "bands":
+    case "sessions":
+      return [];
+    case "day":
+    case "percent":
+      return undefined;
+  }
+}
+
+// What a task's payload holds before its trainer fills it in. The task card starts from it (Step
+// 26), so what the editor shows is what the payload holds: a homework left at its week, or a
+// checklist with a box left unticked, is still an answer its kind's schema takes.
+export function blankPayload(
+  fields: readonly PayloadField[],
+  week: number,
+): Payload {
+  return Object.fromEntries(
+    fields.flatMap((field) => {
+      const value = blankValue(field, week);
+      return value === undefined ? [] : [[field.name, value]];
+    }),
   );
 }

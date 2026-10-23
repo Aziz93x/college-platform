@@ -9,5 +9,6 @@ Read CLAUDE.md and docs/PLAN.md. Work on Step $ARGUMENTS only. NN below is the s
    If anything is unclear or conflicts with the code, stop and ask.
 3. Items marked "You:" belong to the owner: stop there, hand over a short checklist, and continue when told.
 4. Work until every "Done when" check passes and pnpm check:all is green; extend pnpm seed:demo.
-5. Open or update the PR with the checklist; its title ends with (step NN). Summarize what changed and the
-   commands that proved it. When CI is green, squash-merge it.
+5. Open or update the PR with the checklist; its title, which the squash keeps, is a Conventional Commit ending
+   with (step NN), such as "feat: sign-in (step 06)". Summarize what changed and the commands that proved it.
+   When CI is green, squash-merge it.

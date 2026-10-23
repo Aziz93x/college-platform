@@ -22,8 +22,8 @@ import {
 const REFUSALS = { notFound: true, closed: true, notOffered: true } as const;
 
 // A department's own section templates for the term (Step 18), in the head's order: added and
-// corrected in the framework's sheet, without whom they reach, and taken out. A closed term's are
-// only read.
+// corrected in the framework's sheet, each reaching each section's or each course's trainer, and
+// taken out. A closed term's are only read.
 export function TemplatesEditor({
   termId,
   departmentId,

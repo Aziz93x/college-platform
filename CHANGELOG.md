@@ -4,6 +4,16 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 6: steps 16-18
+
+- A task's payload starts as `blankPayload()`: each box unticked, a week field at the term's current week, each text and list empty. What the editor shows is then what the payload holds, so a homework left at its week, or a checklist with a box unticked, is an answer its kind's schema takes. The task card starts from it (a note under Step 26). Each advising session's day and notes, and each grade band's fields, are named by their number, and a band's trainees stop at 9,999, the most the field's four digits write.
+- `seed:demo`: the departments' templates no longer repeat the framework. Electrical asks for the practical exam's copy and the quizzes once per course, and the workshop's safety checklist and lab report samples once per section; Mechanical for the practical exam's copy and the safety checklist. In each department one trainer teaches both sections of the third course, so an item for each course's trainer counts fewer tasks than one for each section's.
+- The settings item opens again for `settings.manage` and `term.manage` only: `framework.publish`, the key of the catalogs that left Step 18, showed a page that then refused it.
+- The audit log names a section template by its title, department and term. A test gives every kind of entity the log records an event whose subject must not be its id.
+- `/templates`: the sheet says a template reaches each section's or each course's trainer, and the empty list asks for what the framework does not. End-to-end tests cover the trainer it refuses and a closed term's read-only list.
+- `canonical()` lives once, in `src/platform/validation/text.ts`. The step command says a PR's title is a Conventional Commit.
+- docs/reviews/audit-18.md holds the report and its resolution. Two enhancements and the log's words for an item's fields wait in docs/BACKLOG.md.
+
 ### Step 18: Task kinds and section templates
 
 - Each kind's payload is a list of fields (`kindFields`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`): an exam copy names its exam type and day; a grade analysis counts trainees in each grade band, with its pass rate, average and follow-up, and no names; homework a title and week; e-learning a checklist; a training practice its methods and description; an advising log its sessions; and the others their own. The task card puts the editor before the evidence (Step 26).

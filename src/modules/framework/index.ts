@@ -12,6 +12,7 @@ export {
   taskKinds,
 } from "./domain/inputs.ts";
 export {
+  blankPayload,
   kindFields,
   type Payload,
   type PayloadField,
