@@ -153,7 +153,7 @@ vi.mock("@/modules/framework", async (importOriginal) => ({
   updateItem: async () => ({ status: "saved" }),
   removeItem: async () => ({ status: "saved" }),
   endorseDraft: async () => ({ status: "endorsed" }),
-  publishDraft: async () => ({ status: "published" }),
+  publishDraft: async () => ({ status: "published", termId: ID }),
 }));
 vi.mock("@/modules/rayat", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/rayat")>()),
@@ -170,10 +170,15 @@ vi.mock("@/modules/academics", async (importOriginal) => ({
   findTransfer: async () => ({ id: ID, departmentId: DEPARTMENT }),
   transferSection: async () => ({ status: "transferred", id: ID }),
   keepTransfer: async () => ({ status: "kept" }),
-  cancelTransfer: async () => ({ status: "cancelled" }),
+  cancelTransfer: async () => ({ status: "cancelled", termId: ID }),
   // Applying or rolling back SS01 tells the heads of what it breaks (ADR-0020).
   transferStates: async () => new Map(),
   tellTransferConflicts: async () => 0,
+}));
+// A change that the term's tasks follow queues a pass of the generation engine (Step 20).
+vi.mock("@/modules/tasks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/tasks")>()),
+  queueGeneration: async () => {},
 }));
 // A section template of the matrix's department, each change answered as done (Step 18).
 vi.mock("@/modules/planning", async (importOriginal) => ({

@@ -42,21 +42,31 @@ export type TermShape = {
   events: Readonly<Record<string, readonly number[]>>;
 };
 
-// How many times a rule is due in the term: a task due past its last week is not one of its tasks
-// (Audit 5).
-export function occurrences(due: DueRule, term: TermShape) {
+// The weeks a rule is due in the term, in order, one for each time: a task due past its last week is
+// not one of its tasks (Audit 5). The generation engine makes a task for each, so the preview counts
+// these and nothing else (Step 20).
+export function dueWeeks(due: DueRule, term: TermShape): number[] {
   switch (due.type) {
     case "week":
-      return due.week <= term.weeks ? 1 : 0;
+      return due.week <= term.weeks ? [due.week] : [];
     case "weekly":
-      return term.weeks;
+      return Array.from({ length: term.weeks }, (_, index) => index + 1);
     case "everyWeeks":
-      return Math.floor(term.weeks / due.every);
+      return Array.from(
+        { length: Math.floor(term.weeks / due.every) },
+        (_, index) => (index + 1) * due.every,
+      );
     case "afterEvent":
-      return (term.events[due.eventKind] ?? []).filter(
-        (week) => week + due.weeks <= term.weeks,
-      ).length;
+      return (term.events[due.eventKind] ?? [])
+        .map((week) => week + due.weeks)
+        .filter((week) => week <= term.weeks)
+        .sort((a, b) => a - b);
   }
+}
+
+// How many times a rule is due in the term.
+export function occurrences(due: DueRule, term: TermShape) {
+  return dueWeeks(due, term).length;
 }
 
 // How many an item reaches in a department.

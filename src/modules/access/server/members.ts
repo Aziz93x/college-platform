@@ -1,13 +1,4 @@
-import {
-  and,
-  asc,
-  countDistinct,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  or,
-} from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { people, users } from "../../identity/index.ts";
 import { departments } from "../../org/index.ts";
@@ -21,15 +12,15 @@ export const inForce = or(
   eq(terms.status, "active"),
 );
 
-// How many enabled accounts hold each role in each active department, a role held for one term
-// counting while that term is active: whom a framework's or a plan's items reach (Step 15). Someone
-// who holds the role both for every term and for this one is one person (Audit 5).
-export async function countMembers(collegeId: string, db: Db = getDb()) {
+// Each enabled account that holds a role in an active department, a role held for one term counting
+// while that term is active, once for each role and department: whom a framework's or a plan's
+// items for a role reach, in the preview and in the generation engine alike (Steps 15 and 20).
+export async function roleHolders(collegeId: string, db: Db | Tx = getDb()) {
   const rows = await db
-    .select({
+    .selectDistinct({
       departmentId: memberships.departmentId,
       roleId: memberships.roleId,
-      count: countDistinct(memberships.userId),
+      userId: memberships.userId,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
@@ -43,12 +34,27 @@ export async function countMembers(collegeId: string, db: Db = getDb()) {
         eq(departments.active, true),
         inForce,
       ),
-    )
-    .groupBy(memberships.departmentId, memberships.roleId);
+    );
   return rows.map(({ departmentId, ...row }) => ({
     ...row,
     departmentId: departmentId ?? "",
   }));
+}
+
+// How many hold each role in each active department, counted from roleHolders(): someone who holds
+// the role both for every term and for this one is one person (Audit 5).
+export async function countMembers(collegeId: string, db: Db = getDb()) {
+  const counts = new Map<
+    string,
+    { departmentId: string; roleId: string; count: number }
+  >();
+  for (const { departmentId, roleId } of await roleHolders(collegeId, db)) {
+    const key = `${departmentId}:${roleId}`;
+    const found = counts.get(key) ?? { departmentId, roleId, count: 0 };
+    found.count += 1;
+    counts.set(key, found);
+  }
+  return [...counts.values()];
 }
 
 // The enabled people who hold a key through a role in force in each of these departments, by name:

@@ -1,5 +1,11 @@
-export { countTasks, departmentsReached } from "./domain/count.ts";
 export {
+  countTasks,
+  departmentsReached,
+  dueWeeks,
+  type TermShape,
+} from "./domain/count.ts";
+export {
+  type AppliesTo,
   type DueRule,
   type EvidencePolicy,
   type FrameworkItemInput,
@@ -25,6 +31,7 @@ export {
   endorseDraft,
   offersItem,
   publishDraft,
+  publishedItems,
   removeItem,
   startDraft,
   termFramework,

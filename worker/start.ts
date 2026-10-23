@@ -4,6 +4,10 @@ import { createDb } from "../src/platform/db/client.ts";
 import { auditRetention } from "./jobs/audit-retention.ts";
 import { heartbeat } from "./jobs/heartbeat.ts";
 import { notificationDigest } from "./jobs/notification-digest.ts";
+import {
+  nightlyTaskGeneration,
+  taskGeneration,
+} from "./jobs/task-generation.ts";
 
 // Docker kills a container 10 s after SIGTERM, so active jobs get 8 s to finish.
 const STOP_TIMEOUT_MS = 8000;
@@ -43,6 +47,14 @@ export async function startWorker({
   await boss.createQueue("notification-digest");
   await boss.schedule("notification-digest", "*/15 * * * *");
   await boss.work("notification-digest", notificationDigest(logger, db));
+  // The generation engine's queued passes, each minute, and a pass over each open term each night
+  // (Step 20). One job at a time drains the passes, so a pass never writes over a later one.
+  await boss.createQueue("task-generation", { policy: "exclusive" });
+  await boss.schedule("task-generation", "* * * * *");
+  await boss.work("task-generation", taskGeneration(logger, db));
+  await boss.createQueue("task-generation-nightly");
+  await boss.schedule("task-generation-nightly", "37 0 * * *");
+  await boss.work("task-generation-nightly", nightlyTaskGeneration(logger, db));
   return {
     boss,
     stop: async () => {

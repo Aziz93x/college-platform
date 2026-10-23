@@ -67,47 +67,24 @@ export function readTransfers(
     places[place] = transfer.toNumber;
     steps.push({ week: transfer.week, place, number: transfer.toNumber });
   }
+  // Who holds each place in a week.
+  const holders = (week: number) => {
+    const trainers = [...start];
+    for (const step of steps) {
+      if (step.week <= week) trainers[step.place] = step.number;
+    }
+    return trainers;
+  };
   return {
     statuses,
     trainersInWeek(week: number) {
-      const trainers = [...start];
-      for (const step of steps) {
-        if (step.week <= week) trainers[step.place] = step.number;
-      }
-      return [...new Set(trainers)];
+      return [...new Set(holders(week))];
+    },
+    // Each place in a week: the trainer who held it at the term's start, by whom its tasks know it,
+    // and the trainer who holds it then, whom they are for (Step 20).
+    places(week: number) {
+      const now = holders(week);
+      return start.map((first, place) => ({ first, holder: now[place] }));
     },
   };
-}
-
-// A task's statuses (section 3); overdue is a flag on top of them, not one of them.
-export type TaskStatus =
-  | "notStarted"
-  | "inProgress"
-  | "submitted"
-  | "done"
-  | "returned"
-  | "notApplicable";
-
-// Work still to do: the trainer has not finished it, or it came back to them.
-const open: ReadonlySet<TaskStatus> = new Set([
-  "notStarted",
-  "inProgress",
-  "returned",
-]);
-
-// What a transfer does to the section's tasks (section 3): the replaced trainer's open tasks move to
-// the new trainer, and their completed work stays with them, marked with the last week they taught
-// the section. Other trainers' tasks do not change.
-export function transferTasks<
-  T extends { status: TaskStatus; assigneeId: string },
->(
-  tasks: readonly T[],
-  transfer: { fromId: string; toId: string; week: number },
-): (T & { untilWeek?: number })[] {
-  return tasks.map((task) => {
-    if (task.assigneeId !== transfer.fromId) return task;
-    return open.has(task.status)
-      ? { ...task, assigneeId: transfer.toId }
-      : { ...task, untilWeek: transfer.week - 1 };
-  });
 }

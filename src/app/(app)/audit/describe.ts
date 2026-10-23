@@ -89,6 +89,9 @@ function format(
         return words.has(`termStatus.${value}`)
           ? words(`termStatus.${value}`)
           : value;
+      // What made the generation engine go over a term's tasks again (Step 20).
+      case "cause":
+        return words.has(`causes.${value}`) ? words(`causes.${value}`) : value;
       // The action an export was narrowed to.
       case "action":
         return words.has(`actions.${value}`)

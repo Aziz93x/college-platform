@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  dueDay,
+  eventWeeks,
   type TermCalendar,
   termEndsOn,
   termWeeks,
   weekDays,
   weekOf,
+  weekReached,
   workingDays,
 } from "./weeks.ts";
 
@@ -116,6 +119,54 @@ describe("counting every week", () => {
     expect(termWeeks(counted)).toHaveLength(18);
     expect(termEndsOn(counted)).toBe("2026-05-16");
     expect(weekOf(counted, "2026-05-27")).toBeUndefined();
+  });
+});
+
+describe("what the generation engine counts on", () => {
+  const weeks = termWeeks(term);
+
+  it("gives each kind of day the numbered weeks its days end in, a day of a break the week before", () => {
+    expect(
+      eventWeeks(weeks, [
+        // The midterms, in week 8, and the finals, in week 18.
+        {
+          kind: "exam",
+          startsOn: "2026-03-01",
+          endsOn: "2026-03-05",
+        },
+        {
+          kind: "exam",
+          startsOn: "2026-06-07",
+          endsOn: "2026-06-11",
+        },
+        // A meeting during the Eid al-Fitr break counts in week 9, the last before it.
+        {
+          kind: "custom",
+          startsOn: "2026-03-20",
+          endsOn: "2026-03-20",
+        },
+      ]),
+    ).toEqual({ exam: [8, 18], custom: [9] });
+  });
+
+  it("reaches no week before the term, the last one before a break during it, and the last after it", () => {
+    expect(weekReached(weeks, "2026-01-10")).toBe(0);
+    expect(weekReached(weeks, "2026-01-11")).toBe(1);
+    expect(weekReached(weeks, "2026-03-20")).toBe(9);
+    expect(weekReached(weeks, "2026-07-01")).toBe(18);
+  });
+
+  it("makes a week's task due on its last working day that is not a holiday", () => {
+    expect(dueDay(term, weeks[0])).toBe("2026-01-15");
+    // Founding Day takes a Sunday of week 7, not its Thursday.
+    expect(dueDay(term, weeks[6])).toBe("2026-02-26");
+    const thursdayOff = {
+      ...term,
+      holidays: [{ startsOn: "2026-01-15", endsOn: "2026-01-15" }],
+    };
+    expect(dueDay(thursdayOff, weeks[0])).toBe("2026-01-14");
+    // A week the Eid al-Fitr break takes whole, as a term that counts every week numbers it.
+    expect(dueDay(term, weeks[9])).toBe("2026-03-19");
   });
 });
 

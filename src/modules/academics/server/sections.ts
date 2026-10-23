@@ -372,15 +372,45 @@ export async function unmatchedTrainers(
     });
 }
 
+// Each section of the term in SS01 in force, with its department, its course and its places in a
+// week after the head's transfers (readTransfers()): what the generation engine makes the tasks for
+// each section's or each course's trainer for, one for each place (Step 20).
+export async function sectionPlaces(
+  collegeId: string,
+  termId: string,
+  db: Db | Tx = getDb(),
+) {
+  const [ss01, transfers] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+  ]);
+  if (!ss01) return [];
+  const { reads } = readAll(transfers, ss01);
+  return ss01.records.map((section) => ({
+    ref: section.sectionRef,
+    departmentId: section.departmentId,
+    courseCode: section.courseCode,
+    places: (
+      reads.get(section.sectionRef) ??
+      readTransfers(section.trainerNumbers, ss01.uploadedAt, [])
+    ).places,
+  }));
+}
+
 // What each department's sections in SS01 in force give a framework's or a plan's items for their
-// trainers (trainerCounts()).
+// trainers (trainerCounts()), by the trainers each section started the term with, as the generation
+// engine reaches them (sectionPlaces()): a transfer Rayat has since confirmed changes no count.
 export async function sectionCounts(
   collegeId: string,
   termId: string,
-  db: Db = getDb(),
+  db: Db | Tx = getDb(),
 ) {
   return trainerCounts(
-    (await rayatVersion(collegeId, termId, "ss01", db))?.records ?? [],
+    (await sectionPlaces(collegeId, termId, db)).map((section) => ({
+      departmentId: section.departmentId,
+      courseCode: section.courseCode,
+      trainerNumbers: section.places(0).map(({ first }) => first),
+    })),
   );
 }
 
@@ -593,7 +623,10 @@ export async function cancelTransfer(
   id: string,
   change: Change,
   db: Db = getDb(),
-): Promise<{ status: "cancelled" | "notFound" | "termClosed" }> {
+): Promise<
+  | { status: "notFound" | "termClosed" }
+  | { status: "cancelled"; termId: string }
+> {
   return db.transaction(async (tx) => {
     const found = await openTransfer(tx, change.collegeId, id);
     if (!found) return { status: "notFound" };
@@ -613,6 +646,6 @@ export async function cancelTransfer(
       },
       tx,
     );
-    return { status: "cancelled" };
+    return { status: "cancelled", termId: was.termId };
   });
 }

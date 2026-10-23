@@ -140,7 +140,7 @@ describe("a framework's versions", () => {
 
     await expect(
       publishDraft(draft.id, change(), false, database.db),
-    ).resolves.toEqual({ status: "published" });
+    ).resolves.toEqual({ status: "published", termId });
     // Published: its items stay as they were.
     await expect(
       addItem(draft.id, item("بند متأخر"), change(), accepted, database.db),
@@ -220,7 +220,7 @@ describe("a framework's versions", () => {
     await endorseDraft(draft.id, change("dean"), database.db);
     await expect(
       publishDraft(draft.id, change(), true, database.db),
-    ).resolves.toEqual({ status: "published" });
+    ).resolves.toEqual({ status: "published", termId });
     expect(
       await query(
         "select actor_id from audit_events where action = 'framework.endorse'",

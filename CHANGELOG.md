@@ -4,6 +4,32 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 20: the generation engine
+
+- Built beside Step 18, in a second session, at the owner's choice (ADR-0025), and brought onto Step 18 and Audit 6 before it merged. The term's latest published framework is the engine's only source until Step 19 adds the plan.
+- Each item makes a task in each department for each time its rule is due. A role's item makes one for each holder of the role. An item for each section's trainer makes one for each place of each section: each trainer Rayat names at the term's start, as the owner's rule has it. An item for each course's trainer (Step 18) makes one for each place of each course: each trainer its sections started the term with, once for all their sections of it.
+- A task is keyed by its slot: the item, kept across versions by `framework_items.origin_id`; the occurrence; the department; and the section's or the course's place, or the role's holder. A second pass changes nothing.
+- A section's task goes to whoever holds its place in the task's week, or now, for a week already past. Started work still to do follows a transfer, and finished work stays with whoever did it. A course's task stays with its trainer while they still teach one of the sections they started the term with, and once the last of those has moved, it goes with that section to whoever holds the place (the owner's rule, 23 October 2026). A trainer not on the platform keeps their place: their tasks wait for them, by employee number.
+- A new version moves the tasks not started to its rules' weeks and words, cancels those it drops, and brings back a cancelled one it calls for again. Submitted, done and not applicable work is never touched.
+- A task is due on its week's last working day that is not a holiday.
+- Publishing a version, applying or rolling back SS01, and making or cancelling a transfer queue a pass. The worker runs the queued passes every minute, one at a time, a department per transaction, writing how far each has got. Each night it queues a pass over every term not yet closed. A pass that changed something writes `task.generate`, by the system, with its cause and counts.
+- `/framework` shows whoever publishes the framework the latest pass: waiting, running with its progress, done with what it changed, or failed. While a pass waits or runs, the page reads it again every 3 s.
+- The preview and the engine count the same weeks (`dueWeeks()`, `eventWeeks()`), the same role holders (`roleHolders()`) and the same places of each section and course (`sectionPlaces()`), so a transfer Rayat has since confirmed changes neither count. Step 17's `transferTasks()` gives way to the places.
+- Migration `0021` adds `tasks` and `generation_runs`, and `framework_items.origin_id`, filled for versions already made.
+- `seed:demo` generates the demo term's tasks: 570 in 0.25 s, 480 for role holders, 58 exam copies for each course's trainers and 32 grade analyses for each section's, three of them waiting for the visiting trainer.
+- Tests:
+  - fast-check properties: the tasks are as many as the preview counts, each in its own slot; a second pass finds nothing to do; finished work never changes, and started work changes only its assignee;
+  - on a real database:
+    - a term's first pass and a second that changes nothing;
+    - a trainer not on the platform who joins;
+    - a transfer, its effect once in force, and its cancelling;
+    - a new version;
+    - a role given up;
+    - a closed term;
+    - the queued runs, the worker's jobs, and each change that queues a pass;
+  - the demo's tasks equal its preview, under 10 s;
+  - end to end on the desktop and the iPhone: the vice-dean follows a pass from waiting to done with axe, then a failed pass and none; a trainer does not see it.
+
 ### ADR-0023 amended: the Rayat upload's budget measured alone
 
 - The test of a 25,000-row upload in 5 s now runs in its own Vitest project, `budget` (`tests/budget/rayat-upload.test.ts`), after the unit and integration tests and one file at a time, on a PostgreSQL of its own. Beside the other test files it once took 5.5 s on CI; alone there, it takes 2.4 s. The budget is unchanged.

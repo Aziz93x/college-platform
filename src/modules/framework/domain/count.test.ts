@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { countTasks, departmentsReached, occurrences } from "./count.ts";
+import {
+  countTasks,
+  departmentsReached,
+  dueWeeks,
+  occurrences,
+} from "./count.ts";
 import type { AppliesTo, DueRule } from "./inputs.ts";
 
 const TRAINER = "0199b2a4-0000-7000-8000-000000000001";
@@ -21,6 +26,29 @@ describe("occurrences", () => {
     [{ type: "afterEvent", eventKind: "gradeDeadline", weeks: 0 }, 0],
   ])("counts %j %i times in 18 weeks", (due, times) => {
     expect(occurrences(due, TERM)).toBe(times);
+  });
+});
+
+describe("dueWeeks", () => {
+  it.each<[DueRule, number[]]>([
+    [{ type: "week", week: 3 }, [3]],
+    [{ type: "week", week: 19 }, []],
+    [{ type: "everyWeeks", every: 4 }, [4, 8, 12, 16]],
+    // A week after each exam: the midterms' only, as the finals end the term.
+    [{ type: "afterEvent", eventKind: "exam", weeks: 1 }, [9]],
+    [{ type: "afterEvent", eventKind: "exam", weeks: 0 }, [8, 18]],
+  ])("gives %j the weeks %j in 18 weeks", (due, weeks) => {
+    expect(dueWeeks(due, TERM)).toEqual(weeks);
+  });
+
+  it("gives a weekly rule every week, and the days of a kind in the order of their weeks", () => {
+    expect(dueWeeks({ type: "weekly" }, TERM)).toHaveLength(18);
+    expect(
+      dueWeeks(
+        { type: "afterEvent", eventKind: "exam", weeks: 2 },
+        { weeks: 18, events: { exam: [15, 6, 6] } },
+      ),
+    ).toEqual([8, 8, 17]);
   });
 });
 
