@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import writeXlsxFile from "write-excel-file/node";
 import { seedBase } from "../../db/seed/base.ts";
 import { rayatColumns, rayatHeaders } from "../../db/seed/rayat-columns.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
@@ -18,7 +17,6 @@ import {
   closeTerm,
   createTerm,
 } from "../../src/modules/terms/index.ts";
-import { readTable } from "../../src/platform/files/table.ts";
 import { createTestDatabase } from "./support/database.ts";
 import { rayatTable } from "./support/rayat-table.ts";
 
@@ -486,51 +484,4 @@ describe("a trainee's name, mobile number and grade", () => {
       });
     }
   });
-});
-
-describe("a college-sized upload (ADR-0023)", () => {
-  it("reads, checks, diffs and keeps an SF01 of 25,000 rows from the file's bytes in under 5 s", async () => {
-    const name = "الفصل التدريبي الصيفي 1448";
-    const created = await createTerm(
-      { name, startsOn: "2027-06-13", weeks: 8 },
-      change(),
-      database.db,
-    );
-    if (created.status !== "created") throw new Error(created.status);
-    const rows = Array.from({ length: 25_000 }, (_, at) =>
-      enrollment(String(445_000_001 + at), {
-        term: name,
-        sectionRef: String(40_001 + (at % 700)),
-      }),
-    );
-    // Every column Rayat exports, the trainees' names, mobile numbers and grades too.
-    const table = rayatTable(
-      "sf01",
-      rows,
-      rows.map((_, at) => ({
-        "إسم المتدرب": `متدرب رقم ${at}`,
-        "رقم الجوال": `05${String(10_000_000 + at)}`,
-        الدرجة: String(60 + (at % 40)),
-        "اسم المقرر": "الدوائر الكهربائية",
-        المدرب: "مدرب القسم",
-      })),
-    );
-    const bytes = await writeXlsxFile(
-      table.map((row) => row.map((value) => ({ value }))),
-    ).toBuffer();
-
-    const started = performance.now();
-    const read = await readTable({ name: "sf01.xlsx", bytes });
-    if (!read) throw new Error("the workbook was not read");
-    const uploaded = await uploadRayat(
-      "sf01",
-      created.id,
-      read,
-      change(),
-      database.db,
-    );
-    const took = performance.now() - started;
-    expect(uploaded).toMatchObject({ status: "pending", records: 25_000 });
-    expect(took).toBeLessThan(5_000);
-  }, 120_000);
 });

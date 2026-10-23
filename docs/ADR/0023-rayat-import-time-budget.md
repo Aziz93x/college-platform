@@ -28,3 +28,7 @@ An upload happens a few times a term, in the add and drop weeks. Section 2 lists
 
 - The college's lock is held for up to about 4 s during a large upload. Term, framework, transfer and department changes wait that long, a few times a term.
 - If the test fails on CI's runner, the insert is made faster, not the budget looser. The first step is one `unnest` statement for each chunk of records, which saves about 15%.
+
+## Amendment (22 October 2026): measured alone
+
+The test ran beside every other test file, and on CI it once took 5.5 s, on PR #50's run. On a two-core workspace with three workers, it took 3.7 and 4.2 s beside the others and 3.0 and 3.2 s alone. It now runs in its own Vitest project, `budget` (`tests/budget/`): after the unit and integration projects, one file at a time, on a PostgreSQL of its own (`vitest.config.mts`). Each run notes its time, which GitHub shows beside the run: 2.4 s on CI's runner, on #51's first run. The budget and decision 2 are unchanged, and so is the consequence above, for a test that fails alone.
