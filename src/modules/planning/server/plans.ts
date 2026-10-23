@@ -311,12 +311,12 @@ async function draftOf(tx: Tx, collegeId: string, id: string) {
 }
 
 // Whether an item names only what the college offers (offersItem()), and whom the department has:
-// one of the college's roles, or a person who holds a role in the department now, as the
-// generation engine reaches them.
+// one of the college's roles, or a person who holds a role in the department in the plan's term, as
+// the generation engine reaches them.
 async function offered(
   tx: Tx,
   collegeId: string,
-  departmentId: string,
+  draft: { departmentId: string; termId: string },
   input: PlanItemInput,
   accepted: readonly string[],
 ) {
@@ -340,9 +340,9 @@ async function offered(
       return Boolean(role);
     }
     case "person":
-      return (await roleHolders(collegeId, tx)).some(
+      return (await roleHolders(collegeId, draft.termId, tx)).some(
         (holder) =>
-          holder.departmentId === departmentId &&
+          holder.departmentId === draft.departmentId &&
           holder.userId === applies.userId,
       );
   }
@@ -362,15 +362,7 @@ export async function addPlanItem(
   return db.transaction(async (tx) => {
     const draft = await draftOf(tx, change.collegeId, planId);
     if (typeof draft === "string") return { status: draft };
-    if (
-      !(await offered(
-        tx,
-        change.collegeId,
-        draft.departmentId,
-        input,
-        accepted,
-      ))
-    ) {
+    if (!(await offered(tx, change.collegeId, draft, input, accepted))) {
       return { status: "notOffered" };
     }
     const [{ last }] = await tx
@@ -438,15 +430,7 @@ export async function updatePlanItem(
     if (canonical(before) === canonical({ ...before, ...input })) {
       return { status: "unchanged" };
     }
-    if (
-      !(await offered(
-        tx,
-        change.collegeId,
-        draft.departmentId,
-        input,
-        accepted,
-      ))
-    ) {
+    if (!(await offered(tx, change.collegeId, draft, input, accepted))) {
       return { status: "notOffered" };
     }
     await tx

@@ -1,8 +1,9 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import {
   deleteMembership,
   insertMembership,
+  memberships,
   roleHolders,
   roleLabel,
   roles,
@@ -158,7 +159,7 @@ export async function assign(
       return { status: "outsideTerm" };
     }
     const members = new Set(
-      (await roleHolders(collegeId, tx))
+      (await roleHolders(collegeId, input.termId, tx))
         .filter(({ departmentId }) => departmentId === input.departmentId)
         .map(({ userId }) => userId),
     );
@@ -196,7 +197,25 @@ export async function assign(
           ...range(weeks),
         },
       });
-      if (template.roleId && template.roleKey && template.roleLabels) {
+      // Someone who already holds the role there, for every term or for this one, keeps it as it
+      // is: the assignment adds nothing, and its revocation removes nothing (ADR-0028; Audit 7).
+      const [held] = template.roleId
+        ? await tx
+            .select({ id: memberships.id })
+            .from(memberships)
+            .where(
+              and(
+                eq(memberships.userId, userId),
+                eq(memberships.roleId, template.roleId),
+                eq(memberships.departmentId, input.departmentId),
+                or(
+                  isNull(memberships.termId),
+                  eq(memberships.termId, input.termId),
+                ),
+              ),
+            )
+        : [];
+      if (!held && template.roleId && template.roleKey && template.roleLabels) {
         const membershipId = await insertMembership(
           tx,
           {

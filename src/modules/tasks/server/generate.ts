@@ -61,7 +61,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     publishedItems(collegeId, termId, db),
     publishedPlanItems(collegeId, termId, db),
     assignedItems(collegeId, termId, db),
-    roleHolders(collegeId, db),
+    roleHolders(collegeId, termId, db),
     sectionPlaces(collegeId, termId, db),
     db
       .select({ number: people.employeeNumber, userId: people.userId })

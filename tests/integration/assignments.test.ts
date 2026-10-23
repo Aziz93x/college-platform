@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assignmentCatalog, seedBase } from "../../db/seed/base.ts";
-import { addMembership, loadAccess } from "../../src/modules/access/index.ts";
+import {
+  addMembership,
+  loadAccess,
+  roleHolders,
+} from "../../src/modules/access/index.ts";
 import {
   addTemplateItem,
   assign,
@@ -278,26 +282,49 @@ describe("the secretary's template", () => {
     );
   });
 
-  it("leaves the role to someone who already held it for the term", async () => {
-    await addMembership(
-      {
-        userId: people.salem,
-        roleId: secretaryRole,
-        departmentId: electrical,
-        termId,
-      },
-      change("viceDean"),
-      database.db,
-    );
-    await assigned({
-      templateId: templates.secretary,
-      userIds: [people.salem],
-    });
-    const assignment = await assignmentOf("salem", "secretary");
-    expect(assignment.granted).toBe(false);
-    await revokeAssignment(assignment.id, change(), database.db);
-    expect(await keysIn("salem")).toContain("announcements.publish");
-    await query("delete from memberships where role_id = $1", [secretaryRole]);
+  it("leaves the role to someone who already held it, for the term or for every term, and tells them nothing (Audit 7)", async () => {
+    for (const forTerm of [termId, undefined]) {
+      await addMembership(
+        {
+          userId: people.salem,
+          roleId: secretaryRole,
+          departmentId: electrical,
+          ...(forTerm && { termId: forTerm }),
+        },
+        change("viceDean"),
+        database.db,
+      );
+      const before = await query(
+        "select id from memberships where user_id = $1 and role_id = $2",
+        [people.salem, secretaryRole],
+      );
+      const told = async () =>
+        (
+          await query(
+            "select count(*)::int as count from notifications where user_id = $1",
+            [people.salem],
+          )
+        )[0].count;
+      const notices = await told();
+      await assigned({
+        templateId: templates.secretary,
+        userIds: [people.salem],
+      });
+      const assignment = await assignmentOf("salem", "secretary");
+      expect(assignment.granted).toBe(false);
+      await revokeAssignment(assignment.id, change(), database.db);
+      expect(await keysIn("salem")).toContain("announcements.publish");
+      expect(
+        await query(
+          "select id from memberships where user_id = $1 and role_id = $2",
+          [people.salem, secretaryRole],
+        ),
+      ).toEqual(before);
+      expect(await told()).toBe(notices);
+      await query("delete from memberships where role_id = $1", [
+        secretaryRole,
+      ]);
+    }
   });
 });
 
@@ -554,6 +581,103 @@ describe("a department's own templates", () => {
       "assignmentTemplateItem.delete",
       "assignmentTemplate.delete",
     ]);
+  });
+});
+
+describe("a draft next term", () => {
+  it("reaches its own role holders, not the active term's: someone who holds a role there for that term alone is assigned and gets the tasks, and someone who holds one for the active term alone is not (Audit 7)", async () => {
+    const next = await createTerm(
+      { name: "الفصل الثاني 1448", startsOn: "2027-01-10", weeks: 18 },
+      change("viceDean"),
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    const [{ id: trainer }] = await query(
+      "select id from roles where college_id = $1 and key = 'trainer'",
+      [collegeId],
+    );
+    // Rana trains in Electrical from the next term on; Yasser is its secretary this term alone.
+    for (const name of ["rana", "yasser"]) {
+      people[name] = await database.db.transaction(
+        async (tx) =>
+          (
+            await createAccount(
+              {
+                collegeId,
+                name,
+                email: `${name}@college.example`,
+                employeeNumber: `8${Object.keys(people).length}0001`,
+              },
+              tx,
+              `password-${name}`,
+            )
+          ).userId,
+      );
+    }
+    for (const [who, roleId, forTerm] of [
+      ["rana", trainer, next.id],
+      ["yasser", secretaryRole, termId],
+    ]) {
+      await addMembership(
+        {
+          userId: people[who],
+          roleId,
+          departmentId: electrical,
+          termId: forTerm,
+        },
+        change("viceDean"),
+        database.db,
+      );
+    }
+    const holders = async (term: string) =>
+      new Set(
+        (await roleHolders(collegeId, term, database.db))
+          .filter(({ departmentId }) => departmentId === electrical)
+          .map(({ userId }) => userId),
+      );
+    const inNext = await holders(next.id);
+    expect([inNext.has(people.rana), inNext.has(people.yasser)]).toEqual([
+      true,
+      false,
+    ]);
+    const inThis = await holders(termId);
+    expect([inThis.has(people.rana), inThis.has(people.yasser)]).toEqual([
+      false,
+      true,
+    ]);
+
+    const supervisor = {
+      templateId: templates["safety-supervisor"],
+      departmentId: electrical,
+    };
+    await expect(
+      assign(
+        { ...supervisor, termId: next.id, userIds: [people.rana] },
+        change(),
+        database.db,
+      ),
+    ).resolves.toMatchObject({ status: "assigned" });
+    await expect(
+      assign(
+        { ...supervisor, termId: next.id, userIds: [people.yasser] },
+        change(),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "notMember" });
+    await generateTerm(collegeId, next.id, "assignment", {
+      at: new Date("2026-09-01T09:00:00Z"),
+      db: database.db,
+    });
+    const items =
+      assignmentCatalog.find(({ key }) => key === "safety-supervisor")?.items
+        .length ?? 0;
+    expect(
+      await query(
+        `select count(*)::int as count from tasks
+         where term_id = $1 and source = 'assignment' and assignee_id = $2`,
+        [next.id, people.rana],
+      ),
+    ).toEqual([{ count: items }]);
   });
 });
 

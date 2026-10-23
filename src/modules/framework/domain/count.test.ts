@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  busiestWeek,
   countTasks,
   departmentsReached,
   dueWeeks,
@@ -219,5 +220,49 @@ describe("countTasks", () => {
         TERM,
       ),
     ).toEqual({ tasks: 0, departments: 0 });
+  });
+});
+
+describe("busiestWeek", () => {
+  it("finds the week whose tasks are the most, the earliest of equals, and none for no task (Audit 7)", () => {
+    const electrical = department({ [TRAINER]: 12, [HEAD]: 1 });
+    // A head's report every 4 weeks (4, 8, 12, 16), and each trainer's exam copy the week before
+    // each exam period (4, 10, 15, 16): week 4 has 13, and week 16 has 13 too, so week 4.
+    expect(
+      busiestWeek(
+        [
+          { appliesTo: heads, due: { type: "everyWeeks", every: 4 } },
+          { appliesTo: trainers, due: anchored("before", 1) },
+        ],
+        [electrical],
+        TERM,
+      ),
+    ).toEqual({ week: 4, tasks: 13 });
+    // The eve of the practical final (week 15) and of the theoretical final (week 16): 12 tasks
+    // each, so the earlier.
+    expect(
+      busiestWeek(
+        [
+          {
+            appliesTo: trainers,
+            due: anchored("before", 1, ["practical-final"]),
+          },
+          {
+            appliesTo: trainers,
+            due: anchored("before", 1, ["theoretical-final"]),
+          },
+        ],
+        [electrical],
+        TERM,
+      ),
+    ).toEqual({ week: 15, tasks: 12 });
+    expect(busiestWeek([], [electrical], TERM)).toBeUndefined();
+    expect(
+      busiestWeek(
+        [{ appliesTo: { type: "eachSection" }, due: { type: "weekly" } }],
+        [department({})],
+        TERM,
+      ),
+    ).toBeUndefined();
   });
 });

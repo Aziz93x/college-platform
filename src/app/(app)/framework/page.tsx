@@ -120,7 +120,7 @@ export default async function FrameworkPage() {
   // of, as a department's plan says them (UX review 2).
   const draftPreview = async (items: readonly FrameworkItemInput[]) => {
     const [holders, sections, found] = await Promise.all([
-      roleHolders(viewer.collegeId),
+      roleHolders(viewer.collegeId, term.id),
       sectionCounts(viewer.collegeId, term.id),
       termCalendar(viewer.collegeId, term.id),
     ]);

@@ -729,15 +729,30 @@ describe("every server action writes its event", () => {
     await expectWrites(`${plan}#removePlanItemsAction`, {
       itemIds: [copied.id],
     });
-    // Electrical's own template, renamed, with an item added, corrected and taken out; the
-    // secretary's given to the imported trainer for the term, which queues a pass, and revoked;
-    // then the department's template taken out (Step 21).
+    // Electrical's own template, given to the imported trainer for the term, then renamed, with an
+    // item added, corrected and taken out, each change queuing a pass for that term; the
+    // secretary's given to the same trainer, which queues a pass, and revoked, which queues another;
+    // then the department's template taken back and taken out (Step 21; Audit 7, minor 2).
     const assignments = "(app)/assignments/actions.ts";
     const own = await expectWrites(`${assignments}#createTemplateAction`, {
       departmentId: created.id,
       title: "Inventory officer",
       axisId,
     });
+    const [{ userId: newcomer }] = await query(
+      `select user_id as "userId" from people where employee_number = '6001'`,
+    );
+    // A template that grants no role writes the assignment's event alone.
+    const ownGiven = await run(`${assignments}#assignAction`, {
+      templateId: own.id,
+      termId: term.id,
+      departmentId: created.id,
+      userIds: [newcomer],
+    });
+    expect(ownGiven.written).toEqual(["assignment.create"]);
+    const passes = async () =>
+      (await queued()).filter((reason) => reason === "assignment").length;
+    const given = await passes();
     await expectWrites(`${assignments}#updateTemplateAction`, {
       templateId: own.id,
       title: "Inventory and stores officer",
@@ -765,9 +780,7 @@ describe("every server action writes its event", () => {
     await expectWrites(`${assignments}#removeTemplateItemAction`, {
       itemId: ownItem.id,
     });
-    const [{ userId: newcomer }] = await query(
-      `select user_id as "userId" from people where employee_number = '6001'`,
-    );
+    expect(await passes()).toBe(given + 4);
     const [{ id: secretary }] = await query(
       "select id from assignment_templates where key = 'secretary'",
     );
@@ -777,14 +790,22 @@ describe("every server action writes its event", () => {
       departmentId: created.id,
       userIds: [newcomer],
     });
-    expect((await queued()).at(-1)).toBe("assignment");
-    const [given] = await query(
-      "select id from assignments where user_id = $1",
-      [newcomer],
-    );
+    expect(await passes()).toBe(given + 5);
+    const heldOf = async (templateId: string) =>
+      (
+        await query(
+          "select id from assignments where user_id = $1 and template_id = $2",
+          [newcomer, templateId],
+        )
+      )[0].id as string;
     await expectWrites(`${assignments}#revokeAssignmentAction`, {
-      assignmentId: given.id,
+      assignmentId: await heldOf(secretary),
     });
+    expect(await passes()).toBe(given + 6);
+    const ownTaken = await run(`${assignments}#revokeAssignmentAction`, {
+      assignmentId: await heldOf(own.id as string),
+    });
+    expect(ownTaken.written).toEqual(["assignment.revoke"]);
     await expectWrites(`${assignments}#deleteTemplateAction`, {
       templateId: own.id,
     });

@@ -135,3 +135,27 @@ export function countTasks(
   }
   return { tasks, departments: touched };
 }
+
+// The week whose tasks are the most, and how many, the earliest of equals: the review load's peak
+// beside its average, as countTasks() counts them (Audit 7, enhancement 2). None for no task.
+export function busiestWeek(
+  items: readonly { appliesTo: PlanReach; due: DueRule }[],
+  departments: readonly Department[],
+  term: TermShape,
+) {
+  const load = new Map<number, number>();
+  for (const department of departments) {
+    for (const item of items) {
+      const each = reached(item.appliesTo, department);
+      if (each === 0) continue;
+      for (const week of dueWeeks(item.due, term)) {
+        load.set(week, (load.get(week) ?? 0) + each);
+      }
+    }
+  }
+  let peak: { week: number; tasks: number } | undefined;
+  for (const [week, tasks] of [...load].sort(([a], [b]) => a - b)) {
+    if (!peak || tasks > peak.tasks) peak = { week, tasks };
+  }
+  return peak;
+}
