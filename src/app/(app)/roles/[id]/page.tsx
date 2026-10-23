@@ -19,7 +19,11 @@ import { listPeople } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 import { listTerms } from "@/modules/terms";
-import { navigation, visibleNavigation } from "../../_shell/navigation.ts";
+import {
+  navigation,
+  phoneTabs,
+  visibleNavigation,
+} from "../../_shell/navigation.ts";
 import { HistoryPanel } from "../../audit/history-panel.tsx";
 import { parseCursor } from "../../audit/query.ts";
 import { RoleNameForm } from "../role-name-form.tsx";
@@ -144,7 +148,11 @@ export default async function RolePage({
               .map(({ id, name }) => ({ id, name }))}
           />
           {pages.length > 1 ? (
-            <PageOrder roleId={role.id} pages={pages} />
+            <PageOrder
+              roleId={role.id}
+              pages={pages}
+              tabs={phoneTabs(pages).tabs.length}
+            />
           ) : null}
         </div>
       </NextIntlClientProvider>
