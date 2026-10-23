@@ -209,7 +209,9 @@ test(
           .first()
           .click();
       }
-      await sheet.getByRole("button", { name: framework.save, exact: true }).click();
+      await sheet
+        .getByRole("button", { name: framework.save, exact: true })
+        .click();
       await expect(sheet).toBeHidden();
 
       if (!hasTouch) {
