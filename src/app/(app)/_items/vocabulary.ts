@@ -1,5 +1,12 @@
 import type { getFormatter, getTranslations } from "next-intl/server";
-import { type DueRule, reachesTrainers, taskKinds } from "@/modules/framework";
+import {
+  type DueRule,
+  type EvidencePolicy,
+  type PlanReach,
+  reachesTrainers,
+  type TaskKind,
+  taskKinds,
+} from "@/modules/framework";
 import type { ExamPeriod, ExamPeriodType } from "@/modules/terms";
 import type { ItemInput, ItemOptions } from "./item-sheet.tsx";
 import type { ItemView } from "./item-words.tsx";
@@ -64,25 +71,41 @@ export function itemVocabulary({
         });
     }
   };
+  // Each field in words, or nothing for an axis, a kind, a role or a person the college no longer
+  // has. The audit log words the fields an item's events record with them (UX review 2).
+  const words = {
+    axis: (id: string) => axisWords.get(id),
+    kind: (kind: string) =>
+      (taskKinds as readonly string[]).includes(kind)
+        ? t(`kinds.${kind as TaskKind}`)
+        : undefined,
+    appliesTo: (reach: PlanReach) =>
+      reachesTrainers(reach)
+        ? t(reach.type)
+        : "roleId" in reach
+          ? roles?.get(reach.roleId)
+          : people?.get(reach.userId)?.name,
+    due: dueWords,
+    evidence: (evidence: EvidencePolicy) =>
+      [
+        t("evidenceText", {
+          required: String(evidence.required),
+          types: format.list(evidence.types.map(typeWords)),
+          max: evidence.maxFiles,
+        }),
+        ...(evidence.requiresApproval ? [t("approvalText")] : []),
+      ].join(" · "),
+  };
   const view = (item: ItemInput & { id: string }): ItemView => ({
     ...item,
     words: {
-      axis: axisWords.get(item.axisId) ?? "",
+      axis: words.axis(item.axisId) ?? "",
       kind: t(`kinds.${item.kind}`),
-      appliesTo: reachesTrainers(item.appliesTo)
-        ? t(item.appliesTo.type)
-        : "roleId" in item.appliesTo
-          ? (roles?.get(item.appliesTo.roleId) ?? "")
-          : (people?.get(item.appliesTo.userId)?.name ?? t("personGone")),
-      due: dueWords(item.due),
-      evidence: [
-        t("evidenceText", {
-          required: String(item.evidence.required),
-          types: format.list(item.evidence.types.map(typeWords)),
-          max: item.evidence.maxFiles,
-        }),
-        ...(item.evidence.requiresApproval ? [t("approvalText")] : []),
-      ].join(" · "),
+      appliesTo:
+        words.appliesTo(item.appliesTo) ??
+        ("userId" in item.appliesTo ? t("personGone") : ""),
+      due: words.due(item.due),
+      evidence: words.evidence(item.evidence),
     },
   });
   const options: ItemOptions = {
@@ -131,5 +154,5 @@ export function itemVocabulary({
       label: t(`dueTypes.${type}`),
     })),
   };
-  return { view, options };
+  return { view, options, words };
 }

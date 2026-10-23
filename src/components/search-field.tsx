@@ -2,6 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { Input } from "@/components/motion/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
@@ -60,22 +61,30 @@ export function SearchField({
   );
 }
 
-// What a search shows when nothing matches: the words it looked for and a way to clear it. The
-// identity art is kept for a list with nothing in it yet (EmptyState).
-export function NoResults({
-  query,
-  onClear,
-}: {
-  query: string;
-  onClear: () => void;
-}) {
+// What a search or the filters of a list show when nothing matches: the words it looked for, or
+// the filters' own, and a way to clear it. The identity art is kept for a list with nothing in it
+// yet (EmptyState).
+export function NoResults(
+  props:
+    | { query: string; onClear: () => void }
+    /** A list narrowed by filters: what none matched, and the link or button that clears them. */
+    | { said: string; clear: ReactNode },
+) {
   const t = useTranslations("ui.search");
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card px-6 py-8 text-center">
-      <p className="text-sm">{t("none", { query: query.trim() })}</p>
-      <Button type="button" variant="outline" onClick={onClear}>
-        {t("clear")}
-      </Button>
+      <p className="text-sm">
+        {"said" in props
+          ? props.said
+          : t("none", { query: props.query.trim() })}
+      </p>
+      {"clear" in props ? (
+        props.clear
+      ) : (
+        <Button type="button" variant="outline" onClick={props.onClear}>
+          {t("clear")}
+        </Button>
+      )}
     </div>
   );
 }

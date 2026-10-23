@@ -1,10 +1,14 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 import { cache } from "react";
+import type { z } from "zod";
 import { listDirectory, listRoles, roleLabel } from "@/modules/access";
 import { type AuditEntry, auditActions } from "@/modules/audit";
+import { listAxes } from "@/modules/axes";
+import { planItemInput } from "@/modules/framework";
 import { findCollege, listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
-import { listTerms } from "@/modules/terms";
+import { listExamPeriodTypes, listTerms } from "@/modules/terms";
+import { itemVocabulary } from "../_items/vocabulary.ts";
 import { describeEvent, type Lookups, type Words } from "./describe.ts";
 import type { EventRow } from "./event-list.tsx";
 
@@ -17,9 +21,10 @@ export const collegePeople = cache((collegeId: string) =>
 export async function auditWords(): Promise<Words> {
   const t = await getTranslations("audit");
   type Key = Parameters<typeof t>[0];
-  return Object.assign((key: string) => t(key as Key), {
-    has: (key: string) => t.has(key as Key),
-  });
+  return Object.assign(
+    (key: string, values?: Record<string, string>) => t(key as Key, values),
+    { has: (key: string) => t.has(key as Key) },
+  );
 }
 
 // Each action the log records with its name and its group's, for the viewer's filter.
@@ -32,8 +37,16 @@ export async function actionChoices() {
   }));
 }
 
-// What names the ids events carry: the college's people, departments, roles and terms, and the
-// catalog's keys, settings and kinds.
+// A field's words when its value has the shape it is checked against, and nothing otherwise.
+const worded =
+  <T>(schema: z.ZodType<T>, words: (value: T) => string | undefined) =>
+  (value: unknown) => {
+    const read = schema.safeParse(value);
+    return read.success ? words(read.data) : undefined;
+  };
+
+// What names the ids events carry: the college's people, departments, roles, terms and axes, and
+// the catalog's keys, settings and kinds, and the words of the framework's and the plans' items.
 export async function auditLookups(collegeId: string): Promise<Lookups> {
   const [
     people,
@@ -47,6 +60,9 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     terms,
     calendarKinds,
     format,
+    axes,
+    periodTypes,
+    itemWords,
   ] = await Promise.all([
     collegePeople(collegeId),
     listDepartments(collegeId),
@@ -59,8 +75,27 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
     listTerms(collegeId),
     getTranslations("terms.kinds"),
     getFormatter(),
+    listAxes(collegeId),
+    listExamPeriodTypes(collegeId),
+    getTranslations("framework"),
   ]);
   const names = new Map(people.map(({ userId, name }) => [userId, name]));
+  const { words: item } = itemVocabulary({
+    t: itemWords,
+    periodTypes,
+    format,
+    axes: axes.flatMap((group) => group.axes),
+    roles: new Map(
+      roles.map((role) => [role.id, roleLabel(role.labels, language)]),
+    ),
+    people: new Map(
+      people.map(({ userId, name, employeeNumber }) => [
+        userId,
+        { name, employeeNumber },
+      ]),
+    ),
+    accepted: [],
+  });
   type KeyLabel = Parameters<typeof keys>[0];
   type SettingLabel = Parameters<typeof settings>[0];
   type KindLabel = Parameters<typeof kinds>[0];
@@ -93,6 +128,13 @@ export async function auditLookups(collegeId: string): Promise<Lookups> {
       calendarKinds.has(kind as CalendarKind)
         ? calendarKinds(kind as CalendarKind)
         : undefined,
+    item: {
+      axis: item.axis,
+      kind: item.kind,
+      appliesTo: worded(planItemInput.shape.appliesTo, item.appliesTo),
+      due: worded(planItemInput.shape.due, item.due),
+      evidence: worded(planItemInput.shape.evidence, item.evidence),
+    },
     college: college?.name ?? "",
     labels: (labels) => roleLabel(labels, language),
     dateTime: (iso) =>

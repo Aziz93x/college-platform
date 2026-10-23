@@ -73,13 +73,42 @@ test("the admin narrows the log to a person, an action and today, and opens an e
   await expect(page).toHaveURL("/audit");
 });
 
-test("a search that finds no one shows the empty log, with a way back to all of it", async ({
+test("the framework's and the plans' items read in words, each event naming its item first (UX review 2)", async ({
+  page,
+}) => {
+  // The demo's own events, by the vice-dean who drafts the framework and the head of Electrical,
+  // whose plan it seeds.
+  for (const [action, person] of [
+    ["frameworkItem.create", demoAccounts.viceDean],
+    ["frameworkItem.update", demoAccounts.viceDean],
+    ["planItem.create", demoAccounts.head],
+    ["planItem.update", demoAccounts.head],
+  ] as const) {
+    await page.goto(
+      `/audit?${new URLSearchParams({ action, q: person.email })}`,
+    );
+    const rows = events(page);
+    await expect(rows.first()).toContainText("«");
+    // What changed is in each row while it is closed too, ahead of the address and the device: no
+    // JSON, no id, no key in Latin letters.
+    const changes = rows.locator("dl:first-of-type");
+    await expect(changes.first()).toBeAttached();
+    for (const text of await changes.allTextContents()) {
+      expect(text, action).not.toMatch(
+        /[{}]|[0-9a-f]{8}-[0-9a-f]{4}-|\b[a-z]+[A-Z][A-Za-z]*\b|\b[a-z]+_[a-z_]+\b/,
+      );
+    }
+  }
+});
+
+test("a search that finds no one says so in the list's place, without the empty log's art, with a way back to all of it (UX review 2)", async ({
   page,
 }) => {
   await page.goto(`/audit?${new URLSearchParams({ q: "zzzz" })}`);
+  await expect(page.getByText(audit.empty.filtered)).toBeVisible();
   await expect(
     page.getByRole("heading", { name: audit.empty.title }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page
     .getByRole("main")
     .getByRole("link", { name: audit.filters.clear })
