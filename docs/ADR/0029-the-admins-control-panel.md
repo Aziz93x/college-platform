@@ -19,15 +19,15 @@ The owner chose all four on 23 October 2026, no viewing the app as someone else,
 
 1. **Three keys**, which the system role holds at once, as it holds every key in code; the roles grid gives them to others:
    - `system.manage` (platform, two-factor): the system page, re-running a failed pass, and signing everyone else out;
-   - `accounts.sessions` (organization, two-factor): a person's sessions, signing them out, and requiring a new password at their next sign-in. Held in a department, it reaches that department's people, as `accounts.resetPassword` does;
+   - `accounts.sessions` (organization, two-factor): a person's sessions, signing them out, and requiring a new password at their next request. Held in a department, it reaches that department's people, as `accounts.resetPassword` does;
    - `texts.manage` (platform, two-factor): the platform's words.
-2. **The console, `/console`**, the first page of the administration group, for whoever holds a key of that group across the college. It shows only what the viewer's keys open:
-   - the college at a glance: its people by account state, its departments and roles, and the term on view;
-   - what needs attention, each linked to its page: locked accounts, people with no role, a failed pass, a worker not seen for three minutes, a Rayat report waiting to be applied;
+2. **The console, `/console`**, the first page of the administration group, for whoever holds a key of that group across the college; a head, who holds the people's keys in a department, does not see it. It shows only what the viewer's keys open:
+   - what needs attention, each linked to its page: locked accounts, people with no role, the database or the job queue down, a worker that never started or has not beat for three minutes, and the open terms whose latest pass failed;
+   - the college at a glance: its people by account state, its departments in use, and its roles;
    - the latest changes from the audit log;
-   - a tile for each administration page.
+   - a tile for each page of the administration the viewer opens.
 
-   The system admin's page order puts it after Today, so their Today and their phone's second tab lead there. Step 23 keeps it as their home.
+   It comes right after Today in the default navigation, so the admin's Today and their phone's second tab lead there; no role's page order needed changing. Step 23 keeps it as their home.
 3. **The system page, `/system`:**
    - checks: the database answers and how long it took, the job queue is installed, the worker beat within three minutes, the database's size, the version, and how long the app has run;
    - the worker's heartbeat job writes the time of each beat to `worker_heartbeats`, which the page reads;
@@ -38,11 +38,11 @@ The owner chose all four on 23 October 2026, no viewing the app as someone else,
 4. **Sessions, on a person's page:**
    - each session's device and browser, read from its user agent, its address, when it signed in, when it was last seen, and whether it is remembered;
    - signing out one session or all of them, and requiring a new password, which the shell asks for on the person's next request;
-   - the viewer's own session is marked, and they end it by signing out.
+   - one's own sessions are not listed: the viewer signs out, or changes their password on the profile.
 
    The events are `session.revoke`, `session.revokeAll`, `account.requirePasswordChange` and, from the system page, `session.revokeEveryone`.
 5. **The platform's words, `/texts`:**
-   - every message of `messages/ar.json` by its key, with the college's wording where it changed; a search by key or words, and a filter for the changed ones;
+   - the texts the college changed, with who changed each and when; and a search over every message of `messages/ar.json` by its words, its default's words or its key, the first thirty shown. The design catalog's sample lists are not texts;
    - a change is stored per college in `text_overrides`. next-intl's request configuration lays the college's changes over the catalog, read once per request, so every page and client component shows them;
    - a change must parse as an ICU message and keep the default's arguments (the names in braces, and each plural's and select's own) and tags; otherwise it is refused with the reason;
    - "reset to default" deletes the change. A change whose key a release removed is ignored;
@@ -54,4 +54,4 @@ The owner chose all four on 23 October 2026, no viewing the app as someone else,
 - The admin's home exists before Step 23, which keeps it and adds the readiness board to it (Step 22).
 - A college's wording survives releases while its key stays. A release that renames a key leaves the old wording unused, and the editor shows the new key with the default.
 - The worker writes one row a minute, and the app reads it only on the system page and the console.
-- Migrations: the system role's page order, `worker_heartbeats`, `text_overrides`, and `admin` as a pass's reason.
+- Migration `0027`: `worker_heartbeats`, `text_overrides`, and `admin` as a pass's reason.
