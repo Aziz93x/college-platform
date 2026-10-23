@@ -335,6 +335,7 @@
     },
     "stepper": {
       "label": "عدد الشعب",
+      "full": "عدد الشعب عند حدّه الأعلى",
       "decrease": "إنقاص",
       "increase": "زيادة",
       "value": "{count, plural, zero {لا شعب} one {شعبة واحدة} two {شعبتان} few {# شعب} many {# شعبة} other {# شعبة}}"

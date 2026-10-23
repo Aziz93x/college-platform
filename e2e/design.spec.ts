@@ -4,6 +4,7 @@ import { expectIdentityLoaded, identityImages } from "./identity-assets";
 import { settled } from "./screens/settled";
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { valueOnTop } from "./support/stepper.ts";
 import { expect, test } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -386,6 +387,24 @@ test("the catalog never scrolls sideways on a 320 px phone", async ({
       ),
     )
     .toBe(0);
+});
+
+test("a stepper shows its whole number at either bound", async ({ page }) => {
+  const stepper = (name: string) =>
+    page.getByRole("group", { name, exact: true });
+  // At its upper bound, only the button that lowers it is left.
+  const full = stepper(design.stepper.full);
+  await expect(full.getByRole("button")).toHaveCount(1);
+  await expect.poll(() => valueOnTop(full)).toBe(true);
+  // Stepped down to its lower bound, the other button leaves.
+  const sections = stepper(design.stepper.label);
+  const fewer = sections.getByRole("button", {
+    name: design.stepper.decrease,
+  });
+  await fewer.click();
+  await fewer.click();
+  await expect(fewer).toHaveCount(0);
+  await expect.poll(() => valueOnTop(sections)).toBe(true);
 });
 
 test("a progress bar exposes its value", async ({ page }) => {

@@ -25,6 +25,13 @@ const t = (message: string, values: Record<string, string | number>) =>
   );
 const mark = (title: string, week: number) =>
   t(text.grid.mark, { title, week });
+// How far the page scrolls sideways.
+const sideways = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
 
 // A term of the test's own, a draft that its head prepares (Step 19), so the desktop and the phone,
 // side by side, each have theirs; and the test's account, head of General Studies.
@@ -151,6 +158,46 @@ test("the head of Electrical sees the plan's draft by weeks, the framework's ite
   if (hasTouch) expect(await smallTargets(page.locator("main"))).toEqual([]);
 });
 
+test("on a tablet and a laptop, the plan's grid keeps its week row and its selection's bar in view, and the page never scrolls sideways (UX review 2)", async ({
+  browser,
+  isMobile,
+}) => {
+  test.skip(isMobile, "The grid is for wide screens.");
+  const page = await signedIn(
+    browser,
+    { identifier: demoAccounts.head.employeeNumber, password: demo.password },
+    Buffer.from(demo.totpSecret),
+  );
+  for (const width of [768, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/plan");
+    const grid = page.getByRole("table", { name: text.grid.label });
+    await expect(grid).toBeVisible();
+    expect(await sideways(page)).toBe(0);
+    // Scrolled to its last row, and the page with it as far as the grid's foot.
+    await page
+      .getByRole("region", { name: text.grid.label })
+      .evaluate((frame) => {
+        frame.scrollTop = frame.scrollHeight;
+        frame.scrollIntoView({ block: "end" });
+      });
+    const week = grid.getByRole("columnheader", {
+      name: t(text.grid.week, { week: 1 }),
+      exact: true,
+    });
+    await expect(week).toBeInViewport();
+    const header = await page.getByRole("banner").boundingBox();
+    expect((await week.boundingBox())?.y).toBeGreaterThanOrEqual(
+      (header?.y ?? 0) + (header?.height ?? 0) - 1,
+    );
+    // The last item chosen, the bar that acts on it is in view whole.
+    await grid.getByRole("checkbox").last().click();
+    await expect(
+      page.getByRole("toolbar", { name: text.selection.label }),
+    ).toBeInViewport({ ratio: 1 });
+  }
+});
+
 test(
   "a head starts their department's plan in the next term while it is a draft, fills it from the sheet, moves its items by week, and publishes a version that changes no more (Step 19)",
   DATABASE,
@@ -178,6 +225,12 @@ test(
       // Two items in one go: the first for the head themself, by name, then the next.
       await page.getByRole("button", { name: text.add }).click();
       const sheet = page.getByRole("dialog", { name: text.addTitle });
+      // Save stays in reach under the sheet's fields (UX review 2).
+      const save = sheet.getByRole("button", {
+        name: framework.save,
+        exact: true,
+      });
+      await expect(save).toBeInViewport({ ratio: 1 });
       await sheet.getByLabel(framework.fields.title).fill("محضر لجنة الجودة");
       await choose(
         page,
@@ -194,6 +247,7 @@ test(
       // Where it lands in the term, as the toast says it.
       await expect(page.getByText("يقع في الأسبوع 1.")).toBeVisible();
       await expect(sheet.getByLabel(framework.fields.title)).toHaveValue("");
+      await expect(save).toBeInViewport({ ratio: 1 });
       await sheet
         .getByLabel(framework.fields.title)
         .fill("تقرير الأسبوع الثالث");
@@ -209,9 +263,7 @@ test(
           .first()
           .click();
       }
-      await sheet
-        .getByRole("button", { name: framework.save, exact: true })
-        .click();
+      await save.click();
       await expect(sheet).toBeHidden();
 
       if (!hasTouch) {
@@ -223,10 +275,14 @@ test(
         await expect(
           grid.getByRole("button", { name: mark("محضر لجنة الجودة", 2) }),
         ).toBeFocused();
-        // And by dragging it along its row, to the fifth week.
+        // And by dragging it along its row, to the fifth week, mid-screen, clear of the saved
+        // item's toast at the screen's foot.
         const row = grid
           .getByRole("row")
           .filter({ hasText: "تقرير الأسبوع الثالث" });
+        await row.evaluate((element) =>
+          element.scrollIntoView({ block: "center" }),
+        );
         await grid
           .getByRole("button", { name: mark("تقرير الأسبوع الثالث", 3) })
           .dragTo(row.getByRole("cell").nth(4));

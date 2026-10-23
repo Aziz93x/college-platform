@@ -410,7 +410,9 @@ export function ItemSheet({
             {shown}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* At the sheet's foot, under all its fields, so Save is in reach as the sheet opens and
+            after each "save and add another" (UX review 2). */}
+        <div className="sticky -bottom-6 z-10 -mx-4 -mb-8 flex flex-wrap items-center gap-2 border-t bg-background px-4 pt-3 pb-6">
           <ActionSwapButton
             type="submit"
             disabled={saving}

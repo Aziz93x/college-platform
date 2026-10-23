@@ -132,7 +132,7 @@ export function TermForm({
       }}
       className="divide-y rounded-xl border bg-card shadow-xs"
     >
-      <div className="grid gap-5 px-5 py-5 sm:px-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 px-5 py-5 sm:px-6 lg:grid-cols-2">
         <div className="lg:col-span-2 lg:max-w-xl">
           <Input
             label={t("name")}

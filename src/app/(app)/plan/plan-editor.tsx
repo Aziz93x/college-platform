@@ -406,11 +406,31 @@ export function PlanEditor({
           </p>
         ) : null}
 
+        <div className="hidden border-t md:block">
+          <PlanGrid
+            items={items}
+            framework={framework}
+            weeks={weeks}
+            periods={periods}
+            editable={changes}
+            selected={selected}
+            busy={busy}
+            onSelect={setSelected}
+            onMove={move}
+            onEdit={(item) => {
+              setError(undefined);
+              setEditing(item);
+            }}
+            onRemove={(item) => remove([item.id])}
+          />
+        </div>
         {changes && selected.size > 0 ? (
+          // At the screen's foot while items are chosen, above the tab bar and over the grid's room
+          // for it, as the role grid's Save is (UX review 2).
           <div
             role="toolbar"
             aria-label={t("selection.label")}
-            className="hidden flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-2.5 sm:px-6 md:flex"
+            className="sticky bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-20 hidden flex-wrap items-center gap-2 rounded-b-xl border-t bg-card px-5 py-3 shadow-sm sm:px-6 md:flex lg:bottom-4"
           >
             <span className="font-medium text-sm">
               {t("selection.count", { count: selected.size })}
@@ -457,24 +477,6 @@ export function PlanEditor({
           </div>
         ) : null}
 
-        <div className="hidden border-t md:block">
-          <PlanGrid
-            items={items}
-            framework={framework}
-            weeks={weeks}
-            periods={periods}
-            editable={changes}
-            selected={selected}
-            busy={busy}
-            onSelect={setSelected}
-            onMove={move}
-            onEdit={(item) => {
-              setError(undefined);
-              setEditing(item);
-            }}
-            onRemove={(item) => remove([item.id])}
-          />
-        </div>
         <div className="border-t md:hidden">
           <PlanList
             items={items}

@@ -140,7 +140,7 @@ export function ExamPeriods({
   };
 
   const stepper = (row: string, period: ExamPeriod, which: "from" | "to") => (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <span id={`${row}-${which}`} className="px-1 font-medium text-sm">
         {t(which)}
       </span>

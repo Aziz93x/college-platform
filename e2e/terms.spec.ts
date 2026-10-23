@@ -13,6 +13,7 @@ import { type TestAccount, test } from "./support/accounts.ts";
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 import { signedIn } from "./support/pages.ts";
+import { valueOnTop } from "./support/stepper.ts";
 import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -356,6 +357,57 @@ test(
     }
   },
 );
+
+// How far the page scrolls sideways: nothing on a phone.
+const sideways = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+
+test.describe("the admin", () => {
+  test.use({ storageState: STORAGE.admin });
+
+  test("reads an exam period's weeks whole where its stepper is at a bound, and on a phone at 200% text neither term page scrolls sideways (UX review 2)", async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto("/today");
+    await page
+      .locator("header")
+      .getByRole("button", {
+        name: new RegExp(
+          `${shell("term.open", { name: ".+" })}|${shell("term.openWithWeek", { name: ".+", week: ".+" })}`,
+        ),
+      })
+      .click();
+    await page.getByRole("link", { name: shell("term.calendar") }).click();
+    const periods = page.getByRole("region", { name: text.periods.title });
+    // The demo's theoretical final ends in the term's last week, and its practical final is one
+    // week long, so its first week can go no later.
+    const [, , practical, theoretical] = examPeriodTypes;
+    for (const [type, which] of [
+      [theoretical.name, "to"],
+      [practical.name, "from"],
+    ] as const) {
+      const stepper = periods.getByRole("group", {
+        name: `${type} ${text.periods[which]}`,
+      });
+      await expect(stepper.getByRole("button")).toHaveCount(1);
+      await expect.poll(() => valueOnTop(stepper)).toBe(true);
+    }
+    if (!isMobile) return;
+
+    // The phone's text at 200%, which enlarges the steppers with it.
+    for (const path of [new URL(page.url()).pathname, "/terms/new"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await page.addStyleTag({ content: "html { font-size: 200% }" });
+      await expect.poll(() => sideways(page)).toBe(0);
+    }
+  });
+});
 
 test.describe("a trainer", () => {
   test.use({ storageState: STORAGE.trainer });

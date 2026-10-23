@@ -204,12 +204,18 @@ export function PlanGrid({
     choosable.length > 0 && choosable.every(({ id }) => selected.has(id));
 
   return (
-    // Focusable, so that a keyboard scrolls the weeks of a plan it cannot change.
+    // Focusable, so that a keyboard scrolls the weeks of a plan it cannot change. It scrolls in a
+    // frame no taller than the screen between the header and the tab bar, so its week row and its
+    // items stay in view (UX review 2): positioned, so the weeks' words for screen readers scroll
+    // with it, and with room at its foot for the selection's bar, which floats there.
     <section
       aria-label={t("grid.label")}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region is reached by keyboard
       tabIndex={0}
-      className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className={cn(
+        "relative isolate max-h-[calc(100dvh-10rem-1px-env(safe-area-inset-bottom))] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset lg:max-h-[calc(100dvh-4rem-1px)]",
+        editable && selected.size > 0 && "pb-24",
+      )}
     >
       <table className="w-full border-separate border-spacing-0 text-sm">
         <caption className="sr-only">{t("grid.label")}</caption>
@@ -217,7 +223,7 @@ export function PlanGrid({
           <tr>
             <th
               scope="col"
-              className="sticky start-0 z-10 border-b bg-card px-3 py-2 text-start font-medium text-muted-foreground text-xs"
+              className="sticky start-0 top-0 z-30 border-b bg-card px-3 py-2 text-start font-medium text-muted-foreground text-xs"
             >
               <div className="flex items-center gap-2">
                 {editable && choosable.length > 0 ? (
@@ -243,8 +249,10 @@ export function PlanGrid({
                   scope="col"
                   title={period?.name}
                   className={cn(
-                    "border-s border-b px-0 py-2 text-center font-medium text-muted-foreground text-xs tabular-nums",
-                    period && "bg-secondary/10 text-foreground",
+                    "sticky top-0 z-20 border-s border-b bg-card px-0 py-2 text-center font-medium text-muted-foreground text-xs tabular-nums",
+                    // The period's tint over the card, opaque, so no row shows through.
+                    period &&
+                      "bg-linear-to-b from-secondary/10 to-secondary/10 text-foreground",
                   )}
                 >
                   <span aria-hidden>{format.number(week)}</span>
