@@ -11,7 +11,6 @@ import {
   calendarOf,
   calendarSettings,
   dueDay,
-  eventWeeks,
   findTerm,
   termWeeks,
   weekReached,
@@ -57,7 +56,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   if (!term) return undefined;
   const calendar = calendarOf(term, term.events, settings, term.breaks);
   const weeks = termWeeks(calendar);
-  const shape = { weeks: term.weeks, events: eventWeeks(weeks, term.events) };
+  const shape = { weeks: term.weeks, periods: term.periods };
 
   const items = (published?.items ?? []).map((item) => ({
     origin: item.origin,

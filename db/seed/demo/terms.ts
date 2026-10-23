@@ -9,12 +9,14 @@ import { listDepartments } from "../../../src/modules/org/index.ts";
 import { getSetting, weekdays } from "../../../src/modules/settings/index.ts";
 import {
   activateTerm,
+  activeTerm,
   addCalendarEvent,
   type CalendarEventInput,
   calendarOf,
   calendarSettings,
   createTerm,
   holidaysFrom,
+  saveExamPeriods,
   termEndsOn,
   terms,
   termWeeks,
@@ -29,11 +31,11 @@ import { deviceOf } from "./device.ts";
 
 // The demo college's active term (Step 13): 18 weeks from the first day of a week, so that today
 // falls in week N (seed:demo --week, 9 by default), counted past the college's holidays that fall
-// in it. Its calendar holds a meeting to open the term, the midterm week, an extra holiday as the
-// technical colleges' calendars give, National Day where it falls in the term, the
-// final exams over the last two weeks and the grades due on the last working day. The vice-dean
-// enters it all, in the log. One trainer of Electrical is the department's secretary for this term
-// only, the role a term-limited membership gives. Written once, while the college has no term.
+// in it. Its calendar holds a meeting to open the term, an extra holiday as the technical colleges'
+// calendars give, National Day where it falls in the term, and the grades due on the last working
+// day. The vice-dean enters it all, in the log. One trainer of Electrical is the department's
+// secretary for this term only, the role a term-limited membership gives. Written once, while the
+// college has no term.
 
 export const DEMO_TERM_WEEKS = 18;
 
@@ -133,22 +135,10 @@ export async function seedDemoTerms(
       endsOn: first(1),
     },
     {
-      kind: "exam",
-      title: "اختبارات منتصف الفصل",
-      startsOn: first(8),
-      endsOn: lastWorking(first(8)),
-    },
-    {
       kind: "holiday",
       title: "إجازة إضافية",
       startsOn: first(11),
       endsOn: first(11),
-    },
-    {
-      kind: "exam",
-      title: "الاختبارات النهائية",
-      startsOn: first(17),
-      endsOn: lastWorking(first(18)),
     },
     {
       kind: "gradeDeadline",
@@ -249,4 +239,43 @@ export async function seedDemoTerms(
     { collegeId, actorId: giver, ...(await deviceOf(db, collegeId, giver)) },
     db,
   );
+}
+
+// The demo term's exam periods as the owner's canvas sets them (21 October 2026): the first
+// periodic exams in weeks 5 and 6, the second in weeks 11 and 12, the practical final in week 16 and
+// the theoretical final in weeks 17 and 18, by the base seed's types. The vice-dean sets them, in
+// the log. Written once, while the active term has none, a demo term made before them included.
+export const DEMO_EXAM_PERIODS = [
+  { type: "first-periodic", from: 5, to: 6 },
+  { type: "second-periodic", from: 11, to: 12 },
+  { type: "practical-final", from: 16, to: 16 },
+  { type: "theoretical-final", from: 17, to: 18 },
+];
+
+export async function seedDemoExamPeriods(
+  { db }: { db: Db },
+  collegeId: string,
+) {
+  const term = await activeTerm(collegeId, db);
+  if (!term || term.periods.length > 0) return;
+  const [viceDean] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, demoAccounts.viceDean.email));
+  if (!viceDean) throw new Error("seed:demo: the vice-dean is missing");
+  const saved = await saveExamPeriods(
+    term.id,
+    DEMO_EXAM_PERIODS,
+    {
+      collegeId,
+      actorId: viceDean.id,
+      ...(await deviceOf(db, collegeId, viceDean.id)),
+    },
+    db,
+  );
+  if (saved.status !== "saved") {
+    throw new Error(
+      `seed:demo: the exam periods were not saved (${saved.status})`,
+    );
+  }
 }

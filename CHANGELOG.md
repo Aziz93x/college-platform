@@ -4,6 +4,27 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### The owner's notes of 21 October 2026: exam periods by week number (ADR-0026)
+
+- The college's types of exam period are a catalog in data. The base seed gives each college the four of the owner's canvas, each with its name and short name: the first and second periodic exams, and the practical and theoretical finals. No screen changes them yet.
+- The vice-dean sets each term's exam periods by week number on the term's page: a row for each type, with a stepper for its first week and one for its last, its days beside them, all saved at once and recorded as `examPeriods.update`.
+  - A period past the term's last week, or two in one week, is an error on the screen as the vice-dean steps, and neither is saved.
+  - A shortened term leaves its periods where they were, and is not activated while one of them is past its end.
+  - The wizard copies the periods into the next term in the same weeks.
+  - The term's weeks name the periods they hold, and everyone who reads the term sees them.
+- An exam is no longer a dated event of the calendar: migration `0022` made each one already there an event of the college's own, with its title and days.
+- The rule "after each day of a kind" gives way to the anchored rule: before or after each exam period of the types it names, by so many weeks, due on the week's last working day (Thursday here).
+  - The item sheet chooses the types, before or after, and the weeks; a new rule starts a week before every period, as the canvas does.
+  - An item's services take only the college's types.
+  - Migration `0022` moved each rule to "after each exam period" by its weeks.
+- The preview and the engine count a rule's weeks from the term's periods, and `eventWeeks()` goes. A period moved moves its tasks not started, each the same task, and saving the periods queues a pass (cause `periods`).
+- `seed:demo` gives the demo term the canvas's periods, weeks 5–6, 11–12, 16 and 17–18, with its exam copy the week before each and its grade analysis the week after: 692 tasks in 0.29 s, 116 of them exam copies and 96 grade analyses. A demo term made before this change takes the periods on the next run.
+- Tests:
+  - unit: the periods' errors, the anchored rule's weeks and shape, the item sheet's draft, and the property test's terms and rules;
+  - on a real database: periods saved, refused and recorded; a shortened term refused activation until its period moves; the wizard's copy; the terms' list in four reads; migration `0022` on a database of `0021`; the catalog seeded once; a moved period's tasks;
+  - end to end on the desktop and the iPhone: the vice-dean steps two periods, sees them overlap, fixes and saves them, and the next term takes them; the anchored rule in the item sheet.
+- Not built, for the owner to ask for: an editor of the types; a weekday of a rule's own; the grade deadline anchored to the periods and the term's rhythm and months, which the canvas also shows. The head's preview of where each deadline lands comes with Step 19.
+
 ### Step 20: the generation engine
 
 - Built beside Step 18, in a second session, at the owner's choice (ADR-0025), and brought onto Step 18 and Audit 6 before it merged. The term's latest published framework is the engine's only source until Step 19 adds the plan.

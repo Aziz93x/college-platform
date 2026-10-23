@@ -11,6 +11,7 @@ import type {
   TermInput,
   TermStatus,
 } from "../domain/inputs.ts";
+import { periodProblems } from "../domain/periods.ts";
 import {
   calendarOf,
   type Day,
@@ -21,7 +22,8 @@ import {
   workingDays,
 } from "../domain/weeks.ts";
 import { holidaysFrom } from "./holidays.ts";
-import { calendarEvents, terms } from "./schema.ts";
+import { periodNames, periodsOf } from "./periods.ts";
+import { calendarEvents, examPeriods, terms } from "./schema.ts";
 
 // Who changes a term, for the audit event. The caller has authorized them.
 type Change = {
@@ -143,7 +145,7 @@ export async function listTerms(collegeId: string, db: Db = getDb()) {
     .orderBy(desc(terms.startsOn), desc(terms.id));
 }
 
-// The college's terms, the latest first, each with its calendar as findTerm() gives it: three reads
+// The college's terms, the latest first, each with its calendar as findTerm() gives it: four reads
 // whatever the number of terms (lead review C).
 export async function listTermCalendars(collegeId: string, db: Db = getDb()) {
   const listed = await listTerms(collegeId, db);
@@ -152,18 +154,15 @@ export async function listTermCalendars(collegeId: string, db: Db = getDb()) {
     (first, term) => (term.startsOn < first ? term.startsOn : first),
     listed[0].startsOn,
   );
-  const [events, breaks] = await Promise.all([
+  const ids = listed.map((term) => term.id);
+  const [events, breaks, periods] = await Promise.all([
     db
       .select({ termId: calendarEvents.termId, ...eventColumns })
       .from(calendarEvents)
-      .where(
-        inArray(
-          calendarEvents.termId,
-          listed.map((term) => term.id),
-        ),
-      )
+      .where(inArray(calendarEvents.termId, ids))
       .orderBy(asc(calendarEvents.startsOn), asc(calendarEvents.endsOn)),
     holidaysFrom(collegeId, earliest, db),
+    periodsOf(ids, db),
   ]);
   return listed.map((term) => ({
     ...term,
@@ -171,6 +170,9 @@ export async function listTermCalendars(collegeId: string, db: Db = getDb()) {
       .filter((event) => event.termId === term.id)
       .map(({ termId: _, ...event }) => event),
     breaks: breaks.filter((range) => range.endsOn >= term.startsOn),
+    periods: periods
+      .filter((period) => period.termId === term.id)
+      .map(({ termId: _, ...period }) => period),
   }));
 }
 
@@ -182,12 +184,16 @@ async function eventsOf(termId: string, db: Db | Tx) {
     .orderBy(asc(calendarEvents.startsOn), asc(calendarEvents.endsOn));
 }
 
-// A term with its calendar's events in order, and the college's breaks it can meet (ADR-0018).
+// A term with its calendar's events in order, the college's breaks it can meet (ADR-0018), and its
+// exam periods by week number (the owner's notes, 21 October 2026).
 async function withCalendar(term: Term, collegeId: string, db: Db | Tx) {
   return {
     ...term,
     events: await eventsOf(term.id, db),
     breaks: await holidaysFrom(collegeId, term.startsOn, db),
+    periods: (await periodsOf([term.id], db)).map(
+      ({ termId: _, ...period }) => period,
+    ),
   };
 }
 
@@ -328,19 +334,37 @@ export async function updateTerm(
 }
 
 // Makes a draft the college's active term, closing the one active before it in the same
-// transaction, and records term.close for that one and term.activate for this one.
+// transaction, and records term.close for that one and term.activate for this one. A term with an
+// exam period past its last week, or two that share a week, is not activated: the refusal names
+// them (the owner's notes, 21 October 2026).
 export async function activateTerm(
   id: string,
   change: Change,
   db: Db = getDb(),
 ): Promise<
-  { status: "notFound" | "notDraft" } | { status: "activated"; closed?: string }
+  | { status: "notFound" | "notDraft" }
+  | { status: "periodProblems"; periods: string[] }
+  | { status: "activated"; closed?: string }
 > {
   return db.transaction(async (tx) => {
     await lockCollege(tx, change.collegeId);
     const current = await findTerm(change.collegeId, id, tx);
     if (!current) return { status: "notFound" };
     if (current.status !== "draft") return { status: "notDraft" };
+    const { pastEnd, overlaps } = periodProblems(
+      current.periods,
+      current.weeks,
+    );
+    if (pastEnd.length + overlaps.length > 0) {
+      return {
+        status: "periodProblems",
+        periods: await periodNames(
+          change.collegeId,
+          [...pastEnd, ...overlaps.flat()],
+          tx,
+        ),
+      };
+    }
     const [previous] = await tx
       .update(terms)
       .set({ status: "closed", updatedAt: sql`now()` })
@@ -516,11 +540,12 @@ function samePlace(from: TermCalendar, to: TermCalendar, day: Day) {
   return there ? addDays(there.startsOn, offset) : undefined;
 }
 
-// The "open next term" wizard (Step 13): a draft from another term, with its exam weeks, deadlines
-// and events of the college's own at the same places in its weeks, counted past the college's Eid
-// breaks that fall in it (ADR-0018). Its own holidays stay behind: they are days of the year. Records
-// term.create with the term it came from and how many events it took. Steps 15, 18 and 19 add their
-// parts to the copy as drafts.
+// The "open next term" wizard (Step 13): a draft from another term, with its deadlines and events
+// of the college's own at the same places in its weeks, counted past the college's Eid breaks that
+// fall in it (ADR-0018), and its exam periods in the same weeks, which the vice-dean then moves (the
+// owner's notes, 21 October 2026). Its own holidays stay behind: they are days of the year. Records
+// term.create with the term it came from and how many events and periods it took. Steps 15, 18 and
+// 19 add their parts to the copy as drafts.
 export async function openNextTerm(
   fromId: string,
   input: TermInput,
@@ -532,7 +557,7 @@ export async function openNextTerm(
   also?: (tx: Tx, fromId: string, toId: string) => Promise<unknown>,
 ): Promise<
   | { status: "notFound" | "nameTaken" }
-  | { status: "created"; id: string; copied: number }
+  | { status: "created"; id: string; copied: number; periods: number }
 > {
   return db.transaction(async (tx) => {
     await lockCollege(tx, change.collegeId);
@@ -569,10 +594,31 @@ export async function openNextTerm(
         })),
       );
     }
+    if (source.periods.length > 0) {
+      await tx.insert(examPeriods).values(
+        source.periods.map(({ type, from, to }) => ({
+          collegeId: change.collegeId,
+          termId: id,
+          type,
+          fromWeek: from,
+          toWeek: to,
+        })),
+      );
+    }
     await audit(tx, change, "term.create", id, {
-      to: { ...input, from: source.name, copied: copies.length },
+      to: {
+        ...input,
+        from: source.name,
+        copied: copies.length,
+        periods: source.periods.length,
+      },
     });
     await also?.(tx, fromId, id);
-    return { status: "created", id, copied: copies.length };
+    return {
+      status: "created",
+      id,
+      copied: copies.length,
+      periods: source.periods.length,
+    };
   });
 }

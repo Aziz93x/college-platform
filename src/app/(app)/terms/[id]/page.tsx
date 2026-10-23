@@ -20,7 +20,9 @@ import {
   calendarOf,
   calendarSettings,
   type DayRange,
+  dueDay,
   findTerm,
+  listExamPeriodTypes,
   type TermCalendar,
   termEndsOn,
   termLimits,
@@ -34,6 +36,7 @@ import { dayWords } from "../days.ts";
 import { STATUS_BADGE } from "../status.ts";
 import { TermForm } from "../term-form.tsx";
 import { CalendarEvents } from "./calendar-events.tsx";
+import { ExamPeriods } from "./exam-periods.tsx";
 import { TermStatus } from "./term-status.tsx";
 import { TermWeeks } from "./term-weeks.tsx";
 
@@ -79,9 +82,9 @@ function eventWeeks(calendar: TermCalendar, event: DayRange) {
   };
 }
 
-// One term: its status and days, the vice-dean's form and actions, its calendar, its weeks with
-// this one marked, and its history for whoever may read the log. Others see an active or closed
-// term's calendar and weeks only.
+// One term: its status and days, the vice-dean's form and actions, its calendar and exam periods,
+// its weeks with this one marked, and its history for whoever may read the log. Others see an
+// active or closed term's calendar, periods and weeks only.
 export default async function TermPage({
   params,
   searchParams,
@@ -91,7 +94,7 @@ export default async function TermPage({
   if (!term) notFound();
 
   const scope = { collegeId: viewer.collegeId };
-  const [t, ui, messages, locale, timeZone, settings, hijri, active] =
+  const [t, ui, messages, locale, timeZone, settings, hijri, types, active] =
     await Promise.all([
       getTranslations("terms"),
       getTranslations("ui"),
@@ -100,13 +103,23 @@ export default async function TermPage({
       getTimeZone(),
       calendarSettings(viewer.collegeId),
       getSetting("locale.hijri", scope),
+      listExamPeriodTypes(viewer.collegeId),
       // The active term an activation would close, by name.
       manage && term.status === "draft"
         ? activeTerm(viewer.collegeId)
         : undefined,
     ]);
   const calendar = calendarOf(term, term.events, settings, term.breaks);
+  const weeks = termWeeks(calendar);
   const lastDay = termEndsOn(calendar);
+  // Each exam period's name in the weeks it takes.
+  const typeName = new Map(types.map(({ code, name }) => [code, name]));
+  const periodsIn = (number: number | null) =>
+    term.periods
+      .filter(
+        ({ from, to }) => number !== null && from <= number && number <= to,
+      )
+      .map(({ type }) => typeName.get(type) ?? type);
   // The college's Eid breaks that fall in the term (ADR-0018), with its own days.
   const overlaps = (range: DayRange, from: string, to: string) =>
     range.startsOn <= to && from <= range.endsOn;
@@ -204,10 +217,30 @@ export default async function TermPage({
                 ...eventWeeks(calendar, event),
               }))}
           />
+          <ExamPeriods
+            key={JSON.stringify(term.periods)}
+            termId={term.id}
+            editable={editable}
+            weeks={term.weeks}
+            types={types}
+            periods={term.periods}
+            days={Object.fromEntries(
+              weeks.flatMap((week) =>
+                week.number === null
+                  ? []
+                  : [
+                      [
+                        week.number,
+                        { first: week.startsOn, last: dueDay(calendar, week) },
+                      ],
+                    ],
+              ),
+            )}
+          />
         </div>
       </NextIntlClientProvider>
       <TermWeeks
-        weeks={termWeeks(calendar).map((week) => ({
+        weeks={weeks.map((week) => ({
           ...week,
           days: days.span(week.startsOn, week.endsOn),
           hijri: days.hijri?.(week.startsOn, week.endsOn),
@@ -218,6 +251,7 @@ export default async function TermPage({
             ...term.events
               .filter((event) => overlaps(event, week.startsOn, week.endsOn))
               .map(({ title }) => title),
+            ...periodsIn(week.number),
           ],
         }))}
         current={weekOf(calendar, today)?.startsOn}

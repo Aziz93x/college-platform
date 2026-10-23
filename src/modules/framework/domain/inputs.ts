@@ -47,7 +47,9 @@ export const reachesTrainers = (applies: AppliesTo): applies is TrainerReach =>
   applies.type === "eachSection" || applies.type === "eachCourse";
 
 // When an item is due: in a week of the term, every week, every so many weeks, or so many weeks
-// after each day of the term's calendar of a kind, such as each exam week.
+// before or after each exam period of the types it names, by their codes, such as the exam's
+// questions the week before each period and its analysis the week after it (the owner's notes,
+// 21 October 2026). Such a rule moves with the periods when the vice-dean changes them.
 const dueRule = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("week"),
@@ -59,8 +61,12 @@ const dueRule = z.discriminatedUnion("type", [
     every: z.int().min(2).max(frameworkLimits.weeks),
   }),
   z.object({
-    type: z.literal("afterEvent"),
-    eventKind: z.string().min(1).max(40),
+    type: z.literal("examPeriods"),
+    periodTypes: z
+      .array(z.string().min(1).max(40))
+      .min(1)
+      .refine((types) => new Set(types).size === types.length),
+    side: z.enum(["before", "after"]),
     weeks: z.int().min(0).max(frameworkLimits.weeks),
   }),
 ]);

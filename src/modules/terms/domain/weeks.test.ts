@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   dueDay,
-  eventWeeks,
   type TermCalendar,
   termEndsOn,
   termWeeks,
@@ -124,30 +123,6 @@ describe("counting every week", () => {
 
 describe("what the generation engine counts on", () => {
   const weeks = termWeeks(term);
-
-  it("gives each kind of day the numbered weeks its days end in, a day of a break the week before", () => {
-    expect(
-      eventWeeks(weeks, [
-        // The midterms, in week 8, and the finals, in week 18.
-        {
-          kind: "exam",
-          startsOn: "2026-03-01",
-          endsOn: "2026-03-05",
-        },
-        {
-          kind: "exam",
-          startsOn: "2026-06-07",
-          endsOn: "2026-06-11",
-        },
-        // A meeting during the Eid al-Fitr break counts in week 9, the last before it.
-        {
-          kind: "custom",
-          startsOn: "2026-03-20",
-          endsOn: "2026-03-20",
-        },
-      ]),
-    ).toEqual({ exam: [8, 18], custom: [9] });
-  });
 
   it("reaches no week before the term, the last one before a break during it, and the last after it", () => {
     expect(weekReached(weeks, "2026-01-10")).toBe(0);

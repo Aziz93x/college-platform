@@ -119,7 +119,9 @@ export async function addTemplate(
   return db.transaction(async (tx) => {
     const state = await termState(tx, change.collegeId, termId);
     if (state !== "open") return { status: state };
-    if (!offersItem(input, accepted)) return { status: "notOffered" };
+    if (!(await offersItem(tx, change.collegeId, input, accepted))) {
+      return { status: "notOffered" };
+    }
     const [{ last }] = await tx
       .select({ last: max(sectionTemplates.position) })
       .from(sectionTemplates)
@@ -187,7 +189,9 @@ export async function updateTemplate(
     if (canonical(before) === canonical({ ...before, ...input })) {
       return { status: "unchanged" };
     }
-    if (!offersItem(input, accepted)) return { status: "notOffered" };
+    if (!(await offersItem(tx, change.collegeId, input, accepted))) {
+      return { status: "notOffered" };
+    }
     await tx
       .update(sectionTemplates)
       .set({ ...input, updatedAt: sql`now()` })

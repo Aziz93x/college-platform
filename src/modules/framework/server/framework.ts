@@ -4,7 +4,7 @@ import { lockCollege } from "../../../platform/db/college-lock.ts";
 import { canonical } from "../../../platform/validation/text.ts";
 import { roles } from "../../access/index.ts";
 import { type AuditAction, writeAudit } from "../../audit/index.ts";
-import { calendarEventKinds, terms } from "../../terms/index.ts";
+import { listExamPeriodTypes, terms } from "../../terms/index.ts";
 import { type FrameworkItemInput, reachesTrainers } from "../domain/inputs.ts";
 import { frameworkItems, frameworks } from "./schema.ts";
 
@@ -211,16 +211,21 @@ async function draftOf(tx: Tx, collegeId: string, id: string) {
 }
 
 // Whether an item names only file types the college accepts (files.acceptedTypes, which the caller
-// reads) and, for a rule after a calendar day, a kind of day a calendar has (Audit 5). A section
-// template's service asks the same (Step 18).
-export function offersItem(
+// reads) and, for a rule anchored to exam periods, only the college's types of period (the owner's
+// notes, 21 October 2026). A section template's service asks the same (Step 18).
+export async function offersItem(
+  db: Db | Tx,
+  collegeId: string,
   input: Pick<FrameworkItemInput, "due" | "evidence">,
   accepted: readonly string[],
 ) {
-  return (
-    input.evidence.types.every((type) => accepted.includes(type)) &&
-    (input.due.type !== "afterEvent" ||
-      (calendarEventKinds as readonly string[]).includes(input.due.eventKind))
+  if (!input.evidence.types.every((type) => accepted.includes(type))) {
+    return false;
+  }
+  if (input.due.type !== "examPeriods") return true;
+  const types = await listExamPeriodTypes(collegeId, db);
+  return input.due.periodTypes.every((code) =>
+    types.some((type) => type.code === code),
   );
 }
 
@@ -232,7 +237,7 @@ async function offered(
   input: FrameworkItemInput,
   accepted: string[],
 ) {
-  if (!offersItem(input, accepted)) return false;
+  if (!(await offersItem(tx, collegeId, input, accepted))) return false;
   if (reachesTrainers(input.appliesTo)) return true;
   const [role] = await tx
     .select({ id: roles.id })

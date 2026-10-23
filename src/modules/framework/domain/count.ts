@@ -1,3 +1,4 @@
+import type { ExamPeriod } from "../../terms/index.ts";
 import type { AppliesTo, DueRule } from "./inputs.ts";
 
 // What a department holds that items reach: how many hold each role in it, its sections' trainers,
@@ -35,15 +36,14 @@ export function departmentsReached(
   return Object.values(all);
 }
 
-// What the term holds that rules count on: its numbered weeks, and for each kind of day of its
-// calendar, the last numbered week of each such day.
+// What the term holds that rules count on: its numbered weeks, and its exam periods by week number.
 export type TermShape = {
   weeks: number;
-  events: Readonly<Record<string, readonly number[]>>;
+  periods: readonly ExamPeriod[];
 };
 
-// The weeks a rule is due in the term, in order, one for each time: a task due past its last week is
-// not one of its tasks (Audit 5). The generation engine makes a task for each, so the preview counts
+// The weeks a rule is due in the term, in order, one for each time: a task due before its first week
+// or past its last is not one of its tasks (Audit 5). The generation engine makes a task for each, so the preview counts
 // these and nothing else (Step 20).
 export function dueWeeks(due: DueRule, term: TermShape): number[] {
   switch (due.type) {
@@ -56,10 +56,15 @@ export function dueWeeks(due: DueRule, term: TermShape): number[] {
         { length: Math.floor(term.weeks / due.every) },
         (_, index) => (index + 1) * due.every,
       );
-    case "afterEvent":
-      return (term.events[due.eventKind] ?? [])
-        .map((week) => week + due.weeks)
-        .filter((week) => week <= term.weeks)
+    case "examPeriods":
+      return term.periods
+        .filter((period) => due.periodTypes.includes(period.type))
+        .map((period) =>
+          due.side === "before"
+            ? period.from - due.weeks
+            : period.to + due.weeks,
+        )
+        .filter((week) => week >= 1 && week <= term.weeks)
         .sort((a, b) => a - b);
   }
 }

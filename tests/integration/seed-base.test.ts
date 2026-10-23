@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, expect, it } from "vitest";
 import {
   defaultRoles,
+  examPeriodTypes,
   portfolioAxes,
   seedBase,
   systemRole,
@@ -82,6 +83,28 @@ it("gives the college the 11 axes in 3 groups and the closing group, once, and k
   expect(
     (await pool.query("select title from axes where code = '7'")).rows,
   ).toEqual([{ title: "محور معدّل" }]);
+});
+
+it("gives the college the four types of exam period in order, once, and keeps one already there (the owner's notes, 21 October 2026)", async () => {
+  const { db, pool } = await freshDatabase();
+  await seedBase(db, college);
+  await pool.query(
+    "update exam_period_types set short_name = 'الدوري ١' where code = 'first-periodic'",
+  );
+  await seedBase(db, college);
+  expect(
+    (
+      await pool.query(
+        "select code, name, short_name from exam_period_types order by position",
+      )
+    ).rows,
+  ).toEqual(
+    examPeriodTypes.map(({ code, name, shortName }) => ({
+      code,
+      name,
+      short_name: code === "first-periodic" ? "الدوري ١" : shortName,
+    })),
+  );
 });
 
 it("gives the college Rayat's column maps, once, and keeps a map an admin changed (Step 16)", async () => {

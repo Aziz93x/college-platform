@@ -12,6 +12,7 @@ import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
+import { DEMO_EXAM_PERIODS } from "../../db/seed/demo/terms.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
 import {
   sectionCounts,
@@ -326,10 +327,12 @@ it("writes three weeks of the college's history, every event in the past and by 
       "notification.read",
       "notification.mute",
       "announcement.publish",
-      // The vice-dean's term and its calendar (Step 13).
+      // The vice-dean's term, its calendar and its exam periods (Step 13, the owner's notes of
+      // 21 October 2026).
       "term.create",
       "calendarEvent.create",
       "term.activate",
+      "examPeriods.update",
       "holiday.approve",
       // The vice-dean's framework for it, and its version 2 in the making (Step 15).
       "framework.create",
@@ -522,8 +525,10 @@ it("starts the demo term on the day that puts today in week 9, counted past the 
   expect(number).toBe(9);
   expect(term).toMatchObject({ weeks: 18, status: "active" });
   expect(new Set(term.events.map(({ kind }) => kind))).toEqual(
-    new Set(["custom", "exam", "holiday", "gradeDeadline"]),
+    new Set(["custom", "holiday", "gradeDeadline"]),
   );
+  // Its exam periods by week number, as the owner's canvas sets them (21 October 2026).
+  expect(term.periods).toEqual(DEMO_EXAM_PERIODS);
   const { rows: actors } = await pool.query(
     `select distinct u.email from audit_events e join users u on u.id::text = e.actor_id
      where e.entity_type = 'term'`,
@@ -573,9 +578,15 @@ it("approves the coming holiday, and keeps the framework's version 2 as a draft 
     `select f.version, i.due from framework_items i join frameworks f on f.id = i.framework_id
      where i.kind = 'grade_analysis' order by f.version`,
   );
+  const after = (weeks: number) => ({
+    type: "examPeriods",
+    periodTypes: DEMO_EXAM_PERIODS.map(({ type }) => type),
+    side: "after",
+    weeks,
+  });
   expect(changed).toEqual([
-    { version: 1, due: { type: "afterEvent", eventKind: "exam", weeks: 1 } },
-    { version: 2, due: { type: "afterEvent", eventKind: "exam", weeks: 2 } },
+    { version: 1, due: after(1) },
+    { version: 2, due: after(2) },
   ]);
 });
 

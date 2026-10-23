@@ -159,7 +159,7 @@ export const generationRuns = pgTable(
       .where(sql`${table.status} in ('queued', 'running')`),
     check(
       "generation_runs_reason",
-      sql`${table.reason} in ('framework', 'ss01', 'transfer', 'daily')`,
+      sql`${table.reason} in ('framework', 'ss01', 'transfer', 'periods', 'daily')`,
     ),
     check(
       "generation_runs_status",

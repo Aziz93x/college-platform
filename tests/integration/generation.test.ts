@@ -26,10 +26,9 @@ import {
 } from "../../src/modules/tasks/index.ts";
 import {
   activateTerm,
-  addCalendarEvent,
-  calendarSettings,
   closeTerm,
   createTerm,
+  saveExamPeriods,
 } from "../../src/modules/terms/index.ts";
 import { createLogger } from "../../src/platform/logging/logger.ts";
 import { startWorker } from "../../worker/start.ts";
@@ -38,10 +37,11 @@ import { publishedPreview } from "./support/preview.ts";
 import { rayatTable } from "./support/rayat-table.ts";
 
 // The generation engine on a real database (Step 20): an 18-week term from Sunday 23 August 2026
-// with its midterms in week 8 and its finals in week 18; Electrical's head and three trainers; SS01
-// with 30101 taught by the first trainer, 30102 by the second and 200109, who is not on the
-// platform, and 30103 by no one yet; and a framework of a course plan from every trainer in week 2,
-// an exam copy from each section's trainer after each exam, and the head's report every four weeks.
+// with its first periodic exams in week 8 and its theoretical finals in weeks 17 and 18; Electrical's
+// head and three trainers; SS01 with 30101 taught by the first trainer, 30102 by the second and
+// 200109, who is not on the platform, and 30103 by no one yet; and a framework of a course plan from
+// every trainer in week 2, an exam copy from each section's trainer in the last week of each of those
+// exam periods, and the head's report every four weeks.
 let database: Awaited<ReturnType<typeof createSharedTestDatabase>>;
 let collegeId: string;
 let termId: string;
@@ -51,6 +51,10 @@ const memberships: Record<string, string> = {};
 const items: Record<string, FrameworkItemInput & { id: string }> = {};
 const TERM = "الفصل التدريبي الأول 1448";
 const ELECTRICAL = "قسم التقنية الكهربائية";
+const PERIODS = [
+  { type: "first-periodic", from: 8, to: 8 },
+  { type: "theoretical-final", from: 17, to: 18 },
+];
 // Tuesdays of week 3 and week 8, at noon in Riyadh.
 const WEEK_3 = new Date("2026-09-08T09:00:00Z");
 const WEEK_8 = new Date("2026-10-13T09:00:00Z");
@@ -182,19 +186,7 @@ beforeAll(async () => {
   if (created.status !== "created") throw new Error(created.status);
   termId = created.id;
   await activateTerm(termId, by("viceDean"), database.db);
-  const settings = await calendarSettings(collegeId, database.db);
-  for (const [title, startsOn, endsOn] of [
-    ["اختبارات منتصف الفصل", "2026-10-11", "2026-10-15"],
-    ["الاختبارات النهائية", "2026-12-20", "2026-12-24"],
-  ]) {
-    await addCalendarEvent(
-      termId,
-      { kind: "exam", title, startsOn, endsOn },
-      by("viceDean"),
-      settings,
-      database.db,
-    );
-  }
+  await saveExamPeriods(termId, PERIODS, by("viceDean"), database.db);
 
   const upload = await uploadRayat(
     "ss01",
@@ -248,7 +240,12 @@ beforeAll(async () => {
       axisId: axis.id,
       kind: "exam_copy",
       appliesTo: { type: "eachSection" },
-      due: { type: "afterEvent", eventKind: "exam", weeks: 0 },
+      due: {
+        type: "examPeriods",
+        periodTypes: PERIODS.map(({ type }) => type),
+        side: "after",
+        weeks: 0,
+      },
       evidence: { ...evidence, requiresApproval: true },
       notes: "",
     },
@@ -497,6 +494,56 @@ describe("generating a term's tasks", () => {
       [12, "notStarted", true],
       [16, "notStarted", true],
     ]);
+  });
+
+  it("moves the tasks not started of a rule anchored to exam periods with the period the vice-dean moves, and never their work (the owner's notes, 21 October 2026)", async () => {
+    const copies = async () =>
+      (
+        await query(
+          `select id, section_ref as "sectionRef", place, week, due_on::text as "dueOn", status
+             from tasks where term_id = $1 and title = 'نسخة الاختبار' and occurrence = 1
+            order by section_ref, place`,
+          [termId],
+        )
+      ).map(({ id, sectionRef, place, week, dueOn, status }) => ({
+        id,
+        at: [sectionRef, place, week, dueOn, status].join(" "),
+      }));
+    const before = await copies();
+    // The first periodic a week later.
+    await expect(
+      saveExamPeriods(
+        termId,
+        [{ ...PERIODS[0], from: 9, to: 9 }, PERIODS[1]],
+        by("viceDean"),
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    expect(
+      await generateTerm(collegeId, termId, "periods", {
+        at: WEEK_8,
+        db: database.db,
+      }),
+    ).toEqual({
+      total: 9,
+      created: 0,
+      updated: 2,
+      reassigned: 0,
+      cancelled: 0,
+    });
+    // The same tasks, those not started a week later; the copy finished stays where it was.
+    expect(await copies()).toEqual([
+      { id: before[0].id, at: "30101 200101 8 2026-10-15 done" },
+      { id: before[1].id, at: "30102 200102 9 2026-10-22 notStarted" },
+      { id: before[2].id, at: "30102 200109 9 2026-10-22 notStarted" },
+    ]);
+    expect(
+      (
+        await query(
+          "select diff from audit_events where action = 'task.generate' order by created_at desc limit 1",
+        )
+      )[0].diff.to,
+    ).toMatchObject({ cause: "periods", updated: 2 });
   });
 
   it("cancels the tasks not started of someone who no longer holds the role, and keeps their started work", async () => {

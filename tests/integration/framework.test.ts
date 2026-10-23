@@ -43,7 +43,12 @@ const item = (title: string): FrameworkItemInput => ({
   axisId,
   kind: "grade_analysis",
   appliesTo: { type: "role", roleId: trainerRole },
-  due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+  due: {
+    type: "examPeriods",
+    periodTypes: ["first-periodic", "second-periodic"],
+    side: "after",
+    weeks: 1,
+  },
   evidence: {
     required: true,
     types: ["pdf", "xlsx"],
@@ -262,11 +267,19 @@ describe("a framework's versions", () => {
       [collegeId],
     );
     const base = item("ملف المقرر");
-    // A file type the college does not accept, a kind of day no calendar has, the system role, and
-    // a role of no college's.
+    // A file type the college does not accept, a type of exam period it does not have, the system
+    // role, and a role of no college's.
     for (const refused of [
       { ...base, evidence: { ...base.evidence, types: ["mp4"] } },
-      { ...base, due: { type: "afterEvent", eventKind: "trip", weeks: 1 } },
+      {
+        ...base,
+        due: {
+          type: "examPeriods",
+          periodTypes: ["first-periodic", "midterm"],
+          side: "before",
+          weeks: 1,
+        },
+      },
       { ...base, appliesTo: { type: "role", roleId: system } },
       { ...base, appliesTo: { type: "role", roleId: randomUUID() } },
     ] satisfies FrameworkItemInput[]) {
