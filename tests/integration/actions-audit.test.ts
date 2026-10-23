@@ -112,11 +112,11 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#saveExamPeriodsAction": ["examPeriods.update"],
   // The next term, a draft with what it took from the term's calendar.
   // The wizard copies the term's framework into the new term as a draft (Step 15), and each
-  // department's section templates, recorded on the department (Step 18).
+  // department's plan (Step 19).
   "(app)/terms/actions.ts#openNextTermAction": [
     "term.create",
     "framework.create",
-    "sectionTemplate.copy",
+    "plan.create",
   ],
   "(app)/terms/actions.ts#activateTermAction": ["term.activate"],
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
@@ -135,9 +135,12 @@ const writes: Record<string, string[]> = {
   "(app)/sections/actions.ts#transferSectionAction": ["sectionTransfer.create"],
   "(app)/sections/actions.ts#keepTransferAction": ["sectionTransfer.keep"],
   "(app)/sections/actions.ts#cancelTransferAction": ["sectionTransfer.cancel"],
-  "(app)/templates/actions.ts#addTemplateAction": ["sectionTemplate.create"],
-  "(app)/templates/actions.ts#updateTemplateAction": ["sectionTemplate.update"],
-  "(app)/templates/actions.ts#removeTemplateAction": ["sectionTemplate.delete"],
+  "(app)/plan/actions.ts#startPlanAction": ["plan.create"],
+  "(app)/plan/actions.ts#addPlanItemAction": ["planItem.create"],
+  "(app)/plan/actions.ts#updatePlanItemAction": ["planItem.update"],
+  "(app)/plan/actions.ts#movePlanItemsAction": ["planItem.update"],
+  "(app)/plan/actions.ts#removePlanItemsAction": ["planItem.delete"],
+  "(app)/plan/actions.ts#publishPlanAction": ["plan.publish"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -646,25 +649,34 @@ describe("every server action writes its event", () => {
       draftId: draft.id,
     });
     expect((await queued()).at(-1)).toBe("framework");
-    // Electrical's section template, added and corrected; the wizard copies it into the next term,
-    // and the term's own is then taken out (Step 18).
-    const templates = "(app)/templates/actions.ts";
+    // Electrical's plan: a draft and its item, added, corrected and moved a week, then published,
+    // which queues a pass; the wizard copies it into the next term, and the term's next version
+    // starts from it with its item taken out (Step 19).
+    const plan = "(app)/plan/actions.ts";
     const examCopy = {
       ...analysis,
       title: "Midterm exam copy",
       kind: "exam_copy",
       appliesTo: { type: "eachCourse" },
     };
-    const template = await expectWrites(`${templates}#addTemplateAction`, {
+    const started = await expectWrites(`${plan}#startPlanAction`, {
       termId: term.id,
       departmentId: created.id,
+    });
+    const item = await expectWrites(`${plan}#addPlanItemAction`, {
+      planId: started.id,
       ...examCopy,
     });
-    await expectWrites(`${templates}#updateTemplateAction`, {
-      templateId: template.id,
+    await expectWrites(`${plan}#updatePlanItemAction`, {
+      itemId: item.id,
       ...examCopy,
       due: { type: "week", week: 7 },
     });
+    await expectWrites(`${plan}#movePlanItemsAction`, {
+      moves: [{ itemId: item.id, week: 8 }],
+    });
+    await expectWrites(`${plan}#publishPlanAction`, { planId: started.id });
+    expect((await queued()).at(-1)).toBe("plan");
     await expectWrites(`${terms}#openNextTermAction`, {
       fromId: term.id,
       name: "Autumn 1448",
@@ -679,8 +691,16 @@ describe("every server action writes its event", () => {
       [version.id],
     );
     await expectWrites(`${framework}#removeItemAction`, { itemId: copy.id });
-    await expectWrites(`${templates}#removeTemplateAction`, {
-      templateId: template.id,
+    const nextPlan = await expectWrites(`${plan}#startPlanAction`, {
+      termId: term.id,
+      departmentId: created.id,
+    });
+    const [copied] = await query(
+      "select id from plan_items where plan_id = $1",
+      [nextPlan.id],
+    );
+    await expectWrites(`${plan}#removePlanItemsAction`, {
+      itemIds: [copied.id],
     });
     await expectWrites(`${terms}#activateTermAction`, { id: term.id });
     await expectWrites(`${terms}#closeTermAction`, { id: term.id });

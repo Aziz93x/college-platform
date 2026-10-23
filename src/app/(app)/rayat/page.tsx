@@ -26,7 +26,7 @@ import {
   type RayatKind,
   rayatKinds,
 } from "@/modules/rayat";
-import { viewedTerm } from "../_shell/term.ts";
+import { preparesTerms, viewedTerm } from "../_shell/term.ts";
 import { PendingButtons, RollbackButton } from "./import-buttons.tsx";
 import { UploadForm } from "./upload-form.tsx";
 
@@ -48,7 +48,7 @@ export default async function RayatPage() {
   const scope = { collegeId: viewer.collegeId };
   const [t, { term }] = await Promise.all([
     getTranslations("rayat"),
-    viewedTerm(viewer.collegeId, authorize(viewer, "term.manage", scope)),
+    viewedTerm(viewer.collegeId, preparesTerms(viewer)),
   ]);
   const header = (
     <PageHeader title={t("title")} description={t("description")} />

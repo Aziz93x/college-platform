@@ -10,12 +10,12 @@ import { seedDemoDepartments } from "./demo/departments.ts";
 import { seedDemoFramework } from "./demo/framework.ts";
 import { seedDemoHistory } from "./demo/history.ts";
 import { seedDemoNotifications } from "./demo/notifications.ts";
+import { seedDemoPlans } from "./demo/plans.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoRayat } from "./demo/rayat.ts";
 import { seedDemoSections } from "./demo/sections.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
 import { seedDemoTasks } from "./demo/tasks.ts";
-import { seedDemoTemplates } from "./demo/templates.ts";
 import {
   DEMO_TERM_WEEKS,
   seedDemoExamPeriods,
@@ -85,7 +85,7 @@ try {
     await seedDemoFramework(ctx, collegeId);
     const rayat = await seedDemoRayat(ctx, collegeId);
     await seedDemoSections(ctx, collegeId, week, rayat?.newerSs01);
-    await seedDemoTemplates(ctx, collegeId);
+    await seedDemoPlans(ctx, collegeId);
     await seedDemoTasks(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,

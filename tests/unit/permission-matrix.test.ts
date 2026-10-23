@@ -45,8 +45,8 @@ const ITEM = {
   },
   notes: "",
 };
-// A section template: a framework item for each course's trainers or each section's (Step 18).
-const TEMPLATE = { ...ITEM, appliesTo: { type: "eachCourse" } };
+// A department plan's item: a framework item, or one for a person of the department (Step 19).
+const PLAN_ITEM = { ...ITEM, appliesTo: { type: "person", userId: ID } };
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -151,6 +151,8 @@ vi.mock("@/modules/terms", async (importOriginal) => ({
   removeCalendarEvent: async () => ({ status: "saved" }),
   updateHoliday: async () => ({ status: "saved" }),
   saveExamPeriods: async () => ({ status: "saved" }),
+  // A saved plan item says the weeks of its term it lands in (Step 19).
+  findTerm: async () => ({ weeks: 18, periods: [] }),
 }));
 vi.mock("@/modules/framework", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/framework")>()),
@@ -186,13 +188,17 @@ vi.mock("@/modules/tasks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/tasks")>()),
   queueGeneration: async () => {},
 }));
-// A section template of the matrix's department, each change answered as done (Step 18).
+// A plan of the matrix's department and its items, each change answered as done (Step 19).
 vi.mock("@/modules/planning", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/planning")>()),
-  findTemplate: async () => ({ id: ID, termId: ID, departmentId: DEPARTMENT }),
-  addTemplate: async () => ({ status: "saved", id: ID }),
-  updateTemplate: async () => ({ status: "saved" }),
-  removeTemplate: async () => ({ status: "saved" }),
+  findPlan: async () => ({ id: ID, termId: ID, departmentId: DEPARTMENT }),
+  findPlanItem: async () => ({ id: ID, termId: ID, departmentId: DEPARTMENT }),
+  startPlanDraft: async () => ({ status: "created", id: ID, items: 0 }),
+  addPlanItem: async () => ({ status: "saved", id: ID }),
+  updatePlanItem: async () => ({ status: "saved" }),
+  movePlanItems: async () => ({ status: "saved" }),
+  removePlanItems: async () => ({ status: "saved" }),
+  publishPlan: async () => ({ status: "published", termId: ID }),
 }));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
@@ -490,21 +496,28 @@ const checked: {
     input,
     inDepartment: true as const,
   })),
-  // A department's section templates, the head's in their department (Step 18).
+  // A department's plan, the head's in their department: its drafts and items need plan.edit, and
+  // its publication plan.publish (Step 19).
   ...[
-    [
-      "addTemplateAction",
-      { termId: ID, departmentId: DEPARTMENT, ...TEMPLATE },
-    ],
-    ["updateTemplateAction", { templateId: ID, ...TEMPLATE }],
-    ["removeTemplateAction", { templateId: ID }],
+    ["startPlanAction", { termId: ID, departmentId: DEPARTMENT }],
+    ["addPlanItemAction", { planId: ID, ...PLAN_ITEM }],
+    ["updatePlanItemAction", { itemId: ID, ...PLAN_ITEM }],
+    ["movePlanItemsAction", { moves: [{ itemId: ID, week: 4 }] }],
+    ["removePlanItemsAction", { itemIds: [ID] }],
   ].map(([action, input]) => ({
-    module: "(app)/templates/actions.ts",
+    module: "(app)/plan/actions.ts",
     action: action as string,
     permission: "plan.edit" as const,
     input,
     inDepartment: true as const,
   })),
+  {
+    module: "(app)/plan/actions.ts",
+    action: "publishPlanAction",
+    permission: "plan.publish",
+    input: { planId: ID },
+    inDepartment: true,
+  },
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {
     module: "(app)/axes/actions.ts",

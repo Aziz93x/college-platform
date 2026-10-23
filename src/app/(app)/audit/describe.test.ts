@@ -392,6 +392,35 @@ describe("describeEvent", () => {
     }
   });
 
+  it("names a department's plan by its department and term, and the term a draft was copied from (Step 19)", () => {
+    expect(
+      describeEvent(
+        entry({
+          entityType: "plan",
+          entityId: "p1",
+          action: "plan.create",
+          diff: {
+            to: {
+              termId: SPRING,
+              departmentId: ELECTRICAL,
+              version: 1,
+              items: 4,
+              fromTermId: SPRING,
+            },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "بدء نسخة من خطة القسم",
+      subject: "التقنية الكهربائية · الفصل الثاني 1447",
+      changes: expect.arrayContaining([
+        { field: "منسوخة من", after: "الفصل الثاني 1447" },
+      ]),
+    });
+  });
+
   it("names a portfolio axis by its title before the change, and what changed (Step 14)", () => {
     expect(
       describeEvent(
@@ -506,6 +535,7 @@ const typical = {
       },
     },
   },
+  plan: { diff: { from: { departmentId: ELECTRICAL, termId: SPRING } } },
 } satisfies Record<AuditEntity, Partial<AuditEntry>>;
 
 it.each(

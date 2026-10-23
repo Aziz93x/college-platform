@@ -17,6 +17,13 @@ import {
 } from "../../src/modules/framework/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import { createDepartment } from "../../src/modules/org/index.ts";
+import {
+  addPlanItem,
+  departmentPlan,
+  publishPlan,
+  removePlanItems,
+  startPlanDraft,
+} from "../../src/modules/planning/index.ts";
 import { applyRayat, uploadRayat } from "../../src/modules/rayat/index.ts";
 import {
   generateTerm,
@@ -33,7 +40,7 @@ import {
 import { createLogger } from "../../src/platform/logging/logger.ts";
 import { startWorker } from "../../worker/start.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
-import { publishedPreview } from "./support/preview.ts";
+import { planPreview, publishedPreview } from "./support/preview.ts";
 import { rayatTable } from "./support/rayat-table.ts";
 
 // The generation engine on a real database (Step 20): an 18-week term from Sunday 23 August 2026
@@ -565,6 +572,125 @@ describe("generating a term's tasks", () => {
   });
 });
 
+describe("a department's plan", () => {
+  it("makes its tasks beside the framework's, in its department, as its preview counts, and a new version cancels what it drops (Step 19)", async () => {
+    const started = await startPlanDraft(
+      termId,
+      electrical,
+      by("head"),
+      undefined,
+      database.db,
+    );
+    if (started.status !== "created") throw new Error(started.status);
+    const [axis] = (await listAxes(collegeId, database.db)).flatMap(
+      (group) => group.axes,
+    );
+    const evidence = {
+      required: true,
+      types: ["pdf"],
+      maxFiles: 1,
+      requiresApproval: true,
+    };
+    // The minutes of the department's meeting from the second trainer in week 10, and each
+    // section's attendance report in week 12.
+    for (const input of [
+      {
+        title: "محضر اجتماع القسم",
+        axisId: axis.id,
+        kind: "meeting_minutes" as const,
+        appliesTo: { type: "person" as const, userId: people.second },
+        due: { type: "week" as const, week: 10 },
+        evidence,
+        notes: "",
+      },
+      {
+        title: "تقرير الحضور",
+        axisId: axis.id,
+        kind: "general" as const,
+        appliesTo: { type: "eachSection" as const },
+        due: { type: "week" as const, week: 12 },
+        evidence,
+        notes: "",
+      },
+    ]) {
+      const added = await addPlanItem(
+        started.id,
+        input,
+        by("head"),
+        ["pdf"],
+        database.db,
+      );
+      if (added.status !== "saved") throw new Error(added.status);
+    }
+    await publishPlan(started.id, by("head"), database.db);
+
+    // The second trainer's minutes, and a report from each of the three places of the sections
+    // that have a trainer.
+    expect(await planPreview(collegeId, termId, electrical, database.db)).toBe(
+      4,
+    );
+    expect(
+      await generateTerm(collegeId, termId, "plan", {
+        at: WEEK_8,
+        db: database.db,
+      }),
+    ).toEqual({
+      total: 12,
+      created: 4,
+      updated: 0,
+      reassigned: 0,
+      cancelled: 0,
+    });
+    expect(
+      await query(
+        `select department_id as "departmentId", count(*)::int from tasks
+          where term_id = $1 and source = 'plan' group by department_id`,
+        [termId],
+      ),
+    ).toEqual([{ departmentId: electrical, count: 4 }]);
+    expect(
+      (await tasksOf("محضر اجتماع القسم")).map(({ holder, week }) => [
+        holder,
+        week,
+      ]),
+    ).toEqual([["second", 10]]);
+
+    // The next version without the minutes: their task, not started, is cancelled, and the
+    // reports, the same items, stay as they were.
+    const next = await startPlanDraft(
+      termId,
+      electrical,
+      by("head"),
+      undefined,
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    const { draft } = await departmentPlan(
+      collegeId,
+      termId,
+      electrical,
+      database.db,
+    );
+    const minutes = draft?.items.find(
+      ({ title }) => title === "محضر اجتماع القسم",
+    );
+    await removePlanItems([minutes?.id ?? ""], by("head"), database.db);
+    await publishPlan(next.id, by("head"), database.db);
+    expect(
+      await generateTerm(collegeId, termId, "plan", {
+        at: WEEK_8,
+        db: database.db,
+      }),
+    ).toEqual({
+      total: 11,
+      created: 0,
+      updated: 0,
+      reassigned: 0,
+      cancelled: 1,
+    });
+  });
+});
+
 describe("generation runs", () => {
   it("runs each queued pass once, writing what it went through and what it did", async () => {
     await joinRole(
@@ -582,11 +708,12 @@ describe("generation runs", () => {
       reason: "daily",
     });
     expect(await runQueued(database.db, () => WEEK_8)).toBe(1);
+    // The framework's nine, the third trainer's plan back among them, and the plan's three reports.
     expect(await latestRun(collegeId, termId, database.db)).toMatchObject({
       status: "done",
       reason: "daily",
-      total: 9,
-      done: 9,
+      total: 12,
+      done: 12,
       created: 1,
       updated: 0,
       reassigned: 0,
@@ -625,7 +752,7 @@ describe("generation runs", () => {
     }
     expect(await latestRun(collegeId, termId, database.db)).toMatchObject({
       reason: "daily",
-      total: 9,
+      total: 12,
       created: 0,
     });
   });

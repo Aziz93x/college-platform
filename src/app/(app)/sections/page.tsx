@@ -21,16 +21,12 @@ import {
   transferCandidates,
   transferLengths,
 } from "@/modules/academics";
-import {
-  authorize,
-  permittedDepartments,
-  requireViewer,
-} from "@/modules/access";
+import { permittedDepartments, requireViewer } from "@/modules/access";
 import { listDepartments } from "@/modules/org";
 import { termWeeks } from "@/modules/terms";
 import { wallClock } from "@/platform/i18n/time-zone";
 import { toLatinDigits } from "@/platform/validation/digits";
-import { termCalendar, viewedTerm } from "../_shell/term.ts";
+import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
 import { SectionsFilters } from "./sections-filters.tsx";
 import {
   CancelTransferButton,
@@ -70,10 +66,9 @@ export default async function SectionsPage({
   const reads =
     imports === "college" || imports.length > 0 ? "college" : transfers;
   if (reads !== "college" && reads.length === 0) forbidden();
-  const scope = { collegeId: viewer.collegeId };
   const [t, { term }, params] = await Promise.all([
     getTranslations("sections"),
-    viewedTerm(viewer.collegeId, authorize(viewer, "term.manage", scope)),
+    viewedTerm(viewer.collegeId, preparesTerms(viewer)),
     searchParams,
   ]);
   const one = (value: string | string[] | undefined) =>

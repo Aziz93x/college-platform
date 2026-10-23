@@ -6,6 +6,7 @@ import { roleHolders } from "../../access/index.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { dueWeeks, publishedItems } from "../../framework/index.ts";
 import { people } from "../../identity/index.ts";
+import { publishedPlanItems } from "../../planning/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import {
   calendarOf,
@@ -19,6 +20,7 @@ import {
   type Changes,
   type Reach,
   reconcile,
+  type SourceItem,
   type Task,
   type TermNow,
   type Wanted,
@@ -36,29 +38,49 @@ export type Generated = {
   cancelled: number;
 };
 
-// A term's sources and what they reach, as the engine reads them on a day: the latest published
-// framework's items, each with the weeks its rule is due; the holders of each role and the places of
-// each section, by department; and the week the term has reached on the college's clock.
+// A term's sources and what they reach, as the engine reads them on a day: the items of the latest
+// published framework and of each department's latest published plan (Step 19), each with the weeks
+// its rule is due; the holders of each role and the places of each section, by department; and the
+// week the term has reached on the college's clock.
 async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
-  const [term, settings, published, holders, sections, numbers, timeZone] =
-    await Promise.all([
-      findTerm(collegeId, termId, db),
-      calendarSettings(collegeId, db),
-      publishedItems(collegeId, termId, db),
-      roleHolders(collegeId, db),
-      sectionPlaces(collegeId, termId, db),
-      db
-        .select({ number: people.employeeNumber, userId: people.userId })
-        .from(people)
-        .where(eq(people.collegeId, collegeId)),
-      getSetting("locale.timeZone", { collegeId }, db),
-    ]);
+  const [
+    term,
+    settings,
+    published,
+    planned,
+    holders,
+    sections,
+    numbers,
+    timeZone,
+  ] = await Promise.all([
+    findTerm(collegeId, termId, db),
+    calendarSettings(collegeId, db),
+    publishedItems(collegeId, termId, db),
+    publishedPlanItems(collegeId, termId, db),
+    roleHolders(collegeId, db),
+    sectionPlaces(collegeId, termId, db),
+    db
+      .select({ number: people.employeeNumber, userId: people.userId })
+      .from(people)
+      .where(eq(people.collegeId, collegeId)),
+    getSetting("locale.timeZone", { collegeId }, db),
+  ]);
   if (!term) return undefined;
   const calendar = calendarOf(term, term.events, settings, term.breaks);
   const weeks = termWeeks(calendar);
   const shape = { weeks: term.weeks, periods: term.periods };
 
-  const items = (published?.items ?? []).map((item) => ({
+  // A plan's items reach their own department alone.
+  const items: SourceItem[] = [
+    ...(published?.items ?? []).map((item) => ({
+      ...item,
+      source: "framework" as const,
+      departmentId: undefined,
+    })),
+    ...planned.map((item) => ({ ...item, source: "plan" as const })),
+  ].map((item) => ({
+    source: item.source,
+    departmentId: item.departmentId,
     origin: item.origin,
     title: item.title,
     axisId: item.axisId,
@@ -116,8 +138,8 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   return { term, version: published?.version, items, reach, now };
 }
 
-// The term's tasks from its framework, as the engine compares them.
-async function frameworkTasks(db: Db, termId: string): Promise<Task[]> {
+// The term's tasks from its framework and its plans, as the engine compares them.
+async function termTasks(db: Db, termId: string): Promise<Task[]> {
   const rows = await db
     .select({
       id: tasks.id,
@@ -140,7 +162,7 @@ async function frameworkTasks(db: Db, termId: string): Promise<Task[]> {
       assigneeNumber: tasks.assigneeNumber,
     })
     .from(tasks)
-    .where(and(eq(tasks.termId, termId), eq(tasks.source, "framework")));
+    .where(eq(tasks.termId, termId));
   return rows.map(({ cancelledAt, assigneeId, assigneeNumber, ...task }) => ({
     ...task,
     cancelled: cancelledAt !== null,
@@ -192,7 +214,7 @@ async function applyChanges(
           collegeId,
           termId,
           departmentId: wanted.departmentId,
-          source: "framework" as const,
+          source: wanted.source,
           sourceItemId: wanted.item,
           occurrence: wanted.occurrence,
           sectionRef: wanted.sectionRef,
@@ -252,12 +274,12 @@ async function applyChanges(
   return { created, updated, reassigned, cancelled: cancelled.length };
 }
 
-// Generates a term's tasks from its latest published framework (docs/PLAN.md, section 3; Step 20):
-// a task for each slot it calls for that has none; the new words, week and due day for tasks not
-// started, and the new holder of a section's place for work still to do; tasks no longer called for
-// cancelled, when not started; finished work never touched. It applies one department at a time,
-// telling `progress` how many of the term's tasks it has gone through, and records task.generate
-// for the term when anything changed. A closed term's tasks change no more.
+// Generates a term's tasks from its latest published framework and plans (docs/PLAN.md, section 3;
+// Steps 19 and 20): a task for each slot they call for that has none; the new words, week and due
+// day for tasks not started, and the new holder of a section's place for work still to do; tasks no
+// longer called for cancelled, when not started; finished work never touched. It applies one
+// department at a time, telling `progress` how many of the term's tasks it has gone through, and
+// records task.generate for the term when anything changed. A closed term's tasks change no more.
 export async function generateTerm(
   collegeId: string,
   termId: string,
@@ -283,7 +305,7 @@ export async function generateTerm(
   };
   if (inputs.term.status === "closed") return done;
   const wanted = wantedTasks(inputs.items, inputs.reach, inputs.now);
-  const existing = await frameworkTasks(db, termId);
+  const existing = await termTasks(db, termId);
   const changes = reconcile(wanted, existing);
   done.total = wanted.length;
   await progress?.(0, done.total);

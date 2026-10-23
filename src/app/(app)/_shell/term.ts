@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { authorize, permittedDepartments } from "@/modules/access";
 import {
   calendarOf,
   calendarSettings,
@@ -9,8 +10,20 @@ import {
 } from "@/modules/terms";
 import { TERM_COOKIE } from "./term-cookie.ts";
 
+// Whoever prepares a term before it starts sees it while it is a draft: the vice-dean, who manages
+// the college's terms, and whoever edits a department's plan, whose plan for the next term the
+// wizard copies there (Step 19).
+export function preparesTerms(viewer: Parameters<typeof authorize>[0]) {
+  const plans = permittedDepartments(viewer, "plan.edit");
+  return (
+    authorize(viewer, "term.manage", { collegeId: viewer.collegeId }) ||
+    plans === "college" ||
+    plans.length > 0
+  );
+}
+
 // The terms the viewer may look at, the latest first: the active and closed ones, and the drafts too
-// for whoever manages the college's terms. Read once per request.
+// for whoever prepares them (preparesTerms()). Read once per request.
 export const visibleTerms = cache(async (collegeId: string, manage: boolean) =>
   (await listTerms(collegeId)).filter(
     (term) => manage || term.status !== "draft",

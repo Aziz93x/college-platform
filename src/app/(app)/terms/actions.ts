@@ -6,7 +6,7 @@ import { z } from "zod";
 import { viewerAction } from "@/modules/access";
 import { copyFrameworkInto } from "@/modules/framework";
 import { requestMeta } from "@/modules/identity";
-import { copyTemplatesInto } from "@/modules/planning";
+import { copyPlansInto } from "@/modules/planning";
 import { getSetting } from "@/modules/settings";
 import { queueGeneration } from "@/modules/tasks";
 import {
@@ -90,8 +90,8 @@ export const openNextTermAction = viewerAction
   .inputSchema(termInput.extend({ fromId: z.uuid() }))
   .action(async ({ parsedInput: { fromId, ...input }, ctx: { viewer } }) => {
     const change = await changeBy(viewer);
-    // The new term starts with drafts of the framework (Step 15) and of the departments' section
-    // templates (Step 18) of the term it opens from.
+    // The new term starts with drafts of the framework (Step 15) and of the departments' plans
+    // (Step 19) of the term it opens from.
     return openNextTerm(
       fromId,
       input,
@@ -100,7 +100,7 @@ export const openNextTermAction = viewerAction
       undefined,
       async (tx, from, to) => {
         await copyFrameworkInto(tx, from, to, change);
-        await copyTemplatesInto(tx, from, to, change);
+        await copyPlansInto(tx, from, to, change);
       },
     );
   });

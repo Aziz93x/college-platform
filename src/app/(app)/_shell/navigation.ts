@@ -130,10 +130,10 @@ export const navigation = [
     icon: Presentation,
     permission: ["sections.transfer", "rayat.import"],
   },
-  // The section templates a head prepares for their department's sections in the term (Step 18).
+  // The department's plan a head prepares for the term (Step 19).
   {
-    id: "templates",
-    href: "/templates",
+    id: "plan",
+    href: "/plan",
     icon: ClipboardList,
     permission: "plan.edit",
   },

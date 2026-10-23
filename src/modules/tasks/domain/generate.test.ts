@@ -21,6 +21,7 @@ const POLICY = {
 // A course specification from every trainer in week 2, and an exam copy from each section's trainer
 // after each exam week, the midterms' in week 8 and the finals' in week 18.
 const plan: SourceItem = {
+  source: "framework",
   origin: "plan",
   title: "توصيف المقرر",
   axisId: AXIS,
@@ -30,6 +31,7 @@ const plan: SourceItem = {
   evidence: POLICY,
 };
 const examCopy: SourceItem = {
+  source: "framework",
   origin: "exam",
   title: "نسخة الاختبار",
   axisId: AXIS,
@@ -94,11 +96,60 @@ const task = (
 });
 
 describe("slotsOf", () => {
+  it("gives a department plan's item slots in its own department only, and one for the person it names while they hold a role there (Step 19)", () => {
+    const mechanical = {
+      departmentId: "mechanical",
+      holders: { [TRAINER]: ["u3"] },
+      sections: [{ ref: "30201", course: "ميك 111", places: ["200201"] }],
+    };
+    const meeting: SourceItem = {
+      ...plan,
+      source: "plan",
+      departmentId: "electrical",
+      origin: "meeting",
+    };
+    expect(
+      slotsOf([meeting], [electrical, mechanical]).map(
+        ({ departmentId, holderId }) => [departmentId, holderId],
+      ),
+    ).toEqual([
+      ["electrical", "u1"],
+      ["electrical", "u2"],
+    ]);
+    const inspection: SourceItem = {
+      ...meeting,
+      origin: "inspection",
+      appliesTo: { type: "person", userId: "u2" },
+      weeks: [3, 9],
+    };
+    expect(slotsOf([inspection], [electrical, mechanical])).toEqual(
+      [3, 9].map((week, index) => ({
+        source: "plan",
+        item: "inspection",
+        occurrence: index + 1,
+        week,
+        departmentId: "electrical",
+        sectionRef: "",
+        courseCode: "",
+        place: "",
+        holderId: "u2",
+      })),
+    );
+    // Someone who holds no role in the department any more.
+    expect(
+      slotsOf(
+        [{ ...inspection, appliesTo: { type: "person", userId: "u3" } }],
+        [electrical, mechanical],
+      ),
+    ).toEqual([]);
+  });
+
   it("gives each item one slot for each holder of its role, or each place of each section, each time it is due", () => {
     const slots = slotsOf([plan, examCopy], [electrical]);
     // 2 trainers once, and 3 places twice.
     expect(slots).toHaveLength(2 + 3 * 2);
     expect(slots.filter((slot) => slot.item === "exam")).toContainEqual({
+      source: "framework",
       item: "exam",
       occurrence: 2,
       week: 18,
@@ -116,6 +167,7 @@ describe("slotsOf", () => {
     // 200101 and 200102 in the one course, twice: one fewer than the 3 places of its sections.
     expect(slots).toHaveLength(2 * 2);
     expect(slots).toContainEqual({
+      source: "framework",
       item: "course",
       occurrence: 1,
       week: 8,

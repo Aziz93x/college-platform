@@ -4,7 +4,7 @@ import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { platformName } from "@/i18n/platform-name";
-import { authorize, requireViewer } from "@/modules/access";
+import { requireViewer } from "@/modules/access";
 import {
   latestUnread,
   type NotificationParams,
@@ -27,7 +27,7 @@ import {
 } from "./_shell/navigation.ts";
 import { Sidebar } from "./_shell/sidebar.tsx";
 import { TabBar } from "./_shell/tab-bar.tsx";
-import { termOnDay, viewedTerm } from "./_shell/term.ts";
+import { preparesTerms, termOnDay, viewedTerm } from "./_shell/term.ts";
 import { TermSwitcher } from "./_shell/term-switcher.tsx";
 import { notificationViews } from "./notifications/view.ts";
 
@@ -86,10 +86,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   );
   // The term the header shows, and today's week in it (Step 13).
   const [{ terms, term }, timeZone, termWords, statuses] = await Promise.all([
-    viewedTerm(
-      viewer.collegeId,
-      authorize(viewer, "term.manage", { collegeId: viewer.collegeId }),
-    ),
+    viewedTerm(viewer.collegeId, preparesTerms(viewer)),
     getTimeZone(),
     getTranslations("shell.term"),
     getTranslations("terms.status"),

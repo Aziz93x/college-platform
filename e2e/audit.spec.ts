@@ -267,7 +267,7 @@ test("on a phone, the admin's thirteen pages leave four tabs and More, whose she
     nav.framework,
     nav.rayat,
     nav.sections,
-    nav.templates,
+    nav.plan,
     nav.announcements,
   ]);
   await sheet.getByRole("link", { name: nav.audit }).click();

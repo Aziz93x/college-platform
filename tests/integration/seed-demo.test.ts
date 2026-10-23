@@ -32,7 +32,7 @@ import {
   runScript,
   scriptEnv,
 } from "./support/database.ts";
-import { publishedPreview } from "./support/preview.ts";
+import { planPreview, publishedPreview } from "./support/preview.ts";
 import { tableRows } from "./support/rows.ts";
 
 const databases: Awaited<ReturnType<typeof createTestDatabase>>[] = [];
@@ -344,8 +344,11 @@ it("writes three weeks of the college's history, every event in the past and by 
       "rayatImport.apply",
       // The head of Electrical's transfer of a section (Step 17).
       "sectionTransfer.create",
-      // The heads' section templates (Step 18).
-      "sectionTemplate.create",
+      // The heads' plans, and Electrical's next version in the making (Step 19).
+      "plan.create",
+      "planItem.create",
+      "plan.publish",
+      "planItem.update",
       // The term's tasks, generated (Step 20).
       "task.generate",
     ]),
@@ -730,14 +733,28 @@ it("has the head of Electrical transfer a section to another trainer of the depa
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
 });
 
-it("generates the demo term's tasks, as many as its published framework's preview counts, in under 10 s: a grade analysis for each trainer of each section, none for a section with no trainer, and an exam copy for each trainer of each course, once for all their sections of it (Step 20)", async () => {
+it("generates the demo term's tasks, as many as its published framework's and plans' previews count, in under 10 s: a grade analysis for each trainer of each section, none for a section with no trainer, and an exam copy for each trainer of each course, once for all their sections of it (Steps 19 and 20)", async () => {
   const { db, pool } = await seededDatabase();
   const {
     rows: [{ id: collegeId }],
   } = await pool.query("select id from colleges");
   const term = await activeTerm(collegeId, db);
   if (!term) throw new Error("no active term");
-  const preview = await publishedPreview(collegeId, term.id, db);
+  // The framework's preview, and each department's published plan's, in its department alone.
+  const { rows: planned } = await pool.query(
+    "select distinct department_id from plans where term_id = $1 and status = 'published'",
+    [term.id],
+  );
+  expect(planned).toHaveLength(2);
+  const plans = await Promise.all(
+    planned.map(({ department_id }) =>
+      planPreview(collegeId, term.id, department_id, db),
+    ),
+  );
+  expect(plans.every((tasks) => tasks > 0)).toBe(true);
+  const preview =
+    (await publishedPreview(collegeId, term.id, db)) +
+    plans.reduce((sum, tasks) => sum + tasks, 0);
   const {
     rows: [run],
   } = await pool.query(
@@ -774,9 +791,10 @@ it("generates the demo term's tasks, as many as its published framework's previe
   const { rows: sections } = await pool.query(
     `select cardinality(s.trainer_numbers) as trainers,
        (select count(*)::int from tasks t
-         where t.term_id = $1 and t.section_ref = s.section_ref and t.kind = 'grade_analysis') as tasks,
+         where t.term_id = $1 and t.section_ref = s.section_ref and t.kind = 'grade_analysis'
+           and t.source = 'framework') as tasks,
        (select count(distinct t.week)::int from tasks t
-         where t.term_id = $1 and t.kind = 'grade_analysis') as exams
+         where t.term_id = $1 and t.kind = 'grade_analysis' and t.source = 'framework') as exams
      ${inForce}`,
     [term.id, demoDepartments[2].name],
   );
@@ -792,9 +810,10 @@ it("generates the demo term's tasks, as many as its published framework's previe
     `select s.course_code as course, count(distinct n.number)::int as trainers,
        count(*)::int as places,
        (select count(*)::int from tasks t
-         where t.term_id = $1 and t.course_code = s.course_code and t.kind = 'exam_copy') as tasks,
+         where t.term_id = $1 and t.course_code = s.course_code and t.kind = 'exam_copy'
+           and t.source = 'framework') as tasks,
        (select count(distinct t.week)::int from tasks t
-         where t.term_id = $1 and t.kind = 'exam_copy') as exams
+         where t.term_id = $1 and t.kind = 'exam_copy' and t.source = 'framework') as exams
      ${inForce.replace("join departments", "cross join unnest(s.trainer_numbers) as n(number) join departments")}
      group by s.course_code`,
     [term.id, demoDepartments[2].name],
@@ -827,54 +846,82 @@ it("has a trainer teach both sections of a course in each department, so an item
   ).toEqual(departments.map(({ name }) => ({ name, fewer: true })));
 });
 
-it("gives Electrical and Mechanical section templates of their own, each on an axis and added by its department's head (Step 18)", async () => {
+it("gives Electrical and Mechanical plans of their own, each item on an axis, published by the department's head, and Electrical a next version in the making (Step 19)", async () => {
   const { pool } = await seededDatabase();
   const { rows } = await pool.query(`
-    select d.name as department, t.kind, a.code as axis, t.applies_to ->> 'type' as reach,
-      exists (
-        select 1 from memberships m join roles r on r.id = m.role_id and r.key = 'head'
-        where m.user_id::text = e.actor_id and m.department_id = t.department_id
-      ) as "byItsHead",
-      u.email
-    from section_templates t
-    join departments d on d.id = t.department_id
-    join axes a on a.id = t.axis_id
-    join audit_events e on e.entity_id = t.id::text and e.action = 'sectionTemplate.create'
-    join users u on u.id::text = e.actor_id
-    order by t.department_id, t.position`);
-  const of = (name: string) =>
+    select d.name as department, p.version, p.status, i.kind, a.code as axis,
+      i.applies_to ->> 'type' as reach, i.due,
+      (select u.email from users u join audit_events e on u.id::text = e.actor_id
+        where e.entity_id = p.id::text and e.action = 'plan.create') as "startedBy",
+      (select u.email from users u where u.id = p.published_by) as "publishedBy"
+    from plans p
+    join departments d on d.id = p.department_id
+    join plan_items i on i.plan_id = p.id
+    join axes a on a.id = i.axis_id
+    order by d.name, p.version, i.position`);
+  const of = (name: string, version: number) =>
     rows
-      .filter(({ department }) => department === name)
+      .filter((row) => row.department === name && row.version === version)
       .map(({ kind, axis, reach }) => `${kind} ${axis} ${reach}`);
-  // A course's work once for all its trainer's sections of it, and a section's work section by
-  // section (the owner's answers, 22 October 2026).
-  expect(of(demoDepartments[1].name)).toEqual([
+  // A course's work once for all its trainer's sections of it, a section's work section by
+  // section (the owner's answers, 22 October 2026), the secretary's minutes, and one trainer's
+  // stock-taking.
+  expect(of(demoDepartments[1].name, 1)).toEqual([
     "exam_copy 2 eachCourse",
     "exam_copy 2 eachCourse",
     "general 6 eachSection",
     "homework 5 eachSection",
+    "meeting_minutes 9 role",
+    "general 9 person",
   ]);
-  expect(of(demoDepartments[2].name)).toEqual([
+  expect(of(demoDepartments[1].name, 2)).toEqual([
+    ...of(demoDepartments[1].name, 1),
+    "professional_development 4 role",
+    "general 2 eachCourse",
+  ]);
+  expect(of(demoDepartments[2].name, 1)).toEqual([
     "exam_copy 2 eachCourse",
     "general 6 eachSection",
+    "meeting_minutes 9 role",
   ]);
-  // None is an item the term's published framework already gives the same trainers: its kind,
-  // reach and due rule (Audit 6).
-  const { rows: repeated } = await pool.query(`
-    select t.title from section_templates t
-    where exists (
-      select 1 from framework_items i join frameworks f on f.id = i.framework_id
-      where f.status = 'published' and f.term_id = t.term_id and i.kind = t.kind
-        and i.applies_to = t.applies_to and i.due = t.due
-    )`);
-  expect(repeated).toEqual([]);
-  expect(of(demoDepartments[0].name)).toEqual([]);
-  expect(rows.every(({ byItsHead }) => byItsHead)).toBe(true);
+  expect(of(demoDepartments[0].name, 1)).toEqual([]);
+  // Version 1 published by each head, Electrical's version 2 a draft with its lab reports a week
+  // earlier.
+  const versions = new Map(
+    rows.map((row) => [
+      `${row.department} ${row.version}`,
+      [row.status, row.startedBy, row.publishedBy],
+    ]),
+  );
+  expect(versions.get(`${demoDepartments[1].name} 1`)).toEqual([
+    "published",
+    demoAccounts.head.email,
+    demoAccounts.head.email,
+  ]);
+  expect(versions.get(`${demoDepartments[1].name} 2`)).toEqual([
+    "draft",
+    demoAccounts.head.email,
+    null,
+  ]);
+  expect(versions.get(`${demoDepartments[2].name} 1`)?.[0]).toBe("published");
   expect(
     rows
-      .filter(({ department }) => department === demoDepartments[1].name)
-      .every(({ email }) => email === demoAccounts.head.email),
-  ).toBe(true);
+      .filter(({ kind }) => kind === "homework")
+      .map(({ version, due }) => [version, due.week]),
+  ).toEqual([
+    [1, 12],
+    [2, 11],
+  ]);
+  // None is an item the term's published framework already gives the same people: its kind, reach
+  // and due rule (Audit 6).
+  const { rows: repeated } = await pool.query(`
+    select i.title from plan_items i join plans p on p.id = i.plan_id
+    where exists (
+      select 1 from framework_items f join frameworks v on v.id = f.framework_id
+      where v.status = 'published' and v.term_id = p.term_id and f.kind = i.kind
+        and f.applies_to = i.applies_to and f.due = i.due
+    )`);
+  expect(repeated).toEqual([]);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

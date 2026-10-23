@@ -1,8 +1,13 @@
 export {
-  addTemplate,
-  copyTemplatesInto,
-  findTemplate,
-  listTemplates,
-  removeTemplate,
-  updateTemplate,
-} from "./server/templates.ts";
+  addPlanItem,
+  copyPlansInto,
+  departmentPlan,
+  findPlan,
+  findPlanItem,
+  movePlanItems,
+  publishedPlanItems,
+  publishPlan,
+  removePlanItems,
+  startPlanDraft,
+  updatePlanItem,
+} from "./server/plans.ts";

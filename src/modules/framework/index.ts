@@ -3,17 +3,18 @@ export {
   departmentsReached,
   dueWeeks,
   type TermShape,
+  weeksOutside,
 } from "./domain/count.ts";
 export {
-  type AppliesTo,
   type DueRule,
   type EvidencePolicy,
   type FrameworkItemInput,
   frameworkItemInput,
   frameworkLimits,
+  type PlanItemInput,
+  type PlanReach,
+  planItemInput,
   reachesTrainers,
-  type SectionTemplateInput,
-  sectionTemplateInput,
   type TaskKind,
   taskKinds,
 } from "./domain/inputs.ts";

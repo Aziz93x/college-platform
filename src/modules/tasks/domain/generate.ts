@@ -1,7 +1,7 @@
 import { canonical } from "../../../platform/validation/text.ts";
 import type {
-  AppliesTo,
   EvidencePolicy,
+  PlanReach,
   TaskKind,
 } from "../../framework/index.ts";
 import { openStatuses, type TaskStatus } from "./status.ts";
@@ -10,17 +10,24 @@ import { openStatuses, type TaskStatus } from "./status.ts";
 // call for, and what to change so that the term's tasks are those and no others, which running it
 // again finds nothing to do for.
 
-// An item as the engine reads it: the item it was first entered as, which names its tasks in every
-// version, what its tasks say, whom it reaches, and the weeks its rule is due (dueWeeks()).
+// An item as the engine reads it: its source, the framework or a department's plan, whose items
+// reach their own department alone (Step 19); the item it was first entered as, which names its
+// tasks in every version; what its tasks say, whom it reaches, and the weeks its rule is due
+// (dueWeeks()).
 export type SourceItem = {
+  source: TaskSource;
+  departmentId?: string;
   origin: string;
   title: string;
   axisId: string;
   kind: TaskKind;
-  appliesTo: AppliesTo;
+  appliesTo: PlanReach;
   weeks: readonly number[];
   evidence: EvidencePolicy;
 };
+
+// Where a task comes from: the term's general framework, or a department's plan (Step 19).
+export type TaskSource = "framework" | "plan";
 
 // What a department holds that items reach: the people who hold each role in it, and each of its
 // sections with its course, by Rayat's code, and its places, each place by the trainer Rayat gave it
@@ -36,8 +43,10 @@ export type Reach = {
 };
 
 // A task's place in the term, its key: the item, the time its rule is due, the department, and the
-// section or the course and the place it is for, or the holder of the role there.
+// section or the course and the place it is for, or the holder of the role there, or the person.
+// Its source says where its item is: items of either have ids of their own.
 export type Slot = {
+  source: TaskSource;
   item: string;
   occurrence: number;
   week: number;
@@ -81,9 +90,10 @@ function coursesOf(sections: Reach["sections"]) {
   return courses;
 }
 
-// The slots of a term's items: each item, in each department, once for each person who holds its
-// role, for each place of each section, or for each place of each course, and each time it is due.
-// countTasks() counts the same.
+// The slots of a term's items: each item, in each department, or a plan's in its own, once for each
+// person who holds its role, for each place of each section, for each place of each course, or for
+// the one person it names while they hold a role there, and each time it is due. countTasks()
+// counts the same.
 export function slotsOf(
   items: readonly SourceItem[],
   reach: readonly Reach[],
@@ -91,9 +101,14 @@ export function slotsOf(
   const slots: Slot[] = [];
   for (const department of reach) {
     const courses = coursesOf(department.sections);
+    const people = new Set(Object.values(department.holders).flat());
     for (const item of items) {
+      if (item.departmentId && item.departmentId !== department.departmentId) {
+        continue;
+      }
       item.weeks.forEach((week, index) => {
         const at = {
+          source: item.source,
           item: item.origin,
           occurrence: index + 1,
           week,
@@ -122,6 +137,11 @@ export function slotsOf(
             for (const holderId of department.holders[item.appliesTo.roleId] ??
               []) {
               slots.push({ ...at, holderId });
+            }
+            break;
+          case "person":
+            if (people.has(item.appliesTo.userId)) {
+              slots.push({ ...at, holderId: item.appliesTo.userId });
             }
             break;
         }

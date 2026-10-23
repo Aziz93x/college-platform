@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
-import { addMembership, countMembers } from "../../src/modules/access/index.ts";
+import { addMembership, roleHolders } from "../../src/modules/access/index.ts";
 import {
   addItem,
   copyFrameworkInto,
+  departmentsReached,
   endorseDraft,
   type FrameworkItemInput,
   publishDraft,
@@ -333,7 +334,7 @@ describe("a framework's versions", () => {
   });
 });
 
-it("counts the enabled holders of each role in each active department", async () => {
+it("counts the enabled holders of each role in each active department, each person once, by account (Step 19)", async () => {
   const [{ id: electrical }] = await query(
     "insert into departments (college_id, name, short_name) values ($1, 'Electrical', 'Elec') returning id",
     [collegeId],
@@ -362,7 +363,15 @@ it("counts the enabled holders of each role in each active department", async ()
       database.db,
     ),
   ).resolves.toMatchObject({ status: "added" });
-  expect(await countMembers(collegeId, database.db)).toEqual([
-    { departmentId: electrical, roleId: trainerRole, count: 1 },
+  expect(
+    departmentsReached(await roleHolders(collegeId, database.db), {}),
+  ).toEqual([
+    {
+      departmentId: electrical,
+      roles: { [trainerRole]: 1 },
+      people: new Set([people.hind]),
+      sectionTrainers: 0,
+      courseTrainers: 0,
+    },
   ]);
 });

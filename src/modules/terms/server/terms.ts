@@ -553,7 +553,7 @@ export async function openNextTerm(
   settings: CalendarSettings,
   db: Db = getDb(),
   // What the modules built on terms copy into the new term, in the same transaction: the
-  // framework (Step 15), then the templates and plans (Steps 18 and 19).
+  // framework (Step 15), then the departments' plans (Step 19).
   also?: (tx: Tx, fromId: string, toId: string) => Promise<unknown>,
 ): Promise<
   | { status: "notFound" | "nameTaken" }
