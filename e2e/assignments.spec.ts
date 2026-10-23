@@ -100,6 +100,18 @@ test("the head of Electrical sees the six shared templates and the department's 
       name: t("template.editLabel", { title: title("secretary") }),
     }),
   ).toHaveCount(0);
+  // The department's own template that someone holds this term offers no delete, which the server
+  // would refuse (lead review D, M1).
+  await expect(
+    own.getByRole("button", {
+      name: t("template.editLabel", { title: "مسؤول العهد" }),
+    }),
+  ).toBeVisible();
+  await expect(
+    own.getByRole("button", {
+      name: t("template.deleteLabel", { title: "مسؤول العهد" }),
+    }),
+  ).toHaveCount(0);
 
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) {
