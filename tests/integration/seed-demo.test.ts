@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { symmetricDecrypt, verifyPassword } from "better-auth/crypto";
 import type { Pool } from "pg";
 import { afterAll, expect, it } from "vitest";
+import { defaultNavigationOrder } from "../../db/seed/base.ts";
 import {
   DEMO_PASSWORD,
   DEMO_TOTP_SECRET,
@@ -91,7 +92,8 @@ it("gives db:seed's college the demo values, settings and departments, then a se
     ]),
   );
   expect(await collegeNames(pool)).toEqual(theDemoCollege);
-  // The demo's own settings, and Rayat's column maps every college starts with.
+  // The demo's own settings, and Rayat's column maps and the default roles' order of pages every
+  // college starts with (UX review 2).
   expect(
     (await pool.query("select key, value from settings order by key")).rows,
   ).toEqual(
@@ -100,6 +102,7 @@ it("gives db:seed's college the demo values, settings and departments, then a se
       ...Object.entries(rayatColumns).map(
         ([kind, value]) => [`rayat.columns.${kind}`, value] as const,
       ),
+      ["navigation.order", defaultNavigationOrder] as const,
     ]
       .sort(([a], [b]) => a.localeCompare(b, "en"))
       .map(([key, value]) => ({ key, value })),
