@@ -2,9 +2,9 @@ export {
   type QuickRequestInput,
   quickRequestInput,
   type RequestTargets,
+  requestLimits,
 } from "./domain/input.ts";
 export {
-  type RequestRefusal,
   requestedItems,
   sendQuickRequest,
   termRequests,

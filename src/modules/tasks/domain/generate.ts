@@ -31,7 +31,7 @@ export type SourceItem = {
 
 // Whom an item reaches: as a plan's item does, or everyone who holds a role in the department but
 // the person a quick request leaves out, its sender (Step 22).
-export type ItemReach = PlanReach | { type: "everyone"; except: string | null };
+type ItemReach = PlanReach | { type: "everyone"; except: string | null };
 
 // Where a task comes from: the term's general framework, a department's plan (Step 19), a template
 // assigned to a person (Step 21), or a quick request (Step 22, ADR-0025).

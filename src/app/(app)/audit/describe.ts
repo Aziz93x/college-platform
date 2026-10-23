@@ -151,12 +151,12 @@ function targets(value: Record_, lookups: Lookups, words: Words) {
   switch (value.type) {
     case "everyone":
       return words("targets.everyone");
-    case "role":
-      return typeof value.roleId === "string"
-        ? words("targets.role", {
-            role: lookups.roleById(value.roleId) ?? value.roleId,
-          })
+    case "role": {
+      const id = value.roleId;
+      return typeof id === "string"
+        ? words("targets.role", { role: lookups.roleById(id) ?? id })
         : undefined;
+    }
     case "people":
       return Array.isArray(value.people)
         ? words("targets.people", { count: String(value.people.length) })

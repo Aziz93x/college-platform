@@ -53,6 +53,15 @@ const TEMPLATE_ITEM = {
   kind: ITEM.kind,
   evidence: ITEM.evidence,
 };
+// A quick request to everyone in its place, due on a day of the term (Step 22).
+const REQUEST = {
+  termId: ID,
+  title: "Attendance sheets",
+  axisId: ID,
+  dueOn: "2026-03-05",
+  targets: { type: "everyone" },
+  evidence: true,
+};
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -200,6 +209,18 @@ vi.mock("@/modules/tasks", async (importOriginal) => ({
   queueGeneration: async () => {},
   // A failed pass run again from the system page (ADR-0029).
   rerunPass: async () => "queued",
+  // A quick request's tasks, made at once, and whom they reached (Step 22).
+  generateTerm: async () => undefined,
+  itemAssignees: async () => [{ userId: ID, departmentId: DEPARTMENT }],
+}));
+// A quick request sent, and the person it reached told of it (Step 22).
+vi.mock("@/modules/requests", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/requests")>()),
+  sendQuickRequest: async () => ({ status: "sent", id: ID }),
+}));
+vi.mock("@/modules/notifications", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/notifications")>()),
+  notify: async () => "sent",
 }));
 // A text of the platform reworded or put back, against the college's catalog (ADR-0029).
 vi.mock("@/modules/texts", async (importOriginal) => ({
@@ -257,6 +278,7 @@ vi.mock("@/platform/files/table", () => ({
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+  getFormatter: async () => ({ dateTime: (at: Date) => at.toISOString() }),
 }));
 vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -642,6 +664,21 @@ const checked: {
     input,
     inDepartment: true as const,
   })),
+  // A quick request: the head's to their department, and the vice-dean's and the dean's, who hold
+  // the key across the college, to one department or the whole college (Step 22).
+  {
+    module: "(app)/requests/actions.ts",
+    action: "sendQuickRequestAction",
+    permission: "requests.send",
+    input: { ...REQUEST, departmentId: DEPARTMENT },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/requests/actions.ts",
+    action: "sendQuickRequestAction",
+    permission: "requests.send",
+    input: { ...REQUEST, departmentId: null },
+  },
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {
     module: "(app)/axes/actions.ts",

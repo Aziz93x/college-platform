@@ -91,14 +91,14 @@ export async function sendQuickRequest(
     if (!department) return { status: "departmentNotFound" };
   }
   const { targets } = input;
-  if (targets.type === "role") {
+  if ("roleId" in targets) {
     const [role] = await db
       .select({ id: roles.id })
       .from(roles)
       .where(and(eq(roles.collegeId, collegeId), eq(roles.id, targets.roleId)));
     if (!role) return { status: "roleNotFound" };
   }
-  if (targets.type === "people") {
+  if ("people" in targets) {
     const held = new Set(
       (await roleHolders(collegeId, input.termId, db)).map(
         ({ departmentId, userId }) => `${departmentId}:${userId}`,

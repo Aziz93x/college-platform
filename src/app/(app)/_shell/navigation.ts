@@ -11,10 +11,12 @@ import {
   Languages,
   Layers,
   LayoutDashboard,
+  ListChecks,
   type LucideIcon,
   Megaphone,
   Presentation,
   ScrollText,
+  Send,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -187,6 +189,21 @@ export const navigation = [
     href: "/assignments",
     icon: BriefcaseBusiness,
     permission: "assignment.manage",
+  },
+  // Urgent work a head asks of their department, and the vice-dean or the dean of one department
+  // or the college, without the plan editor (Step 22).
+  {
+    id: "requests",
+    href: "/requests",
+    icon: Send,
+    permission: "requests.send",
+  },
+  // What the term still needs, who owes each part and where it is done (Step 22).
+  {
+    id: "readiness",
+    href: "/readiness",
+    icon: ListChecks,
+    permission: "readiness.view",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.
