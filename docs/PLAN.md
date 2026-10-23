@@ -1319,6 +1319,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 18:** each kind's payload is a list of fields (`kindFields`, `src/modules/framework/domain/payloads.ts`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`, both in `src/app/(app)/_kinds`). The card puts the editor before the evidence, starts a task's payload as `blankPayload(kindFields[kind], week)` with the term's current week, so that what the editor shows is what the payload holds (Audit 6), and its action checks a payload with `payloadSchema(kind)`. The page passes both the kind's fields (`kindFields[kind]`) and the editor `payloadLimits`: a client component imports only types from a module, whose index would bring its server code into the browser's bundle. The trainer writes a course's exam types, methods and kinds of development in their own words, and gives each section's grade analysis its bands (the owner's notes under Step 18). Files are the task's evidence, not its payload: an exam copy's paper and key, homework samples.
 
+**Note from UX review 2 (docs/reviews/ux-20.md, decision 3):** each kind's editor is checked where it lives, not in the design catalog. Added to Done when: each kind's editor and its read view on the task card, on desktop and on iPhone emulation, with no serious axe issue and every control at 44 px.
+
 #### Step 27. Notifications in the work loop (S)
 
 **Goal:** few messages, all useful.

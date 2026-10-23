@@ -4,6 +4,25 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### UX review 2: Steps 11 to 20 (docs/reviews/ux-20.md)
+
+- The stepper reads its whole number at either bound: the button that leaves rests under the value, so "18" no longer reads "8". At 200% text the term pages shrink their steppers instead of scrolling sideways. The design catalog shows a stepper at its maximum (F1).
+- The plan by weeks scrolls in a frame between the header and the tab bar, its week row and item column sticky, and the page no longer scrolls sideways at 768 or 1024 px. While items are chosen, their bar floats at the screen's foot (F2).
+- A phone's first tabs hold each role's work: the base seed stores `navigation.order` for the vice-dean (Today, terms, framework, Rayat) and the head (Today, plan, sections, people), and migration `0025` gives existing colleges the same where they ordered neither role. A role's page order marks where a phone's tabs end, and the terms tab reads "الفصول" (F3).
+- The audit log words the framework's and the plans' items as their pages do: the axis, the kind, whom it reaches, the due rule and the evidence, and a departed person as one. An item's event leads with its title; the CSV export says the same (F4).
+- The item sheet's Save, "حفظ وإضافة آخر" and Cancel stay at its foot under every field (F5). In a narrow header the term switcher shows its icon only, and in the narrowest the gaps shrink, so no control lies over another (F6). Today no longer waits on a plan already published, and its link reads "افتح «…»" (F7).
+- One pattern per job:
+  - taking an item out of a draft, the framework's or a plan's, asks once in a sheet that names it (C1);
+  - the exam periods save with Save and Discard once something changed, then "حُفظ" (C2);
+  - the framework follows the plan's lifecycle: the next version starts from the published one's head, nothing yet is an empty state with its action, the draft's head carries add and publish, the publish dialog says when the tasks are made and the reviews a week it asks, and both pages list their versions; the plan's "no version yet" is the empty state with the art (C3);
+  - one ghost button (C4) and one disclosure (C5, Rayat's changes);
+  - the copy: verbal nouns on buttons, no ellipsis on a working one, "غير نشط في المنصة", "إضافة فصل", "منسوب من القسم", the keys' holders instead of "مدير النظام" in Rayat's messages and "مسؤول المنصة" on the sign-in page, and a transfer cancelled by "إعادة الشعبة إلى …" (C6);
+  - dates with the week first, and a transfer's day in words (C7);
+  - a filtered log that matched nothing shows the search's no-match state, the art kept for a log with no events (C8).
+- Found while fixing: while "حفظ وإضافة آخر" keeps the plan's sheet open, its toast, which names the weeks an item lands in, shows at the top of the screen, clear of the sheet's actions that now stay at its foot; a combobox's open list follows its field when the field moves without a scroll, as in the transfer sheet sliding in, where the list could stay over the field; and the end-to-end axe checks run from a page's top, where the sticky header covers no target.
+- The review's should-fix items wait in docs/BACKLOG.md, and each kind's payload editor is checked on the task card, as Step 26's Done when now says.
+- Tests: unit tests for the item words and the audit's item events; integration tests for the stored orders, migration `0025` and the framework's versions with their items; end-to-end tests for the stepper's value at a bound and the term pages at 200% text, the plan grid at 768 and 1024 px, the sheet's Save in view, the vice-dean's and the head's tabs, overlapping header controls, the page order's cut-off, the item events' words, the no-match state, both removal sheets, the framework's lifecycle, the periods' save, one ghost colour, the disclosure, the dates, the plan sheet's toast clear of its actions, and a combobox's list following its field.
+
 ### Step 19: the department plan editor (ADR-0027)
 
 - A department's plan for a term, version by version, on `/plan`, which takes the place of `/templates`:
