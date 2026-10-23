@@ -71,7 +71,7 @@ Each step heading carries a size: S is about one session, M two or three, L four
 | System admin (مدير النظام) | College profile and branding; departments and their Rayat matching values; accounts and role assignments; Rayat column map; portfolio axes catalog (locked); settings | Audit log, system health, backups | Admin console |
 | Dean (العميد) | College vision, mission and leadership message for portfolio front matter; optional endorsement of each term's framework | College and department indicators as totals; approved portfolios | College summary |
 | Vice-dean for training (وكيل التدريب) | Terms: Rayat name, start date, number of weeks, holidays, exam weeks, grade deadlines. The general framework: college-wide items under the axes with due weeks and evidence policies. Rayat uploads (SS01, SF01, optional SO01) | Every department down to trainer, section, task and evidence, read only | Term and framework |
-| Department head (رئيس القسم) | Department plan on top of the framework; section task templates (tests, homework, grade analysis, e-learning, practices) and their evidence policies; assignments; quick requests; review sample and portfolio approvals; section transfers; account help for own trainers; Rayat uploads for the whole college, as the vice-dean, when the admin gives the key (ADR-0019) | Department work, indicators, what is missing per trainer and axis | Today (head) |
+| Department head (رئيس القسم) | Department plan on top of the framework; section task templates (tests, homework, grade analysis, e-learning, practices) and their evidence policies; assignments; quick requests; review sample and portfolio approvals, each of which they may delegate for the term to people of their department (ADR-0031); section transfers; account help for own trainers; Rayat uploads for the whole college, as the vice-dean, when the admin gives the key (ADR-0019) | Department work, indicators, what is missing per trainer and axis | Today (head) |
 | Department secretary (أمين القسم) | Meetings, minutes, decisions, recommendations, improvement plans, department documents, draft department portfolio | Department plan and calendar | Department |
 | Trainer (المدرب) | Professional profile; tasks and evidence per section; assignment tasks; initiatives, participations and development; portfolio curation and next-term goals | Own tasks, sections, indicators, portfolio | Today (trainer) |
 | Quality reviewer (optional) | Comments on portfolios | Approved portfolios | Portfolios |
@@ -206,7 +206,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 **Task status:** not started → in progress → submitted → done, plus returned (back to the trainer with a note) and not applicable (with a reason). Overdue is a flag on top of the status, not a status.
 
-**Review model.** Uploading the required evidence completes a task. Each week the platform picks a sample for the head: 10% by default, capped at a weekly number; both are settings. The head approves each trainer's portfolio at mid-term and at term end and sees what changed since the last approval. A head can mark one or two task kinds as "requires approval", for example exam copies. The department portfolio freezes on a date the head sets and lists what is missing.
+**Review model.** Uploading the required evidence completes a task. Each week the platform picks a sample for the head: 10% by default, capped at a weekly number; both are settings. The head approves each trainer's portfolio at mid-term and at term end and sees what changed since the last approval. A head can mark one or two task kinds as "requires approval", for example exam copies. The head may delegate the review and the portfolio approvals, each for the term, to people of the department they pick, who decide beside the head but never on their own work (ADR-0031). The department portfolio freezes on a date the head sets and lists what is missing.
 
 **Rayat import.** Rayat exports its reports as XLSX. SS01 and SF01 are mandatory; SO01 is optional. Column names come from a versioned mapping in settings, seeded from the real headers in section 9, and only the columns marked there are stored. From SF01 that means term, department, course, section reference, trainee number, registration status and trainee status, never names, mobile numbers or grades. The raw file is discarded after parsing. Each import shows a validation report and a diff against the previous import before it is applied, and it can be rolled back.
 
@@ -1403,6 +1403,12 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 19 (ADR-0027):** the plan's publish dialog already counts the reviews a week that the plan's items and the framework's ask of the head: their tasks whose evidence asks for approval, over the term's weeks. The sample draws from the same tasks.
 
+**Note from ADR-0031 (the owner's request):** the head delegates the review for the term, to one person or more of the department.
+- **The grant:** beside the six shared assignment templates, the base seed adds one without items, whose role holds `review.decide` in the department. The head gives it on `/assignments` as the secretary's role is given (ADR-0028), with no weeks to choose, and withdraws it there. The inbox names its holders and opens that page.
+- **The inbox:** a delegate decides beside the head, in the department's one inbox. The week's sample does not grow: `review.weeklyCap` caps the department's sample, not each reviewer's. An item is decided once.
+- **The rules:** no one decides on their own work, and the check is by person, since a delegate and the head hold the same key. Settle here who decides a head's own work where no one holds the delegation. Each decision keeps who made it, which the trainer and the log see.
+- **Exam copies:** the review's delegates see them before their day, as the head does (the note under Step 30).
+
 #### Step 31. Portfolio builder (M)
 
 *Runs after Step 29 and before Step 30 (ADR-0008); its number is kept. "Open PDF" on phones is wired in Step 32.*
@@ -1439,6 +1445,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from ADR-0008:** Step 31 runs first, so the approval snapshot, the change view and the trainer-by-axis grid read its portfolio view by axis, curation included.
 
 **Note from Step 18:** an exam copy's payload names its exam's day (`examOn`), which the confidentiality rule reads.
+
+**Note from ADR-0031 (the owner's request):** the head delegates the portfolios' approval for the term, as Step 29 delegates the review.
+- A template without items, whose role holds `portfolio.approve` in the department, which this step adds.
+- No one approves their own portfolio, and each approval keeps who made it.
+- The confidentiality rule follows `review.decide`: whoever holds it in the trainer's department for the term sees an exam copy before its day. That is the head and the review's delegates (the owner's answer). The secretary, and the portfolios' delegate without the review, see it from that day.
 
 > **Checkpoint: UX review 3.** Run `/ux-review 21-30` (Today, My work, section page, task card, uploads, review inbox, missing grid).
 

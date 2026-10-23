@@ -4,6 +4,12 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### ADR-0031: the head delegates the review and the portfolios' approval (the owner's request)
+
+- Recorded now, to be built with Steps 29 and 30. A head may delegate the review and the portfolios' approval, each on its own, to one person or more of their department, for the term. A delegate decides beside the head and never on their own work, and each decision keeps who made it. The review's delegates see exam copies before their day, as the head does.
+- A delegation will be an assignment whose template grants a role holding the approval's key (ADR-0028), so the grant needs nothing new. The app does not change until Step 29.
+- The plan: the head's row in section 1, the review model in section 3, and notes under Steps 29 and 30.
+
 ### Step 22: quick requests and the term readiness board (ADR-0030)
 
 - `/requests` (`requests.send`): a quick request from a sheet. It has:
