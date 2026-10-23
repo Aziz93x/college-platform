@@ -18,13 +18,15 @@ export const taskKinds = [
 ] as const;
 export type TaskKind = (typeof taskKinds)[number];
 
-// How long an item's words may be, how many weeks a rule may count and how many files evidence
-// may hold. They only keep a slip of the keyboard out of the database.
+// How long an item's words may be, how many weeks a rule may count, how many files evidence may
+// hold, and how many items one change may move or take out. They only keep a slip of the keyboard
+// out of the database.
 export const frameworkLimits = {
   title: 200,
   notes: 1000,
   weeks: 52,
   files: 20,
+  items: 500,
 } as const;
 
 // Whom an item reaches: each holder of a role in each department, each trainer of each section, or
@@ -42,8 +44,16 @@ const appliesTo = z.union([
 ]);
 export type AppliesTo = z.infer<typeof appliesTo>;
 
+// Whom a department plan's item reaches (Step 19): as a framework item does, or one person of the
+// department by their account, while they hold a role in it.
+const planReach = z.union([
+  appliesTo,
+  z.object({ type: z.literal("person"), userId: z.uuid() }),
+]);
+export type PlanReach = z.infer<typeof planReach>;
+
 // Whether an item reaches trainers through their sections or courses, not a role's holders.
-export const reachesTrainers = (applies: AppliesTo): applies is TrainerReach =>
+export const reachesTrainers = (applies: PlanReach): applies is TrainerReach =>
   applies.type === "eachSection" || applies.type === "eachCourse";
 
 // When an item is due: in a week of the term, every week, every so many weeks, or so many weeks
@@ -104,9 +114,10 @@ export const frameworkItemInput = z.object({
 });
 export type FrameworkItemInput = z.infer<typeof frameworkItemInput>;
 
-// A head's section template (Step 18): an item for the trainers of the department's sections, each
-// once per section or once per course of theirs, with a framework item's other fields.
-export const sectionTemplateInput = frameworkItemInput.extend({
-  appliesTo: trainers,
+// An item of a department's plan (Step 19), as its head enters it: a framework item's fields, and
+// whom it reaches within the department. The section templates of Step 18 are its items for each
+// section's or each course's trainer.
+export const planItemInput = frameworkItemInput.extend({
+  appliesTo: planReach,
 });
-export type SectionTemplateInput = z.infer<typeof sectionTemplateInput>;
+export type PlanItemInput = z.infer<typeof planItemInput>;

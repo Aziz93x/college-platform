@@ -35,7 +35,7 @@ export default defineConfig({
     "settings.spec.ts",
     "shell.spec.ts",
     "stack.smoke.ts",
-    "templates.spec.ts",
+    "plan.spec.ts",
     "terms.spec.ts",
   ],
   grepInvert: SKIPPED,

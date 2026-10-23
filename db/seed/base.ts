@@ -54,6 +54,7 @@ export const defaultRoles: {
     labels: { ar: "رئيس القسم" },
     permissions: [
       "plan.edit",
+      "plan.publish",
       "sections.transfer",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",

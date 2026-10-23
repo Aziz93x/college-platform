@@ -95,9 +95,11 @@ export function FrameworkDraft({
     setError(undefined);
   };
 
-  const save = (item: ItemInput) => {
+  // The framework's sheet offers no person: its items reach a role or each trainer.
+  const save = ({ appliesTo, ...input }: ItemInput) => {
     const current = editing;
-    if (!current || !draft) return;
+    if (!current || !draft || appliesTo.type === "person") return;
+    const item = { ...input, appliesTo };
     const closed = () => {
       toast.success(t("saved"));
       setEditing(undefined);

@@ -39,8 +39,10 @@ const permissions = {
   // Upload, apply and roll back Rayat's reports (Step 16). A file is the whole college's, so the key
   // held in a department does what it does held across the college (ADR-0019).
   "rayat.import": { area: "term", requiresTwoFactor: false },
-  // Edit a department's plan: its section templates from Step 18, the plan itself from Step 19.
+  // Edit a department's plan for a term: its drafts and their items (Step 19).
   "plan.edit": { area: "planning", requiresTwoFactor: false },
+  // Publish a department's plan, whose tasks are then generated (Step 19).
+  "plan.publish": { area: "planning", requiresTwoFactor: false },
   // Transfer a section of the term from one trainer to another, from a week on (Step 17).
   "sections.transfer": { area: "planning", requiresTwoFactor: false },
   // Complete one's own tasks and attach their evidence (Step 26). Step 17 already reads it: a

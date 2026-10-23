@@ -187,6 +187,11 @@ it.each([
     migration: "0020_section_templates.sql",
     added: ["plan.edit"],
   },
+  {
+    college: "seeded before Step 19 its new key through migration 0023",
+    migration: "0023_department_plans.sql",
+    added: ["plan.publish"],
+  },
 ])("gives the head of a college $college, once", async ({
   migration,
   added,
@@ -203,7 +208,9 @@ it.each([
     "utf8",
   )
     .split("--> statement-breakpoint")
-    .filter((statement) => statement.includes("INSERT INTO"));
+    .filter((statement) =>
+      statement.includes('INSERT INTO "role_permissions"'),
+    );
   for (const run of [1, 2]) {
     for (const statement of inserts) await pool.query(statement);
     expect(

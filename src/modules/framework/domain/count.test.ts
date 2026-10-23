@@ -4,6 +4,7 @@ import {
   departmentsReached,
   dueWeeks,
   occurrences,
+  weeksOutside,
 } from "./count.ts";
 import type { AppliesTo, DueRule } from "./inputs.ts";
 
@@ -29,6 +30,20 @@ const anchored = (
 ): DueRule => ({ type: "examPeriods", periodTypes, side, weeks });
 const trainers: AppliesTo = { type: "role", roleId: TRAINER };
 const heads: AppliesTo = { type: "role", roleId: HEAD };
+// A department with so many holders of each role and trainers of its sections and courses, and its
+// lab supervisor, who holds a role there.
+const SUPERVISOR = "0199b2a4-0000-7000-8000-000000000003";
+const department = (
+  roles: Record<string, number>,
+  sectionTrainers = 0,
+  courseTrainers = 0,
+) => ({
+  departmentId: "d",
+  roles,
+  people: new Set([SUPERVISOR]),
+  sectionTrainers,
+  courseTrainers,
+});
 
 describe("occurrences", () => {
   it.each<[DueRule, number]>([
@@ -76,42 +91,73 @@ describe("dueWeeks", () => {
   });
 });
 
+describe("weeksOutside", () => {
+  it.each<[DueRule, number]>([
+    [{ type: "week", week: 18 }, 0],
+    [{ type: "week", week: 19 }, 1],
+    [{ type: "weekly" }, 0],
+    [{ type: "everyWeeks", every: 5 }, 0],
+    // The theoretical final's analysis a week after it, and the first periodic's questions five
+    // weeks before it, fall outside the 18 weeks.
+    [anchored("after", 1), 1],
+    [anchored("before", 5, ["first-periodic", "second-periodic"]), 1],
+    [anchored("before", 1), 0],
+  ])("counts the times %j falls outside 18 weeks: %d", (due, outside) => {
+    expect(weeksOutside(due, TERM)).toBe(outside);
+  });
+});
+
 describe("departmentsReached", () => {
-  it("joins each department's role holders and its sections' and courses' trainers, a department with sections and no one in it yet too", () => {
+  it("joins each department's role holders, by account, and its sections' and courses' trainers, a department with sections and no one in it yet too", () => {
     expect(
       departmentsReached(
         [
-          { departmentId: "a", roleId: "trainer", count: 4 },
-          { departmentId: "a", roleId: "head", count: 1 },
-          { departmentId: "b", roleId: "trainer", count: 2 },
+          ...["u1", "u2", "u3", "u4"].map((userId) => ({
+            departmentId: "a",
+            roleId: "trainer",
+            userId,
+          })),
+          // The head teaches too.
+          { departmentId: "a", roleId: "head", userId: "u1" },
+          ...["u5", "u6"].map((userId) => ({
+            departmentId: "b",
+            roleId: "trainer",
+            userId,
+          })),
         ],
         { a: { trainers: 11, courses: 6 }, c: { trainers: 3, courses: 2 } },
       ),
     ).toEqual([
       {
+        departmentId: "a",
         roles: { trainer: 4, head: 1 },
+        people: new Set(["u1", "u2", "u3", "u4"]),
         sectionTrainers: 11,
         courseTrainers: 6,
       },
-      { roles: {}, sectionTrainers: 3, courseTrainers: 2 },
-      { roles: { trainer: 2 }, sectionTrainers: 0, courseTrainers: 0 },
+      {
+        departmentId: "c",
+        roles: {},
+        people: new Set(),
+        sectionTrainers: 3,
+        courseTrainers: 2,
+      },
+      {
+        departmentId: "b",
+        roles: { trainer: 2 },
+        people: new Set(["u5", "u6"]),
+        sectionTrainers: 0,
+        courseTrainers: 0,
+      },
     ]);
   });
 });
 
 describe("countTasks", () => {
   it("counts each item for each holder or section, each time it is due, and the departments it reaches", () => {
-    const electrical = {
-      roles: { [TRAINER]: 12, [HEAD]: 1 },
-      sectionTrainers: 0,
-      courseTrainers: 0,
-    };
-    const mechanical = {
-      roles: { [TRAINER]: 8, [HEAD]: 1 },
-      sectionTrainers: 0,
-      courseTrainers: 0,
-    };
-    const general = { roles: {}, sectionTrainers: 0, courseTrainers: 0 };
+    const electrical = department({ [TRAINER]: 12, [HEAD]: 1 });
+    const mechanical = department({ [TRAINER]: 8, [HEAD]: 1 });
+    const general = department({});
     expect(
       countTasks(
         [
@@ -134,7 +180,7 @@ describe("countTasks", () => {
 
   it("counts nothing for no items, each trainer of each section once there are sections, and each trainer of each course once for all its sections", () => {
     // 29 sections, one of them taught by two trainers, of 12 trainers' courses.
-    const sections = { roles: {}, sectionTrainers: 30, courseTrainers: 12 };
+    const sections = department({}, 30, 12);
     expect(countTasks([], [sections], TERM)).toEqual({
       tasks: 0,
       departments: 0,
@@ -155,5 +201,23 @@ describe("countTasks", () => {
         TERM,
       ),
     ).toEqual({ tasks: 48, departments: 1 });
+  });
+
+  it("counts an item for one person once where they hold a role, and nowhere else (Step 19)", () => {
+    const item = {
+      appliesTo: { type: "person" as const, userId: SUPERVISOR },
+      due: { type: "everyWeeks" as const, every: 6 },
+    };
+    expect(countTasks([item], [department({})], TERM)).toEqual({
+      tasks: 3,
+      departments: 1,
+    });
+    expect(
+      countTasks(
+        [item],
+        [{ ...department({}), people: new Set<string>() }],
+        TERM,
+      ),
+    ).toEqual({ tasks: 0, departments: 0 });
   });
 });

@@ -4,6 +4,37 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 19: the department plan editor (ADR-0027)
+
+- A department's plan for a term, version by version, on `/plan`, which takes the place of `/templates`:
+  - Its head fills a draft with the department's own items, beside the framework's, which show locked.
+  - Publishing makes a version that never changes again, and the next version starts from it.
+  - A first version starts empty, or from the department's plan in the previous term.
+  - The wizard copies each department's plan into the next term as a first draft.
+- The section templates of Step 18 are the plan's items: migration `0023` made each department's templates for a term the first draft of its plan, with their ids and order, and `0024` dropped `section_templates`.
+- An item reaches each section's trainer, each course's trainer, the holders of a role in the department (all trainers, the secretary), or one person who holds a role there, found in the sheet by name or employee number.
+- The plan by weeks:
+  - on a wide screen, a row for each item and a column for each of the term's weeks, the exam periods' weeks tinted;
+  - an item due in one week moves by dragging its mark along its row, or with the arrow keys;
+  - items chosen with their boxes move a week earlier or later, or are taken out, together;
+  - on a phone, a list by week: what recurs, then each week, then what lands in no week.
+- Each item says what it needs before publishing: a time that falls outside the term's weeks, or no one in the department to reach.
+- The sheet saves and adds another, keeping all but the title and notes for the next item. Its toast names the weeks the saved item lands in, as the owner's note of 21 October asks. A plan's sheet shows each exam period's weeks beside its type.
+- The publish dialog shows the tasks the draft makes in the department and about how many reviews a week it and the framework ask of the head, both counted with `countTasks()`. It warns of the items that need something.
+- `plan.publish` publishes a department's plan. The base seed gives it to the head, and migration `0023` to existing heads. Whoever holds `plan.edit` sees a term while it is still a draft, in the header and on every page that follows it, so a head prepares the next term's plan before it starts.
+- The engine reads each department's latest published plan beside the framework, its items in their department alone. Publishing queues a pass with the cause `plan`.
+- Recorded as `plan.create`, `planItem.create`, `planItem.update`, `planItem.delete` and `plan.publish`, named by the department and the term. The templates' events keep their words.
+- `seed:demo` gives Electrical and Mechanical their plans, entered and published by their heads, and Electrical a second version in the making. The plans include the secretary's monthly minutes, one trainer's lab inventory, a peer visit for each trainer and a review of exam questions two weeks before each periodic. The demo term's tasks now count the plans' with the framework's.
+- Tests:
+  - unit: the plan's item shape and reach, whom a person's item reaches, the weeks a rule names outside the term, the sheet's person, the engine's plan slots, the property test with plans, the permission matrix's new actions;
+  - on a real database:
+    - drafts, versions, moves, removals, refusals and the wizard's copy;
+    - migrations `0023` and `0024` on a database of `0022`;
+    - a plan's tasks beside the framework's, as its preview counts, and a new version cancelling what it drops;
+    - each demo plan's preview equal to its tasks;
+    - every plan action's audit event;
+  - end to end on the desktop and the iPhone: the demo head's plan by weeks; a head starting the next term's plan while the term is a draft, adding items in one sheet, moving them by key, by drag and together, and publishing; a closed term's plan read-only; the page refused to a trainer; a 50-item plan built from one sheet and timed.
+
 ### The owner's notes of 21 October 2026: exam periods by week number (ADR-0026)
 
 - The college's types of exam period are a catalog in data. The base seed gives each college the four of the owner's canvas, each with its name and short name: the first and second periodic exams, and the practical and theoretical finals. No screen changes them yet.

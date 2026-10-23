@@ -1104,9 +1104,20 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **Publishing** queues a pass (`queueGeneration()`, with a cause of its own in `GenerationReason` and its words under `audit.causes` and `framework.generation`).
 - **The preview** counts its weeks with `dueWeeks()` (`src/modules/framework`), as the engine does. The anchored rule above changes `dueWeeks()` and the due day (`dueDay()`, `src/modules/terms`), not the engine.
 
-**Note from ADR-0026 (23 October 2026):** the anchored rule is built: `examPeriods` in `dueRule`, counted by `dueWeeks()` from the term's periods (`TermShape.periods`, `findTerm().periods`). The shared item sheet already chooses the period types, before or after, and the weeks, and its words read "قبل الدوري الأول بأسبوع". The due day is the week's last working day, so `dueDay()` is unchanged. Still to build here: the editor's preview of the weeks each anchored item lands in, with a flag for one past the term's end, as the owner's note asks.
 - **Step 20's Done-when** "for every demo framework and plan, the published preview equals the tasks generated" is checked here for plans: extend the seed test that checks it for the framework.
 - **`plan.publish`** is checked here: Step 20 did not need it.
+
+**Note from ADR-0026 (23 October 2026):** the anchored rule is built: `examPeriods` in `dueRule`, counted by `dueWeeks()` from the term's periods (`TermShape.periods`, `findTerm().periods`). The shared item sheet already chooses the period types, before or after, and the weeks, and its words read "قبل الدوري الأول بأسبوع". The due day is the week's last working day, so `dueDay()` is unchanged. Still to build here: the editor's preview of the weeks each anchored item lands in, with a flag for one past the term's end, as the owner's note asks.
+
+**Built (ADR-0027):** the section templates became the plan's items, and `/templates` gave way to `/plan`.
+- **Data:** `plans` holds each department's versions for a term, and `plan_items` their items, each with its `origin_id` (`src/modules/planning`). Migrations `0023` and `0024` moved the templates into first drafts and dropped their table.
+- **Reach:** an item reaches each section's or each course's trainer, a role's holders in the department, or one person who holds a role there (`planItemInput`, `PlanReach`).
+- **Versions:** `plan.publish`, the head's, publishes a draft, which never changes again. The next version starts from the latest published one, and a first one from the previous term's plan. The wizard copies each department's plan (`copyPlansInto()`).
+- **Engine:** it reads each department's latest published plan beside the framework (`publishedPlanItems()`), the plan's items in their department alone, with the source and the cause `plan`.
+- **Editor:** the plan by weeks on a wide screen, moved by dragging, the arrow keys or several at once, and a list by week on a phone. The framework's items are locked beside it, and an item outside the term's weeks or reaching no one is flagged (`weeksOutside()`). The sheet saves and adds another, and its toast names the weeks a saved item lands in.
+- **Publish dialog:** the tasks the draft makes in the department and the reviews a week it asks, both from `countTasks()`.
+- **Draft terms:** `plan.edit` shows a draft term (`preparesTerms()`).
+- **Seed and tests:** the seed test checks that each demo plan's preview equals its generated tasks, and `e2e/plan.spec.ts` builds a 50-item plan from one sheet, timed.
 
 #### Step 20. Generation engine (L)
 
@@ -1154,6 +1165,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 20 (ADR-0025):** an assignment's tasks come from the engine as a source of their own: add it to `tasks.source`, give each template item an identity as framework items have, and key each task by the assignment's holder, as a role's item is keyed. Assigning or revoking queues a pass.
 
+**Note from Step 19 (ADR-0027):** a department plan's item already reaches one person of the department, or the holders of a role there such as the secretary (`plan_items.applies_to`). An assignment stays a source of its own, for work its template carries from term to term.
+
 > **Checkpoint: Audit 7.** Run `/audit 19-21`.
 
 #### Step 22. Quick requests and the term readiness board (M)
@@ -1174,6 +1187,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 12:** a request that tells its targets uses `notify()` with a kind of its own: the kind and its page in `src/modules/notifications/domain/kinds.ts`, its params' type there, and its words under `notifications.kinds.<kind>` in `messages/ar.json` (a label and a hint for the preferences, a title and a description filled with the params). The preferences list it on their own, and a person who turned it off is not told.
 
 **Note from Step 20 (ADR-0025):** a quick request's tasks are created at once, by `generateTerm()` in the request rather than a queued pass, with the quick request as a source of its own. The board's "tasks generated" reads the latest pass of each term (`latestRun()`, `src/modules/tasks`), which `/framework` shows its publisher.
+
+**Note from Step 19 (ADR-0027):** a department's plan is published for a term once it has a published version (`departmentPlan()`, `src/modules/planning`).
 
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
@@ -1242,6 +1257,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Notes from Step 5**
 
 - BeUI here: tabs (the work list's filters), preview rail (the weeks) and morphing tabs (the section page).
+
+**Note from Step 19 (ADR-0027):** the department's layer is the tasks whose `source` is `plan`, and the college's those whose source is `framework`.
 
 **Note from Step 20 (ADR-0025):** a person's work is the tasks they are the assignee of (`tasks.assignee_id`), with `cancelled_at` empty. Each task has its week and its due day (`due_on`), and a section's task its section (`section_ref`). A task waiting for a trainer not on the platform has no assignee, only their employee number (`assignee_number`). Finished work of a section transferred away stays with whoever did it; "until week N" is the transfer's week, read from `section_transfers`.
 
@@ -1354,6 +1371,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 7:** the rate and the cap were settings, until they came out because nothing read them (section 0). This step adds them back: `review.sampleRate` (20%, the settings screen's only slider) and `review.weeklyCap` (30 per reviewer a week). The slider's end-to-end test, its arrow keys right to left, comes back with them (`e2e/settings.spec.ts` at 584319f).
 
 **Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
+
+**Note from Step 19 (ADR-0027):** the plan's publish dialog already counts the reviews a week that the plan's items and the framework's ask of the head: their tasks whose evidence asks for approval, over the term's weeks. The sample draws from the same tasks.
 
 #### Step 31. Portfolio builder (M)
 

@@ -17,6 +17,7 @@ import type { EvidencePolicy, TaskKind } from "../../framework/index.ts";
 import { users } from "../../identity/index.ts";
 import { colleges, departments } from "../../org/index.ts";
 import { terms } from "../../terms/index.ts";
+import type { TaskSource } from "../domain/generate.ts";
 import type {
   GenerationReason,
   GenerationStatus,
@@ -46,7 +47,7 @@ export const tasks = pgTable(
       .references(() => colleges.id),
     termId: uuid("term_id").notNull(),
     departmentId: uuid("department_id").notNull(),
-    source: text().$type<"framework">().notNull(),
+    source: text().$type<TaskSource>().notNull(),
     sourceItemId: uuid("source_item_id").notNull(),
     occurrence: integer().notNull(),
     sectionRef: text("section_ref").notNull().default(""),
@@ -106,7 +107,7 @@ export const tasks = pgTable(
       .nullsNotDistinct(),
     index("tasks_term_department_idx").on(table.termId, table.departmentId),
     index("tasks_assignee_idx").on(table.assigneeId, table.dueOn),
-    check("tasks_source", sql`${table.source} in ('framework')`),
+    check("tasks_source", sql`${table.source} in ('framework', 'plan')`),
     check(
       "tasks_status",
       sql`${table.status} in ('notStarted', 'inProgress', 'submitted', 'done', 'returned', 'notApplicable')`,
@@ -159,7 +160,7 @@ export const generationRuns = pgTable(
       .where(sql`${table.status} in ('queued', 'running')`),
     check(
       "generation_runs_reason",
-      sql`${table.reason} in ('framework', 'ss01', 'transfer', 'periods', 'daily')`,
+      sql`${table.reason} in ('framework', 'plan', 'ss01', 'transfer', 'periods', 'daily')`,
     ),
     check(
       "generation_runs_status",

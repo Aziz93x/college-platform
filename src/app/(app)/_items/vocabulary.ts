@@ -1,31 +1,37 @@
 import type { getFormatter, getTranslations } from "next-intl/server";
 import { type DueRule, reachesTrainers, taskKinds } from "@/modules/framework";
-import type { ExamPeriodType } from "@/modules/terms";
+import type { ExamPeriod, ExamPeriodType } from "@/modules/terms";
 import type { ItemInput, ItemOptions } from "./item-sheet.tsx";
 import type { ItemView } from "./item-words.tsx";
 
 const DUE_TYPES = ["week", "weekly", "everyWeeks", "examPeriods"] as const;
 const SIDES = ["before", "after"] as const;
 
-// The words of the items of the framework (Step 15) and of a department's section templates
-// (Step 18), and the choices their sheet offers, as their pages write them: the college's axes,
-// the kinds, its roles where the item chooses whom it reaches, its types of exam period, the file
-// types it accepts and the kinds of due rule.
+// The words of the items of the framework (Step 15) and of a department's plan (Step 19), and the
+// choices their sheet offers, as their pages write them: the college's axes, the kinds, its roles
+// and, on a plan, the department's people, its types of exam period with the weeks the term holds
+// them in, the file types it accepts and the kinds of due rule.
 export function itemVocabulary({
   t,
   periodTypes,
+  periods,
   format,
   axes,
   roles,
+  people,
   accepted,
 }: {
   t: Awaited<ReturnType<typeof getTranslations<"framework">>>;
   /** The college's types of exam period, in order (the owner's notes, 21 October 2026). */
   periodTypes: readonly ExamPeriodType[];
+  /** The term's exam periods, which a plan's sheet shows beside their types. */
+  periods?: readonly ExamPeriod[];
   format: Awaited<ReturnType<typeof getFormatter>>;
   axes: readonly { id: string; code: string; title: string }[];
-  /** The roles an item may reach, by id; none for a section template, which reaches trainers. */
+  /** The roles an item may reach, by id. */
   roles?: ReadonlyMap<string, string>;
+  /** The people of the department a plan's item may reach, by account (Step 19). */
+  people?: ReadonlyMap<string, { name: string; employeeNumber: string }>;
   accepted: readonly string[];
 }) {
   const axisWords = new Map(
@@ -65,7 +71,9 @@ export function itemVocabulary({
       kind: t(`kinds.${item.kind}`),
       appliesTo: reachesTrainers(item.appliesTo)
         ? t(item.appliesTo.type)
-        : (roles?.get(item.appliesTo.roleId) ?? ""),
+        : "roleId" in item.appliesTo
+          ? (roles?.get(item.appliesTo.roleId) ?? "")
+          : (people?.get(item.appliesTo.userId)?.name ?? t("personGone")),
       due: dueWords(item.due),
       evidence: [
         t("evidenceText", {
@@ -89,10 +97,30 @@ export function itemVocabulary({
     ...(roles && {
       roles: [...roles].map(([value, label]) => ({ value, label })),
     }),
-    periodTypes: periodTypes.map(({ code, shortName }) => ({
-      value: code,
-      label: shortName,
-    })),
+    ...(people && {
+      people: [...people].map(([value, { name, employeeNumber }]) => ({
+        value,
+        label: name,
+        employeeNumber,
+      })),
+    }),
+    periodTypes: periodTypes.map(({ code, shortName }) => {
+      const period = periods?.find(({ type }) => type === code);
+      return {
+        value: code,
+        label: !periods
+          ? shortName
+          : !period
+            ? t("periodOptionNone", { name: shortName })
+            : period.from === period.to
+              ? t("periodOptionWeek", { name: shortName, week: period.from })
+              : t("periodOptionWeeks", {
+                  name: shortName,
+                  from: period.from,
+                  to: period.to,
+                }),
+      };
+    }),
     sides: SIDES.map((side) => ({ value: side, label: t(`sides.${side}`) })),
     evidenceTypes: accepted.map((type) => ({
       value: type,

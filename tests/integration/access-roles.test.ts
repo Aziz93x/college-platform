@@ -111,6 +111,7 @@ describe("listRoles", () => {
       "accounts.linkEmployeeNumber",
       "announcements.publish",
       "plan.edit",
+      "plan.publish",
       "sections.transfer",
     ]);
   });

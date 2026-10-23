@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { frameworkItemInput, sectionTemplateInput } from "./inputs.ts";
+import { frameworkItemInput, planItemInput } from "./inputs.ts";
 
 const item = {
   title: "Exam copy",
@@ -28,16 +28,29 @@ it("lets a framework item reach a role's holders, each section's trainers or eac
   }
 });
 
-it("lets a section template reach each section's or each course's trainers, never a role, and asks which", () => {
-  for (const appliesTo of [{ type: "eachSection" }, { type: "eachCourse" }]) {
-    expect(sectionTemplateInput.safeParse({ ...item, appliesTo }).success).toBe(
-      true,
-    );
+it("lets a department plan's item reach a role's holders, each section's or each course's trainers, or one person, and a framework item no one person (Step 19)", () => {
+  const person = {
+    type: "person",
+    userId: "0199b2a4-0000-7000-8000-000000000003",
+  };
+  for (const appliesTo of [
+    role,
+    { type: "eachSection" },
+    { type: "eachCourse" },
+    person,
+  ]) {
+    expect(planItemInput.safeParse({ ...item, appliesTo }).success).toBe(true);
   }
   expect(
-    sectionTemplateInput.safeParse({ ...item, appliesTo: role }).success,
+    frameworkItemInput.safeParse({ ...item, appliesTo: person }).success,
   ).toBe(false);
-  expect(sectionTemplateInput.safeParse(item).success).toBe(false);
+  expect(
+    planItemInput.safeParse({
+      ...item,
+      appliesTo: { type: "person", userId: "someone" },
+    }).success,
+  ).toBe(false);
+  expect(planItemInput.safeParse(item).success).toBe(false);
 });
 
 it("anchors a rule to one exam-period type or more, each once, before or after its periods", () => {

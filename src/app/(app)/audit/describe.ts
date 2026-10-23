@@ -77,7 +77,9 @@ function format(
           lookups.calendarKind(value) ??
           value
         );
+      // A term, and the term a department's plan was copied from (Step 19).
       case "termId":
+      case "fromTermId":
         return lookups.term(value) ?? value;
       // A Rayat report, by the name everyone gives it (Step 16).
       case "report":
@@ -208,6 +210,19 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         typeof was.termId === "string"
         ? [
             was.title,
+            lookups.department(was.departmentId) ?? was.departmentId,
+            lookups.term(was.termId) ?? was.termId,
+          ].join(" · ")
+        : id;
+    }
+    // A department's plan by its department and term (Step 19).
+    case "plan": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) &&
+        typeof was.departmentId === "string" &&
+        typeof was.termId === "string"
+        ? [
             lookups.department(was.departmentId) ?? was.departmentId,
             lookups.term(was.termId) ?? was.termId,
           ].join(" · ")

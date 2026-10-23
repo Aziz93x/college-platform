@@ -118,6 +118,7 @@ describe("listDirectory", () => {
     expect(head.permissions).toEqual(
       new Set([
         "plan.edit",
+        "plan.publish",
         "sections.transfer",
         "accounts.resetPassword",
         "accounts.linkEmployeeNumber",

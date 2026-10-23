@@ -73,11 +73,15 @@ const dueRule: fc.Arbitrary<DueRule> = fc.oneof(
   }),
 );
 
-// Items as a framework version has them, before their due weeks are counted.
+// Items as a framework version or a department's plan has them, before their due weeks are counted:
+// a plan's item names its department, and may name one person (Step 19).
 const items = fc.uniqueArray(
   fc.record({
     origin: fc.constantFrom("a", "b", "c", "d", "e"),
     title: fc.constantFrom("توصيف", "تحليل"),
+    departmentId: fc.option(fc.constantFrom("d1", "d2", "d3"), {
+      nil: undefined,
+    }),
     appliesTo: fc.oneof(
       fc.record({
         type: fc.constant("role" as const),
@@ -85,6 +89,10 @@ const items = fc.uniqueArray(
       }),
       fc.constant({ type: "eachSection" as const }),
       fc.constant({ type: "eachCourse" as const }),
+      fc.record({
+        type: fc.constant("person" as const),
+        userId: fc.constantFrom("u1", "u2", "u4", "u5"),
+      }),
     ),
     due: dueRule,
     required: fc.boolean(),
@@ -138,6 +146,7 @@ const sourced = (
   version: {
     origin: string;
     title: string;
+    departmentId?: string;
     appliesTo: SourceItem["appliesTo"];
     due: DueRule;
     required: boolean;
@@ -145,6 +154,8 @@ const sourced = (
   shape: TermShape,
 ): SourceItem[] =>
   version.map((item) => ({
+    source: item.departmentId ? "plan" : "framework",
+    departmentId: item.departmentId,
     origin: item.origin,
     title: item.title,
     axisId: AXIS,
@@ -209,27 +220,47 @@ describe("the generation engine", () => {
   it("makes as many tasks as the preview counts", () => {
     fc.assert(
       fc.property(termShape, items, reach, (shape, version, departments) => {
-        const counted = countTasks(
-          version.map(({ appliesTo, due }) => ({ appliesTo, due })),
-          departments.map((department) => ({
-            roles: Object.fromEntries(
-              ROLES.map((role) => [role, department.holders[role].length]),
+        const reached = departments.map((department) => ({
+          departmentId: department.departmentId,
+          roles: Object.fromEntries(
+            ROLES.map((role) => [role, department.holders[role].length]),
+          ),
+          people: new Set(Object.values(department.holders).flat()),
+          sectionTrainers: department.sections.reduce(
+            (sum, section) => sum + section.places.length,
+            0,
+          ),
+          // Each trainer of each course once, however many of its sections they teach.
+          courseTrainers: new Set(
+            department.sections.flatMap((section) =>
+              section.places.map((place) => `${section.course} ${place}`),
             ),
-            sectionTrainers: department.sections.reduce(
-              (sum, section) => sum + section.places.length,
+          ).size,
+        }));
+        // The framework's preview counts its items in every department, and each plan's preview
+        // its own items in its own department.
+        const counted =
+          countTasks(
+            version.filter((item) => !item.departmentId),
+            reached,
+            shape,
+          ).tasks +
+          version
+            .filter((item) => item.departmentId)
+            .reduce(
+              (sum, item) =>
+                sum +
+                countTasks(
+                  [item],
+                  reached.filter(
+                    ({ departmentId }) => departmentId === item.departmentId,
+                  ),
+                  shape,
+                ).tasks,
               0,
-            ),
-            // Each trainer of each course once, however many of its sections they teach.
-            courseTrainers: new Set(
-              department.sections.flatMap((section) =>
-                section.places.map((place) => `${section.course} ${place}`),
-              ),
-            ).size,
-          })),
-          shape,
-        );
+            );
         const slots = slotsOf(sourced(version, shape), departments);
-        expect(slots).toHaveLength(counted.tasks);
+        expect(slots).toHaveLength(counted);
         expect(new Set(slots.map(slotKey)).size).toBe(slots.length);
       }),
     );

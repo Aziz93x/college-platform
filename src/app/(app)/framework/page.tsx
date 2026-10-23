@@ -12,9 +12,9 @@ import { PageHeader } from "@/components/page-header";
 import { sectionCounts } from "@/modules/academics";
 import {
   authorize,
-  countMembers,
   listRoles,
   requireViewer,
+  roleHolders,
   roleLabel,
 } from "@/modules/access";
 import { listAxes } from "@/modules/axes";
@@ -31,7 +31,7 @@ import { latestRun } from "@/modules/tasks";
 import { listExamPeriodTypes } from "@/modules/terms";
 import { ItemWords } from "../_items/item-words.tsx";
 import { itemVocabulary } from "../_items/vocabulary.ts";
-import { termCalendar, viewedTerm } from "../_shell/term.ts";
+import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
 import { FrameworkDraft } from "./framework-draft.tsx";
 import { TaskGeneration } from "./task-generation.tsx";
 
@@ -51,7 +51,7 @@ export default async function FrameworkPage() {
   const endorse = authorize(viewer, "framework.endorse", scope);
   const [t, { term }] = await Promise.all([
     getTranslations("framework"),
-    viewedTerm(viewer.collegeId, authorize(viewer, "term.manage", scope)),
+    viewedTerm(viewer.collegeId, preparesTerms(viewer)),
   ]);
   const header = (
     <PageHeader title={t("title")} description={t("description")} />
@@ -116,8 +116,8 @@ export default async function FrameworkPage() {
   // weeks and exam periods, as the engine counts them (Step 20); and the sections an item for their
   // trainers misses, having none yet.
   const draftImpact = async (items: readonly FrameworkItemInput[]) => {
-    const [members, sections, found] = await Promise.all([
-      countMembers(viewer.collegeId),
+    const [holders, sections, found] = await Promise.all([
+      roleHolders(viewer.collegeId),
       sectionCounts(viewer.collegeId, term.id),
       termCalendar(viewer.collegeId, term.id),
     ]);
@@ -125,7 +125,7 @@ export default async function FrameworkPage() {
       ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
       : 0;
     return t("impact", {
-      ...countTasks(items, departmentsReached(members, sections), {
+      ...countTasks(items, departmentsReached(holders, sections), {
         weeks: term.weeks,
         periods: found?.term.periods ?? [],
       }),

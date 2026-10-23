@@ -1,39 +1,53 @@
 import type { ExamPeriod } from "../../terms/index.ts";
-import type { AppliesTo, DueRule } from "./inputs.ts";
+import type { DueRule, PlanReach } from "./inputs.ts";
 
-// What a department holds that items reach: how many hold each role in it, its sections' trainers,
-// each trainer of each section counted once, and its courses' trainers, each trainer of each course
-// counted once.
+// What a department holds that items reach: how many hold each role in it, and who, by account; its
+// sections' trainers, each trainer of each section counted once; and its courses' trainers, each
+// trainer of each course counted once.
 export type Department = {
+  departmentId: string;
   roles: Readonly<Record<string, number>>;
+  people: ReadonlySet<string>;
   sectionTrainers: number;
   courseTrainers: number;
 };
 
-// What each department holds that items reach, from how many hold each role in it and how many
-// trainers its sections and its courses have in SS01 in force (Step 17): a department with sections
-// and no one in it yet counts too. A section with two trainers gives each of them its tasks, and
-// one with none gives none (the owner's rule, lead review C).
+// What each department holds that items reach, from the holders of each role in it, as the
+// generation engine reads them (roleHolders()), and how many trainers its sections and its courses
+// have in SS01 in force (Step 17): a department with sections and no one in it yet counts too. A
+// section with two trainers gives each of them its tasks, and one with none gives none (the owner's
+// rule, lead review C).
 export function departmentsReached(
-  members: readonly { departmentId: string; roleId: string; count: number }[],
+  holders: readonly { departmentId: string; roleId: string; userId: string }[],
   sections: Readonly<Record<string, { trainers: number; courses: number }>>,
 ): Department[] {
-  const all: Record<string, Department & { roles: Record<string, number> }> =
-    {};
+  const all = new Map<
+    string,
+    Department & { roles: Record<string, number>; people: Set<string> }
+  >();
+  const of = (departmentId: string) => {
+    const found = all.get(departmentId) ?? {
+      departmentId,
+      roles: {},
+      people: new Set<string>(),
+      sectionTrainers: 0,
+      courseTrainers: 0,
+    };
+    all.set(departmentId, found);
+    return found;
+  };
   for (const [departmentId, { trainers, courses }] of Object.entries(
     sections,
   )) {
-    all[departmentId] = {
-      roles: {},
-      sectionTrainers: trainers,
-      courseTrainers: courses,
-    };
+    of(departmentId).sectionTrainers = trainers;
+    of(departmentId).courseTrainers = courses;
   }
-  for (const { departmentId, roleId, count } of members) {
-    all[departmentId] ??= { roles: {}, sectionTrainers: 0, courseTrainers: 0 };
-    all[departmentId].roles[roleId] = count;
+  for (const { departmentId, roleId, userId } of holders) {
+    const department = of(departmentId);
+    department.roles[roleId] = (department.roles[roleId] ?? 0) + 1;
+    department.people.add(userId);
   }
-  return Object.values(all);
+  return [...all.values()];
 }
 
 // What the term holds that rules count on: its numbered weeks, and its exam periods by week number.
@@ -42,13 +56,11 @@ export type TermShape = {
   periods: readonly ExamPeriod[];
 };
 
-// The weeks a rule is due in the term, in order, one for each time: a task due before its first week
-// or past its last is not one of its tasks (Audit 5). The generation engine makes a task for each, so the preview counts
-// these and nothing else (Step 20).
-export function dueWeeks(due: DueRule, term: TermShape): number[] {
+// The weeks a rule names, one for each time, before or past the term's weeks too.
+function namedWeeks(due: DueRule, term: TermShape): number[] {
   switch (due.type) {
     case "week":
-      return due.week <= term.weeks ? [due.week] : [];
+      return [due.week];
     case "weekly":
       return Array.from({ length: term.weeks }, (_, index) => index + 1);
     case "everyWeeks":
@@ -63,10 +75,23 @@ export function dueWeeks(due: DueRule, term: TermShape): number[] {
           due.side === "before"
             ? period.from - due.weeks
             : period.to + due.weeks,
-        )
-        .filter((week) => week >= 1 && week <= term.weeks)
-        .sort((a, b) => a - b);
+        );
   }
+}
+
+// The weeks a rule is due in the term, in order, one for each time: a task due before its first week
+// or past its last is not one of its tasks (Audit 5). The generation engine makes a task for each, so the preview counts
+// these and nothing else (Step 20).
+export function dueWeeks(due: DueRule, term: TermShape): number[] {
+  return namedWeeks(due, term)
+    .filter((week) => week >= 1 && week <= term.weeks)
+    .sort((a, b) => a - b);
+}
+
+// How many times a rule names a week before the term's first or past its last, which are not its
+// tasks: a department plan's editor flags such an item (the owner's notes, 21 October 2026).
+export function weeksOutside(due: DueRule, term: TermShape) {
+  return namedWeeks(due, term).length - dueWeeks(due, term).length;
 }
 
 // How many times a rule is due in the term.
@@ -75,7 +100,7 @@ export function occurrences(due: DueRule, term: TermShape) {
 }
 
 // How many an item reaches in a department.
-function reached(applies: AppliesTo, department: Department) {
+function reached(applies: PlanReach, department: Department) {
   switch (applies.type) {
     case "eachSection":
       return department.sectionTrainers;
@@ -83,14 +108,17 @@ function reached(applies: AppliesTo, department: Department) {
       return department.courseTrainers;
     case "role":
       return department.roles[applies.roleId] ?? 0;
+    case "person":
+      return department.people.has(applies.userId) ? 1 : 0;
   }
 }
 
 // The tasks a framework or a plan creates (the impact preview, and the generation engine's count):
 // each item, in each department, once for each person it reaches, each trainer of each section or
-// each trainer of each course, and each time it is due; and how many departments get any.
+// each trainer of each course, and each time it is due; and how many departments get any. A plan's
+// preview gives it its own department alone.
 export function countTasks(
-  items: readonly { appliesTo: AppliesTo; due: DueRule }[],
+  items: readonly { appliesTo: PlanReach; due: DueRule }[],
   departments: readonly Department[],
   term: TermShape,
 ) {

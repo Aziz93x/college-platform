@@ -41,22 +41,6 @@ export async function roleHolders(collegeId: string, db: Db | Tx = getDb()) {
   }));
 }
 
-// How many hold each role in each active department, counted from roleHolders(): someone who holds
-// the role both for every term and for this one is one person (Audit 5).
-export async function countMembers(collegeId: string, db: Db = getDb()) {
-  const counts = new Map<
-    string,
-    { departmentId: string; roleId: string; count: number }
-  >();
-  for (const { departmentId, roleId } of await roleHolders(collegeId, db)) {
-    const key = `${departmentId}:${roleId}`;
-    const found = counts.get(key) ?? { departmentId, roleId, count: 0 };
-    found.count += 1;
-    counts.set(key, found);
-  }
-  return [...counts.values()];
-}
-
 // The enabled people who hold a key through a role in force in each of these departments, by name:
 // whom a department's work goes to, such as a section's trainers (Step 17), and who hears of it.
 export async function holdersIn(

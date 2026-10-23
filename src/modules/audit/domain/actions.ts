@@ -70,11 +70,19 @@ export const auditActions = [
   "sectionTransfer.keep",
   "sectionTransfer.cancel",
   // A head's section templates for a term, and their copy into the next term, recorded on each
-  // department's history (Step 18).
+  // department's history (Step 18). Kept for the history they wrote: Step 19 made them a
+  // department plan's items.
   "sectionTemplate.create",
   "sectionTemplate.update",
   "sectionTemplate.delete",
   "sectionTemplate.copy",
+  // A department's plan for a term: a version started, or copied into the next term, its items, and
+  // its publication (Step 19).
+  "plan.create",
+  "planItem.create",
+  "planItem.update",
+  "planItem.delete",
+  "plan.publish",
   // A pass of the generation engine over a term's tasks that changed any, written by the system with
   // what it did (Step 20).
   "task.generate",
@@ -97,6 +105,7 @@ const auditEntities = [
   "rayatImport",
   "sectionTransfer",
   "sectionTemplate",
+  "plan",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

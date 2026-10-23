@@ -1,12 +1,22 @@
 "use client";
 
-import { LoaderCircle, Save } from "lucide-react";
+import { ListPlus, LoaderCircle, Save } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { AdaptiveStepper } from "@/components/motion/adaptive-stepper";
 import { BottomSheet } from "@/components/motion/bottom-sheet";
 import { Checkbox } from "@/components/motion/checkbox";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/motion/combobox";
 import { Input } from "@/components/motion/input";
 import {
   Select,
@@ -17,24 +27,21 @@ import {
 } from "@/components/motion/select";
 import { Switch } from "@/components/motion/switch";
 import { Button } from "@/components/ui/button";
-import type {
-  DueRule,
-  FrameworkItemInput,
-  TaskKind,
-} from "@/modules/framework";
+import type { DueRule, PlanItemInput, TaskKind } from "@/modules/framework";
 
-// An item of the framework (Step 15), or a section template (Step 18), which reaches its
-// department's trainers once per section or once per course.
-export type ItemInput = FrameworkItemInput;
+// An item of the framework (Step 15), or of a department's plan (Step 19), which may also reach one
+// person of the department.
+export type ItemInput = PlanItemInput;
 
 type Option = { value: string; label: string };
 
-// The choices the sheet offers, as the page words them. Without roles, an item reaches only the
-// trainers of each section or each course.
+// The choices the sheet offers, as the page words them: the roles an item may reach, and on a
+// department's plan the people of the department, each found by name or employee number.
 export type ItemOptions = {
   axes: Option[];
   kinds: Option[];
   roles?: Option[];
+  people?: (Option & { employeeNumber: string })[];
   /** The college's types of exam period, which a rule is anchored to, and before or after them. */
   periodTypes: Option[];
   sides: Option[];
@@ -54,6 +61,7 @@ type Draft = {
   axisId: string;
   kind: TaskKind;
   applies: string;
+  person: string;
   dueType: DueRule["type"];
   week: number;
   every: number;
@@ -69,6 +77,7 @@ type Draft = {
 
 const EACH_SECTION = "eachSection";
 const EACH_COURSE = "eachCourse";
+const PERSON = "person";
 
 export const draftOf = (
   item: ItemInput | undefined,
@@ -83,6 +92,7 @@ export const draftOf = (
     : "roleId" in item.appliesTo
       ? item.appliesTo.roleId
       : item.appliesTo.type,
+  person: item?.appliesTo.type === "person" ? item.appliesTo.userId : "",
   dueType: item?.due.type ?? "week",
   week: item?.due.type === "week" ? item.due.week : 1,
   every: item?.due.type === "everyWeeks" ? item.due.every : 2,
@@ -113,7 +123,9 @@ const inputOf = (draft: Draft): ItemInput => ({
   appliesTo:
     draft.applies === EACH_SECTION || draft.applies === EACH_COURSE
       ? { type: draft.applies }
-      : { type: "role", roleId: draft.applies },
+      : draft.applies === PERSON
+        ? { type: "person", userId: draft.person }
+        : { type: "role", roleId: draft.applies },
   due:
     draft.dueType === "week"
       ? { type: "week", week: draft.week }
@@ -138,7 +150,8 @@ const inputOf = (draft: Draft): ItemInput => ({
 
 // An item's fields in a sheet, added or corrected: its title, axis and kind, whom it reaches, when
 // it is due, and the evidence it asks for. The page saves what it gives, and says what the server
-// refused.
+// refused. A new item may be saved with the sheet kept open for the next one (Step 19): once the page
+// has saved it, it gives a new resetKey, and the sheet keeps every field but the title and the notes.
 export function ItemSheet({
   title,
   description,
@@ -148,6 +161,8 @@ export function ItemSheet({
   saving,
   error,
   onSave,
+  onSaveAndAdd,
+  resetKey,
   onClose,
 }: {
   title: string;
@@ -159,25 +174,41 @@ export function ItemSheet({
   saving: boolean;
   error?: string;
   onSave: (input: ItemInput) => void;
+  /** Saves a new item and keeps the sheet open for the next. */
+  onSaveAndAdd?: (input: ItemInput) => void;
+  resetKey?: number;
   onClose: () => void;
 }) {
   const t = useTranslations("framework");
   const ui = useTranslations("ui");
   const format = useFormatter();
   const id = useId();
+  const titleRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Draft>(() => draftOf(item, options));
   const [problem, setProblem] = useState<string>();
 
+  // The next item starts where the last left off, but for its words.
+  const reset = useRef(resetKey);
+  useEffect(() => {
+    if (resetKey === reset.current) return;
+    reset.current = resetKey;
+    setForm((current) => ({ ...current, title: "", notes: "" }));
+    titleRef.current?.focus();
+  }, [resetKey]);
+
   const change = (next: Partial<Draft>) =>
     setForm((current) => ({ ...current, ...next }));
-  const save = () => {
+  const save = (then: (input: ItemInput) => void) => {
     if (!form.title.trim()) return setProblem(t("titleRequired"));
+    if (form.applies === PERSON && !form.person) {
+      return setProblem(t("personRequired"));
+    }
     if (form.types.length === 0) return setProblem(t("typesRequired"));
     if (form.dueType === "examPeriods" && form.periodTypes.length === 0) {
       return setProblem(t("periodsRequired"));
     }
     setProblem(undefined);
-    onSave(inputOf(form));
+    then(inputOf(form));
   };
 
   const number = (value: number) => format.number(value);
@@ -258,11 +289,12 @@ export function ItemSheet({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          save();
+          save(onSave);
         }}
         className="flex flex-col gap-4 pt-2 pb-2"
       >
         <Input
+          ref={titleRef}
           label={t("fields.title")}
           autoComplete="off"
           maxLength={limits.title}
@@ -275,7 +307,37 @@ export function ItemSheet({
           { value: EACH_SECTION, label: t("eachSection") },
           { value: EACH_COURSE, label: t("eachCourse") },
           ...(options.roles ?? []),
+          ...(options.people ? [{ value: PERSON, label: t("person") }] : []),
         ])}
+        {form.applies === PERSON && options.people ? (
+          <Combobox
+            value={form.person}
+            onValueChange={(person) => change({ person })}
+          >
+            <ComboboxLabel>{t("fields.person")}</ComboboxLabel>
+            <ComboboxTrigger>
+              <ComboboxInput placeholder={t("personPlaceholder")} />
+            </ComboboxTrigger>
+            <ComboboxContent>
+              <ComboboxList aria-label={t("fields.person")}>
+                {options.people.map((person) => (
+                  <ComboboxItem
+                    key={person.value}
+                    value={person.value}
+                    textValue={person.label}
+                    keywords={[person.employeeNumber]}
+                  >
+                    <span className="block truncate">{person.label}</span>
+                    <span dir="ltr" className="text-muted-foreground text-xs">
+                      {person.employeeNumber}
+                    </span>
+                  </ComboboxItem>
+                ))}
+              </ComboboxList>
+              <ComboboxEmpty>{t("noPerson")}</ComboboxEmpty>
+            </ComboboxContent>
+          </Combobox>
+        ) : null}
         {select("dueType", t("fields.due"), options.dueTypes)}
         {form.dueType === "week" ? stepper("week", 1, limits.weeks) : null}
         {form.dueType === "everyWeeks"
@@ -362,6 +424,17 @@ export function ItemSheet({
               },
             ]}
           />
+          {onSaveAndAdd ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => save(onSaveAndAdd)}
+            >
+              <ListPlus aria-hidden />
+              {t("saveAndAdd")}
+            </Button>
+          ) : null}
           <Button type="button" variant="ghost" onClick={onClose}>
             {ui("cancel")}
           </Button>

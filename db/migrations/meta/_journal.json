@@ -162,6 +162,20 @@
       "when": 1792743381311,
       "tag": "0022_exam_periods",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792747743313,
+      "tag": "0023_department_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792747782255,
+      "tag": "0024_drop_section_templates",
+      "breakpoints": true
     }
   ]
 }

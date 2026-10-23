@@ -83,3 +83,26 @@ it("opens a rule anchored to exam periods on its types, side and weeks, and star
     offset: 1,
   });
 });
+
+it("opens a plan's item for one person of the department on that person (Step 19)", () => {
+  const userId = "0199b2a4-0000-7000-8000-000000000009";
+  const item = {
+    title: "محضر اجتماع القسم",
+    axisId: options.axes[0].value,
+    kind: "meeting_minutes" as const,
+    appliesTo: { type: "person" as const, userId },
+    due: { type: "week" as const, week: 4 },
+    evidence: {
+      required: true,
+      types: ["pdf"],
+      maxFiles: 1,
+      requiresApproval: false,
+    },
+    notes: "",
+  };
+  expect(draftOf(item, options)).toMatchObject({
+    applies: "person",
+    person: userId,
+  });
+  expect(draftOf(undefined, options).person).toBe("");
+});
