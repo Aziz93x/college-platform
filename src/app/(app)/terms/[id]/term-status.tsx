@@ -98,6 +98,14 @@ export function TermStatus({
           setSheet(undefined);
           return;
         }
+        if (result?.data?.status === "periodProblems") {
+          setError(
+            t("periodProblems", {
+              periods: format.list(result.data.periods),
+            }),
+          );
+          return;
+        }
         refuse(result?.data?.status, result?.serverError);
       } else if (sheet === "close") {
         const result = await closeTermAction({ id: term.id });
@@ -123,7 +131,13 @@ export function TermStatus({
         const outcome = result?.data;
         if (outcome?.status === "created") {
           // The button keeps saying it is opening until the new term's page is on show.
-          toast.success(t("opened", { name, count: outcome.copied }));
+          toast.success(
+            t("opened", {
+              name,
+              count: outcome.copied,
+              periods: outcome.periods,
+            }),
+          );
           router.push(`/terms/${outcome.id}`);
           return;
         }

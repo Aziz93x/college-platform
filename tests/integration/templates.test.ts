@@ -195,7 +195,12 @@ describe("a department's section templates", () => {
       ...template("تحليل نتائج كل اختبار"),
       kind: "grade_analysis",
       appliesTo: { type: "eachSection" },
-      due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+      due: {
+        type: "examPeriods",
+        periodTypes: ["first-periodic", "second-periodic", "theoretical-final"],
+        side: "after",
+        weeks: 1,
+      },
     };
     await expect(
       updateTemplate(added.id, analysis, change(), accepted, database.db),
@@ -223,15 +228,20 @@ describe("a department's section templates", () => {
     );
   });
 
-  it("takes only file types the college accepts and a kind of calendar day it has", async () => {
+  it("takes only file types the college accepts and types of exam period it has", async () => {
     for (const offered of [
       {
         ...template("ملف بامتداد آخر"),
         evidence: { ...template("").evidence, types: ["zip"] },
       },
       {
-        ...template("بعد يوم لا يعرفه التقويم"),
-        due: { type: "afterEvent" as const, eventKind: "visit", weeks: 1 },
+        ...template("بعد فترة لا تعرفها الكلية"),
+        due: {
+          type: "examPeriods" as const,
+          periodTypes: ["midterm"],
+          side: "after" as const,
+          weeks: 1,
+        },
       },
     ]) {
       await expect(

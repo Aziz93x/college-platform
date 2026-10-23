@@ -39,3 +39,33 @@ it("lets a section template reach each section's or each course's trainers, neve
   ).toBe(false);
   expect(sectionTemplateInput.safeParse(item).success).toBe(false);
 });
+
+it("anchors a rule to one exam-period type or more, each once, before or after its periods", () => {
+  const anchored = (due: object) =>
+    frameworkItemInput.safeParse({
+      ...item,
+      appliesTo: { type: "eachCourse" },
+      due: { type: "examPeriods", ...due },
+    }).success;
+  expect(
+    anchored({ periodTypes: ["first-periodic"], side: "before", weeks: 1 }),
+  ).toBe(true);
+  expect(anchored({ periodTypes: ["final"], side: "after", weeks: 0 })).toBe(
+    true,
+  );
+  expect(anchored({ periodTypes: [], side: "before", weeks: 1 })).toBe(false);
+  expect(
+    anchored({ periodTypes: ["final", "final"], side: "after", weeks: 1 }),
+  ).toBe(false);
+  expect(anchored({ periodTypes: ["final"], side: "during", weeks: 1 })).toBe(
+    false,
+  );
+  // The rule it replaced (the owner's notes, 21 October 2026).
+  expect(
+    frameworkItemInput.safeParse({
+      ...item,
+      appliesTo: { type: "eachCourse" },
+      due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+    }).success,
+  ).toBe(false);
+});

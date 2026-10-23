@@ -174,7 +174,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 | Identity | Better Auth tables (user, session, account, two-factor); `people` (profile, employee number) | admin, the person |
 | Organization | colleges; departments (with Rayat matching values); roles; permissions (keys from code); role\_permissions; memberships (person, role, scope, optional term) | admin |
 | Settings | settings (key, scope, value validated by the key's schema, version) | admin, by permission |
-| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday; exam period: a type from the exam-period catalog, from week, to week; grade deadline; custom) | vice-dean |
+| Term | terms (Rayat name, start date, weeks, status); calendar\_events (holiday; grade deadline; custom); exam\_period\_types (code, name, short name); exam\_periods (a type from the catalog, from week, to week) | vice-dean |
 | Portfolio catalog | axis\_groups; axes (code, title, order, locked) | admin |
 | Framework | frameworks (term, version, status); framework\_items | vice-dean |
 | Academics | courses; sections (term, department, course, Rayat reference, trainer, schedule, capacity, enrolled, delivery mode); enrollments (section, trainee number, status); section\_overrides (transfers) | Rayat import, head |
@@ -201,7 +201,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 - **Idempotent:** one task per source item, occurrence, assignee and section. Running it twice changes nothing.
 - **Re-publish:** add new tasks; move due dates of tasks not started; cancel removed tasks that have no evidence; never touch completed work.
-- **Due rules:** week N; weekly; every N weeks; or relative to a calendar event, for example one week after the midterm exam week. A rule can name an exam-period type instead of one event: before or after each period of that type by N weeks, on a weekday. Such a rule moves with the periods when the vice-dean changes them, within the re-publish rule above. Dates skip holidays when the setting says so.
+- **Due rules:** week N; weekly; every N weeks; or before or after each exam period of the types it names by N weeks, such as the exam's questions the week before each period (ADR-0026). Such a rule moves with the periods when the vice-dean changes them, within the re-publish rule above. A task is due on its week's last working day that is not a holiday. Dates skip holidays when the setting says so.
 - **Section transfer:** completed work stays with the trainer who did it, marked "until week N"; open tasks move to the new trainer. The transfer holds until the next SS01 import confirms it or flags a conflict.
 
 **Task status:** not started → in progress → submitted → done, plus returned (back to the trainer with a note) and not applicable (with a reason). Overdue is a flag on top of the status, not a status.
@@ -969,6 +969,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
   - Shortening the term never moves a period. A period past the term's last week, or two periods in one week, is an error on the screen and at publish.
 - **One calendar in three layers.** This step builds the college's layer: the vice-dean's term start, holidays, exam periods and grade deadlines, which every role sees. Steps 18 and 19 add the department's layer, and Step 24 the trainer's own.
 
+**Note from ADR-0026 (built 23 October 2026):** the first bullet above is built as a change after this step.
+- **The catalog:** `exam_period_types` (`src/modules/terms`), seeded by the base seed with the four types by code (`examPeriodTypes`, `db/seed/base.ts`); no screen changes it yet. `listExamPeriodTypes()` gives them in order.
+- **The periods:** `exam_periods`, one of each type at most per term, in `findTerm().periods`. The vice-dean sets them on the term's page and saves them all at once (`saveExamPeriods()`, `examPeriods.update`); `periodProblems()` finds a period past the term's end and two that share a week, which the page shows and the save and the activation refuse. The wizard copies them in the same weeks.
+- **The calendar's events** keep holidays, the grade deadline and the college's own; migration `0022` made each exam event one of the college's own.
+
 #### Step 14. Portfolio axes catalog (S)
 
 **Goal:** the administration's axes are data, protected from accidental change.
@@ -997,6 +1002,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 13:** the wizard is `openNextTerm()` (`src/modules/terms/server/terms.ts`), behind the term page's "فتح الفصل التالي". It makes the next term in one transaction and copies the calendar, except its holidays, to the same weeks; the framework's draft copy joins that transaction.
 
 **Note from the owner (21 October 2026):** the due-rule shape includes the anchored rule from section 3: before or after each period of an exam-period type by N weeks, on a weekday. Step 15 merged before this note (#36): its rule counts only after each event of a kind, with no weekday, so this note changes what it built.
+
+**Note from ADR-0026 (built 23 October 2026):** the anchored rule, `{ type: "examPeriods", periodTypes, side, weeks }`, replaces "after each day of a kind" in `dueRule`; migration `0022` moved each such rule to "after each exam period". `offersItem()` takes only the college's types, and the item sheet chooses them with before or after and the weeks. The weekday is the week's last working day, as for every task; a rule's own weekday waits for the owner.
 
 > **Checkpoint: Audit 5.** Run `/audit 13-15`.
 
@@ -1096,6 +1103,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **The engine** reads both sources: `tasks.source` and its check gain `plan`, `termInputs()` (`src/modules/tasks/server/generate.ts`) reads the department's latest published plan, and a plan's items reach their own department only.
 - **Publishing** queues a pass (`queueGeneration()`, with a cause of its own in `GenerationReason` and its words under `audit.causes` and `framework.generation`).
 - **The preview** counts its weeks with `dueWeeks()` (`src/modules/framework`), as the engine does. The anchored rule above changes `dueWeeks()` and the due day (`dueDay()`, `src/modules/terms`), not the engine.
+
+**Note from ADR-0026 (23 October 2026):** the anchored rule is built: `examPeriods` in `dueRule`, counted by `dueWeeks()` from the term's periods (`TermShape.periods`, `findTerm().periods`). The shared item sheet already chooses the period types, before or after, and the weeks, and its words read "قبل الدوري الأول بأسبوع". The due day is the week's last working day, so `dueDay()` is unchanged. Still to build here: the editor's preview of the weeks each anchored item lands in, with a flag for one past the term's end, as the owner's note asks.
 - **Step 20's Done-when** "for every demo framework and plan, the published preview equals the tasks generated" is checked here for plans: extend the seed test that checks it for the framework.
 - **`plan.publish`** is checked here: Step 20 did not need it.
 
@@ -1108,6 +1117,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** property-based tests (fast-check) prove that generation is idempotent and never changes completed work; for every demo framework and plan, the published preview equals the tasks generated; and generation for the full demo data set takes under 10 s.
 
 **Note from Step 15:** the preview's count is `countTasks()` (`src/modules/framework/domain/count.ts`): each item, in each department, once per holder or section it reaches and per time its rule is due (`occurrences()`). A rule is due only in the term's numbered weeks: "a week after each exam" counts no task for the finals in the term's last week, as week 19 of 18 counts none (Audit 5). The engine generates exactly those, so the two agree by construction. A published version never changes; the engine reads the latest published version of the term.
+
+**Note from ADR-0026 (23 October 2026):** rules anchored to exam periods replace "after each day of a kind", and `eventWeeks()` is gone: the preview and the engine read the term's periods. A task keeps its occurrence when a period moves, so its week and due day move while it is not started; saving the periods queues a pass with the cause `periods`.
 
 **Note from Step 13:** a term's weeks are `termWeeks(calendarOf(term, term.events, settings, term.breaks))` from `@/modules/terms`, and `weekOf()` gives a day's week. A week that holidays fill has no number while `calendar.skipHolidayWeeks` is on. Adjusting an Eid break moves the later weeks of the terms it falls in (ADR-0018).
 
@@ -1208,6 +1219,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
   - the trainer's own: from its green.
 
   The teal and the green have almost the same lightness, so each layer also differs in fill: solid, tinted with an edge, or white with a mark. Each also carries its own icon and is named in a legend, and any text on it passes 4.5:1. Red stays for what is overdue.
+
+**Note from ADR-0026 (23 October 2026):** the term's exam periods are `findTerm().periods`, each a type's code with its first and last week by number; `listExamPeriodTypes()` names them, with a short name for tight places. The term's page already marks each week with the periods it holds.
 
 #### Step 24. My work and my sections (M)
 

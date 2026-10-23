@@ -35,7 +35,9 @@ export type ItemOptions = {
   axes: Option[];
   kinds: Option[];
   roles?: Option[];
-  eventKinds: Option[];
+  /** The college's types of exam period, which a rule is anchored to, and before or after them. */
+  periodTypes: Option[];
+  sides: Option[];
   evidenceTypes: Option[];
   dueTypes: Option[];
 };
@@ -55,8 +57,9 @@ type Draft = {
   dueType: DueRule["type"];
   week: number;
   every: number;
-  eventKind: string;
-  after: number;
+  periodTypes: string[];
+  side: string;
+  offset: number;
   required: boolean;
   types: string[];
   maxFiles: number;
@@ -83,11 +86,14 @@ export const draftOf = (
   dueType: item?.due.type ?? "week",
   week: item?.due.type === "week" ? item.due.week : 1,
   every: item?.due.type === "everyWeeks" ? item.due.every : 2,
-  eventKind:
-    item?.due.type === "afterEvent"
-      ? item.due.eventKind
-      : (options.eventKinds[0]?.value ?? ""),
-  after: item?.due.type === "afterEvent" ? item.due.weeks : 1,
+  // A new rule anchored to exam periods is due a week before every one of them, as the owner's canvas
+  // starts it (21 October 2026).
+  periodTypes:
+    item?.due.type === "examPeriods"
+      ? item.due.periodTypes
+      : options.periodTypes.map(({ value }) => value),
+  side: item?.due.type === "examPeriods" ? item.due.side : "before",
+  offset: item?.due.type === "examPeriods" ? item.due.weeks : 1,
   required: item?.evidence.required ?? true,
   // Only the types the college still accepts: one it no longer offers cannot be unticked.
   types: item
@@ -113,11 +119,12 @@ const inputOf = (draft: Draft): ItemInput => ({
       ? { type: "week", week: draft.week }
       : draft.dueType === "everyWeeks"
         ? { type: "everyWeeks", every: draft.every }
-        : draft.dueType === "afterEvent"
+        : draft.dueType === "examPeriods"
           ? {
-              type: "afterEvent",
-              eventKind: draft.eventKind,
-              weeks: draft.after,
+              type: "examPeriods",
+              periodTypes: draft.periodTypes,
+              side: draft.side === "after" ? "after" : "before",
+              weeks: draft.offset,
             }
           : { type: "weekly" },
   evidence: {
@@ -166,13 +173,16 @@ export function ItemSheet({
   const save = () => {
     if (!form.title.trim()) return setProblem(t("titleRequired"));
     if (form.types.length === 0) return setProblem(t("typesRequired"));
+    if (form.dueType === "examPeriods" && form.periodTypes.length === 0) {
+      return setProblem(t("periodsRequired"));
+    }
     setProblem(undefined);
     onSave(inputOf(form));
   };
 
   const number = (value: number) => format.number(value);
   const stepper = (
-    name: "week" | "every" | "after" | "maxFiles",
+    name: "week" | "every" | "offset" | "maxFiles",
     min: number,
     max: number,
   ) => (
@@ -193,7 +203,7 @@ export function ItemSheet({
     </div>
   );
   const select = (
-    name: "axisId" | "kind" | "applies" | "dueType" | "eventKind",
+    name: "axisId" | "kind" | "applies" | "dueType" | "side",
     label: string,
     choices: Option[],
   ) => (
@@ -271,10 +281,37 @@ export function ItemSheet({
         {form.dueType === "everyWeeks"
           ? stepper("every", 2, limits.weeks)
           : null}
-        {form.dueType === "afterEvent" ? (
+        {form.dueType === "examPeriods" ? (
           <>
-            {select("eventKind", t("fields.event"), options.eventKinds)}
-            {stepper("after", 0, limits.weeks)}
+            <fieldset className="flex flex-col gap-2 px-1">
+              <legend className="mb-1 font-medium text-sm">
+                {t("fields.periodTypes")}
+              </legend>
+              {options.periodTypes.map((type) => (
+                <Checkbox
+                  key={type.value}
+                  label={type.label}
+                  checked={form.periodTypes.includes(type.value)}
+                  // In the catalog's order, whatever order they are ticked in.
+                  onCheckedChange={(checked) =>
+                    change({
+                      periodTypes: options.periodTypes
+                        .map(({ value }) => value)
+                        .filter((value) =>
+                          value === type.value
+                            ? checked
+                            : form.periodTypes.includes(value),
+                        ),
+                    })
+                  }
+                />
+              ))}
+            </fieldset>
+            {select("side", t("fields.side"), options.sides)}
+            {stepper("offset", 0, limits.weeks)}
+            <p className="px-1 text-muted-foreground text-sm">
+              {t("dueDayHint")}
+            </p>
           </>
         ) : null}
         {toggle("required")}

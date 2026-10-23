@@ -5,13 +5,7 @@ import {
   departmentsReached,
   termFramework,
 } from "../../../src/modules/framework/index.ts";
-import {
-  calendarOf,
-  calendarSettings,
-  eventWeeks,
-  findTerm,
-  termWeeks,
-} from "../../../src/modules/terms/index.ts";
+import { findTerm } from "../../../src/modules/terms/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
 
 // The tasks the framework's page previews for a term's published version, from the reads the page
@@ -21,18 +15,16 @@ export async function publishedPreview(
   termId: string,
   db: Db,
 ) {
-  const [term, settings, framework, members, sections] = await Promise.all([
+  const [term, framework, members, sections] = await Promise.all([
     findTerm(collegeId, termId, db),
-    calendarSettings(collegeId, db),
     termFramework(collegeId, termId, db),
     countMembers(collegeId, db),
     sectionCounts(collegeId, termId, db),
   ]);
   if (!term || !framework.published) throw new Error("no published version");
-  const weeks = termWeeks(calendarOf(term, term.events, settings, term.breaks));
   return countTasks(
     framework.published.items,
     departmentsReached(members, sections),
-    { weeks: term.weeks, events: eventWeeks(weeks, term.events) },
+    { weeks: term.weeks, periods: term.periods },
   ).tasks;
 }

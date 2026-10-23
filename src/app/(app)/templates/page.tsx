@@ -19,6 +19,7 @@ import {
 import { listDepartments } from "@/modules/org";
 import { listTemplates } from "@/modules/planning";
 import { getSetting } from "@/modules/settings";
+import { listExamPeriodTypes } from "@/modules/terms";
 import { ItemWords } from "../_items/item-words.tsx";
 import { itemVocabulary } from "../_items/vocabulary.ts";
 import { DepartmentSelect } from "../_shell/department-select.tsx";
@@ -67,7 +68,7 @@ export default async function TemplatesPage({
     messages,
     format,
     framework,
-    calendarWords,
+    periodTypes,
     departments,
     groups,
     accepted,
@@ -75,7 +76,7 @@ export default async function TemplatesPage({
     getMessages(),
     getFormatter(),
     getTranslations("framework"),
-    getTranslations("terms.kinds"),
+    listExamPeriodTypes(viewer.collegeId),
     listDepartments(viewer.collegeId),
     listAxes(viewer.collegeId),
     getSetting("files.acceptedTypes", scope),
@@ -105,7 +106,7 @@ export default async function TemplatesPage({
   ]);
   const { view, options } = itemVocabulary({
     t: framework,
-    calendarWords,
+    periodTypes,
     format,
     axes: groups.flatMap((group) => group.axes),
     accepted,

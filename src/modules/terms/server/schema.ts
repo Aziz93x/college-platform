@@ -54,7 +54,7 @@ export const terms = pgTable(
 );
 
 // A day or days of a term's calendar. Its holidays decide which weeks the term counts
-// (domain/weeks.ts); its exam weeks and deadlines are what due rules count from (Step 20).
+// (domain/weeks.ts).
 export const calendarEvents = pgTable(
   "calendar_events",
   {
@@ -79,7 +79,7 @@ export const calendarEvents = pgTable(
     index("calendar_events_term_idx").on(table.termId, table.startsOn),
     check(
       "calendar_events_kind",
-      sql`${table.kind} in ('holiday', 'exam', 'gradeDeadline', 'custom')`,
+      sql`${table.kind} in ('holiday', 'gradeDeadline', 'custom')`,
     ),
     check("calendar_events_days", sql`${table.startsOn} <= ${table.endsOn}`),
   ],
@@ -113,5 +113,63 @@ export const holidays = pgTable(
     ),
     index("holidays_days_idx").on(table.collegeId, table.startsOn),
     check("holidays_days", sql`${table.startsOn} <= ${table.endsOn}`),
+  ],
+);
+
+// The college's catalog of exam-period types (the owner's notes, 21 October 2026): each with its
+// name and short name, in order. They are data, seeded by the base seed; a term's periods and the
+// due rules anchored to them name a type by its code. No screen changes them yet.
+export const examPeriodTypes = pgTable(
+  "exam_period_types",
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    collegeId: uuid("college_id")
+      .notNull()
+      .references(() => colleges.id),
+    code: text().notNull(),
+    name: text().notNull(),
+    shortName: text("short_name").notNull(),
+    position: integer().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("exam_period_types_code_unique").on(table.collegeId, table.code),
+  ],
+);
+
+// A term's exam period of a type, from a week to a week by their numbers, as the vice-dean sets it:
+// one of each type at most. The weeks may pass the term's end once the term is shortened, which
+// the term's page shows as an error until the vice-dean moves the period (domain/periods.ts).
+export const examPeriods = pgTable(
+  "exam_periods",
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    collegeId: uuid("college_id")
+      .notNull()
+      .references(() => colleges.id),
+    termId: uuid("term_id").notNull(),
+    type: text().notNull(),
+    fromWeek: integer("from_week").notNull(),
+    toWeek: integer("to_week").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    foreignKey({
+      name: "exam_periods_term_fk",
+      columns: [table.collegeId, table.termId],
+      foreignColumns: [terms.collegeId, terms.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "exam_periods_type_fk",
+      columns: [table.collegeId, table.type],
+      foreignColumns: [examPeriodTypes.collegeId, examPeriodTypes.code],
+    }),
+    unique("exam_periods_type_unique").on(table.termId, table.type),
+    check(
+      "exam_periods_weeks",
+      sql`1 <= ${table.fromWeek} and ${table.fromWeek} <= ${table.toWeek}`,
+    ),
   ],
 );

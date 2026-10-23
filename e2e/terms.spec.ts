@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
-import { holidayRules } from "../db/seed/base.ts";
+import { examPeriodTypes, holidayRules } from "../db/seed/base.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { joinRole } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
@@ -106,6 +106,11 @@ async function viceDean(account: () => Promise<TestAccount>) {
     person,
     pool,
     remove: async (names: string[]) => {
+      // The pass the exam periods queued names its term.
+      await pool.query(
+        "delete from generation_runs where term_id in (select id from terms where name = any($1))",
+        [names],
+      );
       await pool.query("delete from terms where name = any($1)", [names]);
       await pool.end();
     },
@@ -113,7 +118,7 @@ async function viceDean(account: () => Promise<TestAccount>) {
 }
 
 test(
-  "the vice-dean makes an 18-week term with a week of holiday and an exam week on the screen, its weeks counted past the holiday, and opens the next term from it (Step 13)",
+  "the vice-dean makes an 18-week term with a week of holiday and its exam periods by week number on the screen, its weeks counted past the holiday, and opens the next term from it (Step 13, the owner's notes of 21 October 2026)",
   DATABASE,
   async ({ browser, account, hasTouch }) => {
     const made = await viceDean(account);
@@ -150,35 +155,24 @@ test(
       await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
       await expect(page.getByText(t("status.draft")).first()).toBeVisible();
 
-      // A week of holiday from its fourth Sunday, and the midterm exams in week 8.
+      // A week of holiday from its fourth Sunday.
       const calendar = page.getByRole("region", { name: text.calendar.title });
-      const add = async (
-        kind: "holiday" | "exam",
-        title: string,
-        days: string[],
-      ) => {
-        await calendar.getByRole("button", { name: text.calendar.add }).click();
-        const sheet = page.getByRole("dialog", {
-          name: text.calendar.addTitle,
-        });
-        if (kind !== "holiday") {
-          await sheet
-            .getByRole("button", { name: new RegExp(`^${text.calendar.kind}`) })
-            .click();
-          await page.getByRole("option", { name: text.kinds[kind] }).click();
-        }
-        await sheet.getByLabel(text.calendar.eventTitle).fill(title);
-        await pick(page, sheet, text.calendar.days, days);
-        await sheet.getByRole("button", { name: text.calendar.save }).click();
-        await expect(
-          page.getByText(t("calendar.added", { title })),
-        ).toBeVisible();
-        await expect(sheet).toBeHidden();
-      };
-      await add("holiday", "إجازة منتصف الفصل", [
+      await calendar.getByRole("button", { name: text.calendar.add }).click();
+      const holiday = page.getByRole("dialog", {
+        name: text.calendar.addTitle,
+      });
+      await holiday
+        .getByLabel(text.calendar.eventTitle)
+        .fill("إجازة منتصف الفصل");
+      await pick(page, holiday, text.calendar.days, [
         addDays(first, 21),
         addDays(first, 27),
       ]);
+      await holiday.getByRole("button", { name: text.calendar.save }).click();
+      await expect(
+        page.getByText(t("calendar.added", { title: "إجازة منتصف الفصل" })),
+      ).toBeVisible();
+      await expect(holiday).toBeHidden();
       const weeks = page.getByRole("region", { name: text.weeks.title });
       const rows = weeks.getByRole("listitem");
       // 18 numbered weeks and the holiday's.
@@ -188,21 +182,60 @@ test(
       // The holiday week's tinted row keeps its text readable (Audit 5).
       expect(await seriousViolations(page)).toEqual([]);
       await page.reload();
-      // Week 8 now starts five weeks after the holiday's Sunday.
-      await add("exam", "اختبارات منتصف الفصل", [
-        addDays(first, 56),
-        addDays(first, 60),
-      ]);
+      // The first periodic exams by week number: a period starts in the term's first week, and the
+      // vice-dean steps it to weeks 5 and 6, counted past the holiday.
+      const periods = page.getByRole("region", { name: text.periods.title });
+      const [periodic, second] = examPeriodTypes;
+      const step = async (
+        type: string,
+        which: "from" | "to",
+        button: string,
+        times: number,
+      ) => {
+        const stepper = periods.getByRole("group", {
+          name: `${type} ${text.periods[which]}`,
+        });
+        for (let time = 0; time < times; time++) {
+          await stepper.getByRole("button", { name: button }).click();
+        }
+      };
+      await periods
+        .getByRole("button", {
+          name: t("periods.addOf", { name: periodic.name }),
+        })
+        .click();
+      await step(periodic.name, "to", text.periods.later, 5);
+      await step(periodic.name, "from", text.periods.later, 4);
+      // The second periodic starts the week after it; a week earlier, they would share week 6.
+      await periods
+        .getByRole("button", {
+          name: t("periods.addOf", { name: second.name }),
+        })
+        .click();
+      await step(second.name, "from", text.periods.earlier, 1);
       await expect(
-        calendar
-          .getByRole("listitem")
-          .filter({ hasText: "اختبارات منتصف الفصل" }),
-      ).toContainText(t("calendar.week", { number: 8 }));
+        periods.getByText(
+          t("periods.overlap", { first: periodic.name, second: second.name }),
+        ),
+      ).toBeVisible();
+      await periods.getByRole("button", { name: text.periods.save }).click();
+      await expect(periods.getByText(text.periods.fixFirst)).toBeVisible();
+      await step(second.name, "from", text.periods.later, 1);
+      await periods.getByRole("button", { name: text.periods.save }).click();
+      await expect(page.getByText(text.periods.saved)).toBeVisible();
+      await expect(
+        periods.getByRole("listitem").filter({ hasText: periodic.name }),
+      ).toContainText(t("periods.weeks", { from: 5, to: 6 }));
+      // The weeks they take name them.
+      await expect(rows.nth(5)).toContainText(periodic.name);
+      await expect(rows.nth(7)).toContainText(second.name);
       if (hasTouch) {
-        expect(await smallTargets(calendar)).toEqual([]);
+        expect(await smallTargets(periods)).toEqual([]);
       }
+      expect(await seriousViolations(page)).toEqual([]);
+      await page.reload();
 
-      // The next term: the exam week at the same place in its weeks, the holiday left behind.
+      // The next term: the periods in the same weeks, the holiday left behind.
       await page.getByRole("button", { name: text.lifecycle.next }).click();
       const sheet = page.getByRole("dialog");
       await sheet.getByLabel(text.form.name).fill(next);
@@ -212,15 +245,18 @@ test(
       await expect(
         page.getByRole("heading", { level: 1, name: next }),
       ).toBeVisible();
-      const copied = page
-        .getByRole("region", { name: text.calendar.title })
-        .getByRole("listitem");
       await expect(
-        copied.filter({ hasText: "اختبارات منتصف الفصل" }),
-      ).toContainText(t("calendar.week", { number: 8 }));
-      await expect(copied.filter({ hasText: "إجازة منتصف الفصل" })).toHaveCount(
-        0,
-      );
+        page
+          .getByRole("region", { name: text.periods.title })
+          .getByRole("listitem")
+          .filter({ hasText: periodic.name }),
+      ).toContainText(t("periods.weeks", { from: 5, to: 6 }));
+      await expect(
+        page
+          .getByRole("region", { name: text.calendar.title })
+          .getByRole("listitem")
+          .filter({ hasText: "إجازة منتصف الفصل" }),
+      ).toHaveCount(0);
 
       // Both terms are still drafts, which only those who manage terms see: the demo trainer finds
       // the new one neither at its address nor in the header's switcher (Audit 5).

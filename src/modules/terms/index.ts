@@ -11,11 +11,11 @@ export {
   termInput,
   termLimits,
 } from "./domain/inputs.ts";
+export { type ExamPeriod, examPeriodsInput } from "./domain/periods.ts";
 export {
   calendarOf,
   type DayRange,
   dueDay,
-  eventWeeks,
   type TermCalendar,
   type TermWeek,
   termEndsOn,
@@ -28,6 +28,12 @@ export {
   holidaysFrom,
   updateHoliday,
 } from "./server/holidays.ts";
+export {
+  type ExamPeriodType,
+  listExamPeriodTypes,
+  saveExamPeriods,
+  seedExamPeriodTypes,
+} from "./server/periods.ts";
 export { terms } from "./server/schema.ts";
 export {
   activateTerm,

@@ -44,6 +44,8 @@ export const auditActions = [
   "calendarEvent.create",
   "calendarEvent.update",
   "calendarEvent.delete",
+  // A term's exam periods set by week number (the owner's notes, 21 October 2026).
+  "examPeriods.update",
   // A year's holiday adjusted, or approved as estimated, by the vice-dean (ADR-0018).
   "holiday.update",
   "holiday.approve",

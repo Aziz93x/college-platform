@@ -10,8 +10,8 @@ import { generationRuns } from "./schema.ts";
 const STALE = sql`now() - interval '15 minutes'`;
 
 // Queues a pass of the engine over a term's tasks, which the worker runs within the minute: after
-// its framework is published, its SS01 applied or rolled back, or one of its sections transferred
-// or the transfer cancelled (Step 20).
+// its framework is published, its SS01 applied or rolled back, one of its sections transferred or
+// the transfer cancelled (Step 20), or its exam periods changed.
 export async function queueGeneration(
   collegeId: string,
   termId: string,

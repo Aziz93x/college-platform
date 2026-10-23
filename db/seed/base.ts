@@ -9,7 +9,9 @@ import { colleges } from "../../src/modules/org/index.ts";
 import { settings } from "../../src/modules/settings/index.ts";
 import {
   type BreakRule,
+  type ExamPeriodType,
   estimateHolidays,
+  seedExamPeriodTypes,
   umAlQuraYear,
 } from "../../src/modules/terms/index.ts";
 import { parseSeedEnv } from "../../src/platform/config/env.ts";
@@ -141,6 +143,33 @@ export const portfolioAxes: AxisCatalog = [
   },
 ];
 
+// The types of exam period a term has, in the order of the term (the owner's notes, 21 October
+// 2026): the first and second periodic exams, then the practical and theoretical finals, each with
+// the short name the calendar and the due rules write. The vice-dean sets each term's periods by
+// week number on the terms page.
+export const examPeriodTypes: ExamPeriodType[] = [
+  {
+    code: "first-periodic",
+    name: "الاختبارات الدورية الأولى",
+    shortName: "الدوري الأول",
+  },
+  {
+    code: "second-periodic",
+    name: "الاختبارات الدورية الثانية",
+    shortName: "الدوري الثاني",
+  },
+  {
+    code: "practical-final",
+    name: "الاختبارات النهائية العملية",
+    shortName: "النهائي العملي",
+  },
+  {
+    code: "theoretical-final",
+    name: "الاختبارات النهائية النظرية",
+    shortName: "النهائي النظري",
+  },
+];
+
 // The Umm al-Qura years whose holidays a seed run on this day adds: this one and the nine after it.
 export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
   const year = umAlQuraYear(today);
@@ -151,8 +180,8 @@ export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
 // nothing and never undoes the grid; Rayat's column maps while the college has none, leaving those
 // an admin changed; and the holidays of the years ahead it does not have yet, leaving those it has,
-// adjusted or not; and the portfolio's axes it does not have yet. Returns the id of the first
-// college, the one db:seed made.
+// adjusted or not; and the portfolio's axes and exam-period types it does not have yet. Returns the
+// id of the first college, the one db:seed made.
 export async function seedBase(
   db: Db,
   college: { name: string; shortName: string },
@@ -202,6 +231,7 @@ export async function seedBase(
   // After the transaction: the estimate reads the college's weekend from its settings.
   await estimateHolidays(collegeId, holidayRules, holidayYears(), db);
   await seedAxes(collegeId, portfolioAxes, db);
+  await seedExamPeriodTypes(collegeId, examPeriodTypes, db);
   return collegeId;
 }
 

@@ -5,11 +5,10 @@ import { oneLine } from "../../../platform/validation/text.ts";
 const termStatuses = ["draft", "active", "closed"] as const;
 export type TermStatus = (typeof termStatuses)[number];
 
-// What a day of a term's calendar is: a holiday, an exam week, the deadline for submitting grades,
-// or an event of the college's own.
+// What a day of a term's calendar is: a holiday, the deadline for submitting grades, or an event of
+// the college's own. Exam periods are counted in weeks, not days (domain/periods.ts).
 export const calendarEventKinds = [
   "holiday",
-  "exam",
   "gradeDeadline",
   "custom",
 ] as const;

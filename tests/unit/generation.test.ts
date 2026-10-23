@@ -32,17 +32,24 @@ const POLICY = {
   requiresApproval: false,
 };
 
+// A term's exam periods of the types the rules name, each type once: some past the term's last
+// week, as a shortened term leaves them, and some sharing weeks.
+const PERIOD_TYPES = ["p1", "p2", "f1", "f2"];
 const termShape: fc.Arbitrary<TermShape> = fc
   .integer({ min: 1, max: 24 })
   .chain((weeks) =>
     fc.record({
       weeks: fc.constant(weeks),
-      events: fc.record({
-        exam: fc.array(fc.integer({ min: 1, max: weeks }), { maxLength: 3 }),
-        custom: fc.array(fc.integer({ min: 1, max: weeks }), {
-          maxLength: 2,
-        }),
-      }),
+      periods: fc.uniqueArray(
+        fc
+          .record({
+            type: fc.constantFrom(...PERIOD_TYPES),
+            from: fc.integer({ min: 1, max: weeks + 2 }),
+            length: fc.integer({ min: 0, max: 2 }),
+          })
+          .map(({ type, from, length }) => ({ type, from, to: from + length })),
+        { selector: (period) => period.type },
+      ),
     }),
   );
 
@@ -57,8 +64,11 @@ const dueRule: fc.Arbitrary<DueRule> = fc.oneof(
     every: fc.integer({ min: 2, max: 8 }),
   }),
   fc.record({
-    type: fc.constant("afterEvent" as const),
-    eventKind: fc.constantFrom("exam", "custom", "gradeDeadline"),
+    type: fc.constant("examPeriods" as const),
+    periodTypes: fc.uniqueArray(fc.constantFrom(...PERIOD_TYPES), {
+      minLength: 1,
+    }),
+    side: fc.constantFrom("before" as const, "after" as const),
     weeks: fc.integer({ min: 0, max: 3 }),
   }),
 );

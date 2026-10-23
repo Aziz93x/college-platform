@@ -109,6 +109,7 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#addCalendarEventAction": ["calendarEvent.create"],
   "(app)/terms/actions.ts#updateCalendarEventAction": ["calendarEvent.update"],
   "(app)/terms/actions.ts#removeCalendarEventAction": ["calendarEvent.delete"],
+  "(app)/terms/actions.ts#saveExamPeriodsAction": ["examPeriods.update"],
   // The next term, a draft with what it took from the term's calendar.
   // The wizard copies the term's framework into the new term as a draft (Step 15), and each
   // department's section templates, recorded on the department (Step 18).
@@ -435,15 +436,15 @@ describe("every server action writes its event", () => {
       ...spring,
       weeks: 17,
     });
-    const midterms = {
-      kind: "exam",
-      title: "Midterms",
+    const openDay = {
+      kind: "custom",
+      title: "Open day",
       startsOn: "2026-03-01",
       endsOn: "2026-03-05",
     };
     await expectWrites(`${terms}#addCalendarEventAction`, {
       termId: term.id,
-      ...midterms,
+      ...openDay,
     });
     const [{ id: eventId }] = await query(
       "select id from calendar_events where term_id = $1",
@@ -452,12 +453,16 @@ describe("every server action writes its event", () => {
     await expectWrites(`${terms}#updateCalendarEventAction`, {
       termId: term.id,
       eventId,
-      ...midterms,
-      title: "Midterm exams",
+      ...openDay,
+      title: "Open days",
     });
     await expectWrites(`${terms}#removeCalendarEventAction`, {
       termId: term.id,
       eventId,
+    });
+    await expectWrites(`${terms}#saveExamPeriodsAction`, {
+      termId: term.id,
+      periods: [{ type: "first-periodic", from: 5, to: 6 }],
     });
 
     // The term's SF01: uploaded and applied, a newer one uploaded and discarded, and the version
@@ -502,8 +507,9 @@ describe("every server action writes its event", () => {
     await expectWrites(`${rayat}#rollbackRayatAction`, {
       importId: first.importId,
     });
-    // The passes of the generation engine the actions have queued, by what queued them: SF01's
-    // trainees change no task (Step 20).
+    // The passes of the generation engine the actions have queued, by what queued them: the exam
+    // periods saved, which rules anchored to them move with, and none for SF01's trainees, who
+    // change no task (Step 20).
     const queued = async () =>
       (
         await query(
@@ -511,7 +517,7 @@ describe("every server action writes its event", () => {
           [term.id],
         )
       ).map((run) => run.reason);
-    expect(await queued()).toEqual([]);
+    expect(await queued()).toEqual(["periods"]);
 
     // The term's SS01, applied: its section transferred to a trainer of Electrical, the transfer
     // kept against a newer SS01 in conflict with it, then cancelled (Step 17, lead review C).
@@ -562,7 +568,7 @@ describe("every server action writes its event", () => {
       });
     };
     await applySs01("101");
-    expect(await queued()).toEqual(["ss01"]);
+    expect(await queued()).toEqual(["periods", "ss01"]);
     const transferred = await expectWrites(
       `${sections}#transferSectionAction`,
       {
@@ -575,7 +581,7 @@ describe("every server action writes its event", () => {
       },
     );
     expect(transferred.status).toBe("transferred");
-    expect(await queued()).toEqual(["ss01", "transfer"]);
+    expect(await queued()).toEqual(["periods", "ss01", "transfer"]);
     // A newer SS01 that still names the trainer replaced is in conflict with it, which the head keeps.
     await applySs01("102");
     await expectWrites(`${sections}#keepTransferAction`, {
@@ -584,7 +590,13 @@ describe("every server action writes its event", () => {
     await expectWrites(`${sections}#cancelTransferAction`, {
       id: transferred.id,
     });
-    expect(await queued()).toEqual(["ss01", "transfer", "ss01", "transfer"]);
+    expect(await queued()).toEqual([
+      "periods",
+      "ss01",
+      "transfer",
+      "ss01",
+      "transfer",
+    ]);
 
     // The term's framework: a draft and its items, endorsed and published, then the next version
     // without one of them (Step 15).
@@ -601,7 +613,12 @@ describe("every server action writes its event", () => {
       axisId,
       kind: "grade_analysis",
       appliesTo: { type: "role", roleId },
-      due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+      due: {
+        type: "examPeriods",
+        periodTypes: ["first-periodic"],
+        side: "after",
+        weeks: 1,
+      },
       evidence: {
         required: true,
         types: ["pdf"],

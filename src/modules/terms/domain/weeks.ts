@@ -82,23 +82,6 @@ export function termEndsOn(term: TermCalendar) {
   return termWeeks(term).at(-1)?.endsOn ?? term.startsOn;
 }
 
-// Each kind of day of a term's calendar by the numbered week each such day ends in, the numbered
-// week before it for a day in a week without a number: what a due rule after a kind of day counts
-// on, in the framework's preview and in the generation engine alike (Steps 15 and 20).
-export function eventWeeks(
-  weeks: readonly TermWeek[],
-  events: readonly (DayRange & { kind: string })[],
-) {
-  const found: Record<string, number[]> = {};
-  for (const event of events) {
-    const last = weeks
-      .filter((week) => week.number !== null && week.startsOn <= event.endsOn)
-      .at(-1)?.number;
-    if (last) found[event.kind] = [...(found[event.kind] ?? []), last];
-  }
-  return found;
-}
-
 // The numbered week a day has reached: the one it falls in, or the last before it in a week without
 // a number; 0 before the term's first week (Step 20).
 export function weekReached(weeks: readonly TermWeek[], day: Day) {

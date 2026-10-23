@@ -14,18 +14,18 @@ import { applyRayat, uploadRayat } from "../../src/modules/rayat/index.ts";
 import { generateTerm } from "../../src/modules/tasks/index.ts";
 import {
   activateTerm,
-  addCalendarEvent,
-  calendarSettings,
   createTerm,
+  saveExamPeriods,
 } from "../../src/modules/terms/index.ts";
 import { createSharedTestDatabase } from "./support/database.ts";
 import { publishedPreview } from "./support/preview.ts";
 import { rayatTable } from "./support/rayat-table.ts";
 
 // The generation engine's tasks for each course's trainer (Steps 18 and 20), on a real database: an
-// 18-week term from Sunday 23 August 2026 with its midterms in week 8 and its finals in week 18;
-// one course, كهر 111, whose sections 30111 and 30112 the first trainer teaches and 30113 the
-// second; and a framework of an exam copy from each course's trainer after each exam.
+// 18-week term from Sunday 23 August 2026 with its first periodic exams in week 8 and its
+// theoretical finals in weeks 17 and 18; one course, كهر 111, whose sections 30111 and 30112 the
+// first trainer teaches and 30113 the second; and a framework of an exam copy from each course's
+// trainer in the last week of each exam period.
 let database: Awaited<ReturnType<typeof createSharedTestDatabase>>;
 let collegeId: string;
 let termId: string;
@@ -150,19 +150,15 @@ beforeAll(async () => {
   if (created.status !== "created") throw new Error(created.status);
   termId = created.id;
   await activateTerm(termId, by("viceDean"), database.db);
-  const settings = await calendarSettings(collegeId, database.db);
-  for (const [title, startsOn, endsOn] of [
-    ["اختبارات منتصف الفصل", "2026-10-11", "2026-10-15"],
-    ["الاختبارات النهائية", "2026-12-20", "2026-12-24"],
-  ]) {
-    await addCalendarEvent(
-      termId,
-      { kind: "exam", title, startsOn, endsOn },
-      by("viceDean"),
-      settings,
-      database.db,
-    );
-  }
+  await saveExamPeriods(
+    termId,
+    [
+      { type: "first-periodic", from: 8, to: 8 },
+      { type: "theoretical-final", from: 17, to: 18 },
+    ],
+    by("viceDean"),
+    database.db,
+  );
   await apply(
     ss01({ "30111": "200101", "30112": "200101", "30113": "200102" }),
   );
@@ -179,7 +175,12 @@ beforeAll(async () => {
       axisId: axis.id,
       kind: "exam_copy",
       appliesTo: { type: "eachCourse" },
-      due: { type: "afterEvent", eventKind: "exam", weeks: 0 },
+      due: {
+        type: "examPeriods",
+        periodTypes: ["first-periodic", "theoretical-final"],
+        side: "after",
+        weeks: 0,
+      },
       evidence: {
         required: true,
         types: ["pdf"],
@@ -205,7 +206,7 @@ beforeAll(async () => {
 afterAll(() => database?.drop());
 
 describe("a course's tasks", () => {
-  it("are one for each trainer of the course after each exam, however many of its sections they teach, as many as the preview counts", async () => {
+  it("are one for each trainer of the course for each exam period, however many of its sections they teach, as many as the preview counts", async () => {
     expect(await preview()).toBe(4);
     expect(await generate("framework")).toMatchObject({
       total: 4,

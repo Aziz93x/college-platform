@@ -140,11 +140,17 @@ vi.mock("@/modules/terms", async (importOriginal) => ({
   updateTerm: async () => ({ status: "saved" }),
   activateTerm: async () => ({ status: "activated" }),
   closeTerm: async () => ({ status: "closed" }),
-  openNextTerm: async () => ({ status: "created", id: ID, copied: 0 }),
+  openNextTerm: async () => ({
+    status: "created",
+    id: ID,
+    copied: 0,
+    periods: 0,
+  }),
   addCalendarEvent: async () => ({ status: "saved" }),
   updateCalendarEvent: async () => ({ status: "saved" }),
   removeCalendarEvent: async () => ({ status: "saved" }),
   updateHoliday: async () => ({ status: "saved" }),
+  saveExamPeriods: async () => ({ status: "saved" }),
 }));
 vi.mock("@/modules/framework", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/framework")>()),
@@ -406,6 +412,14 @@ const checked: {
     ["addCalendarEventAction", { termId: ID, ...DAY }],
     ["updateCalendarEventAction", { termId: ID, eventId: ID, ...DAY }],
     ["removeCalendarEventAction", { termId: ID, eventId: ID }],
+    // The term's exam periods (the owner's notes, 21 October 2026).
+    [
+      "saveExamPeriodsAction",
+      {
+        termId: ID,
+        periods: [{ type: "first-periodic", from: 5, to: 6 }],
+      },
+    ],
     // A year's Eid break (ADR-0018).
     [
       "updateHolidayAction",

@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import { createTranslator } from "next-intl";
+import { examPeriodTypes } from "../db/seed/base.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { joinRole } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
@@ -103,11 +104,33 @@ test(
       await expect(kind).toHaveAccessibleName(
         `${text.fields.kind} ${text.kinds.grade_analysis}`,
       );
+      // Due the week after the first periodic exams only: a rule anchored to exam periods starts
+      // a week before every one of them (the owner's notes, 21 October 2026).
+      const choose = async (field: string, option: string) => {
+        await sheet
+          .getByRole("button", { name: new RegExp(`^${field}`) })
+          .click();
+        const chosen = page.getByRole("option", { name: option, exact: true });
+        if (hasTouch) await chosen.tap();
+        else await chosen.click();
+      };
+      await choose(text.fields.due, text.dueTypes.examPeriods);
+      for (const { shortName } of examPeriodTypes.slice(1)) {
+        await sheet.getByRole("checkbox", { name: shortName }).click();
+      }
+      await choose(text.fields.side, text.sides.after);
       await sheet.getByRole("button", { name: text.save }).click();
       await expect(page.getByText(text.saved)).toBeVisible();
       await expect(draft.getByRole("listitem")).toHaveCount(1);
       await expect(draft.getByRole("listitem")).toContainText(
         "تحليل نتائج الاختبار",
+      );
+      await expect(draft.getByRole("listitem")).toContainText(
+        t("dueText.examPeriods", {
+          side: "after",
+          weeks: 1,
+          periods: examPeriodTypes[0].shortName,
+        }),
       );
 
       await draft.getByRole("button", { name: text.publish }).click();

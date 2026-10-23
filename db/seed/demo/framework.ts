@@ -13,15 +13,20 @@ import { users } from "../../../src/modules/identity/index.ts";
 import { getSetting } from "../../../src/modules/settings/index.ts";
 import { activeTerm } from "../../../src/modules/terms/index.ts";
 import type { Db } from "../../../src/platform/db/client.ts";
+import { examPeriodTypes } from "../base.ts";
 import { demoAccounts } from "./accounts.ts";
 import { deviceOf } from "./device.ts";
 
+// Every type of exam period, which the exam copy and the grade analysis are anchored to.
+const EVERY_PERIOD = examPeriodTypes.map(({ code }) => code);
+
 // The demo term's general framework (Step 15): ten college-wide items under the axes, entered and
 // published by the vice-dean, in the log. Each names its axis by code, its audience by role key or
-// the trainers it reaches, and its evidence by the extensions the college accepts. The exam copy
-// reaches each trainer of each course once for all their sections of it, and the grade analysis
-// each trainer of each section (the owner's answers, 22 October 2026): twice a section with two
-// trainers, and none without a trainer yet (lead review C).
+// the trainers it reaches, and its evidence by the extensions the college accepts. The exam copy,
+// due the week before each exam period, reaches each trainer of each course once for all their
+// sections of it, and the grade analysis, due the week after it, each trainer of each section (the
+// owner's notes and answers, 21 and 22 October 2026): twice a section with two trainers, and none
+// without a trainer yet (lead review C).
 // Written once, while the active term has no framework.
 const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
   axis: string;
@@ -46,7 +51,12 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     role: "eachCourse",
     title: "نسخة الاختبار ونموذج الإجابة",
     kind: "exam_copy",
-    due: { type: "afterEvent", eventKind: "exam", weeks: 0 },
+    due: {
+      type: "examPeriods",
+      periodTypes: EVERY_PERIOD,
+      side: "before",
+      weeks: 1,
+    },
     evidence: {
       required: true,
       types: ["pdf"],
@@ -60,7 +70,12 @@ const ITEMS: (Omit<FrameworkItemInput, "axisId" | "appliesTo"> & {
     role: "eachSection",
     title: "تحليل نتائج الاختبار",
     kind: "grade_analysis",
-    due: { type: "afterEvent", eventKind: "exam", weeks: 1 },
+    due: {
+      type: "examPeriods",
+      periodTypes: EVERY_PERIOD,
+      side: "after",
+      weeks: 1,
+    },
     evidence: {
       required: true,
       types: ["xlsx", "pdf"],
@@ -232,8 +247,8 @@ export async function seedDemoFramework({ db }: { db: Db }, collegeId: string) {
     );
   }
 
-  // Version 2 waits as a draft: the grade analysis two weeks after each exam, which the finals in
-  // the term's last week then no longer ask for (Audit 5).
+  // Version 2 waits as a draft: the grade analysis two weeks after each exam period, which the
+  // theoretical final in the term's last weeks then no longer asks for (Audit 5).
   const next = await startDraft(term.id, change, db);
   if (next.status !== "created") {
     throw new Error(`seed:demo: version 2 was not started (${next.status})`);
@@ -248,7 +263,12 @@ export async function seedDemoFramework({ db }: { db: Db }, collegeId: string) {
     id,
     {
       ...item,
-      due: { type: "afterEvent", eventKind: "exam", weeks: 2 },
+      due: {
+        type: "examPeriods",
+        periodTypes: EVERY_PERIOD,
+        side: "after",
+        weeks: 2,
+      },
       notes: "بعد أسبوعين من كل اختبار، ليتسع لمراجعة رئيس القسم.",
     },
     change,

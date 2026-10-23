@@ -8,6 +8,7 @@ import { copyFrameworkInto } from "@/modules/framework";
 import { requestMeta } from "@/modules/identity";
 import { copyTemplatesInto } from "@/modules/planning";
 import { getSetting } from "@/modules/settings";
+import { queueGeneration } from "@/modules/tasks";
 import {
   activateTerm,
   addCalendarEvent,
@@ -15,8 +16,10 @@ import {
   calendarSettings,
   closeTerm,
   createTerm,
+  examPeriodsInput,
   openNextTerm,
   removeCalendarEvent,
+  saveExamPeriods,
   termInput,
   updateCalendarEvent,
   updateHoliday,
@@ -144,6 +147,24 @@ export const removeCalendarEventAction = viewerAction
       await calendarSettings(viewer.collegeId),
     );
     if (result.status === "saved") refresh();
+    return result;
+  });
+
+// The term's exam periods, set by week number (the owner's notes, 21 October 2026). The rules
+// anchored to them move with them: a pass of the generation engine follows within the minute.
+export const saveExamPeriodsAction = viewerAction
+  .metadata({ name: "saveExamPeriods", permission: "term.manage" })
+  .inputSchema(z.object({ termId: z.uuid(), periods: examPeriodsInput }))
+  .action(async ({ parsedInput: { termId, periods }, ctx: { viewer } }) => {
+    const result = await saveExamPeriods(
+      termId,
+      periods,
+      await changeBy(viewer),
+    );
+    if (result.status === "saved") {
+      await queueGeneration(viewer.collegeId, termId, "periods");
+      refresh();
+    }
     return result;
   });
 

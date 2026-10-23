@@ -19,6 +19,7 @@ import {
   listTermCalendars,
   openNextTerm,
   removeCalendarEvent,
+  saveExamPeriods,
   strandedBySetting,
   termEndsOn,
   termWeeks,
@@ -31,9 +32,9 @@ import { lockCollege } from "../../src/platform/db/college-lock.ts";
 import { createTestDatabase } from "./support/database.ts";
 import { recording } from "./support/plans.ts";
 
-// The vice-dean's terms (Step 13): an 18-week term with its holidays, exam weeks and grade deadline,
-// one active term per college, the next term opened from a term's calendar, and a role held in one
-// term.
+// The vice-dean's terms (Step 13): an 18-week term with its holidays, events of the college's own,
+// grade deadline and exam periods by week number (the owner's notes, 21 October 2026), one active
+// term per college, the next term opened from a term's calendar, and a role held in one term.
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 let collegeId: string;
 let otherCollegeId: string;
@@ -55,8 +56,8 @@ const roleId = async (key: string) =>
   )[0].id as string;
 
 // The second term of 1447: 18 weeks from Sunday 4 January 2026, trained through Ramadan, with a
-// two-week Eid al-Fitr break, exams in the middle and at the end, and the grades due on the last
-// Thursday.
+// two-week Eid al-Fitr break, a week of field training in the middle, a projects fair over its last
+// two weeks, and the grades due on the last Thursday.
 const SECOND_TERM = {
   name: "الفصل التدريبي الثاني 1447",
   startsOn: "2026-01-04",
@@ -70,8 +71,8 @@ const CALENDAR = [
     endsOn: "2026-02-22",
   },
   {
-    kind: "exam",
-    title: "اختبارات منتصف الفصل",
+    kind: "custom",
+    title: "أسبوع التدريب الميداني",
     startsOn: "2026-03-01",
     endsOn: "2026-03-05",
   },
@@ -82,8 +83,8 @@ const CALENDAR = [
     endsOn: "2026-03-28",
   },
   {
-    kind: "exam",
-    title: "الاختبارات النهائية",
+    kind: "custom",
+    title: "معرض مشاريع التخرج",
     startsOn: "2026-05-10",
     endsOn: "2026-05-21",
   },
@@ -94,6 +95,13 @@ const CALENDAR = [
     endsOn: "2026-05-21",
   },
 ] as const;
+// Its exam periods as the owner's canvas sets them (21 October 2026), by week number.
+const PERIODS = [
+  { type: "first-periodic", from: 5, to: 6 },
+  { type: "second-periodic", from: 11, to: 12 },
+  { type: "practical-final", from: 16, to: 16 },
+  { type: "theoretical-final", from: 17, to: 18 },
+];
 
 async function termWithCalendar(name: string) {
   const created = await createTerm(
@@ -151,7 +159,7 @@ beforeAll(async () => {
 afterAll(() => database?.drop());
 
 describe("a term and its calendar", () => {
-  it("takes an 18-week term with its holidays, exam weeks and grade deadline, and counts on past the Eid break", async () => {
+  it("takes an 18-week term with its holidays, events and grade deadline, and counts on past the Eid break", async () => {
     const id = await termWithCalendar("الفصل الأول");
     const term = await findTerm(collegeId, id, database.db);
     if (!term) throw new Error("no term");
@@ -208,7 +216,7 @@ describe("a term and its calendar", () => {
     await expect(outside("after", "2026-05-20", "2026-05-24")).resolves.toEqual(
       { status: "eventsOutside", events: ["after"] },
     );
-    // Two weeks fewer leave the last two weeks' exams and deadline out.
+    // Two weeks fewer leave the last two weeks' fair and deadline out.
     await expect(
       updateTerm(
         id,
@@ -219,7 +227,7 @@ describe("a term and its calendar", () => {
       ),
     ).resolves.toEqual({
       status: "eventsOutside",
-      events: ["الاختبارات النهائية", "آخر موعد لرصد الدرجات"],
+      events: ["معرض مشاريع التخرج", "آخر موعد لرصد الدرجات"],
     });
     // So does the Eid break taken away: the term would end two weeks sooner.
     const term = await findTerm(collegeId, id, database.db);
@@ -229,7 +237,7 @@ describe("a term and its calendar", () => {
       removeCalendarEvent(id, eid.id, change(), settings, database.db),
     ).resolves.toEqual({
       status: "eventsOutside",
-      events: ["الاختبارات النهائية", "آخر موعد لرصد الدرجات"],
+      events: ["معرض مشاريع التخرج", "آخر موعد لرصد الدرجات"],
     });
     await expect(
       removeCalendarEvent(
@@ -249,12 +257,14 @@ describe("a term and its calendar", () => {
   it("records what an edit changed, and what a removal took", async () => {
     const id = await termWithCalendar("Term C");
     const term = await findTerm(collegeId, id, database.db);
-    const midterm = term?.events.find(({ kind }) => kind === "exam");
-    if (!midterm) throw new Error("no midterm");
+    const training = term?.events.find(
+      ({ title }) => title === CALENDAR[1].title,
+    );
+    if (!training) throw new Error("no field training");
     await expect(
       updateCalendarEvent(
         id,
-        midterm.id,
+        training.id,
         { ...CALENDAR[1], endsOn: "2026-03-04" },
         change(),
         settings,
@@ -262,7 +272,7 @@ describe("a term and its calendar", () => {
       ),
     ).resolves.toEqual({ status: "saved" });
     await expect(
-      removeCalendarEvent(id, midterm.id, change(), settings, database.db),
+      removeCalendarEvent(id, training.id, change(), settings, database.db),
     ).resolves.toEqual({ status: "saved" });
     await expect(
       updateTerm(
@@ -283,7 +293,7 @@ describe("a term and its calendar", () => {
       {
         action: "calendarEvent.update",
         diff: {
-          from: { title: "اختبارات منتصف الفصل", endsOn: "2026-03-05" },
+          from: { title: "أسبوع التدريب الميداني", endsOn: "2026-03-05" },
           to: { endsOn: "2026-03-04" },
         },
       },
@@ -302,6 +312,7 @@ describe("a term and its calendar", () => {
 describe("the active term and the next one", () => {
   it("keeps one active term per college, opens the next term from a term's calendar, and closes the old one when the next becomes active", async () => {
     const first = await termWithCalendar("الفصل الثاني 1447");
+    await saveExamPeriods(first, PERIODS, change(), database.db);
     await expect(activateTerm(first, change(), database.db)).resolves.toEqual({
       status: "activated",
     });
@@ -309,8 +320,8 @@ describe("the active term and the next one", () => {
       status: "notDraft",
     });
 
-    // The next term: the exam weeks and the deadline at the same places in its weeks, the holidays
-    // left behind for the vice-dean to enter.
+    // The next term: the events and the deadline at the same places in its weeks, the exam periods
+    // in the same weeks, and the holidays left behind for the vice-dean to enter.
     const next = await openNextTerm(
       first,
       { name: "الفصل الأول 1448", startsOn: "2026-08-23", weeks: 18 },
@@ -319,9 +330,10 @@ describe("the active term and the next one", () => {
       database.db,
     );
     if (next.status !== "created") throw new Error(next.status);
-    expect(next.copied).toBe(3);
+    expect(next).toMatchObject({ copied: 3, periods: 4 });
     const opened = await findTerm(collegeId, next.id, database.db);
     expect(opened?.status).toBe("draft");
+    expect(opened?.periods).toEqual(PERIODS);
     expect(
       opened?.events.map(({ kind, title, startsOn, endsOn }) => ({
         kind,
@@ -344,7 +356,20 @@ describe("the active term and the next one", () => {
       settings,
       database.db,
     );
-    expect(shorter).toMatchObject({ status: "created", copied: 1 });
+    // ...and every exam period, which a period past its last week keeps from becoming active until the
+    // vice-dean moves it.
+    if (shorter.status !== "created") throw new Error(shorter.status);
+    expect(shorter).toMatchObject({ copied: 1, periods: 4 });
+    await expect(
+      activateTerm(shorter.id, change(), database.db),
+    ).resolves.toEqual({
+      status: "periodProblems",
+      periods: [
+        "الاختبارات الدورية الثانية",
+        "الاختبارات النهائية العملية",
+        "الاختبارات النهائية النظرية",
+      ],
+    });
 
     // The next term made active closes the one before it.
     await expect(activateTerm(next.id, change(), database.db)).resolves.toEqual(
@@ -395,6 +420,7 @@ describe("the active term and the next one", () => {
         weeks: 18,
         from: "الفصل الثاني 1447",
         copied: 3,
+        periods: 4,
       },
     });
 
@@ -615,7 +641,8 @@ describe("the college's holidays (ADR-0018)", () => {
     ]);
     expect(termEndsOn(calendar)).toBe("2027-06-12");
 
-    // A term of 1447 opened into it: its midterm, in week 9, lands in week 9 past the Eid break.
+    // A term of 1447 opened into it: its field training, in week 9, lands in week 9 past the Eid
+    // break.
     const source = await termWithCalendar("الفصل الثاني 1447 للنقل");
     const next = await openNextTerm(
       source,
@@ -627,7 +654,7 @@ describe("the college's holidays (ADR-0018)", () => {
     if (next.status !== "created") throw new Error(next.status);
     const opened = await findTerm(collegeId, next.id, database.db);
     expect(
-      opened?.events.find(({ title }) => title === "اختبارات منتصف الفصل"),
+      opened?.events.find(({ title }) => title === CALENDAR[1].title),
     ).toMatchObject({ startsOn: "2027-03-21", endsOn: "2027-03-25" });
   });
 
@@ -718,13 +745,13 @@ describe("the college's holidays (ADR-0018)", () => {
   });
 
   it("are not moved to days that would leave a term's events outside it (Audit 5)", async () => {
-    // The finals in the last week of the term of 1448, which ends on 19 June past both breaks.
+    // A fair in the last week of the term of 1448, which ends on 19 June past both breaks.
     const [{ id }] = await query(
       "select id from terms where name = 'الفصل الثاني 1448'",
     );
     const finals = {
-      kind: "exam" as const,
-      title: "Finals",
+      kind: "custom" as const,
+      title: "Fair",
       startsOn: "2027-06-13",
       endsOn: "2027-06-17",
     };
@@ -745,7 +772,7 @@ describe("the college's holidays (ADR-0018)", () => {
     ).resolves.toEqual({
       status: "eventsOutside",
       term: "الفصل الثاني 1448",
-      events: ["Finals"],
+      events: ["Fair"],
     });
     expect(await breakOf("eid-al-adha")).toMatchObject({
       startsOn: adha.startsOn,
@@ -859,10 +886,141 @@ describe("the terms' list", () => {
     const recorder = recording(database.pool);
     const listed = await listTermCalendars(collegeId, recorder.db);
     expect(listed.length).toBeGreaterThan(2);
-    expect(await recorder.plans()).toHaveLength(3);
+    expect(await recorder.plans()).toHaveLength(4);
     for (const term of listed) {
       const found = await findTerm(collegeId, term.id, database.db);
       expect(term, term.name).toEqual(found);
     }
+  });
+});
+
+describe("a term's exam periods (the owner's notes, 21 October 2026)", () => {
+  const bareTerm = async (name: string) => {
+    const created = await createTerm(
+      { ...SECOND_TERM, name },
+      change(),
+      database.db,
+    );
+    if (created.status !== "created") throw new Error(created.status);
+    return created.id;
+  };
+  const periodsOf = async (id: string) =>
+    (await findTerm(collegeId, id, database.db))?.periods;
+
+  it("are set by week number, each of the college's types once, and the log names each one that changed by its type", async () => {
+    const id = await bareTerm("Term P");
+    expect(await periodsOf(id)).toEqual([]);
+    await expect(
+      saveExamPeriods(id, [...PERIODS].reverse(), change(), database.db),
+    ).resolves.toEqual({ status: "saved" });
+    expect(await periodsOf(id)).toEqual(PERIODS);
+    await expect(
+      saveExamPeriods(id, PERIODS, change(), database.db),
+    ).resolves.toEqual({ status: "unchanged" });
+    // The second periodic a week later, and no practical final.
+    const moved = [PERIODS[0], { ...PERIODS[1], from: 12, to: 13 }, PERIODS[3]];
+    await expect(
+      saveExamPeriods(id, moved, change(), database.db),
+    ).resolves.toEqual({ status: "saved" });
+    expect(await periodsOf(id)).toEqual(moved);
+    expect(
+      await query(
+        `select actor_id, diff from audit_events
+         where entity_id = $1 and action = 'examPeriods.update' order by created_at, id`,
+        [id],
+      ),
+    ).toEqual([
+      {
+        actor_id: people.viceDean,
+        diff: {
+          from: {},
+          to: {
+            "الاختبارات الدورية الأولى": [5, 6],
+            "الاختبارات الدورية الثانية": [11, 12],
+            "الاختبارات النهائية العملية": [16],
+            "الاختبارات النهائية النظرية": [17, 18],
+          },
+        },
+      },
+      {
+        actor_id: people.viceDean,
+        diff: {
+          from: {
+            "الاختبارات الدورية الثانية": [11, 12],
+            "الاختبارات النهائية العملية": [16],
+          },
+          to: { "الاختبارات الدورية الثانية": [12, 13] },
+        },
+      },
+    ]);
+  });
+
+  it("refuse a type the college does not have, and name a period past the term's last week or two that share a week", async () => {
+    const id = await bareTerm("Term Q");
+    const save = (periods: typeof PERIODS) =>
+      saveExamPeriods(id, periods, change(), database.db);
+    await expect(save([{ type: "midterm", from: 8, to: 8 }])).resolves.toEqual({
+      status: "unknownType",
+    });
+    await expect(
+      save([PERIODS[0], { ...PERIODS[3], to: 19 }]),
+    ).resolves.toEqual({
+      status: "pastEnd",
+      periods: ["الاختبارات النهائية النظرية"],
+    });
+    await expect(
+      save([PERIODS[2], { ...PERIODS[3], from: 16 }]),
+    ).resolves.toEqual({
+      status: "overlap",
+      periods: ["الاختبارات النهائية العملية", "الاختبارات النهائية النظرية"],
+    });
+    expect(await periodsOf(id)).toEqual([]);
+    await expect(
+      saveExamPeriods(crypto.randomUUID(), PERIODS, change(), database.db),
+    ).resolves.toEqual({ status: "notFound" });
+    // Nor does another college's term take them.
+    await expect(
+      saveExamPeriods(
+        id,
+        PERIODS,
+        { collegeId: otherCollegeId, actorId: people.viceDean },
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "notFound" });
+  });
+
+  it("stay in their weeks when the term is shortened, and keep it from becoming active until the vice-dean moves them", async () => {
+    const id = await bareTerm("Term R");
+    await saveExamPeriods(id, PERIODS, change(), database.db);
+    await expect(
+      updateTerm(
+        id,
+        { ...SECOND_TERM, name: "Term R", weeks: 17 },
+        change(),
+        settings,
+        database.db,
+      ),
+    ).resolves.toEqual({ status: "saved" });
+    expect(await periodsOf(id)).toEqual(PERIODS);
+    await expect(activateTerm(id, change(), database.db)).resolves.toEqual({
+      status: "periodProblems",
+      periods: ["الاختبارات النهائية النظرية"],
+    });
+    // The theoretical final in the last week only.
+    const fitted = [...PERIODS.slice(0, 3), { ...PERIODS[3], to: 17 }];
+    await expect(
+      saveExamPeriods(id, fitted, change(), database.db),
+    ).resolves.toEqual({ status: "saved" });
+    await expect(
+      activateTerm(id, change(), database.db),
+    ).resolves.toMatchObject({ status: "activated" });
+    // A closed term's periods stay as they were.
+    const [{ id: closed }] = await query(
+      "select id from terms where college_id = $1 and status = 'closed' limit 1",
+      [collegeId],
+    );
+    await expect(
+      saveExamPeriods(closed, PERIODS, change(), database.db),
+    ).resolves.toEqual({ status: "closed" });
   });
 });

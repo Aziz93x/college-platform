@@ -1,25 +1,27 @@
 import type { getFormatter, getTranslations } from "next-intl/server";
 import { type DueRule, reachesTrainers, taskKinds } from "@/modules/framework";
-import { calendarEventKinds } from "@/modules/terms";
+import type { ExamPeriodType } from "@/modules/terms";
 import type { ItemInput, ItemOptions } from "./item-sheet.tsx";
 import type { ItemView } from "./item-words.tsx";
 
-const DUE_TYPES = ["week", "weekly", "everyWeeks", "afterEvent"] as const;
+const DUE_TYPES = ["week", "weekly", "everyWeeks", "examPeriods"] as const;
+const SIDES = ["before", "after"] as const;
 
 // The words of the items of the framework (Step 15) and of a department's section templates
 // (Step 18), and the choices their sheet offers, as their pages write them: the college's axes,
-// the kinds, its roles where the item chooses whom it reaches, the kinds of calendar day, the file
+// the kinds, its roles where the item chooses whom it reaches, its types of exam period, the file
 // types it accepts and the kinds of due rule.
 export function itemVocabulary({
   t,
-  calendarWords,
+  periodTypes,
   format,
   axes,
   roles,
   accepted,
 }: {
   t: Awaited<ReturnType<typeof getTranslations<"framework">>>;
-  calendarWords: Awaited<ReturnType<typeof getTranslations<"terms.kinds">>>;
+  /** The college's types of exam period, in order (the owner's notes, 21 October 2026). */
+  periodTypes: readonly ExamPeriodType[];
   format: Awaited<ReturnType<typeof getFormatter>>;
   axes: readonly { id: string; code: string; title: string }[];
   /** The roles an item may reach, by id; none for a section template, which reaches trainers. */
@@ -32,9 +34,10 @@ export function itemVocabulary({
       t("axisOption", { code: axis.code, title: axis.title }),
     ]),
   );
-  // The items' services take only a calendar's kinds (Audit 5).
-  const eventWords = (kind: string) =>
-    calendarWords(kind as (typeof calendarEventKinds)[number]);
+  // A type of exam period by its short name; the items' services take only the college's types.
+  const periodWords = new Map(
+    periodTypes.map(({ code, shortName }) => [code, shortName]),
+  );
   // A file type as people know it: its extension in capitals.
   const typeWords = (type: string) => type.toUpperCase();
   const dueWords = (due: DueRule) => {
@@ -45,10 +48,13 @@ export function itemVocabulary({
         return t("dueText.weekly");
       case "everyWeeks":
         return t("dueText.everyWeeks", { every: due.every });
-      case "afterEvent":
-        return t("dueText.afterEvent", {
-          event: eventWords(due.eventKind),
+      case "examPeriods":
+        return t("dueText.examPeriods", {
+          side: due.side,
           weeks: due.weeks,
+          periods: format.list(
+            due.periodTypes.map((code) => periodWords.get(code) ?? code),
+          ),
         });
     }
   };
@@ -83,10 +89,11 @@ export function itemVocabulary({
     ...(roles && {
       roles: [...roles].map(([value, label]) => ({ value, label })),
     }),
-    eventKinds: calendarEventKinds.map((kind) => ({
-      value: kind,
-      label: calendarWords(kind),
+    periodTypes: periodTypes.map(({ code, shortName }) => ({
+      value: code,
+      label: shortName,
     })),
+    sides: SIDES.map((side) => ({ value: side, label: t(`sides.${side}`) })),
     evidenceTypes: accepted.map((type) => ({
       value: type,
       label: typeWords(type),

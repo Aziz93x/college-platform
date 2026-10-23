@@ -28,7 +28,7 @@ import {
 } from "@/modules/framework";
 import { getSetting } from "@/modules/settings";
 import { latestRun } from "@/modules/tasks";
-import { eventWeeks, termWeeks } from "@/modules/terms";
+import { listExamPeriodTypes } from "@/modules/terms";
 import { ItemWords } from "../_items/item-words.tsx";
 import { itemVocabulary } from "../_items/vocabulary.ts";
 import { termCalendar, viewedTerm } from "../_shell/term.ts";
@@ -72,7 +72,7 @@ export default async function FrameworkPage() {
     messages,
     locale,
     format,
-    calendarWords,
+    periodTypes,
     framework,
     groups,
     roles,
@@ -83,7 +83,7 @@ export default async function FrameworkPage() {
     getMessages(),
     getLocale(),
     getFormatter(),
-    getTranslations("terms.kinds"),
+    listExamPeriodTypes(viewer.collegeId),
     termFramework(viewer.collegeId, term.id),
     listAxes(viewer.collegeId),
     listRoles(viewer.collegeId),
@@ -94,7 +94,7 @@ export default async function FrameworkPage() {
   const language = locale.split("-")[0];
   const { view, options } = itemVocabulary({
     t,
-    calendarWords,
+    periodTypes,
     format,
     axes: groups.flatMap((group) => group.axes),
     roles: new Map(
@@ -113,25 +113,21 @@ export default async function FrameworkPage() {
 
   // The tasks the draft would create, for whoever prepares it: each department's holders of each
   // role and its sections' and courses' trainers in Rayat's SS01 in force (Step 17), and the term's
-  // weeks and calendar; and the sections an item for their trainers misses, having none yet.
+  // weeks and exam periods, as the engine counts them (Step 20); and the sections an item for their
+  // trainers misses, having none yet.
   const draftImpact = async (items: readonly FrameworkItemInput[]) => {
     const [members, sections, found] = await Promise.all([
       countMembers(viewer.collegeId),
       sectionCounts(viewer.collegeId, term.id),
       termCalendar(viewer.collegeId, term.id),
     ]);
-    // Each kind of day of the calendar by the numbered weeks its days fall in, as the engine counts
-    // them (Step 20).
-    const events = found
-      ? eventWeeks(termWeeks(found.calendar), found.term.events)
-      : {};
     const untaught = items.some((item) => reachesTrainers(item.appliesTo))
       ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
       : 0;
     return t("impact", {
       ...countTasks(items, departmentsReached(members, sections), {
         weeks: term.weeks,
-        events,
+        periods: found?.term.periods ?? [],
       }),
       untaught,
     });
