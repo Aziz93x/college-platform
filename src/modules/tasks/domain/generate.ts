@@ -10,11 +10,12 @@ import { openStatuses, type TaskStatus } from "./status.ts";
 // call for, and what to change so that the term's tasks are those and no others, which running it
 // again finds nothing to do for.
 
-// An item as the engine reads it: its source, the framework, a department's plan or an assignment,
-// whose items reach their own department alone (Steps 19 and 21); the item it was first entered as,
-// which names its tasks in every version; what its tasks say, whom it reaches, and the weeks its
-// rule is due (dueWeeks()). A template's item assigned to several people is an item for each, with
-// the same words.
+// An item as the engine reads it: its source, the framework, a department's plan, an assignment or
+// a quick request, whose items reach their own department alone, or a request each department when
+// it is the whole college's (Steps 19, 21 and 22); the item it was first entered as, which names its
+// tasks in every version; what its tasks say, whom it reaches, the weeks its rule is due
+// (dueWeeks()), and a request's own due day. A template's item assigned to several people is an item
+// for each, with the same words, and so is a request to chosen people.
 export type SourceItem = {
   source: TaskSource;
   departmentId?: string;
@@ -22,14 +23,19 @@ export type SourceItem = {
   title: string;
   axisId: string;
   kind: TaskKind;
-  appliesTo: PlanReach;
+  appliesTo: ItemReach;
   weeks: readonly number[];
+  dueOn?: string;
   evidence: EvidencePolicy;
 };
 
-// Where a task comes from: the term's general framework, a department's plan (Step 19), or a
-// template assigned to a person (Step 21).
-export type TaskSource = "framework" | "plan" | "assignment";
+// Whom an item reaches: as a plan's item does, or everyone who holds a role in the department but
+// the person a quick request leaves out, its sender (Step 22).
+export type ItemReach = PlanReach | { type: "everyone"; except: string | null };
+
+// Where a task comes from: the term's general framework, a department's plan (Step 19), a template
+// assigned to a person (Step 21), or a quick request (Step 22, ADR-0025).
+export type TaskSource = "framework" | "plan" | "assignment" | "request";
 
 // What a department holds that items reach: the people who hold each role in it, and each of its
 // sections with its course, by Rayat's code, and its places, each place by the trainer Rayat gave it
@@ -93,9 +99,10 @@ function coursesOf(sections: Reach["sections"]) {
 }
 
 // The slots of a term's items: each item, in each department, or a plan's in its own, once for each
-// person who holds its role, for each place of each section, for each place of each course, or for
-// the one person it names while they hold a role there, and each time it is due. countTasks()
-// counts the same.
+// person who holds its role, for each place of each section, for each place of each course, for
+// the one person it names while they hold a role there, or for everyone who holds a role there but
+// the one it leaves out, and each time it is due. countTasks() counts the same of the framework's
+// and the plans' items.
 export function slotsOf(
   items: readonly SourceItem[],
   reach: readonly Reach[],
@@ -144,6 +151,13 @@ export function slotsOf(
           case "person":
             if (people.has(item.appliesTo.userId)) {
               slots.push({ ...at, holderId: item.appliesTo.userId });
+            }
+            break;
+          case "everyone":
+            for (const holderId of people) {
+              if (holderId !== item.appliesTo.except) {
+                slots.push({ ...at, holderId });
+              }
             }
             break;
         }
@@ -233,7 +247,7 @@ export function wantedTasks(
       title: item.title,
       axisId: item.axisId,
       kind: item.kind,
-      dueOn: term.dueOn(slot.week),
+      dueOn: item.dueOn ?? term.dueOn(slot.week),
       policy: item.evidence,
       assignee,
     };

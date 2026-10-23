@@ -102,6 +102,7 @@ function format(
         return value.toUpperCase();
       case "startsOn":
       case "endsOn":
+      case "dueOn":
         return lookups.day(value);
       case "status":
         return words.has(`termStatus.${value}`)
@@ -136,10 +137,33 @@ function format(
             ? lookups.item.due(value)
             : field === "evidence"
               ? lookups.item.evidence(value)
-              : undefined;
+              : field === "targets"
+                ? targets(value, lookups, words)
+                : undefined;
     if (said !== undefined) return said;
   }
   return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+// Whom a quick request reached, as its page words it (Step 22): everyone, a role's holders, or how
+// many people were chosen.
+function targets(value: Record_, lookups: Lookups, words: Words) {
+  switch (value.type) {
+    case "everyone":
+      return words("targets.everyone");
+    case "role":
+      return typeof value.roleId === "string"
+        ? words("targets.role", {
+            role: lookups.roleById(value.roleId) ?? value.roleId,
+          })
+        : undefined;
+    case "people":
+      return Array.isArray(value.people)
+        ? words("targets.people", { count: String(value.people.length) })
+        : undefined;
+    default:
+      return undefined;
+  }
 }
 
 // What changed: each field before and after; a setting's value as one; or what the event noted.
@@ -191,6 +215,19 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
     // A text of the platform by its key, as the texts page shows it (ADR-0029).
     case "text":
       return words("text", { key: id });
+    // A quick request by its title, its department or the whole college, and its term (Step 22).
+    case "quickRequest": {
+      const sent = entry.diff?.to;
+      return isRecord(sent) &&
+        typeof sent.title === "string" &&
+        typeof sent.termId === "string"
+        ? [
+            words("quoted", { title: sent.title }),
+            format("departmentId", sent.departmentId, lookups, words),
+            lookups.term(sent.termId) ?? sent.termId,
+          ].join(" · ")
+        : id;
+    }
     case "term":
       return lookups.term(id) ?? id;
     // A year's Eid break by its name and Hijri year, as it was adjusted (ADR-0018).

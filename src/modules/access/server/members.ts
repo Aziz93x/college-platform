@@ -85,3 +85,29 @@ export async function holdersIn(
   }
   return held;
 }
+
+// The enabled people who hold a key through a role in force across the college, by name: whom the
+// readiness board names for what a key settles (Step 22). The system role holds every key in code,
+// not through its role's keys, so its holders are not named for each.
+export async function holdersAcross(
+  collegeId: string,
+  key: PermissionKey,
+  db: Db | Tx = getDb(),
+) {
+  return db
+    .selectDistinct({ userId: users.id, name: users.name })
+    .from(memberships)
+    .innerJoin(rolePermissions, eq(rolePermissions.roleId, memberships.roleId))
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .leftJoin(terms, eq(terms.id, memberships.termId))
+    .where(
+      and(
+        eq(memberships.collegeId, collegeId),
+        isNull(memberships.departmentId),
+        eq(rolePermissions.permission, key),
+        isNull(users.disabledAt),
+        inForce,
+      ),
+    )
+    .orderBy(asc(users.name), asc(users.id));
+}

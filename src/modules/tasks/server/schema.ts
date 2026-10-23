@@ -109,7 +109,7 @@ export const tasks = pgTable(
     index("tasks_assignee_idx").on(table.assigneeId, table.dueOn),
     check(
       "tasks_source",
-      sql`${table.source} in ('framework', 'plan', 'assignment')`,
+      sql`${table.source} in ('framework', 'plan', 'assignment', 'request')`,
     ),
     check(
       "tasks_status",
@@ -163,7 +163,7 @@ export const generationRuns = pgTable(
       .where(sql`${table.status} in ('queued', 'running')`),
     check(
       "generation_runs_reason",
-      sql`${table.reason} in ('framework', 'plan', 'assignment', 'ss01', 'transfer', 'periods', 'daily', 'admin')`,
+      sql`${table.reason} in ('framework', 'plan', 'assignment', 'request', 'ss01', 'transfer', 'periods', 'daily', 'admin')`,
     ),
     check(
       "generation_runs_status",

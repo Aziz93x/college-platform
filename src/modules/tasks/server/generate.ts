@@ -8,6 +8,7 @@ import { writeAudit } from "../../audit/index.ts";
 import { dueWeeks, publishedItems } from "../../framework/index.ts";
 import { people } from "../../identity/index.ts";
 import { publishedPlanItems } from "../../planning/index.ts";
+import { requestedItems } from "../../requests/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import {
   calendarOf,
@@ -23,6 +24,7 @@ import {
   reconcile,
   type SourceItem,
   type Task,
+  type TaskSource,
   type TermNow,
   type Wanted,
   wantedTasks,
@@ -41,9 +43,9 @@ export type Generated = {
 
 // A term's sources and what they reach, as the engine reads them on a day: the items of the latest
 // published framework and of each department's latest published plan (Step 19), each with the weeks
-// its rule is due, and of each assignment (Step 21), due in its last week; the holders of each role
-// and the places of each section, by department; and the week the term has reached on the college's
-// clock.
+// its rule is due; of each assignment (Step 21), due in its last week; and of each quick request
+// (Step 22), due on its own day; the holders of each role and the places of each section, by
+// department; and the week the term has reached on the college's clock.
 async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   const [
     term,
@@ -51,6 +53,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     published,
     planned,
     assigned,
+    requested,
     holders,
     sections,
     numbers,
@@ -61,6 +64,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     publishedItems(collegeId, termId, db),
     publishedPlanItems(collegeId, termId, db),
     assignedItems(collegeId, termId, db),
+    requestedItems(collegeId, termId, db),
     roleHolders(collegeId, termId, db),
     sectionPlaces(collegeId, termId, db),
     db
@@ -101,6 +105,39 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
       appliesTo: { type: "person" as const, userId },
       weeks: [dueWeekOf(toWeek, term.weeks)],
     })),
+    // A request is due on its own day, in the week that holds it: everyone's but its sender's, a
+    // role's in its department or in each, or each chosen person's in their department.
+    ...requested.flatMap(
+      ({ id, targets, sentBy, ...request }): SourceItem[] => {
+        const item = {
+          source: "request" as const,
+          origin: id,
+          title: request.title,
+          axisId: request.axisId,
+          kind: "general" as const,
+          weeks: [weekReached(weeks, request.dueOn)],
+          dueOn: request.dueOn,
+          evidence: request.evidence,
+        };
+        if (targets.type === "people") {
+          return targets.people.map((person) => ({
+            ...item,
+            departmentId: person.departmentId,
+            appliesTo: { type: "person" as const, userId: person.userId },
+          }));
+        }
+        return [
+          {
+            ...item,
+            departmentId: request.departmentId ?? undefined,
+            appliesTo:
+              targets.type === "everyone"
+                ? { type: "everyone" as const, except: sentBy }
+                : { type: "role" as const, roleId: targets.roleId },
+          },
+        ];
+      },
+    ),
   ];
 
   const departments = new Map<
@@ -387,4 +424,32 @@ export async function generateTerm(
     );
   }
   return done;
+}
+
+// Whom a source item's tasks of a term are for, by account, in their department, the cancelled
+// left out: whom a quick request tells of its tasks once they are made (Step 22).
+export async function itemAssignees(
+  termId: string,
+  source: TaskSource,
+  item: string,
+  db: Db = getDb(),
+) {
+  const rows = await db
+    .selectDistinct({
+      userId: tasks.assigneeId,
+      departmentId: tasks.departmentId,
+    })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.termId, termId),
+        eq(tasks.source, source),
+        eq(tasks.sourceItemId, item),
+        isNull(tasks.cancelledAt),
+        isNotNull(tasks.assigneeId),
+      ),
+    );
+  return rows.flatMap(({ userId, departmentId }) =>
+    userId ? [{ userId, departmentId }] : [],
+  );
 }

@@ -18,15 +18,16 @@ export const openStatuses: ReadonlySet<TaskStatus> = new Set([
 ]);
 
 // Why a term's tasks are generated again: the framework or a department's plan published, a
-// template assigned, revoked or its items changed, Rayat's SS01 applied or rolled back, a section
-// transferred or the transfer cancelled, the term's exam periods changed, which the rules anchored to
-// them move with, the nightly pass over open terms, or an admin running a failed pass again from
-// the system page (ADR-0029). Each has its words in the log and on /framework
-// (tests/unit/generation-causes.test.ts).
+// template assigned, revoked or its items changed, a quick request sent, which generates at once
+// (Step 22), Rayat's SS01 applied or rolled back, a section transferred or the transfer cancelled,
+// the term's exam periods changed, which the rules anchored to them move with, the nightly pass over
+// open terms, or an admin running a failed pass again from the system page (ADR-0029). Each has its
+// words in the log and on /framework (tests/unit/generation-causes.test.ts).
 export const generationReasons = [
   "framework",
   "plan",
   "assignment",
+  "request",
   "ss01",
   "transfer",
   "periods",

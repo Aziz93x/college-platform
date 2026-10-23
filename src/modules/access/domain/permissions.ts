@@ -45,6 +45,9 @@ const permissions = {
   "framework.publish": { area: "term", requiresTwoFactor: false },
   // Endorse the framework's draft before it is published, where the college asks for it (Step 15).
   "framework.endorse": { area: "term", requiresTwoFactor: false },
+  // The term readiness board (Step 22): held across the college, every row; held in a department,
+  // the college's rows and that department's (the owner's answer).
+  "readiness.view": { area: "term", requiresTwoFactor: false },
   // Upload, apply and roll back Rayat's reports (Step 16). A file is the whole college's, so the key
   // held in a department does what it does held across the college (ADR-0019).
   "rayat.import": { area: "term", requiresTwoFactor: false },
@@ -56,6 +59,9 @@ const permissions = {
   // department's own templates (Step 21). Assigning a template that grants a role, as the
   // secretary's does, gives that role in the department for the term: the keys the admin gave it.
   "assignment.manage": { area: "planning", requiresTwoFactor: false },
+  // Send a quick request without the plan editor (Step 22): held in a department, to its people;
+  // held across the college, to one department's or every department's (the owner's answer).
+  "requests.send": { area: "planning", requiresTwoFactor: false },
   // Transfer a section of the term from one trainer to another, from a week on (Step 17).
   "sections.transfer": { area: "planning", requiresTwoFactor: false },
   // Complete one's own tasks and attach their evidence (Step 26). Step 17 already reads it: a
