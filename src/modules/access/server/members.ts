@@ -12,10 +12,15 @@ export const inForce = or(
   eq(terms.status, "active"),
 );
 
-// Each enabled account that holds a role in an active department, a role held for one term counting
-// while that term is active, once for each role and department: whom a framework's or a plan's
-// items for a role reach, in the preview and in the generation engine alike (Steps 15 and 20).
-export async function roleHolders(collegeId: string, db: Db | Tx = getDb()) {
+// Each enabled account that holds a role in an active department in a term, held for every term or
+// for that one, once for each role and department: whom a framework's, a plan's or an assignment's
+// items reach in that term, in the preview and in the generation engine alike (Steps 15, 20 and
+// 21). A draft term that a head prepares counts its own holders, not the active term's (Audit 7).
+export async function roleHolders(
+  collegeId: string,
+  termId: string,
+  db: Db | Tx = getDb(),
+) {
   const rows = await db
     .selectDistinct({
       departmentId: memberships.departmentId,
@@ -25,14 +30,13 @@ export async function roleHolders(collegeId: string, db: Db | Tx = getDb()) {
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
     .innerJoin(departments, eq(departments.id, memberships.departmentId))
-    .leftJoin(terms, eq(terms.id, memberships.termId))
     .where(
       and(
         eq(memberships.collegeId, collegeId),
         isNotNull(memberships.departmentId),
         isNull(users.disabledAt),
         eq(departments.active, true),
-        inForce,
+        or(isNull(memberships.termId), eq(memberships.termId, termId)),
       ),
     );
   return rows.map(({ departmentId, ...row }) => ({

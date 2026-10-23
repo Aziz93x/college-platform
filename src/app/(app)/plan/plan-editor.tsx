@@ -75,6 +75,7 @@ export function PlanEditor({
   frameworkPublished,
   versions,
   editable,
+  edits,
   publishes,
   previous,
   preview,
@@ -93,7 +94,9 @@ export function PlanEditor({
   versions: { version: number; words: string }[];
   /** Whether the term is still open, so that the plan changes. */
   editable: boolean;
-  /** Whether the viewer publishes the department's plan. */
+  /** Whether the viewer starts and fills the department's plan (plan.edit). */
+  edits: boolean;
+  /** Whether the viewer publishes the department's plan (plan.publish). */
   publishes: boolean;
   /** The previous term's plan, offered while the department has none in this term. */
   previous?: { termId: string; words: string };
@@ -135,7 +138,10 @@ export function PlanEditor({
           : item;
       }),
   );
-  const changes = Boolean(draft) && editable;
+  // What the viewer may do: fill the draft with plan.edit, and publish it with plan.publish, which
+  // reads it as it is (Audit 7).
+  const changes = Boolean(draft) && editable && edits;
+  const publishable = Boolean(draft) && editable && publishes;
   const busy = running !== undefined;
 
   const refused = (status: string | undefined, serverError?: string) =>
@@ -275,12 +281,14 @@ export function PlanEditor({
         description={
           !editable
             ? t("closed")
-            : previous
-              ? t("empty.description")
-              : t("empty.descriptionNew")
+            : !edits
+              ? t("needsEditor")
+              : previous
+                ? t("empty.description")
+                : t("empty.descriptionNew")
         }
         action={
-          editable ? (
+          editable && edits ? (
             <div className="flex flex-col items-center gap-3">
               <div className="flex flex-wrap justify-center gap-2">
                 <Button type="button" disabled={busy} onClick={() => start()}>
@@ -349,24 +357,28 @@ export function PlanEditor({
                           date: published.date,
                         })
                       : t("status.neverPublished")
-                    : t("status.publishedNote")}
+                    : edits
+                      ? t("status.publishedNote")
+                      : t("needsEditor")}
               </p>
             </div>
-            {changes ? (
+            {changes || publishable ? (
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setError(undefined);
-                    setResetKey(0);
-                    setEditing("new");
-                  }}
-                >
-                  <Plus aria-hidden />
-                  {t("add")}
-                </Button>
-                {publishes ? (
+                {changes ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setError(undefined);
+                      setResetKey(0);
+                      setEditing("new");
+                    }}
+                  >
+                    <Plus aria-hidden />
+                    {t("add")}
+                  </Button>
+                ) : null}
+                {publishable ? (
                   <Button
                     type="button"
                     disabled={!draft || draft.items.length === 0}
@@ -380,7 +392,7 @@ export function PlanEditor({
                   </Button>
                 ) : null}
               </div>
-            ) : editable && published ? (
+            ) : editable && edits && published ? (
               <Button type="button" disabled={busy} onClick={() => start()}>
                 {running === "start" ? (
                   <LoaderCircle aria-hidden className="animate-spin" />
@@ -391,7 +403,7 @@ export function PlanEditor({
               </Button>
             ) : null}
           </div>
-          {changes && preview ? (
+          {(changes || publishable) && preview ? (
             <div className="flex flex-col gap-0.5 text-sm">
               <p className="font-medium">{preview.impact}</p>
               <p className="text-muted-foreground">{preview.reviews}</p>
@@ -402,7 +414,7 @@ export function PlanEditor({
               {t("needsPublisher")}
             </p>
           ) : null}
-          {changes && untaught ? (
+          {(changes || publishable) && untaught ? (
             <p className="text-muted-foreground text-sm">{t("untaught")}</p>
           ) : null}
           {!frameworkPublished ? (

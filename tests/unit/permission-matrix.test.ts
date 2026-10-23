@@ -629,6 +629,9 @@ const viewerFor = (
 
 // Where an action's outcome differs from what the role and scope call for: each line names the
 // role, the scope and what happened. An allowed action must have run, not stopped at its input.
+// Beside the seeded roles, a role holds every key but the action's own, so an action that checks
+// a key the seeded roles always hold together with its own, as plan.edit and plan.publish, is
+// refused there (Audit 7, enhancement 1).
 async function mismatches(
   action: Action,
   input: unknown,
@@ -636,7 +639,11 @@ async function mismatches(
   inDepartment = false,
 ) {
   const found: string[] = [];
-  for (const role of roles) {
+  const allBut = {
+    key: "every key but this one",
+    permissions: permissionKeys.filter((key) => key !== permission),
+  };
+  for (const role of [...roles, allBut]) {
     for (const departmentId of [null, DEPARTMENT]) {
       request.viewer = viewerFor(role, departmentId);
       const result = await action(input);

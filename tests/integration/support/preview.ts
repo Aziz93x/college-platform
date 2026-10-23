@@ -19,7 +19,7 @@ export async function publishedPreview(
   const [term, framework, holders, sections] = await Promise.all([
     findTerm(collegeId, termId, db),
     termFramework(collegeId, termId, db),
-    roleHolders(collegeId, db),
+    roleHolders(collegeId, termId, db),
     sectionCounts(collegeId, termId, db),
   ]);
   if (!term || !framework.published) throw new Error("no published version");
@@ -41,7 +41,7 @@ export async function planPreview(
   const [term, plan, holders, sections] = await Promise.all([
     findTerm(collegeId, termId, db),
     departmentPlan(collegeId, termId, departmentId, db),
-    roleHolders(collegeId, db),
+    roleHolders(collegeId, termId, db),
     sectionCounts(collegeId, termId, db),
   ]);
   if (!term || !plan.published) throw new Error("no published version");

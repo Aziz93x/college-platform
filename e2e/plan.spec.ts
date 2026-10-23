@@ -1,10 +1,13 @@
 import { randomInt } from "node:crypto";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { createTranslator } from "next-intl";
+import { defaultRoles, portfolioAxes } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../db/seed/demo/departments.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { joinRole } from "../src/modules/access/index.ts";
 import { findCollegeId, listDepartments } from "../src/modules/org/index.ts";
+import { settingsRegistry } from "../src/modules/settings/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
 import { type TestAccount, test } from "./support/accounts.ts";
 import { demo, STORAGE } from "./support/auth.ts";
@@ -17,6 +20,12 @@ const { plan: text, framework, nav, pages } = messages;
 // Tests that write to the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 
+// The plan's words with their plurals, in the college's digits.
+const plural = createTranslator({
+  locale: `ar-u-nu-${settingsRegistry["locale.digits"].default}`,
+  messages,
+  namespace: "plan",
+});
 // The words of a message with its values in place.
 const t = (message: string, values: Record<string, string | number>) =>
   Object.entries(values).reduce(
@@ -124,9 +133,11 @@ test("the head of Electrical sees the plan's draft by weeks, the framework's ite
   await expect(
     page.getByRole("heading", { name: t(text.status.draft, { version: 2 }) }),
   ).toBeVisible();
-  // What publishing the draft creates, and the reviews it asks of the head each week.
+  // What publishing the draft creates, and the reviews it asks of the head each week, with the week
+  // that asks the most: the exam weeks ask far more than the average (Audit 7).
   await expect(page.getByText(/^تُنشئ المسودة/)).toBeVisible();
   await expect(page.getByText(/في الأسبوع:/)).toBeVisible();
+  await expect(page.getByText(/أكثرها في الأسبوع [\d٠-٩]+: /)).toBeVisible();
   if (hasTouch) {
     // On a phone, a list by week: the lab reports a week earlier than version 1's, in week 11.
     const week = page.getByRole("region", {
@@ -332,7 +343,11 @@ test(
       const publishing = page.getByRole("dialog", {
         name: t(text.publishTitle, { version: 1 }),
       });
-      await expect(publishing.getByText(/^تُنشئ المسودة/)).toBeVisible();
+      // One task: the minutes reach the head once, and the weekly report no one, since SS01 has
+      // given the new term no sections yet (Audit 7, minor 5).
+      await expect(
+        publishing.getByText(plural("impact", { tasks: 1 }), { exact: true }),
+      ).toBeVisible();
       await publishing
         .getByRole("button", { name: text.publishConfirm })
         .click();
@@ -362,34 +377,63 @@ test(
 );
 
 test(
-  "a head builds a 50-item plan in well under 30 minutes, item after item from one sheet (Step 19's usability run)",
+  "someone whose role holds plan.publish alone reads the department's draft with its preview, and publishes it, with nothing to add, move or start (ADR-0027, Audit 7)",
   DATABASE,
-  async ({ browser, account, hasTouch }) => {
-    test.skip(hasTouch, "Timed once, on the desktop.");
-    test.setTimeout(30 * 60_000);
+  async ({ browser, account }) => {
     const made = await headWithDraftTerm(account);
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
+    const { db, pool } = createDb(url);
+    const key = `publisher-${randomInt(100_000, 999_999)}`;
     try {
-      const started = Date.now();
-      const page = await onTerm(browser, made.person, made.termId);
-      await page.getByRole("button", { name: text.start }).click();
-      await page.getByRole("button", { name: text.add }).click();
-      const sheet = page.getByRole("dialog", { name: text.addTitle });
-      const title = sheet.getByLabel(framework.fields.title);
-      for (let item = 1; item <= 50; item++) {
-        await title.fill(`بند الخطة ${item}`);
-        // Every fifth item a week later than the one before, as a head spreads the term's work.
-        if (item % 5 === 0) {
-          await sheet
-            .getByRole("button", { name: framework.more })
-            .first()
-            .click();
-        }
-        await sheet.getByRole("button", { name: framework.saveAndAdd }).click();
-        await expect(title).toHaveValue("");
-      }
-      await sheet.getByRole("button", { name: messages.ui.cancel }).click();
-      const grid = page.getByRole("table", { name: text.grid.label });
-      await expect(grid.getByRole("checkbox")).toHaveCount(51);
+      // The head starts the plan with one item.
+      const head = await onTerm(browser, made.person, made.termId);
+      await head.getByRole("button", { name: text.start }).click();
+      await head.getByRole("button", { name: text.add }).click();
+      const sheet = head.getByRole("dialog", { name: text.addTitle });
+      await sheet.getByLabel(framework.fields.title).fill("محضر لجنة الجودة");
+      await sheet
+        .getByRole("button", { name: framework.save, exact: true })
+        .click();
+      await expect(sheet).toBeHidden();
+      await head.context().close();
+
+      // A role of the test's own that holds plan.publish alone, held in General Studies.
+      const publisher = await account();
+      const collegeId = (await findCollegeId(db)) ?? "";
+      const general = (await listDepartments(collegeId, db)).find(
+        ({ name }) => name === demoDepartments[0].name,
+      );
+      const {
+        rows: [role],
+      } = await pool.query(
+        "insert into roles (college_id, key, labels) values ($1, $2, $3) returning id",
+        [collegeId, key, JSON.stringify({ ar: "ناشر خطط الأقسام" })],
+      );
+      await pool.query(
+        "insert into role_permissions (role_id, permission) values ($1, 'plan.publish')",
+        [role.id],
+      );
+      await pool.query(
+        "insert into memberships (user_id, role_id, college_id, department_id) values ($1, $2, $3, $4)",
+        [publisher.userId, role.id, collegeId, general?.id],
+      );
+
+      const page = await onTerm(browser, publisher, made.termId);
+      expect(
+        await page.getByRole("link", { name: nav.plan }).count(),
+      ).toBeGreaterThan(0);
+      await expect(
+        page.getByRole("heading", {
+          name: t(text.status.draft, { version: 1 }),
+        }),
+      ).toBeVisible();
+      // The draft's preview: its one item reaches each section's trainer, and the new term has no
+      // sections yet.
+      await expect(
+        page.getByText(plural("impact", { tasks: 0 }), { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: text.add })).toHaveCount(0);
       await page.getByRole("button", { name: text.publish }).click();
       await page
         .getByRole("dialog", { name: t(text.publishTitle, { version: 1 }) })
@@ -398,7 +442,215 @@ test(
       await expect(
         page.getByRole("heading", { name: /^النسخة 1 منشورة منذ/ }),
       ).toBeVisible();
-      expect(Date.now() - started).toBeLessThan(30 * 60_000);
+      // The next version is the editor's to start.
+      await expect(page.getByText(text.needsEditor)).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: t(text.newVersion, { version: 2 }) }),
+      ).toHaveCount(0);
+    } finally {
+      await pool.query("delete from roles where key = $1", [key]);
+      await pool.end();
+      await made.remove();
+    }
+  },
+);
+
+// The keystroke-level model's times (Card, Moran and Newell), in seconds: a mental step before each
+// action a person decides on, pointing at a control, pressing a button, and a key of an average
+// typist. The usability run counts a head's time by it as it works the sheet (Audit 7).
+const KLM = { think: 1.35, point: 1.1, press: 0.2, key: 0.28 };
+
+// A head at the item sheet: each action done, and its time as the model counts it.
+function modelledHead(page: Page, hasTouch: boolean) {
+  let seconds = 0;
+  return {
+    seconds: () => seconds,
+    // Decides, points and presses.
+    click: async (target: Locator) => {
+      seconds += KLM.think + KLM.point + KLM.press;
+      await target.click();
+    },
+    // Decides, points, then presses a stepper's button as often as it takes.
+    step: async (target: Locator, times: number) => {
+      seconds += KLM.think + KLM.point + times * KLM.press;
+      for (let pressed = 0; pressed < times; pressed++) await target.click();
+    },
+    // Decides and types into the field that has the focus.
+    type: async (target: Locator, words: string) => {
+      seconds += KLM.think + words.length * KLM.key;
+      await target.fill(words);
+    },
+    // Opens one of the sheet's lists and picks an option.
+    choose: async (label: string, option: string) => {
+      seconds += KLM.think + 2 * (KLM.point + KLM.press);
+      await choose(page, label, option, hasTouch);
+    },
+  };
+}
+
+// A department's term plan of 50 items, as a head enters it: the kinds of Electrical's demo plan,
+// ten of each, each item with its own title and week, and the first of each kind setting its axis,
+// kind, reach, evidence and approval, which the sheet keeps for the next (Step 19, Audit 7).
+const axisOption = (code: string) =>
+  t(framework.axisOption, {
+    code,
+    title:
+      portfolioAxes
+        .flatMap(({ axes }) => axes)
+        .find((axis) => axis.code === code)?.title ?? "",
+  });
+const roleOption = (key: string) =>
+  defaultRoles.find((role) => role.key === key)?.labels.ar ?? key;
+const KINDS = [
+  {
+    title: "تقرير التجربة العملية",
+    axis: "5",
+    kind: framework.kinds.homework,
+    reach: framework.eachSection,
+    type: "JPG",
+    files: 3,
+    approval: false,
+  },
+  {
+    title: "نسخة الاختبار العملي",
+    axis: "2",
+    kind: framework.kinds.exam_copy,
+    reach: framework.eachCourse,
+    type: "DOCX",
+    files: 2,
+    approval: true,
+  },
+  {
+    title: "قائمة التحقق من سلامة الورشة",
+    axis: "6",
+    kind: framework.kinds.general,
+    reach: framework.eachSection,
+    type: "JPG",
+    files: 2,
+    approval: false,
+  },
+  {
+    title: "محضر اجتماع القسم",
+    axis: "9",
+    kind: framework.kinds.meeting_minutes,
+    reach: roleOption("secretary"),
+    type: "DOCX",
+    files: 1,
+    approval: false,
+  },
+  {
+    title: "زيارة صفية متبادلة",
+    axis: "4",
+    kind: framework.kinds.professional_development,
+    reach: roleOption("trainer"),
+    type: "PDF",
+    files: 1,
+    approval: true,
+  },
+];
+
+test(
+  "a head builds a 50-item plan of five kinds, each item its own week, in under 30 minutes by the keystroke-level model (Step 19's usability run)",
+  DATABASE,
+  async ({ browser, account, hasTouch }) => {
+    test.skip(hasTouch, "Timed once, on the desktop.");
+    // About a minute on a build; a run that stalls fails within CI's job, retry and all.
+    test.setTimeout(4 * 60_000);
+    const made = await headWithDraftTerm(account);
+    try {
+      const started = Date.now();
+      const page = await onTerm(browser, made.person, made.termId);
+      const head = modelledHead(page, hasTouch);
+      await head.click(page.getByRole("button", { name: text.start }));
+      await head.click(page.getByRole("button", { name: text.add }));
+      const sheet = page.getByRole("dialog", { name: text.addTitle });
+      const title = sheet.getByLabel(framework.fields.title);
+      const stepper = (field: string) =>
+        sheet.getByRole("group", { name: field, exact: true });
+      // What the sheet holds, as the head sees it: it starts a new item at week 1, with one file of
+      // the first accepted type, and keeps all but the title for the next.
+      const held = { week: 1, files: 1, approval: false };
+      const toValue = async (field: string, from: number, to: number) => {
+        if (from === to) return;
+        await head.step(
+          stepper(field).getByRole("button", {
+            name: to > from ? framework.more : framework.fewer,
+          }),
+          Math.abs(to - from),
+        );
+      };
+      for (const [group, kind] of KINDS.entries()) {
+        for (let at = 0; at < 10; at++) {
+          await head.type(title, `${kind.title} ${at + 1}`);
+          if (at === 0) {
+            await head.choose(framework.fields.axis, axisOption(kind.axis));
+            await head.choose(framework.fields.kind, kind.kind);
+            await head.choose(framework.fields.appliesTo, kind.reach);
+            // Its file type alone, the boxes taken all at once: a list of the ticked ones would
+            // shrink under the clicks.
+            const types = sheet.getByRole("group", {
+              name: framework.fields.types,
+            });
+            for (const box of await types.getByRole("checkbox").all()) {
+              const name = await box.evaluate(
+                (each) =>
+                  document.getElementById(
+                    each.getAttribute("aria-labelledby") ?? "",
+                  )?.textContent,
+              );
+              const ticked =
+                (await box.getAttribute("aria-checked")) === "true";
+              if (ticked !== (name === kind.type)) await head.click(box);
+            }
+            await expect(
+              types.getByRole("checkbox", { checked: true }),
+            ).toHaveCount(1);
+            await toValue(framework.fields.maxFiles, held.files, kind.files);
+            held.files = kind.files;
+            if (held.approval !== kind.approval) {
+              await head.click(
+                sheet.getByRole("switch", { name: framework.fields.approval }),
+              );
+              held.approval = kind.approval;
+            }
+          }
+          // Each kind spreads over the term from its own week.
+          const week = 1 + ((group * 3 + at) % 18);
+          await toValue(framework.fields.week, held.week, week);
+          held.week = week;
+          await head.click(
+            sheet.getByRole("button", { name: framework.saveAndAdd }),
+          );
+          await expect(title).toHaveValue("");
+        }
+      }
+      await head.click(sheet.getByRole("button", { name: messages.ui.cancel }));
+      const grid = page.getByRole("table", { name: text.grid.label });
+      await expect(grid.getByRole("checkbox")).toHaveCount(51);
+      // The sheet kept each kind's choices for its other nine items, as the model counts on.
+      for (const kind of KINDS) {
+        await expect(
+          grid.getByRole("row").filter({ hasText: `${kind.title} 10` }),
+        ).toContainText(kind.reach);
+      }
+      await head.click(page.getByRole("button", { name: text.publish }));
+      await head.click(
+        page
+          .getByRole("dialog", { name: t(text.publishTitle, { version: 1 }) })
+          .getByRole("button", { name: text.publishConfirm }),
+      );
+      await expect(
+        page.getByRole("heading", { name: /^النسخة 1 منشورة منذ/ }),
+      ).toBeVisible();
+      // A head's time by the model is within the step's 30 minutes; the scripted run itself has a
+      // bound that it can fail, well inside its timeout.
+      const minutes = head.seconds() / 60;
+      test.info().annotations.push({
+        type: "modelled time",
+        description: `${minutes.toFixed(1)} minutes for 50 items`,
+      });
+      expect(minutes).toBeLessThan(30);
+      expect(Date.now() - started).toBeLessThan(3 * 60_000);
     } finally {
       await made.remove();
     }

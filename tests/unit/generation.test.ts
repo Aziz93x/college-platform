@@ -100,6 +100,39 @@ const items = fc.uniqueArray(
   { selector: (item) => item.origin, maxLength: 4 },
 );
 
+// A next version made from the one before, as a head's is: each item kept, reworded, moved to
+// other weeks or dropped, and a few new ones added. Work already started or finished is then often
+// called for again with other words or weeks, which is what the property below must hold against
+// (Audit 7, minor 1).
+type Items = typeof items extends fc.Arbitrary<infer T> ? T : never;
+const nextVersion = (first: Items) =>
+  fc
+    .tuple(
+      fc.array(
+        fc.constantFrom("keep", "reword", "move", "reword", "move", "drop"),
+        {
+          minLength: first.length,
+          maxLength: first.length,
+        },
+      ),
+      fc.array(dueRule, { minLength: first.length, maxLength: first.length }),
+      items,
+    )
+    .map(([fates, dues, added]) => [
+      ...first.flatMap((item, at) =>
+        fates[at] === "drop"
+          ? []
+          : fates[at] === "reword"
+            ? [{ ...item, title: item.title === "توصيف" ? "تحليل" : "توصيف" }]
+            : fates[at] === "move"
+              ? [{ ...item, due: dues[at] }]
+              : [item],
+      ),
+      ...added.filter(
+        (extra) => !first.some((item) => item.origin === extra.origin),
+      ),
+    ]);
+
 const reach: fc.Arbitrary<Reach[]> = fc.uniqueArray(
   fc.record({
     departmentId: fc.constantFrom("d1", "d2", "d3"),
@@ -267,22 +300,36 @@ describe("the generation engine", () => {
   });
 
   it("finds nothing to do when run again, leaves finished work alone, and moves started work only to whoever teaches its section", () => {
+    // How many runs call for finished work again with other words or weeks: the case the property
+    // is there for, which independent versions reached about once in a thousand (Audit 7).
+    let reached = 0;
+    const runs = 200;
     fc.assert(
       fc.property(
-        termShape.chain((shape) =>
-          fc.record({
-            shape: fc.constant(shape),
-            first: items,
-            second: items,
-            departments: reach,
-            changed: reach,
-            earlier: now(shape.weeks),
-            later: now(shape.weeks),
-            statuses: fc.array(fc.constantFrom(...taskStatuses), {
-              maxLength: 60,
+        fc
+          .record({
+            shape: termShape,
+            first: items.filter((version) => version.length > 0),
+            departments: reach.filter((reached) => reached.length > 0),
+          })
+          .chain(({ shape, first, departments }) =>
+            fc.record({
+              shape: fc.constant(shape),
+              first: fc.constant(first),
+              second: nextVersion(first),
+              departments: fc.constant(departments),
+              changed: fc.oneof(
+                { weight: 3, arbitrary: fc.constant(departments) },
+                { weight: 1, arbitrary: reach },
+              ),
+              earlier: now(shape.weeks),
+              later: now(shape.weeks),
+              statuses: fc.array(fc.constantFrom(...taskStatuses), {
+                minLength: 10,
+                maxLength: 60,
+              }),
             }),
-          }),
-        ),
+          ),
         ({
           shape,
           first,
@@ -309,6 +356,22 @@ describe("the generation engine", () => {
           const again = wantedTasks(sourced(second, shape), changed, later);
           const changes = reconcile(again, generated);
           const after = apply(generated, changes);
+          const calledAgain = new Map(
+            again.map((each) => [slotKey(each), each]),
+          );
+          if (
+            generated.some((task) => {
+              const wantedAgain = calledAgain.get(slotKey(task));
+              return (
+                finished.has(task.status) &&
+                wantedAgain !== undefined &&
+                (wantedAgain.title !== task.title ||
+                  wantedAgain.week !== task.week)
+              );
+            })
+          ) {
+            reached += 1;
+          }
 
           expect(reconcile(again, after)).toEqual({
             create: [],
@@ -332,6 +395,8 @@ describe("the generation engine", () => {
           for (const each of again) expect(live.has(slotKey(each))).toBe(true);
         },
       ),
+      { numRuns: runs },
     );
+    expect(reached).toBeGreaterThan(runs / 10);
   });
 });

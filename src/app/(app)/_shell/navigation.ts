@@ -138,7 +138,7 @@ export const navigation = [
     id: "plan",
     href: "/plan",
     icon: ClipboardList,
-    permission: "plan.edit",
+    permission: ["plan.edit", "plan.publish"],
   },
   // The responsibilities a head gives the department's people for the term (Step 21).
   {

@@ -100,14 +100,14 @@ export default async function AssignmentsPage({
     await Promise.all([
       departmentTemplates(viewer.collegeId, department.id),
       termAssignments(viewer.collegeId, term.id, department.id),
-      roleHolders(viewer.collegeId),
+      roleHolders(viewer.collegeId, term.id),
       listDirectory(viewer.collegeId, { departments: [department.id] }),
       listAxes(viewer.collegeId),
       listRoles(viewer.collegeId),
       getSetting("files.acceptedTypes", { collegeId: viewer.collegeId }),
     ]);
-  // Whom the department assigns: those who hold a role in it now, as the generation engine
-  // reaches them.
+  // Whom the department assigns: those who hold a role in it in the term on view, as the generation
+  // engine reaches them.
   const members = new Set(
     holders
       .filter(({ departmentId }) => departmentId === department.id)
@@ -158,6 +158,7 @@ export default async function AssignmentsPage({
             : t("range", { from: each.fromWeek, to: each.toWeek }),
         due: t("due", { week: dueWeekOf(each.toWeek, term.weeks) }),
         userId: each.userId,
+        granted: each.granted,
       })),
   }));
 

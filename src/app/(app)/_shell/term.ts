@@ -11,14 +11,15 @@ import {
 import { TERM_COOKIE } from "./term-cookie.ts";
 
 // Whoever prepares a term before it starts sees it while it is a draft: the vice-dean, who manages
-// the college's terms, and whoever edits a department's plan, whose plan for the next term the
-// wizard copies there (Step 19).
+// the college's terms, and whoever edits or publishes a department's plan, whose plan for the next
+// term the wizard copies there (Step 19; Audit 7).
 export function preparesTerms(viewer: Parameters<typeof authorize>[0]) {
-  const plans = permittedDepartments(viewer, "plan.edit");
   return (
     authorize(viewer, "term.manage", { collegeId: viewer.collegeId }) ||
-    plans === "college" ||
-    plans.length > 0
+    (["plan.edit", "plan.publish"] as const).some((key) => {
+      const plans = permittedDepartments(viewer, key);
+      return plans === "college" || plans.length > 0;
+    })
   );
 }
 

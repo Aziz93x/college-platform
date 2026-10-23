@@ -362,6 +362,60 @@ test(
   },
 );
 
+test(
+  "a closed term's assignments are listed, with no one to assign and nothing to revoke (Step 21, Audit 7)",
+  DATABASE,
+  async ({ browser }) => {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
+    const { pool } = createDb(url);
+    // A term of the test's own, closed, in which Electrical's demo trainer was its safety supervisor.
+    const {
+      rows: [term],
+    } = await pool.query(
+      `insert into terms (college_id, name, starts_on, weeks, status)
+       select id, $1, '2021-01-03', 18, 'closed' from colleges order by created_at limit 1
+       returning id, college_id`,
+      [`فصل منتهٍ ${randomInt(100_000, 999_999)}`],
+    );
+    try {
+      await pool.query(
+        `insert into assignments (college_id, term_id, department_id, template_id, user_id)
+         select $1, $2, d.id, t.id, p.user_id
+         from departments d, assignment_templates t, people p
+         where d.name = $3 and t.key = 'safety-supervisor' and p.employee_number = $4`,
+        [
+          term.college_id,
+          term.id,
+          demoDepartments[1].name,
+          demoAccounts.trainer.employeeNumber,
+        ],
+      );
+      const page = await asHead(browser);
+      await page
+        .context()
+        .addCookies([
+          { name: "term", value: term.id, url: new URL(page.url()).origin },
+        ]);
+      await page.goto("/assignments");
+      await expect(page.getByText(text.closed)).toBeVisible();
+      await expect(card(page, title("safety-supervisor"))).toContainText(
+        demoAccounts.trainer.name,
+      );
+      await expect(
+        page.getByRole("button", { name: /^تكليف منسوبين بـ/ }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /^إلغاء تكليف/ }),
+      ).toHaveCount(0);
+    } finally {
+      await pool.query("delete from assignments where term_id = $1", [term.id]);
+      await pool.query("delete from terms where id = $1", [term.id]);
+      await pool.end();
+    }
+  },
+);
+
 test.describe("without the key", () => {
   test.use({ storageState: STORAGE.trainer });
 

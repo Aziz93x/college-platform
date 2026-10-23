@@ -31,6 +31,7 @@ export function AssignButton({
   departmentId,
   template,
   people,
+  staffed,
   weeks,
 }: {
   termId: string;
@@ -38,6 +39,8 @@ export function AssignButton({
   template: { id: string; title: string; grants?: string };
   /** The department's people the template is not given to this term yet. */
   people: Person[];
+  /** Whether the department has anyone in the term: none left means each holds it already. */
+  staffed: boolean;
   /** The term's weeks. */
   weeks: number;
 }) {
@@ -173,7 +176,9 @@ export function AssignButton({
                 {t("people")}
               </legend>
               {people.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t("everyone")}</p>
+                <p className="text-muted-foreground text-sm">
+                  {staffed ? t("everyone") : t("nobody")}
+                </p>
               ) : (
                 <>
                   <SearchField

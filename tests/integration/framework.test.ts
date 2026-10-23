@@ -375,7 +375,7 @@ it("counts the enabled holders of each role in each active department, each pers
     ),
   ).resolves.toMatchObject({ status: "added" });
   expect(
-    departmentsReached(await roleHolders(collegeId, database.db), {}),
+    departmentsReached(await roleHolders(collegeId, termId, database.db), {}),
   ).toEqual([
     {
       departmentId: electrical,

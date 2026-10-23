@@ -1,4 +1,5 @@
 export {
+  busiestWeek,
   countTasks,
   departmentsReached,
   dueWeeks,

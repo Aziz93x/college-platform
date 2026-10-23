@@ -41,7 +41,8 @@ type TemplateItem = {
 
 // A template as the page shows it: shared by every department or the department's own, the axis
 // its tasks go under, the role it grants, whether a term has it assigned, its items, and the people
-// it is given to in the term on view, each with the weeks and the week their tasks are due in.
+// it is given to in the term on view, each with the weeks, the week their tasks are due in, and
+// whether this assignment gave them the role, which its revocation then takes back.
 export type Template = {
   id: string;
   title: string;
@@ -58,6 +59,7 @@ export type Template = {
     employeeNumber: string;
     range: string;
     due: string;
+    granted: boolean;
   }[];
 };
 
@@ -174,6 +176,7 @@ function TemplateCard({
               departmentId={departmentId}
               template={template}
               people={people.filter(({ userId }) => !held.has(userId))}
+              staffed={people.length > 0}
               weeks={weeks}
             />
           ) : null}
@@ -238,7 +241,7 @@ function TemplateCard({
                     })}
                     description={[
                       t("revoke.description"),
-                      ...(template.grants
+                      ...(template.grants && holder.granted
                         ? [t("revoke.grants", { role: template.grants })]
                         : []),
                     ].join(" ")}

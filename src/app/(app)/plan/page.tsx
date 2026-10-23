@@ -12,7 +12,6 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { sectionCounts } from "@/modules/academics";
 import {
-  authorize,
   listDirectory,
   listRoles,
   permittedDepartments,
@@ -22,6 +21,7 @@ import {
 } from "@/modules/access";
 import { listAxes } from "@/modules/axes";
 import {
+  busiestWeek,
   countTasks,
   departmentsReached,
   dueWeeks,
@@ -49,12 +49,23 @@ export async function generateMetadata(): Promise<Metadata> {
 // A department's plan for the term on view (Step 19), one department at a time: its draft, which
 // whoever holds plan.edit there fills, its published version, which never changes, and the
 // framework's items for the department beside them, locked. Whoever holds plan.publish there
-// publishes the draft. A closed term's plan is shown, and nothing changes it.
+// publishes the draft, reading it without plan.edit (ADR-0027; Audit 7). A closed term's plan is
+// shown, and nothing changes it.
 export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   await connection();
   const viewer = await requireViewer();
   const edits = permittedDepartments(viewer, "plan.edit");
-  if (edits !== "college" && edits.length === 0) forbidden();
+  const publishesIn = permittedDepartments(viewer, "plan.publish");
+  const holds = (keys: typeof edits, id: string) =>
+    keys === "college" || keys.includes(id);
+  if (
+    edits !== "college" &&
+    edits.length === 0 &&
+    publishesIn !== "college" &&
+    publishesIn.length === 0
+  ) {
+    forbidden();
+  }
   const scope = { collegeId: viewer.collegeId };
   // A head prepares the next term's plan while it is still a draft (Step 19).
   const [t, { terms, term }, params] = await Promise.all([
@@ -100,9 +111,10 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     getSetting("files.acceptedTypes", scope),
     termCalendar(viewer.collegeId, term.id),
   ]);
-  // The departments the viewer plans, in the college's order; the one chosen, or the first.
+  // The departments whose plan the viewer edits or publishes, in the college's order; the one
+  // chosen, or the first.
   const planned = departments.filter(
-    ({ id, active }) => active && (edits === "college" || edits.includes(id)),
+    ({ id, active }) => active && (holds(edits, id) || holds(publishesIn, id)),
   );
   const department =
     planned.find(({ id }) => id === params.department?.toString()) ??
@@ -125,7 +137,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     await Promise.all([
       departmentPlan(viewer.collegeId, term.id, department.id),
       termFramework(viewer.collegeId, term.id),
-      roleHolders(viewer.collegeId),
+      roleHolders(viewer.collegeId, term.id),
       sectionCounts(viewer.collegeId, term.id),
       listDirectory(viewer.collegeId, { departments: [department.id] }),
       previous
@@ -134,7 +146,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     ]);
 
   // Whom the department's items reach, as the generation engine reaches them, and the people a
-  // plan's item may name: those who hold a role in it now.
+  // plan's item may name: those who hold a role in it in the term on view.
   const reach = departmentsReached(holders, sections).filter(
     ({ departmentId }) => departmentId === department.id,
   );
@@ -180,25 +192,34 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
   const { draft, published, versions } = plan;
   const open = term.status !== "closed";
-  const publishes = authorize(viewer, "plan.publish", {
-    ...scope,
-    departmentId: department.id,
-  });
+  const publishes = holds(publishesIn, department.id);
   const date = (at: Date | null) =>
     at ? format.dateTime(at, { dateStyle: "long" }) : "";
   // The draft's preview: the tasks it makes in the department, and the reviews a week that it and
-  // the framework's items for the department ask of the head, over the term's weeks.
+  // the framework's items for the department ask of the head, over the term's weeks, and the week
+  // that asks the most beside the average (Audit 7, enhancement 2).
   const preview = draft && {
     impact: t("impact", { tasks: tasksOf(draft.items) }),
     reviews: (() => {
       const own = approvals(draft.items);
       const college = approvals(general?.items ?? []);
-      return t("reviewLoad", {
-        perWeek: Math.round((own + college) / Math.max(term.weeks, 1)),
+      const perWeek = Math.round((own + college) / Math.max(term.weeks, 1));
+      const load = t("reviewLoad", {
+        perWeek,
         total: own + college,
         framework: college,
         weeks: term.weeks,
       });
+      const peak = busiestWeek(
+        [...draft.items, ...(general?.items ?? [])].filter(
+          ({ evidence }) => evidence.requiresApproval,
+        ),
+        reach,
+        shape,
+      );
+      return peak && peak.tasks > perWeek
+        ? `${load} ${t("reviewPeak", { week: peak.week, tasks: peak.tasks })}`
+        : load;
     })(),
   };
   const offered =
@@ -272,6 +293,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                     }),
             }))}
             editable={open}
+            edits={holds(edits, department.id)}
             publishes={publishes}
             previous={versions.length === 0 ? offered : undefined}
             preview={preview}
