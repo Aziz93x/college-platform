@@ -122,6 +122,16 @@ The bell's panel hangs from the header as a disclosure, not from the morph popov
 add 9 KiB of script to every page (ADR-0010), and a phone gets the panel at the screen's width. The
 stack opens downward inside the panel, which grows with it, rather than over what comes before it.
 
+## Adopted in Step 21 (assignments)
+
+| Component | Real use |
+| --- | --- |
+| Motion: multi select | The people an assignment is given to: the department's people, found by name or employee number, chosen ones as chips that a tap or Backspace takes out, and the list kept open while choosing |
+
+The multi select is the combobox's sibling, with its list, its search and its touch sizes. It is a
+field of its own rather than a combobox option: a choice of one closes its list, while a choice of
+several keeps it open. Inside a sheet it closes its list on Escape before the sheet hears the key.
+
 ## One component per job
 
 Where a BeUI piece serves a job, it is the component for that job everywhere. The UX review of Steps 1 to 10 removed the Step 4 primitives that had lost their job, with their dependencies (Audit 2, minor 7; docs/reviews/ux-10.md, C7). The design catalog (`/design`) shows the components below in their states, then the primitives that no BeUI component replaces: the button, the text area, the label, the form, the radio group, the avatar, the skeleton, the progress bar, the separator, the scroll area, the dialog, the tooltip and the toast.
@@ -135,6 +145,7 @@ Where a BeUI piece serves a job, it is the component for that job everywhere. Th
 | The account menu, a row's actions | Blocks: bloom menu (6), overflow actions (10) | `ui/dropdown-menu` |
 | Yes or no, a choice, groups | Motion: switch, select, tabs (Step 7) | `ui/switch`, `ui/select`, `ui/tabs` |
 | A list to choose from as you type | Motion: combobox (Step 9) | none |
+| Several choices from a list as you type | Motion: multi select (Step 21) | none |
 | A count, a percentage | Motion: adaptive stepper, range slider (Step 7) | none |
 | A list of records | Motion: table (Step 8) | `ui/table` |
 | A state | Motion: animated badge (Step 8) | `ui/badge` |
@@ -166,7 +177,7 @@ Built on the components above, alike on every screen (UX review 1, C2 to C5).
 | 13 | Motion: adaptive stepper | The number of weeks in a term |
 | 13 | Motion: select (morph) | The header's term switcher |
 | 17 | Motion: combobox | The trainer of a section |
-| 21 | Motion: multi select | An assignment's trainers; then a quick request's chosen people (22) and the kinds that require approval (29) |
+| 21 | Motion: multi select | An assignment's trainers (adopted, above); then a quick request's chosen people (22) and the kinds that require approval (29) |
 | 22 | Motion: expandable control | The quick-request button, which opens into its label; then the head's one-tap reminder on Today (23) |
 | 23 | Motion: pull to refresh | Today on a phone, for trainers and heads |
 | 24 | Motion: tabs | My work's filters (this week, overdue, plan, sections, assignments), kept in the URL |

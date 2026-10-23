@@ -1167,6 +1167,14 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 19 (ADR-0027):** a department plan's item already reaches one person of the department, or the holders of a role there such as the secretary (`plan_items.applies_to`). An assignment stays a source of its own, for work its template carries from term to term.
 
+**Built (ADR-0028):** an assignment is given for one term, the whole of it or a range of its weeks, and its tasks are due once, at its end.
+- **Data:** `assignment_templates` with their items, and `assignments` (`src/modules/assignments`). The six are shared, seeded by their keys, and no head changes them. A department's own templates are its head's, removed while no term has them assigned.
+- **The grant:** assigning the secretary's template adds a membership of `secretary` in the department for the term, which the assignment keeps; revoking removes it. Someone who already held the role there keeps it.
+- **The key:** `assignment.manage`, held in a department. The base seed and migration `0026` give it to the head.
+- **Engine:** an assignment is a source of its own, `assignment`, which is also the cause of its pass. Each template item makes one task for each assignee, under the template's axis, due in the assignment's last week or the term's (`dueWeekOf()`). Step 24's work list is still to show them.
+- **Page:** `/assignments`, one department at a time: each template with whom it is given to, for which weeks and the week their tasks are due, and its items. The assign sheet chooses several people with the multi select (`src/components/motion/multi-select`). A department's own templates are kept there, their items in the shared item sheet.
+- **Seed and tests:** `seed:demo` makes each department's secretary by assignment, as Step 10's note asks, and gives Electrical a safety supervisor, a schedule coordinator for weeks 1 to 4 and its own inventory officer for weeks 13 to 18. `tests/integration/assignments.test.ts` checks the Done-when.
+
 > **Checkpoint: Audit 7.** Run `/audit 19-21`.
 
 #### Step 22. Quick requests and the term readiness board (M)
