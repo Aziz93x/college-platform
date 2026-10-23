@@ -1,4 +1,5 @@
 import {
+  Activity,
   BriefcaseBusiness,
   Building2,
   CalendarCheck,
@@ -7,7 +8,9 @@ import {
   Contact,
   FileSpreadsheet,
   History,
+  Languages,
   Layers,
+  LayoutDashboard,
   type LucideIcon,
   Megaphone,
   Presentation,
@@ -50,9 +53,31 @@ export type ShellLink = {
   group?: NavigationGroup;
 };
 
+// The keys whose holders across the college the console serves (ADR-0029): those of the
+// administration's pages that act on the whole college, not the ones a head holds in a department.
+export const consoleKeys = [
+  "system.manage",
+  "settings.manage",
+  "texts.manage",
+  "audit.view",
+  "roles.manage",
+  "departments.manage",
+  "people.manage",
+  "axes.manage",
+] as const satisfies readonly PermissionKey[];
+
 // The shell's pages in their default order. A step that adds a page adds its item here.
 export const navigation = [
   { id: "today", href: "/today", icon: CalendarCheck },
+  // The admin's console, first of the administration's pages, so Today leads whoever administers
+  // the platform there (ADR-0029): for any key of the group held across the college.
+  {
+    id: "console",
+    href: "/console",
+    icon: LayoutDashboard,
+    permission: consoleKeys,
+    group: "administration",
+  },
   {
     id: "departments",
     href: "/departments",
@@ -88,11 +113,27 @@ export const navigation = [
     permission: ["settings.manage", "term.manage"],
     group: "administration",
   },
+  // The platform's words (ADR-0029).
+  {
+    id: "texts",
+    href: "/texts",
+    icon: Languages,
+    permission: "texts.manage",
+    group: "administration",
+  },
   {
     id: "audit",
     href: "/audit",
     icon: History,
     permission: "audit.view",
+    group: "administration",
+  },
+  // The system's state and the generation engine's passes (ADR-0029).
+  {
+    id: "system",
+    href: "/system",
+    icon: Activity,
+    permission: "system.manage",
     group: "administration",
   },
   // The portfolio's axes, the administration's catalog (Step 14).

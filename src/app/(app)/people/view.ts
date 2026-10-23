@@ -22,6 +22,9 @@ export type PersonView = {
     edit: boolean;
     // Disable or enable the account: never one's own.
     disable: boolean;
+    // Where they are signed in, signing them out and requiring a new password: never one's own,
+    // which signing out and the profile change (ADR-0029).
+    sessions: boolean;
   };
 };
 
@@ -62,6 +65,9 @@ export function personView(
       link: reachesAccount(viewer, "accounts.linkEmployeeNumber", person),
       edit: managed,
       disable: managed && person.userId !== viewer.userId,
+      sessions:
+        person.userId !== viewer.userId &&
+        reachesAccount(viewer, "accounts.sessions", person),
     },
   };
 }

@@ -46,7 +46,7 @@ const head = {
 
 const view = (
   person: PersonEntry,
-  viewer: typeof admin | typeof head,
+  viewer: Parameters<typeof personView>[1],
   manages: boolean,
 ) =>
   personView(person, viewer, {
@@ -63,6 +63,7 @@ describe("personView", () => {
       link: true,
       edit: true,
       disable: true,
+      sessions: false,
     });
   });
 
@@ -73,6 +74,7 @@ describe("personView", () => {
       link: true,
       edit: false,
       disable: false,
+      sessions: false,
     });
     expect(view(trainer("t", MECHANICAL), head, false)).toEqual({
       reset: false,
@@ -80,6 +82,7 @@ describe("personView", () => {
       link: false,
       edit: false,
       disable: false,
+      sessions: false,
     });
   });
 
@@ -103,6 +106,7 @@ describe("personView", () => {
       link: false,
       edit: false,
       disable: false,
+      sessions: false,
     });
   });
 
@@ -113,7 +117,22 @@ describe("personView", () => {
       link: true,
       edit: true,
       disable: false,
+      sessions: false,
     });
+  });
+
+  it("offers someone's sessions to whoever holds accounts.sessions where they are, never one's own (ADR-0029)", () => {
+    const keeper = {
+      ...admin,
+      grants: [
+        ...admin.grants,
+        { permission: "accounts.sessions", departmentId: null },
+      ] as const,
+    };
+    expect(view(trainer("t", ELECTRICAL), keeper, true).sessions).toBe(true);
+    expect(
+      view(trainer(keeper.userId, ELECTRICAL), keeper, true).sessions,
+    ).toBe(false);
   });
 
   it("offers turning two-factor off while it is on, to whoever may give a temporary password (ADR-0014)", () => {

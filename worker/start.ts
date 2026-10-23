@@ -34,11 +34,11 @@ export async function startWorker({
     logger.error({ reason: error.message }, "pg-boss error"),
   );
   await boss.start();
-  await boss.createQueue("heartbeat");
-  await boss.schedule("heartbeat", "* * * * *");
-  await boss.work("heartbeat", heartbeat(logger));
   // The jobs' own reads and writes go through a pool of their own.
   const { db, pool } = createDb(databaseUrl);
+  await boss.createQueue("heartbeat");
+  await boss.schedule("heartbeat", "* * * * *");
+  await boss.work("heartbeat", heartbeat(logger, db));
   // Each night, at an hour no one works, in UTC.
   await boss.createQueue("audit-retention");
   await boss.schedule("audit-retention", "17 0 * * *");

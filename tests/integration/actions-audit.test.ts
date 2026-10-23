@@ -168,6 +168,16 @@ const writes: Record<string, string[]> = {
     "membership.delete",
     "assignment.revoke",
   ],
+  // The admin's control panel (ADR-0029).
+  "(app)/people/actions.ts#revokeSessionAction": ["session.revoke"],
+  "(app)/people/actions.ts#revokeAllSessionsAction": ["session.revokeAll"],
+  "(app)/people/actions.ts#requirePasswordChangeAction": [
+    "account.requirePasswordChange",
+  ],
+  "(app)/system/actions.ts#rerunPassAction": ["generation.rerun"],
+  "(app)/system/actions.ts#revokeEveryoneAction": ["session.revokeEveryone"],
+  "(app)/texts/actions.ts#setTextAction": ["text.override"],
+  "(app)/texts/actions.ts#resetTextAction": ["text.reset"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -826,6 +836,73 @@ describe("every server action writes its event", () => {
       title: axis.title,
       description: "Courses on the learning platform",
     });
+  });
+
+  it("the control panel's actions write theirs: someone's sessions, a failed pass run again, everyone signed out, a text and its default (ADR-0029)", async () => {
+    const expectWrites = async (name: string, input: unknown) => {
+      const outcome = await run(name, input);
+      expect(outcome.written, name).toEqual(writes[name]);
+      expect(outcome.actors, name).toEqual([admin.userId]);
+      return outcome.data;
+    };
+    // A trainer signed in on two devices, whose password no one has reset.
+    const elsewhere = await person("Signed In Elsewhere");
+    await joinRole({
+      userId: elsewhere.userId,
+      collegeId,
+      role: { key: "trainer" },
+    });
+    const signedIn = async () =>
+      (
+        await query(
+          `insert into sessions (token, user_id, expires_at, ip_address, user_agent)
+           values (gen_random_uuid()::text, $1, now() + interval '1 day', '10.0.30.9', 'integration-test')
+           returning id`,
+          [elsewhere.userId],
+        )
+      )[0].id as string;
+    const people = "(app)/people/actions.ts";
+    const sessionId = await signedIn();
+    await signedIn();
+    const password = NEW_PASSWORD;
+    await expectWrites(`${people}#revokeSessionAction`, {
+      userId: elsewhere.userId,
+      sessionId,
+      password,
+    });
+    await expectWrites(`${people}#revokeAllSessionsAction`, {
+      userId: elsewhere.userId,
+      password,
+    });
+    await expectWrites(`${people}#requirePasswordChangeAction`, {
+      userId: elsewhere.userId,
+      password,
+    });
+
+    const [term] = await query(
+      `insert into terms (college_id, name, starts_on, weeks)
+       values ($1, 'Control panel term', '2027-01-03', 18) returning id`,
+      [collegeId],
+    );
+    const [failed] = await query(
+      `insert into generation_runs (college_id, term_id, reason, status, error, finished_at)
+       values ($1, $2, 'daily', 'failed', 'connection reset', now()) returning id`,
+      [collegeId, term.id],
+    );
+    const system = "(app)/system/actions.ts";
+    await expectWrites(`${system}#rerunPassAction`, { runId: failed.id });
+    await signedIn();
+    expect(
+      await expectWrites(`${system}#revokeEveryoneAction`, { password }),
+    ).toMatchObject({ status: "revoked" });
+
+    // The admin's own session stays: the texts' actions still run in it.
+    const texts = "(app)/texts/actions.ts";
+    await expectWrites(`${texts}#setTextAction`, {
+      key: "nav.today",
+      value: "يومي",
+    });
+    await expectWrites(`${texts}#resetTextAction`, { key: "nav.today" });
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

@@ -1,4 +1,5 @@
 export { type AccountState, accountState } from "./domain/account-state.ts";
+export { deviceOf } from "./domain/device.ts";
 export {
   employeeNumber,
   personEmail,
@@ -23,8 +24,16 @@ export {
 export { listPeople } from "./server/people.ts";
 export { reauthenticate } from "./server/reauthenticate.ts";
 export { requestMeta } from "./server/request.ts";
-export { people, twoFactors, users } from "./server/schema.ts";
+export { people, sessions, twoFactors, users } from "./server/schema.ts";
 export { getSessionUser, type SessionUser } from "./server/session-user.ts";
+export {
+  countSessions,
+  listSessions,
+  requirePasswordChange,
+  revokeAllSessions,
+  revokeEveryone,
+  revokeSession,
+} from "./server/sessions.ts";
 export { type SignInInput, signIn } from "./server/sign-in.ts";
 export { signOut } from "./server/sign-out.ts";
 export {

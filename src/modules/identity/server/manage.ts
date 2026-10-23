@@ -54,7 +54,7 @@ export async function lockedAccounts(
 }
 
 // The person's account row, locked while it changes: undefined for anyone outside the college.
-async function lockAccount(tx: Tx, userId: string, collegeId: string) {
+export async function lockAccount(tx: Tx, userId: string, collegeId: string) {
   const [account] = await tx
     .select({
       name: users.name,

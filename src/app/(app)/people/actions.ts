@@ -10,6 +10,7 @@ import {
   importPeople,
   listDirectory,
   MAX_PEOPLE_ROWS,
+  type PersonEntry,
   peopleColumns,
   planPeopleImport,
   readPeopleFile,
@@ -22,7 +23,10 @@ import {
   personName,
   reauthenticate,
   requestMeta,
+  requirePasswordChange,
   resetPassword,
+  revokeAllSessions,
+  revokeSession,
   turnOffTwoFactor,
   updatePerson,
 } from "@/modules/identity";
@@ -256,4 +260,83 @@ export const disableAccountAction = viewerAction
     );
     if (result.status === "saved") refresh();
     return result;
+  });
+
+// Where someone is signed in, for whoever holds accounts.sessions where they are (ADR-0029): ending
+// one of their sessions or all of them, and requiring a new password at their next request. Never
+// one's own, which signing out and the profile change.
+async function sessionsOf(
+  viewer: Viewer,
+  userId: string,
+  requireReach: (permission: "accounts.sessions", person: PersonEntry) => void,
+): Promise<{ status: "notFound" | "self" } | { person: PersonEntry }> {
+  const person = await holder(viewer, userId);
+  if (!person) return { status: "notFound" };
+  requireReach("accounts.sessions", person);
+  if (person.userId === viewer.userId) return { status: "self" };
+  return { person };
+}
+
+export const revokeSessionAction = viewerAction
+  .metadata({ name: "revokeSession" })
+  .inputSchema(z.object({ userId: z.uuid(), sessionId: z.uuid(), password }))
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const found = await sessionsOf(viewer, parsedInput.userId, requireReach);
+    if (!("person" in found)) return found;
+    const requestHeaders = await headers();
+    const refused = await confirmPassword(
+      parsedInput.password,
+      viewer,
+      requestHeaders,
+    );
+    if (refused) return refused;
+    const status = await revokeSession(
+      found.person.userId,
+      parsedInput.sessionId,
+      changeBy(viewer, requestHeaders),
+    );
+    if (status === "revoked") refresh();
+    return { status };
+  });
+
+export const revokeAllSessionsAction = viewerAction
+  .metadata({ name: "revokeAllSessions" })
+  .inputSchema(z.object({ userId: z.uuid(), password }))
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const found = await sessionsOf(viewer, parsedInput.userId, requireReach);
+    if (!("person" in found)) return found;
+    const requestHeaders = await headers();
+    const refused = await confirmPassword(
+      parsedInput.password,
+      viewer,
+      requestHeaders,
+    );
+    if (refused) return refused;
+    const status = await revokeAllSessions(
+      found.person.userId,
+      changeBy(viewer, requestHeaders),
+    );
+    if (status === "revoked") refresh();
+    return { status };
+  });
+
+export const requirePasswordChangeAction = viewerAction
+  .metadata({ name: "requirePasswordChange" })
+  .inputSchema(z.object({ userId: z.uuid(), password }))
+  .action(async ({ parsedInput, ctx: { viewer, requireReach } }) => {
+    const found = await sessionsOf(viewer, parsedInput.userId, requireReach);
+    if (!("person" in found)) return found;
+    const requestHeaders = await headers();
+    const refused = await confirmPassword(
+      parsedInput.password,
+      viewer,
+      requestHeaders,
+    );
+    if (refused) return refused;
+    const status = await requirePasswordChange(
+      found.person.userId,
+      changeBy(viewer, requestHeaders),
+    );
+    if (status === "saved") refresh();
+    return { status };
   });

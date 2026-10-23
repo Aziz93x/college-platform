@@ -188,6 +188,9 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
       return lookups.setting(id) ?? id;
     case "college":
       return lookups.college;
+    // A text of the platform by its key, as the texts page shows it (ADR-0029).
+    case "text":
+      return words("text", { key: id });
     case "term":
       return lookups.term(id) ?? id;
     // A year's Eid break by its name and Hijri year, as it was adjusted (ADR-0018).

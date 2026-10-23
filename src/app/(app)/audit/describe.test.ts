@@ -737,6 +737,7 @@ const typical = {
       },
     },
   },
+  text: { entityId: "nav.today", diff: { from: "اليوم", to: "يومي" } },
 } satisfies Record<AuditEntity, Partial<AuditEntry>>;
 
 it.each(

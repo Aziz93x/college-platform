@@ -119,6 +119,11 @@ vi.mock("@/modules/identity", async (importOriginal) => ({
   requestMeta: () => ({ ip: "10.0.30.1", userAgent: "matrix" }),
   turnOffTwoFactor: async () => "off",
   turnOffOwnTwoFactor: async () => ({ status: "off" }),
+  // Someone's sessions, and everyone's from the system page (ADR-0029).
+  revokeSession: async () => "revoked",
+  revokeAllSessions: async () => "revoked",
+  requirePasswordChange: async () => "saved",
+  revokeEveryone: async () => 0,
 }));
 // An announcement someone else made, to the matrix's department (ADR-0017).
 vi.mock("@/modules/announcements", async (importOriginal) => ({
@@ -193,7 +198,16 @@ vi.mock("@/modules/academics", async (importOriginal) => ({
 vi.mock("@/modules/tasks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/tasks")>()),
   queueGeneration: async () => {},
+  // A failed pass run again from the system page (ADR-0029).
+  rerunPass: async () => "queued",
 }));
+// A text of the platform reworded or put back, against the college's catalog (ADR-0029).
+vi.mock("@/modules/texts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/texts")>()),
+  setText: async () => ({ status: "saved" }),
+  resetText: async () => ({ status: "saved" }),
+}));
+vi.mock("@/i18n/catalog", () => ({ collegeCatalog: async () => ({}) }));
 // A plan of the matrix's department and its items, each change answered as done (Step 19).
 vi.mock("@/modules/planning", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/planning")>()),
@@ -417,6 +431,53 @@ const checked: {
     permission: "accounts.linkEmployeeNumber",
     input: { userId: ID, employeeNumber: "2002" },
     inDepartment: true,
+  },
+  // Someone's sessions, where they are; everyone's and the generation engine's passes, and the
+  // platform's words, across the college (ADR-0029).
+  {
+    module: "(app)/people/actions.ts",
+    action: "revokeSessionAction",
+    permission: "accounts.sessions",
+    input: { userId: ID, sessionId: ID },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "revokeAllSessionsAction",
+    permission: "accounts.sessions",
+    input: { userId: ID },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/people/actions.ts",
+    action: "requirePasswordChangeAction",
+    permission: "accounts.sessions",
+    input: { userId: ID },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/system/actions.ts",
+    action: "rerunPassAction",
+    permission: "system.manage",
+    input: { runId: ID },
+  },
+  {
+    module: "(app)/system/actions.ts",
+    action: "revokeEveryoneAction",
+    permission: "system.manage",
+    input: {},
+  },
+  {
+    module: "(app)/texts/actions.ts",
+    action: "setTextAction",
+    permission: "texts.manage",
+    input: { key: "nav.today", value: "Today" },
+  },
+  {
+    module: "(app)/texts/actions.ts",
+    action: "resetTextAction",
+    permission: "texts.manage",
+    input: { key: "nav.today" },
   },
   // An announcement to the matrix's department needs the key there; to the college, across it.
   {

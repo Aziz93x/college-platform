@@ -24,6 +24,7 @@ export default defineConfig({
     "auth.setup.ts",
     "auth.spec.ts",
     "axes.spec.ts",
+    "control-panel.spec.ts",
     "departments.spec.ts",
     "framework.spec.ts",
     "health.spec.ts",

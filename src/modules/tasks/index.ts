@@ -13,8 +13,10 @@ export { taskStatuses } from "./domain/status.ts";
 export { generateTerm } from "./server/generate.ts";
 export {
   latestRun,
+  listRuns,
   queueGeneration,
   queueOpenTerms,
+  rerunPass,
   runQueued,
 } from "./server/runs.ts";
 export { generationRuns } from "./server/schema.ts";

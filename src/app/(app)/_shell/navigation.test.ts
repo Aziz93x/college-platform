@@ -85,14 +85,14 @@ describe("visibleNavigation", () => {
     ).toEqual(["today"]);
   });
 
-  it("opens today's page and the term's framework to everyone in the real registry, and the departments, the roles and the settings to whoever manages them", () => {
+  it("opens today's page and the term's framework to everyone in the real registry, and the departments, the roles and the settings to whoever manages them, after the console (ADR-0029)", () => {
     expect(ids(visibleNavigation(navigation, new Set()))).toEqual([
       "today",
       "framework",
     ]);
     expect(
       ids(visibleNavigation(navigation, new Set(["settings.manage"]))),
-    ).toEqual(["today", "settings", "framework"]);
+    ).toEqual(["today", "console", "settings", "framework"]);
     expect(
       ids(
         visibleNavigation(
@@ -100,7 +100,26 @@ describe("visibleNavigation", () => {
           new Set(["departments.manage", "roles.manage", "settings.manage"]),
         ),
       ),
-    ).toEqual(["today", "departments", "roles", "settings", "framework"]);
+    ).toEqual([
+      "today",
+      "console",
+      "departments",
+      "roles",
+      "settings",
+      "framework",
+    ]);
+  });
+
+  // A head holds the people's keys in a department only: the console serves the college's.
+  it("opens the console for a key held across the college, not for the keys a head holds", () => {
+    expect(
+      ids(
+        visibleNavigation(
+          navigation,
+          new Set(["accounts.resetPassword", "accounts.sessions"]),
+        ),
+      ),
+    ).not.toContain("console");
   });
 });
 

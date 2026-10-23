@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, lt, ne, or, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
+import { writeAudit } from "../../audit/index.ts";
 import { terms } from "../../terms/index.ts";
 import type { GenerationReason } from "../domain/status.ts";
 import { generateTerm } from "./generate.ts";
@@ -147,4 +148,94 @@ export async function latestRun(
     .orderBy(desc(generationRuns.queuedAt), desc(generationRuns.id))
     .limit(1);
   return run;
+}
+
+// The college's passes, the latest first, with their term's name and state: what the system page
+// lists (ADR-0029).
+export async function listRuns(
+  collegeId: string,
+  options: { limit?: number } = {},
+  db: Db = getDb(),
+) {
+  return db
+    .select({
+      id: generationRuns.id,
+      termId: generationRuns.termId,
+      termName: terms.name,
+      termStatus: terms.status,
+      reason: generationRuns.reason,
+      status: generationRuns.status,
+      total: generationRuns.total,
+      done: generationRuns.done,
+      created: generationRuns.created,
+      updated: generationRuns.updated,
+      reassigned: generationRuns.reassigned,
+      cancelled: generationRuns.cancelled,
+      error: generationRuns.error,
+      queuedAt: generationRuns.queuedAt,
+      finishedAt: generationRuns.finishedAt,
+    })
+    .from(generationRuns)
+    .innerJoin(terms, eq(terms.id, generationRuns.termId))
+    .where(eq(generationRuns.collegeId, collegeId))
+    .orderBy(desc(generationRuns.queuedAt), desc(generationRuns.id))
+    .limit(options.limit ?? 20);
+}
+
+// Runs a failed pass again, as a new pass over its term that an admin caused (ADR-0029): only the
+// latest pass of a term still open, since a later one already does what the failed one left. Records
+// generation.rerun on the term.
+export async function rerunPass(
+  collegeId: string,
+  runId: string,
+  change: { actorId: string; ip?: string | null; userAgent?: string | null },
+  db: Db = getDb(),
+): Promise<"queued" | "notFound" | "notFailed" | "superseded" | "closed"> {
+  return db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        termId: generationRuns.termId,
+        status: generationRuns.status,
+        termStatus: terms.status,
+      })
+      .from(generationRuns)
+      .innerJoin(terms, eq(terms.id, generationRuns.termId))
+      .where(
+        and(
+          eq(generationRuns.id, runId),
+          eq(generationRuns.collegeId, collegeId),
+        ),
+      )
+      .for("update", { of: generationRuns });
+    if (!run) return "notFound";
+    if (run.status !== "failed") return "notFailed";
+    if (run.termStatus === "closed") return "closed";
+    // Later in the lists' order, compared in the database: a Date read back keeps milliseconds
+    // only, and the run itself would come after it.
+    const [later] = await tx
+      .select({ id: generationRuns.id })
+      .from(generationRuns)
+      .where(
+        and(
+          eq(generationRuns.termId, run.termId),
+          sql`(${generationRuns.queuedAt}, ${generationRuns.id}) > (select queued_at, id from generation_runs where id = ${runId})`,
+        ),
+      )
+      .limit(1);
+    if (later) return "superseded";
+    await queueGeneration(collegeId, run.termId, "admin", tx);
+    await writeAudit(
+      {
+        collegeId,
+        actorId: change.actorId,
+        action: "generation.rerun",
+        entityType: "term",
+        entityId: run.termId,
+        ip: change.ip,
+        userAgent: change.userAgent,
+      },
+      tx,
+    );
+    return "queued";
+  });
 }

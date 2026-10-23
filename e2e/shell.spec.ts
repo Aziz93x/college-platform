@@ -140,16 +140,16 @@ test.describe("as the admin", () => {
   // Six pages: more than the phone's bar holds.
   test.use({ storageState: STORAGE.admin });
 
-  test("Today, with nothing for the admin yet, leads to their next page", async ({
+  test("Today, with nothing for the admin yet, leads to their next page: the console (ADR-0029)", async ({
     page,
   }) => {
     await page.goto("/today");
     await page
       .getByRole("link", {
-        name: today.empty.next.replace("{page}", nav.departments),
+        name: today.empty.next.replace("{page}", nav.console),
       })
       .click();
-    await expect(page).toHaveURL("/departments");
+    await expect(page).toHaveURL("/console");
   });
 
   // A 320 px phone, and a 390 px one at 200% text, which lays out in 195 CSS px (UX review 1).

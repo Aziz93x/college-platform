@@ -1206,6 +1206,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 7:** `roleHolders(collegeId, termId)` counts a term's own people: those who hold a role for every term or for that term. A request's targets and the board's people for a draft next term come from it, not from the active term's.
 
+**Note from ADR-0029 (the owner's request, built before this step):** the admin's control panel. `/console` is the first page of the administration group for whoever holds one of its keys across the college: what needs them, the college at a glance, the latest changes and a tile for each page. `/system` (`system.manage`) shows the checks, the worker's heartbeat (`worker_heartbeats`), the generation engine's passes, with a failed one run again as a pass whose reason is `admin`, and signs everyone else out. A person's page lists their sessions to whoever holds `accounts.sessions` where they are, to end one or all, or to require a new password at their next request. `/texts` (`texts.manage`) words any message the college's way (`text_overrides`), which the request's messages lay over the catalog. The board's red items can join the console's list of what needs attention.
+
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
 ### Section E. The trainer's work loop (steps 23 to 28)
@@ -1232,6 +1234,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - Today already greets with the time of day and the date on the college's clock (`src/app/(app)/today/`). BeUI here: pull to refresh on phones and expandable control (the head's one-tap reminder).
 
 **Note from ADR-0008:** on option A, Today and the bell are the only way trainers and heads learn about work, and the head's reminders are in-app. "Nothing uploaded this week" and its one-tap reminder move to Step 27, after evidence exists (Step 25).
+
+**Note from ADR-0029:** the system admin's home is `/console`, which their Today leads to as their next page. Keep it so.
 
 **Note from Step 7:** the settings screen draws its controls from the schemas and has no "token reference" control yet, since no setting names a token. If the ADR keeps the alert color a setting, its schema names the allowed tokens and the screen gets that control here.
 
@@ -1609,6 +1613,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Done when:** a timed restore drill loses at most 1 minute of data and restores in at most 1 hour, a failed backup notifies the admin, and a forced error appears on the system-health screen and notifies the admin.
 
 **Note from ADR-0008:** error and failed-backup alerts are in-app, as ADR-0005 sets out. The backup target is configuration: a folder or rotating external drives now (option A adds RAID1 on the server), or S3-compatible storage inside the Kingdom (option B). Keep the restore-drill result for the GA request as evidence for the data-owner question.
+
+**Note from ADR-0029:** the system-health screen is `/system`, under `system.manage`: its checks, the worker's heartbeat and the generation engine's passes are there. The errors and the backups join it, and their notices go to the holders of `system.manage`.
 
 > **Checkpoint: Audit 14.** Run `/audit 40,42`.
 >

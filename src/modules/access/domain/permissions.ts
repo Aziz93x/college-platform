@@ -9,6 +9,12 @@ const permissions = {
   "audit.view": { area: "platform", requiresTwoFactor: true },
   // Change the platform's settings (src/modules/settings): the ones whose registry entry names it.
   "settings.manage": { area: "platform", requiresTwoFactor: true },
+  // The system's state: its checks, the generation engine's passes and running a failed one again,
+  // and signing everyone else out (ADR-0029).
+  "system.manage": { area: "platform", requiresTwoFactor: true },
+  // The platform's words: the college's own wording of any message, and back to the default
+  // (ADR-0029).
+  "texts.manage": { area: "platform", requiresTwoFactor: true },
   // The college's own name and short name.
   "college.manage": { area: "organization", requiresTwoFactor: true },
   // The college's departments: their names, Rayat matching values and active state.
@@ -25,6 +31,9 @@ const permissions = {
     area: "organization",
     requiresTwoFactor: true,
   },
+  // Where someone is signed in: their sessions, signing them out, and requiring a new password at
+  // their next request. It reaches accounts as the temporary password does (ADR-0029).
+  "accounts.sessions": { area: "organization", requiresTwoFactor: true },
   // Announce to everyone in a department, or held across the college, to the college, and
   // withdraw what was announced there (ADR-0017). It changes no one's access.
   "announcements.publish": { area: "organization", requiresTwoFactor: false },

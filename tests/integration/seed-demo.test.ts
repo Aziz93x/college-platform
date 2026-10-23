@@ -10,6 +10,7 @@ import {
   demoSecrets,
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
+import { demoSignInHelp } from "../../db/seed/demo/control-panel.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoTrainers } from "../../db/seed/demo/people.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
@@ -263,6 +264,11 @@ it("builds the same rows from the same seed on two fresh databases", async () =>
     "queued_at",
     "started_at",
     "finished_at",
+    // A session's token is random by design, and its times follow the clock (ADR-0029).
+    "token",
+    "expires_at",
+    "last_seen_at",
+    "password_entered_at",
   ];
   // The log names its records by their ids, in its columns and in what changed, so each id reads
   // the same there.
@@ -352,6 +358,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "assignmentTemplateItem.create",
       // The term's tasks, generated (Step 20).
       "task.generate",
+      // The admin's wording of the sign-in page's help (ADR-0029).
+      "text.override",
     ]),
   );
   // Every person was added, and the invited trainer has not signed in.
@@ -778,7 +786,7 @@ it("generates the demo term's tasks, as many as its published framework's and pl
   } = await pool.query(
     `select status, reason, total, created, updated, reassigned, cancelled,
        extract(epoch from finished_at - started_at)::float as seconds
-     from generation_runs where term_id = $1`,
+     from generation_runs where term_id = $1 order by queued_at desc limit 1`,
     [term.id],
   );
   expect(run).toMatchObject({
@@ -1021,6 +1029,50 @@ it("gives each department's first trainer the secretary's assignment for the dem
     Object.values(demoAccounts).map(({ employeeNumber }) => employeeNumber),
   );
   expect(rows.filter((row) => tested.has(row.employee_number))).toEqual([]);
+});
+
+it("words the sign-in page's help as the admin did, signs the head of Electrical in on a desktop and a phone and the trainer on theirs and their phone, and keeps the night before's failed pass behind the one that did its work (ADR-0029)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows: texts } = await pool.query(`
+    select o.key, o.value, u.email from text_overrides o join users u on u.id = o.updated_by`);
+  expect(texts).toEqual([
+    {
+      key: "auth.signIn.help",
+      value: demoSignInHelp,
+      email: demoAccounts.admin.email,
+    },
+  ]);
+  const { rows: signedIn } = await pool.query(`
+    select p.employee_number, s.user_agent, s.ip_address
+    from sessions s join people p on p.user_id = s.user_id
+    where s.expires_at > now() order by p.employee_number, s.created_at`);
+  expect(signedIn.map(({ employee_number }) => employee_number)).toEqual([
+    demoAccounts.head.employeeNumber,
+    demoAccounts.head.employeeNumber,
+    demoAccounts.trainer.employeeNumber,
+    demoAccounts.trainer.employeeNumber,
+  ]);
+  // Each from a device of the college's networks, as the log has them, but the trainer's phone on
+  // mobile data, whose IPv6 address is kept in full.
+  for (const { user_agent } of signedIn) {
+    expect(user_agent).toMatch(/^Mozilla\/5\.0 /);
+  }
+  expect(signedIn.map(({ ip_address }) => ip_address)).toEqual([
+    expect.stringMatching(/^10\.(20|40)\./),
+    expect.stringMatching(/^10\.(20|40)\./),
+    "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+    expect.stringMatching(/^10\.(20|40)\./),
+  ]);
+  const { rows: passes } = await pool.query(`
+    select reason, status, error from generation_runs order by queued_at, id`);
+  expect(passes).toEqual([
+    {
+      reason: "daily",
+      status: "failed",
+      error: "Connection terminated unexpectedly",
+    },
+    { reason: "framework", status: "done", error: null },
+  ]);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

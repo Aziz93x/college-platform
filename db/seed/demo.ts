@@ -7,6 +7,7 @@ import { demoSecrets, seedDemoAccounts } from "./demo/accounts.ts";
 import { seedDemoAnnouncements } from "./demo/announcements.ts";
 import { seedDemoAssignments } from "./demo/assignments.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
+import { seedDemoControlPanel } from "./demo/control-panel.ts";
 import { seedDemoDepartments } from "./demo/departments.ts";
 import { seedDemoFramework } from "./demo/framework.ts";
 import { seedDemoHistory } from "./demo/history.ts";
@@ -89,6 +90,8 @@ try {
     await seedDemoPlans(ctx, collegeId);
     await seedDemoAssignments(ctx, collegeId);
     await seedDemoTasks(ctx, collegeId);
+    // After the term's tasks, whose pass runs only while the term has none (ADR-0029).
+    await seedDemoControlPanel(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,
     );

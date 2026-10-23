@@ -9,7 +9,7 @@ import { wallClock } from "../src/platform/i18n/time-zone.ts";
 import { test } from "./support/accounts.ts";
 import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
-import { confirmIfAsked, open } from "./support/pages.ts";
+import { confirmIfAsked, open, signedIn } from "./support/pages.ts";
 import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -26,7 +26,16 @@ const events = (page: Page) => page.locator("main ol > li");
 
 test("the admin narrows the log to a person, an action and today, and opens an event's details", async ({
   page,
+  browser,
 }) => {
+  // The demo trainer signs in now, on their own session: their sign-in in e2e/auth.setup.ts may
+  // fall on the day before when the run crosses the college's midnight.
+  const trainer = await signedIn(browser, {
+    identifier: demoAccounts.trainer.employeeNumber,
+    password: demo.password,
+  });
+  await trainer.context().close();
+
   await open(page, "/audit");
   await page
     .getByLabel(audit.filters.search, { exact: true })
@@ -39,7 +48,7 @@ test("the admin narrows the log to a person, an action and today, and opens an e
   await page
     .getByRole("button", { name: new RegExp(`^${audit.filters.period}`) })
     .click();
-  // Today, as both ends of the period: the demo trainer signed in today (e2e/auth.setup.ts).
+  // Today, as both ends of the period: the demo trainer has just signed in.
   const today = page.locator('[role="grid"] button[aria-current="date"]');
   await today.click();
   await today.click();
@@ -245,11 +254,14 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
       .getByRole("list", { name: nav.groups.administration })
       .getByRole("link"),
   ).toHaveText([
+    nav.console,
     nav.departments,
     nav.roles,
     nav.people,
     nav.settings,
+    nav.texts,
     nav.audit,
+    nav.system,
     nav.axes,
   ]);
 
@@ -273,7 +285,7 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
   ).toBeVisible();
 });
 
-test("on a phone, the admin's fourteen pages leave four tabs and More, whose sheet opens the rest", async ({
+test("on a phone, the admin's seventeen pages leave four tabs and More, whose sheet opens the rest", async ({
   page,
   isMobile,
 }) => {
@@ -282,15 +294,18 @@ test("on a phone, the admin's fourteen pages leave four tabs and More, whose she
   const bar = page.getByRole("navigation", { name: shell.navigation });
   await expect(bar.getByRole("link")).toHaveText([
     nav.today,
+    nav.console,
     nav.departments,
     nav.roles,
-    nav.people,
   ]);
   await bar.getByRole("button", { name: shell.more }).click();
   const sheet = page.getByRole("dialog", { name: shell.moreTitle });
   await expect(sheet.getByRole("link")).toHaveText([
+    nav.people,
     nav.settings,
+    nav.texts,
     nav.audit,
+    nav.system,
     nav.axes,
     nav.terms,
     nav.framework,

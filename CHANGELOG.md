@@ -4,6 +4,25 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### The admin's control panel (the owner's request, ADR-0029)
+
+- `/console`, the first page of the administration, for whoever holds one of its keys across the college:
+  - what needs them, each linked to its page: locked accounts, people with no role, the database or the job queue down, a worker that never started or went quiet, and the open terms whose latest pass failed;
+  - the college at a glance: its people by account state, its departments in use and its roles;
+  - the latest changes from the log, and a tile for each page of the administration they open.
+  The admin's Today and their phone's second tab now lead there.
+- `/system` (`system.manage`): the checks (the database and how fast it answers, the job queue, the worker's last beat, the database's size, the version, how long the server has run), the generation engine's passes with their cause, counts and error, a failed pass of an open term run again, and signing everyone else out. The worker records a beat each minute.
+- A person's page lists where they are signed in, to whoever holds `accounts.sessions` where they are: each device, its address, when it signed in and was last seen. One session or all of them end there, and a new password is required at their next request.
+- `/texts` (`texts.manage`): the texts the college changed, and a search over every text by its words or its key. A text is worded the college's way, checked against its default's arguments and tags, or put back to its default; every page shows the change at once.
+- The keys `system.manage`, `texts.manage` and `accounts.sessions`, which the system role holds. Recorded as `generation.rerun`, `session.revoke`, `session.revokeAll`, `session.revokeEveryone`, `account.requirePasswordChange`, `text.override` and `text.reset`.
+- Migration `0027`: `worker_heartbeats`, `text_overrides`, and `admin` as a pass's cause.
+- The change-password page says why it asks: a temporary password, or a new one required for the account.
+- `seed:demo`: the admin words the sign-in page's help, the head of Electrical is signed in on a desktop and a phone and the trainer on theirs, and the night before's nightly pass failed before the next one did its work.
+- Tests:
+  - unit: the permission matrix's seven new actions, the console's navigation, a device read from its user agent, the worker's state, and every text of the catalog checked against itself;
+  - on a real database: each new action's event, the sessions, the texts, a failed pass run again, the system's state, and the demo seed. Running a failed pass again first compared a timestamp read back with milliseconds only, so every pass looked superseded by itself; the test caught it;
+  - end to end: the console, the system page, a session ended from another browser and a new password required, a pass run again, the texts page, the refusals, axe and touch targets.
+
 ### Audit 7: Steps 19 to 21 (docs/reviews/audit-21.md)
 
 - A draft next term counts its own people. Before, a role held for one term counted only while that term was active, whatever term was asked about. `roleHolders()` now takes the term, so the engine, the plan's and the framework's previews, a plan item's person, assigning, and the assignments page reach those who hold a role for every term or for that term (major 3).
