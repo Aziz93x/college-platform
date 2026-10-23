@@ -9,7 +9,7 @@ export {
   type TermNow,
   wantedTasks,
 } from "./domain/generate.ts";
-export { taskStatuses } from "./domain/status.ts";
+export { type GenerationStatus, taskStatuses } from "./domain/status.ts";
 export { generateTerm, itemAssignees } from "./server/generate.ts";
 export {
   latestRun,
