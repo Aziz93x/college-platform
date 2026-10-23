@@ -156,6 +156,8 @@ Built on the components above, alike on every screen (UX review 1, C2 to C5).
 
 ## The rest, by the step that first uses each one
 
+The owner's rule of 22 October 2026 (docs/PLAN.md, section 0) wins over this table: no more animated components. A component below that is not yet in `src/components/motion/` comes in only for something none of those there, the shadcn/Radix components or native controls can do, and its pull request says why. Step 21 chose several people with a search field over the department's list of checkboxes, so the multi select stayed out (Audit 7, minor 6); choosing several people or kinds in Steps 22 and 29 does the same.
+
 | Step | Component | Real use |
 | --- | --- | --- |
 | 10 | Motion: table | People, then sections (17): selection, a sticky header, virtualized rows |
@@ -166,7 +168,6 @@ Built on the components above, alike on every screen (UX review 1, C2 to C5).
 | 13 | Motion: adaptive stepper | The number of weeks in a term |
 | 13 | Motion: select (morph) | The header's term switcher |
 | 17 | Motion: combobox | The trainer of a section |
-| 21 | Motion: multi select | An assignment's trainers; then a quick request's chosen people (22) and the kinds that require approval (29) |
 | 22 | Motion: expandable control | The quick-request button, which opens into its label; then the head's one-tap reminder on Today (23) |
 | 23 | Motion: pull to refresh | Today on a phone, for trainers and heads |
 | 24 | Motion: tabs | My work's filters (this week, overdue, plan, sections, assignments), kept in the URL |

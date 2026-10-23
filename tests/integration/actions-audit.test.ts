@@ -141,6 +141,33 @@ const writes: Record<string, string[]> = {
   "(app)/plan/actions.ts#movePlanItemsAction": ["planItem.update"],
   "(app)/plan/actions.ts#removePlanItemsAction": ["planItem.delete"],
   "(app)/plan/actions.ts#publishPlanAction": ["plan.publish"],
+  "(app)/assignments/actions.ts#createTemplateAction": [
+    "assignmentTemplate.create",
+  ],
+  "(app)/assignments/actions.ts#updateTemplateAction": [
+    "assignmentTemplate.update",
+  ],
+  "(app)/assignments/actions.ts#deleteTemplateAction": [
+    "assignmentTemplate.delete",
+  ],
+  "(app)/assignments/actions.ts#addTemplateItemAction": [
+    "assignmentTemplateItem.create",
+  ],
+  "(app)/assignments/actions.ts#updateTemplateItemAction": [
+    "assignmentTemplateItem.update",
+  ],
+  "(app)/assignments/actions.ts#removeTemplateItemAction": [
+    "assignmentTemplateItem.delete",
+  ],
+  // The secretary's template, which grants its role with the assignment and takes it back with it.
+  "(app)/assignments/actions.ts#assignAction": [
+    "assignment.create",
+    "membership.create",
+  ],
+  "(app)/assignments/actions.ts#revokeAssignmentAction": [
+    "membership.delete",
+    "assignment.revoke",
+  ],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -701,6 +728,65 @@ describe("every server action writes its event", () => {
     );
     await expectWrites(`${plan}#removePlanItemsAction`, {
       itemIds: [copied.id],
+    });
+    // Electrical's own template, renamed, with an item added, corrected and taken out; the
+    // secretary's given to the imported trainer for the term, which queues a pass, and revoked;
+    // then the department's template taken out (Step 21).
+    const assignments = "(app)/assignments/actions.ts";
+    const own = await expectWrites(`${assignments}#createTemplateAction`, {
+      departmentId: created.id,
+      title: "Inventory officer",
+      axisId,
+    });
+    await expectWrites(`${assignments}#updateTemplateAction`, {
+      templateId: own.id,
+      title: "Inventory and stores officer",
+      axisId,
+    });
+    const duty = {
+      title: "Count the stores",
+      kind: "general",
+      evidence: {
+        required: false,
+        types: ["pdf"],
+        maxFiles: 1,
+        requiresApproval: false,
+      },
+    };
+    const ownItem = await expectWrites(`${assignments}#addTemplateItemAction`, {
+      templateId: own.id,
+      ...duty,
+    });
+    await expectWrites(`${assignments}#updateTemplateItemAction`, {
+      itemId: ownItem.id,
+      ...duty,
+      title: "Count the stores at the term's end",
+    });
+    await expectWrites(`${assignments}#removeTemplateItemAction`, {
+      itemId: ownItem.id,
+    });
+    const [{ userId: newcomer }] = await query(
+      `select user_id as "userId" from people where employee_number = '6001'`,
+    );
+    const [{ id: secretary }] = await query(
+      "select id from assignment_templates where key = 'secretary'",
+    );
+    await expectWrites(`${assignments}#assignAction`, {
+      templateId: secretary,
+      termId: term.id,
+      departmentId: created.id,
+      userIds: [newcomer],
+    });
+    expect((await queued()).at(-1)).toBe("assignment");
+    const [given] = await query(
+      "select id from assignments where user_id = $1",
+      [newcomer],
+    );
+    await expectWrites(`${assignments}#revokeAssignmentAction`, {
+      assignmentId: given.id,
+    });
+    await expectWrites(`${assignments}#deleteTemplateAction`, {
+      templateId: own.id,
     });
     await expectWrites(`${terms}#activateTermAction`, { id: term.id });
     await expectWrites(`${terms}#closeTermAction`, { id: term.id });

@@ -121,3 +121,18 @@ export const planItemInput = frameworkItemInput.extend({
   appliesTo: planReach,
 });
 export type PlanItemInput = z.infer<typeof planItemInput>;
+
+// An assignment's template (Step 21), as a head names it for their department, with the axis its
+// tasks go under; and an item of it, a framework item's title, kind and evidence, due at the end of
+// each assignment of the template.
+export const assignmentTemplateInput = frameworkItemInput.pick({
+  title: true,
+  axisId: true,
+});
+export type AssignmentTemplateInput = z.infer<typeof assignmentTemplateInput>;
+export const assignmentItemInput = frameworkItemInput.pick({
+  title: true,
+  kind: true,
+  evidence: true,
+});
+export type AssignmentItemInput = z.infer<typeof assignmentItemInput>;

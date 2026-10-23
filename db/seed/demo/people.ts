@@ -68,15 +68,22 @@ const FAMILY_NAMES = [
 ] as const;
 
 // The cast beside demoAccounts (db/seed/demo/accounts.ts), by department in demoDepartments' order:
-// the heads it lacks, and trainers that bring each department to 12, 15 and 13, forty in all. The
-// first of each department's trainers is also its secretary, by a membership until Step 21's
-// assignments give that role.
+// the heads it lacks, and trainers that bring each department to 12, 15 and 13, forty in all.
 const CAST = [
   { head: "110001", trainers: 11 },
   { trainers: 14 },
   { head: "110003", trainers: 12 },
 ];
 const FIRST_TRAINER = 200004;
+
+// Each department's generated trainers by employee number, in demoDepartments' order: the first is
+// its secretary for the demo term, by the secretary's assignment (Step 21).
+export const demoTrainers = CAST.map(({ trainers }, index) => {
+  const first =
+    FIRST_TRAINER +
+    CAST.slice(0, index).reduce((sum, each) => sum + each.trainers, 0);
+  return Array.from({ length: trainers }, (_, at) => String(first + at));
+});
 
 // The same random sequence gives the same people. A name is never given twice, nor one of
 // `taken`'s, so each email is new.
@@ -105,11 +112,8 @@ export function demoCast(random: () => number, taken: readonly string[]) {
     const department = demoDepartments[index].name;
     return [
       ...(head ? [person(head, [{ key: "head", department }])] : []),
-      ...Array.from({ length: trainers }, (_, position) =>
-        person(String(next++), [
-          { key: "trainer", department },
-          ...(position === 0 ? [{ key: "secretary", department }] : []),
-        ]),
+      ...Array.from({ length: trainers }, () =>
+        person(String(next++), [{ key: "trainer", department }]),
       ),
     ];
   });

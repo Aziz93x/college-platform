@@ -275,23 +275,6 @@ export async function seedDemoHistory(
   }
 
   // The stories of the weeks since.
-  const secretaries = trainers.filter(
-    (person) => holds(person, "secretary").length > 0,
-  );
-  secretaries.forEach((person, index) => {
-    for (const membership of membershipsOf(person, "secretary")) {
-      add(
-        at(15, 10, 20 + index * 2),
-        admin,
-        "membership.create",
-        {
-          type: "membership",
-          id: membership.id,
-        },
-        { to: membership.to },
-      );
-    }
-  });
   const helped = trainers.filter(
     (person) => person !== invited && person !== disabled && headOf(person),
   );

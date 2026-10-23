@@ -83,6 +83,16 @@ export const auditActions = [
   "planItem.update",
   "planItem.delete",
   "plan.publish",
+  // A department's own template of assignments added, renamed or taken out, and its items; a
+  // template given to a person for a term, and taken back (Step 21).
+  "assignmentTemplate.create",
+  "assignmentTemplate.update",
+  "assignmentTemplate.delete",
+  "assignmentTemplateItem.create",
+  "assignmentTemplateItem.update",
+  "assignmentTemplateItem.delete",
+  "assignment.create",
+  "assignment.revoke",
   // A pass of the generation engine over a term's tasks that changed any, written by the system with
   // what it did (Step 20).
   "task.generate",
@@ -106,6 +116,8 @@ const auditEntities = [
   "sectionTransfer",
   "sectionTemplate",
   "plan",
+  "assignmentTemplate",
+  "assignment",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

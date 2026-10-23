@@ -47,7 +47,9 @@ export {
 export {
   addMembership,
   createRole,
+  deleteMembership,
   findRole,
+  insertMembership,
   joinRole,
   listRoles,
   type Member,
@@ -55,5 +57,5 @@ export {
   renameRole,
   setRolePermissions,
 } from "./server/roles.ts";
-export { rolePermissions, roles } from "./server/schema.ts";
+export { memberships, rolePermissions, roles } from "./server/schema.ts";
 export { getViewer, requireViewer } from "./server/viewer.ts";

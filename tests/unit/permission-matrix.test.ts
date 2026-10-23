@@ -47,6 +47,12 @@ const ITEM = {
 };
 // A department plan's item: a framework item, or one for a person of the department (Step 19).
 const PLAN_ITEM = { ...ITEM, appliesTo: { type: "person", userId: ID } };
+// An assignment template's item: a framework item's title, kind and evidence (Step 21).
+const TEMPLATE_ITEM = {
+  title: ITEM.title,
+  kind: ITEM.kind,
+  evidence: ITEM.evidence,
+};
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -199,6 +205,31 @@ vi.mock("@/modules/planning", async (importOriginal) => ({
   movePlanItems: async () => ({ status: "saved" }),
   removePlanItems: async () => ({ status: "saved" }),
   publishPlan: async () => ({ status: "published", termId: ID }),
+}));
+// An assignment, a template and an item of the matrix's department, each change answered as done
+// (Step 21).
+vi.mock("@/modules/assignments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/assignments")>()),
+  findAssignment: async () => ({
+    id: ID,
+    termId: ID,
+    departmentId: DEPARTMENT,
+  }),
+  findTemplate: async () => ({ id: ID, departmentId: DEPARTMENT }),
+  findTemplateItem: async () => ({
+    id: ID,
+    templateId: ID,
+    departmentId: DEPARTMENT,
+  }),
+  assignedTerms: async () => [ID],
+  assign: async () => ({ status: "assigned", added: 1, held: 0 }),
+  revokeAssignment: async () => ({ status: "revoked", termId: ID }),
+  createTemplate: async () => ({ status: "created", id: ID }),
+  updateTemplate: async () => ({ status: "saved" }),
+  deleteTemplate: async () => ({ status: "deleted" }),
+  addTemplateItem: async () => ({ status: "saved", id: ID }),
+  updateTemplateItem: async () => ({ status: "saved" }),
+  removeTemplateItem: async () => ({ status: "removed" }),
 }));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
@@ -518,6 +549,38 @@ const checked: {
     input: { planId: ID },
     inDepartment: true,
   },
+  // A department's assignments and its own templates, the head's in their department (Step 21).
+  ...[
+    [
+      "assignAction",
+      {
+        templateId: ID,
+        termId: ID,
+        departmentId: DEPARTMENT,
+        userIds: [ID],
+        weeks: { from: 1, to: 9 },
+      },
+    ],
+    ["revokeAssignmentAction", { assignmentId: ID }],
+    [
+      "createTemplateAction",
+      { departmentId: DEPARTMENT, title: "Inventory officer", axisId: ID },
+    ],
+    [
+      "updateTemplateAction",
+      { templateId: ID, title: "Inventory officer", axisId: ID },
+    ],
+    ["deleteTemplateAction", { templateId: ID }],
+    ["addTemplateItemAction", { templateId: ID, ...TEMPLATE_ITEM }],
+    ["updateTemplateItemAction", { itemId: ID, ...TEMPLATE_ITEM }],
+    ["removeTemplateItemAction", { itemId: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/assignments/actions.ts",
+    action: action as string,
+    permission: "assignment.manage" as const,
+    input,
+    inDepartment: true as const,
+  })),
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {
     module: "(app)/axes/actions.ts",

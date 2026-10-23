@@ -11,6 +11,7 @@ import {
 } from "../../db/seed/demo/accounts.ts";
 import { demoCollege } from "../../db/seed/demo/college.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
+import { demoTrainers } from "../../db/seed/demo/people.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
 import { DEMO_EXAM_PERIODS } from "../../db/seed/demo/terms.ts";
@@ -144,7 +145,7 @@ const demoPeople = async (pool: Pool) =>
 const decrypt = (url: string, data: string) =>
   symmetricDecrypt({ key: scriptEnv(url).AUTH_SECRET ?? "", data });
 
-it("adds Step 43's people: the admin, the dean, the vice-dean, a quality reviewer, a head per department and forty trainers, three of them secretaries", async () => {
+it("adds Step 43's people: the admin, the dean, the vice-dean, a quality reviewer, a head per department and forty trainers", async () => {
   const { pool } = await seededDatabase();
   const people = await demoPeople(pool);
 
@@ -180,15 +181,8 @@ it("adds Step 43's people: the admin, the dean, the vice-dean, a quality reviewe
   }
   for (const { name } of demoDepartments) {
     expect(holding(`head:${name}`), name).toBe(1);
-    // The secretary is one of the department's trainers.
-    expect(
-      people.filter(
-        ({ roles }) =>
-          roles.includes(`secretary:${name}`) &&
-          roles.includes(`trainer:${name}`),
-      ),
-      name,
-    ).toHaveLength(1);
+    // Its secretary holds the role by an assignment, for the term alone (Step 21).
+    expect(holding(`secretary:${name}`), name).toBe(0);
   }
   expect(
     people.filter(({ roles }) =>
@@ -352,6 +346,10 @@ it("writes three weeks of the college's history, every event in the past and by 
       "planItem.create",
       "plan.publish",
       "planItem.update",
+      // The heads' assignments, and Electrical's own template with its items (Step 21).
+      "assignment.create",
+      "assignmentTemplate.create",
+      "assignmentTemplateItem.create",
       // The term's tasks, generated (Step 20).
       "task.generate",
     ]),
@@ -525,7 +523,7 @@ async function demoWeek(db: Db, pool: Pool) {
   return { term, number: week?.number };
 }
 
-it("starts the demo term on the day that puts today in week 9, counted past the Eid breaks, with the calendar the vice-dean entered and one role held in it (Step 13)", async () => {
+it("starts the demo term on the day that puts today in week 9, counted past the Eid breaks, with the calendar the vice-dean entered and the secretaries' roles held in it (Step 13)", async () => {
   const { db, pool } = await seededDatabase();
   const { term, number } = await demoWeek(db, pool);
   expect(number).toBe(9);
@@ -540,13 +538,19 @@ it("starts the demo term on the day that puts today in week 9, counted past the 
      where e.entity_type = 'term'`,
   );
   expect(actors).toEqual([{ email: demoAccounts.viceDean.email }]);
-  // Electrical's secretary for this term only.
+  // Each department's secretary for this term only, by the secretary's assignment (Step 21).
   const { rows: held } = await pool.query(
     `select r.key, d.name from memberships m join roles r on r.id = m.role_id
-     join departments d on d.id = m.department_id where m.term_id = $1`,
+     join departments d on d.id = m.department_id
+     join assignments a on a.membership_id = m.id
+     where m.term_id = $1 order by d.name`,
     [term.id],
   );
-  expect(held).toEqual([{ key: "secretary", name: demoDepartments[1].name }]);
+  expect(held).toEqual(
+    demoDepartments
+      .map(({ name }) => ({ key: "secretary", name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  );
   // Held for that term only: not by its secretary for every term (Audit 5).
   const { rows: everyTerm } = await pool.query(
     `select m.id from memberships m join memberships held
@@ -736,7 +740,7 @@ it("has the head of Electrical transfer a section to another trainer of the depa
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
 });
 
-it("generates the demo term's tasks, as many as its published framework's and plans' previews count, in under 10 s: a grade analysis for each trainer of each section, none for a section with no trainer, and an exam copy for each trainer of each course, once for all their sections of it (Steps 19 and 20)", async () => {
+it("generates the demo term's tasks, as many as its published framework's and plans' previews count and its assignments' items, in under 10 s: a grade analysis for each trainer of each section, none for a section with no trainer, and an exam copy for each trainer of each course, once for all their sections of it (Steps 19 to 21)", async () => {
   const { db, pool } = await seededDatabase();
   const {
     rows: [{ id: collegeId }],
@@ -755,9 +759,20 @@ it("generates the demo term's tasks, as many as its published framework's and pl
     ),
   );
   expect(plans.every((tasks) => tasks > 0)).toBe(true);
+  // An assignment's items, once for its holder (Step 21).
+  const {
+    rows: [{ assigned }],
+  } = await pool.query(
+    `select count(*)::int as assigned from assignments a
+     join assignment_template_items i on i.template_id = a.template_id
+     where a.term_id = $1`,
+    [term.id],
+  );
+  expect(assigned).toBeGreaterThan(0);
   const preview =
     (await publishedPreview(collegeId, term.id, db)) +
-    plans.reduce((sum, tasks) => sum + tasks, 0);
+    plans.reduce((sum, tasks) => sum + tasks, 0) +
+    assigned;
   const {
     rows: [run],
   } = await pool.query(
@@ -925,6 +940,87 @@ it("gives Electrical and Mechanical plans of their own, each item on an axis, pu
         and f.applies_to = i.applies_to and f.due = i.due
     )`);
   expect(repeated).toEqual([]);
+});
+
+it("gives each department's first trainer the secretary's assignment for the demo term, and Electrical three more, among them its own inventory officer, each by the department's head (Step 21)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select d.name as department, t.title, t.department_id is null as shared, p.employee_number,
+      a.from_week, a.to_week, a.membership_id is not null as granted, h.email as given_by,
+      (select count(*)::int from tasks k join assignment_template_items i on i.id = k.source_item_id
+        where i.template_id = a.template_id and k.assignee_id = a.user_id
+          and k.source = 'assignment' and k.cancelled_at is null) as tasks,
+      (select count(*)::int from assignment_template_items i where i.template_id = a.template_id)
+        as items
+    from assignments a
+    join departments d on d.id = a.department_id
+    join assignment_templates t on t.id = a.template_id
+    join people p on p.user_id = a.user_id
+    join audit_events e on e.action = 'assignment.create' and e.entity_id = a.id::text
+    join users h on h.id::text = e.actor_id
+    order by d.name, p.employee_number`);
+  const [first, electrical, mechanical] = demoTrainers;
+  const secretary = (name: string, number: string) => ({
+    department: name,
+    title: "أمين القسم",
+    shared: true,
+    employee_number: number,
+    from_week: null,
+    to_week: null,
+    granted: true,
+  });
+  expect(
+    rows.map(({ given_by: _, tasks: __, items: ___, ...row }) => row),
+  ).toEqual(
+    [
+      secretary(demoDepartments[0].name, first[0]),
+      secretary(demoDepartments[1].name, electrical[0]),
+      {
+        department: demoDepartments[1].name,
+        title: "مشرف السلامة",
+        shared: true,
+        employee_number: electrical[1],
+        from_week: null,
+        to_week: null,
+        granted: false,
+      },
+      {
+        department: demoDepartments[1].name,
+        title: "منسق الجداول",
+        shared: true,
+        employee_number: electrical[2],
+        from_week: 1,
+        to_week: 4,
+        granted: false,
+      },
+      {
+        department: demoDepartments[1].name,
+        title: "مسؤول العهد",
+        shared: false,
+        employee_number: electrical[3],
+        from_week: 13,
+        to_week: 18,
+        granted: false,
+      },
+      secretary(demoDepartments[2].name, mechanical[0]),
+    ].sort(
+      (a, b) =>
+        a.department.localeCompare(b.department) ||
+        a.employee_number.localeCompare(b.employee_number),
+    ),
+  );
+  // Each item a task for its holder, given by the department's head: Electrical's is the demo's.
+  for (const { tasks, items } of rows) expect(tasks).toBe(items);
+  expect(
+    rows
+      .filter(({ department }) => department === demoDepartments[1].name)
+      .map(({ given_by }) => given_by),
+  ).toEqual(Array(4).fill(demoAccounts.head.email));
+  // None is a trainer the tests sign in as.
+  const tested = new Set(
+    Object.values(demoAccounts).map(({ employeeNumber }) => employeeNumber),
+  );
+  expect(rows.filter((row) => tested.has(row.employee_number))).toEqual([]);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

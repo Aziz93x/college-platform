@@ -27,11 +27,26 @@ import {
 } from "@/components/motion/select";
 import { Switch } from "@/components/motion/switch";
 import { Button } from "@/components/ui/button";
-import type { DueRule, PlanItemInput, TaskKind } from "@/modules/framework";
+import type {
+  AssignmentItemInput,
+  DueRule,
+  PlanItemInput,
+  TaskKind,
+} from "@/modules/framework";
 
 // An item of the framework (Step 15), or of a department's plan (Step 19), which may also reach one
 // person of the department.
 export type ItemInput = PlanItemInput;
+
+// An assignment template's item as the sheet holds it (Step 21): the fields the sheet hides for it
+// keep their defaults, and its page keeps only its title, kind and evidence.
+export const sheetItemOf = (item: AssignmentItemInput): ItemInput => ({
+  ...item,
+  axisId: "",
+  appliesTo: { type: "eachSection" },
+  due: { type: "weekly" },
+  notes: "",
+});
 
 type Option = { value: string; label: string };
 
@@ -152,10 +167,13 @@ const inputOf = (draft: Draft): ItemInput => ({
 // it is due, and the evidence it asks for. The page saves what it gives, and says what the server
 // refused. A new item may be saved with the sheet kept open for the next one (Step 19): once the page
 // has saved it, it gives a new resetKey, and the sheet keeps every field but the title and the notes.
+// An assignment template's item shows its title, kind and evidence alone: its template gives its
+// axis and whom it reaches, and it is due at the assignment's end (Step 21).
 export function ItemSheet({
   title,
   description,
   item,
+  assignment = false,
   options,
   limits,
   saving,
@@ -169,6 +187,7 @@ export function ItemSheet({
   description: string;
   /** The item to correct; none for a new one. */
   item?: ItemInput;
+  assignment?: boolean;
   options: ItemOptions;
   limits: ItemLimits;
   saving: boolean;
@@ -301,15 +320,19 @@ export function ItemSheet({
           value={form.title}
           onChange={(title) => change({ title })}
         />
-        {select("axisId", t("fields.axis"), options.axes)}
+        {assignment ? null : select("axisId", t("fields.axis"), options.axes)}
         {select("kind", t("fields.kind"), options.kinds)}
-        {select("applies", t("fields.appliesTo"), [
-          { value: EACH_SECTION, label: t("eachSection") },
-          { value: EACH_COURSE, label: t("eachCourse") },
-          ...(options.roles ?? []),
-          ...(options.people ? [{ value: PERSON, label: t("person") }] : []),
-        ])}
-        {form.applies === PERSON && options.people ? (
+        {assignment
+          ? null
+          : select("applies", t("fields.appliesTo"), [
+              { value: EACH_SECTION, label: t("eachSection") },
+              { value: EACH_COURSE, label: t("eachCourse") },
+              ...(options.roles ?? []),
+              ...(options.people
+                ? [{ value: PERSON, label: t("person") }]
+                : []),
+            ])}
+        {!assignment && form.applies === PERSON && options.people ? (
           <Combobox
             value={form.person}
             onValueChange={(person) => change({ person })}
@@ -338,12 +361,16 @@ export function ItemSheet({
             </ComboboxContent>
           </Combobox>
         ) : null}
-        {select("dueType", t("fields.due"), options.dueTypes)}
-        {form.dueType === "week" ? stepper("week", 1, limits.weeks) : null}
-        {form.dueType === "everyWeeks"
+        {assignment
+          ? null
+          : select("dueType", t("fields.due"), options.dueTypes)}
+        {!assignment && form.dueType === "week"
+          ? stepper("week", 1, limits.weeks)
+          : null}
+        {!assignment && form.dueType === "everyWeeks"
           ? stepper("every", 2, limits.weeks)
           : null}
-        {form.dueType === "examPeriods" ? (
+        {!assignment && form.dueType === "examPeriods" ? (
           <>
             <fieldset className="flex flex-col gap-2 px-1">
               <legend className="mb-1 font-medium text-sm">
@@ -398,13 +425,15 @@ export function ItemSheet({
         </fieldset>
         {stepper("maxFiles", 1, limits.files)}
         {toggle("approval")}
-        <Input
-          label={t("fields.notes")}
-          autoComplete="off"
-          maxLength={limits.notes}
-          value={form.notes}
-          onChange={(notes) => change({ notes })}
-        />
+        {assignment ? null : (
+          <Input
+            label={t("fields.notes")}
+            autoComplete="off"
+            maxLength={limits.notes}
+            value={form.notes}
+            onChange={(notes) => change({ notes })}
+          />
+        )}
         {shown ? (
           <p role="alert" className="text-alert text-sm">
             {shown}

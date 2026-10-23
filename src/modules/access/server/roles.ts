@@ -508,47 +508,71 @@ export async function removeMembership(
         return { status: "lastAdmin" };
       }
     }
-    const [removed] = await tx
-      .delete(memberships)
-      .where(eq(memberships.id, id))
-      .returning({ id: memberships.id });
-    if (!removed) return { status: "notFound" };
-    await writeAudit(
-      {
-        collegeId: change.collegeId,
-        actorId: change.actorId,
-        action: "membership.delete",
-        entityType: "membership",
-        entityId: id,
-        diff: {
-          from: {
-            userId: membership.userId,
-            role: role.key,
-            departmentId: membership.departmentId,
-          },
-        },
-        ip: change.ip,
-        userAgent: change.userAgent,
-      },
-      tx,
-    );
-    const [department] = membership.departmentId
-      ? await tx
-          .select({ name: departments.name })
-          .from(departments)
-          .where(eq(departments.id, membership.departmentId))
-      : [{ name: null }];
-    await notify(
-      {
-        collegeId: change.collegeId,
-        userId: membership.userId,
-        kind: "membershipRemoved",
-        params: held(roleLabel(role.labels, language), department.name),
-      },
-      tx,
-    );
-    return { status: "removed" };
+    return (await deleteMembership(tx, id, change, language))
+      ? { status: "removed" }
+      : { status: "notFound" };
   });
+}
+
+// Takes a membership its caller has checked, with its membership.delete event and the notification
+// to its holder, inside the caller's transaction, as insertMembership adds one: the role named in
+// the college's language, which the caller reads before its transaction. Gone already: false.
+export async function deleteMembership(
+  tx: Tx,
+  id: string,
+  change: Change,
+  language: string,
+) {
+  const [removed] = await tx
+    .delete(memberships)
+    .where(eq(memberships.id, id))
+    .returning({
+      userId: memberships.userId,
+      roleId: memberships.roleId,
+      departmentId: memberships.departmentId,
+      termId: memberships.termId,
+    });
+  if (!removed) return false;
+  const [role] = await tx
+    .select({ key: roles.key, labels: roles.labels })
+    .from(roles)
+    .where(eq(roles.id, removed.roleId));
+  await writeAudit(
+    {
+      collegeId: change.collegeId,
+      actorId: change.actorId,
+      action: "membership.delete",
+      entityType: "membership",
+      entityId: id,
+      diff: {
+        from: {
+          userId: removed.userId,
+          role: role.key,
+          departmentId: removed.departmentId,
+          ...(removed.termId ? { termId: removed.termId } : {}),
+        },
+      },
+      ip: change.ip,
+      userAgent: change.userAgent,
+    },
+    tx,
+  );
+  const [department] = removed.departmentId
+    ? await tx
+        .select({ name: departments.name })
+        .from(departments)
+        .where(eq(departments.id, removed.departmentId))
+    : [{ name: null }];
+  await notify(
+    {
+      collegeId: change.collegeId,
+      userId: removed.userId,
+      kind: "membershipRemoved",
+      params: held(roleLabel(role.labels, language), department.name),
+    },
+    tx,
+  );
+  return true;
 }
 
 // Gives a person a role of their college, found by its key or as the system role, across the
