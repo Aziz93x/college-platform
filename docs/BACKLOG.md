@@ -37,6 +37,13 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 
 - For the owner: show a head every published framework item their trainers receive, those for the trainer's role too, and warn in the sheet when a template has the kind and reach of one of them ("يطلب الإطار العام هذا من المدربين: «…»"), so Step 20 never generates the same work twice. About 45 min; a flow proposal, so an ADR and a note under Step 19, whose plan shows the inherited items locked, once the owner accepts it (enhancement 3).
 
+## Audit 7 (docs/reviews/audit-21.md)
+
+For the owner, two choices the steps made without saying so:
+
+- An empty draft is never published (`publishPlan()` refuses it), so a department cannot take back all of its own items for the rest of a term. Either allow publishing an empty version, or keep the refusal and say so in the editor.
+- An assignment whose weeks are already over is accepted, and its tasks are overdue at once: the demo's schedule coordinator, for weeks 1 to 4, is given in week 9. Either refuse a range that has ended, or keep it for recording past work.
+
 ## UX review 1: should fix (docs/reviews/ux-10.md)
 
 Every score is 4 or above without these; the review ranks them after its must-fix items, which its PR fixed.

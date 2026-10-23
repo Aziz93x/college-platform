@@ -1119,6 +1119,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **Draft terms:** `plan.edit` shows a draft term (`preparesTerms()`).
 - **Seed and tests:** the seed test checks that each demo plan's preview equals its generated tasks, and `e2e/plan.spec.ts` builds a 50-item plan from one sheet, timed.
 
+**Note from Audit 7:**
+- **The publisher.** Whoever holds `plan.publish` without `plan.edit` reads the department's draft, its preview and its flags on `/plan`, and publishes it, as ADR-0027's last consequence says. The navigation item and draft terms follow either key.
+- **The usability run.** `e2e/plan.spec.ts` builds 50 items of the demo plan's five kinds and counts a head's time with the keystroke-level model. That time must stay under 30 minutes, and the run itself under 10. Step 46 times a real head.
+- **The review load** names the week that asks the most beside the average (`busiestWeek()`).
+
 #### Step 20. Generation engine (L)
 
 **Goal:** tasks appear for the right person, section and week, every time.
@@ -1198,6 +1203,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 20 (ADR-0025):** a quick request's tasks are created at once, by `generateTerm()` in the request rather than a queued pass, with the quick request as a source of its own. The board's "tasks generated" reads the latest pass of each term (`latestRun()`, `src/modules/tasks`), which `/framework` shows its publisher.
 
 **Note from Step 19 (ADR-0027):** a department's plan is published for a term once it has a published version (`departmentPlan()`, `src/modules/planning`).
+
+**Note from Audit 7:** `roleHolders(collegeId, termId)` counts a term's own people: those who hold a role for every term or for that term. A request's targets and the board's people for a draft next term come from it, not from the active term's.
 
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
@@ -1683,6 +1690,8 @@ Every generated file carries a visible "بيانات تجريبية" watermark. 
 **Done when:** 4 of 5 finish without help within 10 minutes, and every success metric in section 1 that can be measured before launch meets its target.
 
 **Note from ADR-0008:** the stack runs in demo mode (Step 41). Testers sign in to demo trainer accounts and photograph printed demo exam copies handed out with their task cards, never real papers or their own records, until the General Administration approves the data classification. `local:share` tests neither the college Wi-Fi nor an internal CA, so while option A is possible, add one run over the college Wi-Fi with the laptop's Caddy root trusted. The vice-dean's guide says that on option A, SS01, SF01 and SO01 are downloaded on an internet PC and brought in on approved media. Metrics that only a trial can measure stay open.
+
+**Note from Audit 7:** **You:** add one head to the session. From a printed script of a 50-item plan, in the five kinds of Step 19's usability run, the head builds it on `/plan`, timed. Under 30 minutes meets Step 19's goal with a person. The run's modelled time is the estimate to compare against.
 
 > **Checkpoint: Audit 16.** Run `/audit 46-46`.
 >

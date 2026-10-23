@@ -4,6 +4,23 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Audit 7: Steps 19 to 21 (docs/reviews/audit-21.md)
+
+- A draft next term counts its own people. Before, a role held for one term counted only while that term was active, whatever term was asked about. `roleHolders()` now takes the term, so the engine, the plan's and the framework's previews, a plan item's person, assigning, and the assignments page reach those who hold a role for every term or for that term (major 3).
+- Whoever holds `plan.publish` without `plan.edit` opens `/plan`, reads the draft with its preview and flags, and publishes it; the next version is the editor's to start. The navigation item and draft terms follow either key (major 1).
+- Step 19's usability run builds 50 items of the demo plan's five kinds, each item its own title and week, and counts a head's time with the keystroke-level model: under 30 minutes, with a bound on the run itself that can fail (major 2). Step 46 times a real head.
+- Someone who already holds the secretary's role, for the term or for every term, is given the template without a second membership, is told nothing, and keeps the role when it is revoked. The revoke sheet names the role only when the assignment gave it (minor 3).
+- A pass an assignment caused reads so on `/framework`, and a pass waiting no longer says it is the framework's (minor 4). Step 21's words name the keys' holders instead of roles a college may rename, and the assign sheet tells a department with no one in the term from one whose people all hold the template (minor 7).
+- The publish dialog names the week that asks the most reviews beside the average (enhancement 2).
+- Tests:
+  - the permission matrix also runs each action as a role with every key but its own (enhancement 1);
+  - every cause of a pass has its words in the log and on `/framework` (enhancement 3);
+  - the generation property makes its second version from the first, so it reaches finished work called for again in about a fifth of its runs instead of one in a thousand (minor 1);
+  - the actions' test counts the passes that changing an assigned template and revoking queue (minor 2);
+  - end to end: the plan's preview number, a closed term on `/assignments` (minor 5), the publisher, and the usability run;
+  - a draft next term's people, and a role already held for every term, on a real database.
+- Minor 6, the multi select without the owner's "why", is fixed in Step 21's own pull request: the people are checkboxes under the search field.
+
 ### Step 21: assignments (ADR-0028)
 
 - Heads give people of their department responsibilities beside their teaching, each with its own tasks, on `/assignments`, one department at a time:
