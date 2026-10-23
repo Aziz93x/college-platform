@@ -78,7 +78,8 @@ export function PersonSessions({
                 />
                 <div className="min-w-0">
                   <p className="font-medium">{session.device}</p>
-                  <p className="text-muted-foreground text-sm">
+                  {/* An IPv6 address is one long word: it breaks where it must on a phone. */}
+                  <p className="text-muted-foreground text-sm wrap-anywhere">
                     {[
                       session.address
                         ? t("address", { address: session.address })

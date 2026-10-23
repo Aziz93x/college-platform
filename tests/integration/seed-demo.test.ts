@@ -1031,7 +1031,7 @@ it("gives each department's first trainer the secretary's assignment for the dem
   expect(rows.filter((row) => tested.has(row.employee_number))).toEqual([]);
 });
 
-it("words the sign-in page's help as the admin did, signs the head of Electrical in on a desktop and a phone and the trainer on theirs, and keeps the night before's failed pass behind the one that did its work (ADR-0029)", async () => {
+it("words the sign-in page's help as the admin did, signs the head of Electrical in on a desktop and a phone and the trainer on theirs and their phone, and keeps the night before's failed pass behind the one that did its work (ADR-0029)", async () => {
   const { pool } = await seededDatabase();
   const { rows: texts } = await pool.query(`
     select o.key, o.value, u.email from text_overrides o join users u on u.id = o.updated_by`);
@@ -1050,12 +1050,19 @@ it("words the sign-in page's help as the admin did, signs the head of Electrical
     demoAccounts.head.employeeNumber,
     demoAccounts.head.employeeNumber,
     demoAccounts.trainer.employeeNumber,
+    demoAccounts.trainer.employeeNumber,
   ]);
-  // Each from a device of the college's networks, as the log has them.
-  for (const { user_agent, ip_address } of signedIn) {
+  // Each from a device of the college's networks, as the log has them, but the trainer's phone on
+  // mobile data, whose IPv6 address is kept in full.
+  for (const { user_agent } of signedIn) {
     expect(user_agent).toMatch(/^Mozilla\/5\.0 /);
-    expect(ip_address).toMatch(/^10\.(20|40)\./);
   }
+  expect(signedIn.map(({ ip_address }) => ip_address)).toEqual([
+    expect.stringMatching(/^10\.(20|40)\./),
+    expect.stringMatching(/^10\.(20|40)\./),
+    "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+    expect.stringMatching(/^10\.(20|40)\./),
+  ]);
   const { rows: passes } = await pool.query(`
     select reason, status, error from generation_runs order by queued_at, id`);
   expect(passes).toEqual([

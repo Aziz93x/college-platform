@@ -20,9 +20,16 @@ const HEAD_PHONE = {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",
 };
 
+// The trainer's phone on mobile data, whose address is IPv6, kept in full as sign-in keeps it: one
+// long word on the person page (an address from the range kept for documentation).
+const TRAINER_PHONE = {
+  ip: "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+  userAgent: HEAD_PHONE.userAgent,
+};
+
 // The admin's control panel (ADR-0029): the admin's wording of the sign-in page's help; the head
 // of Electrical signed in on their desktop and their phone, and the trainer on the device of their
-// last sign-in, as the person pages list them; and the nightly pass of the generation engine the
+// last sign-in and their phone, as the person pages list them; and the nightly pass of the generation engine the
 // night before that failed when the database restarted, which the next pass made good. Written
 // once: the text is unchanged on a re-run, and the sessions and the pass are added only when the
 // head has none and the term has no failed pass.
@@ -93,6 +100,7 @@ export async function seedDemoControlPanel(
         session(head, desk, 3),
         session(head, HEAD_PHONE, 1),
         session(trainer, trainerDevice, 2),
+        session(trainer, TRAINER_PHONE, 5),
       ]);
   }
 
