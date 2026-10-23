@@ -124,6 +124,7 @@ test("the head of Electrical sees the plan's draft by weeks, the framework's ite
     // On a phone, a list by week: the lab reports a week earlier than version 1's, in week 11.
     const week = page.getByRole("region", {
       name: t(text.list.week, { week: 11 }),
+      exact: true,
     });
     await expect(week).toContainText("عينات من تقارير التجارب العملية");
     await expect(
@@ -144,7 +145,7 @@ test("the head of Electrical sees the plan's draft by weeks, the framework's ite
     await expect(locked.getByLabel(text.grid.locked)).toBeVisible();
   }
   await expect(
-    page.getByRole("region", { name: text.versions.title }),
+    page.getByRole("region", { name: text.versions.title, exact: true }),
   ).toContainText(/النسخة 1 · نُشرت/);
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) expect(await smallTargets(page.locator("main"))).toEqual([]);
@@ -208,7 +209,7 @@ test(
           .first()
           .click();
       }
-      await sheet.getByRole("button", { name: framework.save }).click();
+      await sheet.getByRole("button", { name: framework.save, exact: true }).click();
       await expect(sheet).toBeHidden();
 
       if (!hasTouch) {
@@ -244,7 +245,10 @@ test(
         ).toBeVisible();
       } else {
         await expect(
-          page.getByRole("region", { name: t(text.list.week, { week: 3 }) }),
+          page.getByRole("region", {
+            name: t(text.list.week, { week: 3 }),
+            exact: true,
+          }),
         ).toContainText("تقرير الأسبوع الثالث");
       }
 
@@ -273,7 +277,7 @@ test(
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole("region", { name: text.versions.title }),
+        page.getByRole("region", { name: text.versions.title, exact: true }),
       ).toContainText(/النسخة 1 · نُشرت .* · بندان/);
     } finally {
       await made.remove();
