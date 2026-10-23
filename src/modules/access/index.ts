@@ -30,7 +30,7 @@ export {
 } from "./server/action-client.ts";
 export { createFirstAdmin } from "./server/first-admin.ts";
 export { loadAccess } from "./server/load-access.ts";
-export { holdersIn, roleHolders } from "./server/members.ts";
+export { holdersAcross, holdersIn, roleHolders } from "./server/members.ts";
 export {
   disableAccount,
   enabledPeopleIn,

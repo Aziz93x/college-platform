@@ -96,6 +96,8 @@ export const auditActions = [
   // A pass of the generation engine over a term's tasks that changed any, written by the system with
   // what it did (Step 20).
   "task.generate",
+  // A quick request sent to a department's people or the college's (Step 22).
+  "quickRequest.send",
   // A failed pass run again by an admin, from the system page (ADR-0029).
   "generation.rerun",
   // Someone's sessions ended by whoever holds accounts.sessions: one, all of theirs, or everyone's
@@ -132,6 +134,8 @@ const auditEntities = [
   "assignment",
   // A message of the catalog, by its key (ADR-0029).
   "text",
+  // A quick request (Step 22).
+  "quickRequest",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];

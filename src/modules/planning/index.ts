@@ -5,6 +5,7 @@ export {
   findPlan,
   findPlanItem,
   movePlanItems,
+  publishedPlanDepartments,
   publishedPlanItems,
   publishPlan,
   removePlanItems,

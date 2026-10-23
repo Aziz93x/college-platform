@@ -1208,6 +1208,12 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0029 (the owner's request, built before this step):** the admin's control panel. `/console` is the first page of the administration group for whoever holds one of its keys across the college: what needs them, the college at a glance, the latest changes and a tile for each page. `/system` (`system.manage`) shows the checks, the worker's heartbeat (`worker_heartbeats`), the generation engine's passes, with a failed one run again as a pass whose reason is `admin`, and signs everyone else out. A person's page lists their sessions to whoever holds `accounts.sessions` where they are, to end one or all, or to require a new password at their next request. `/texts` (`texts.manage`) words any message the college's way (`text_overrides`), which the request's messages lay over the catalog. The board's red items can join the console's list of what needs attention.
 
+**Built (ADR-0030):** a quick request is a source of the generation engine of its own, not an item of a plan.
+- **Data:** `quick_requests` (`src/modules/requests`): its words, the axis its sender picks, its day, whom it reaches and its evidence policy, fixed when it is sent. Migration `0028`.
+- **The keys:** `requests.send` and `readiness.view`. The head holds them in their department; the vice-dean and the dean hold them across the college, and send to one department or the whole college (the owner's answers).
+- **Sending:** `/requests` keeps the request, generates its tasks at once with the cause `request`, and tells each person it reached (`quickRequest`).
+- **The board:** `/readiness` (`src/modules/readiness`) reads its rows when it is opened. A head sees the college's rows and their own department's plan. Where no role holds a row's key across the college, the board names the admins.
+
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
 ### Section E. The trainer's work loop (steps 23 to 28)

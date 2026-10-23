@@ -738,6 +738,18 @@ const typical = {
     },
   },
   text: { entityId: "nav.today", diff: { from: "اليوم", to: "يومي" } },
+  quickRequest: {
+    diff: {
+      to: {
+        title: "كشوف الحضور",
+        termId: SPRING,
+        departmentId: ELECTRICAL,
+        dueOn: "2026-11-05",
+        targets: { type: "everyone" },
+        evidence: true,
+      },
+    },
+  },
 } satisfies Record<AuditEntity, Partial<AuditEntry>>;
 
 it.each(

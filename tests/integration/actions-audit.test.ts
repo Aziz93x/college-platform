@@ -1,10 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedBase, systemRole } from "../../db/seed/base.ts";
 import { rayatColumns, rayatHeaders } from "../../db/seed/rayat-columns.ts";
-import { joinRole } from "../../src/modules/access/index.ts";
+import { addMembership, joinRole } from "../../src/modules/access/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
 import { notify } from "../../src/modules/notifications/index.ts";
+import { createDepartment } from "../../src/modules/org/index.ts";
 import { uploadRayat } from "../../src/modules/rayat/index.ts";
+import {
+  calendarOf,
+  calendarSettings,
+  findTerm,
+  termWeeks,
+} from "../../src/modules/terms/index.ts";
 import { getDb } from "../../src/platform/db/client.ts";
 import { csvLines } from "../../src/platform/files/table.ts";
 import { base32Bytes, totp } from "../support/totp.ts";
@@ -39,6 +46,9 @@ vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/navigation", () => ({ redirect: () => {} }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+  getFormatter: async () => ({
+    dateTime: (at: Date) => at.toISOString().slice(0, 10),
+  }),
 }));
 
 type Result =
@@ -178,6 +188,11 @@ const writes: Record<string, string[]> = {
   "(app)/system/actions.ts#revokeEveryoneAction": ["session.revokeEveryone"],
   "(app)/texts/actions.ts#setTextAction": ["text.override"],
   "(app)/texts/actions.ts#resetTextAction": ["text.reset"],
+  // A quick request, and the pass that made its tasks at once, by the engine (Step 22).
+  "(app)/requests/actions.ts#sendQuickRequestAction": [
+    "quickRequest.send",
+    "task.generate",
+  ],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -903,6 +918,81 @@ describe("every server action writes its event", () => {
       value: "يومي",
     });
     await expectWrites(`${texts}#resetTextAction`, { key: "nav.today" });
+  });
+
+  it("a quick request writes its event by its sender and the pass that made its tasks, and tells whom it reached (Step 22)", async () => {
+    const change = { collegeId, actorId: admin.userId };
+    const made = await createDepartment(
+      {
+        name: "Requests",
+        shortName: "Req",
+        rayatValues: ["Requests"],
+        active: true,
+      },
+      change,
+    );
+    if (made.status !== "created") throw new Error(made.status);
+    const reached = await person("Reached Trainer");
+    const [{ id: roleId }] = await query(
+      "select id from roles where college_id = $1 and key = 'trainer'",
+      [collegeId],
+    );
+    await addMembership(
+      { userId: reached.userId, roleId, departmentId: made.id },
+      change,
+    );
+    // A term around today, due on the first day of a counted week two weeks ahead.
+    const [{ id: termId }] = await query(
+      `insert into terms (college_id, name, starts_on, weeks)
+       values ($1, 'Requests term', current_date - (extract(dow from current_date)::int + 14), 18)
+       returning id`,
+      [collegeId],
+    );
+    const term = await findTerm(collegeId, termId);
+    if (!term) throw new Error("the term is missing");
+    const ahead = new Date(Date.now() + 14 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const week = termWeeks(
+      calendarOf(
+        term,
+        term.events,
+        await calendarSettings(collegeId),
+        term.breaks,
+      ),
+    ).find(({ number, startsOn }) => number !== null && startsOn >= ahead);
+    if (!week) throw new Error("the term has no week ahead");
+    const [{ id: axisId }] = await query(
+      "select id from axes where college_id = $1 and code = '9'",
+      [collegeId],
+    );
+
+    const name = "(app)/requests/actions.ts#sendQuickRequestAction";
+    const outcome = await run(name, {
+      termId,
+      departmentId: made.id,
+      title: "Attendance sheets",
+      axisId,
+      dueOn: week.startsOn,
+      targets: { type: "everyone" },
+      evidence: true,
+    });
+    expect(outcome.data).toEqual({ status: "sent", reached: 1 });
+    expect(outcome.written).toEqual(writes[name]);
+    expect(outcome.actors).toEqual([admin.userId, null]);
+    expect(
+      await query(
+        `select params->>'title' as title, params->>'due' as due, once_key as "onceKey"
+         from notifications where user_id = $1 and kind = 'quickRequest'`,
+        [reached.userId],
+      ),
+    ).toEqual([
+      {
+        title: "Attendance sheets",
+        due: week.startsOn,
+        onceKey: expect.stringMatching(/^quickRequest:/),
+      },
+    ]);
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

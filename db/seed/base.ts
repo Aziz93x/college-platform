@@ -41,7 +41,12 @@ export const defaultRoles: {
   {
     key: "dean",
     labels: { ar: "العميد" },
-    permissions: ["announcements.publish", "framework.endorse"],
+    permissions: [
+      "announcements.publish",
+      "framework.endorse",
+      "requests.send",
+      "readiness.view",
+    ],
   },
   {
     key: "vice-dean",
@@ -51,6 +56,8 @@ export const defaultRoles: {
       "framework.publish",
       "rayat.import",
       "announcements.publish",
+      "requests.send",
+      "readiness.view",
     ],
   },
   {
@@ -60,6 +67,8 @@ export const defaultRoles: {
       "plan.edit",
       "plan.publish",
       "assignment.manage",
+      "requests.send",
+      "readiness.view",
       "sections.transfer",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",

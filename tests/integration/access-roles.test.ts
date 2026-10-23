@@ -110,9 +110,11 @@ describe("listRoles", () => {
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
       "announcements.publish",
+      "readiness.view",
       "plan.edit",
       "plan.publish",
       "assignment.manage",
+      "requests.send",
       "sections.transfer",
     ]);
   });

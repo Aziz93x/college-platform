@@ -4,7 +4,7 @@ import { people, users } from "../../identity/index.ts";
 import { departments } from "../../org/index.ts";
 import { terms } from "../../terms/index.ts";
 import type { PermissionKey } from "../domain/permissions.ts";
-import { memberships, rolePermissions } from "./schema.ts";
+import { memberships, rolePermissions, roles } from "./schema.ts";
 
 // A role in force: held for every term, or for the term that is active, as access counts it.
 export const inForce = or(
@@ -84,4 +84,47 @@ export async function holdersIn(
     if (departmentId) held.get(departmentId)?.push(person);
   }
   return held;
+}
+
+// The enabled people who hold a key through a role in force across the college, by name: whom the
+// readiness board names for what a key settles (Step 22). The system role holds every key in code,
+// not through its role's keys, so its holders are named only where no other role holds the key
+// across the college: the admins, who settle it or give the role that does.
+export async function holdersAcross(
+  collegeId: string,
+  key: PermissionKey,
+  db: Db | Tx = getDb(),
+) {
+  const rows = await db
+    .selectDistinct({
+      userId: users.id,
+      name: users.name,
+      system: roles.system,
+    })
+    .from(memberships)
+    .innerJoin(roles, eq(roles.id, memberships.roleId))
+    .leftJoin(
+      rolePermissions,
+      and(
+        eq(rolePermissions.roleId, memberships.roleId),
+        eq(rolePermissions.permission, key),
+      ),
+    )
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .leftJoin(terms, eq(terms.id, memberships.termId))
+    .where(
+      and(
+        eq(memberships.collegeId, collegeId),
+        isNull(memberships.departmentId),
+        or(isNotNull(rolePermissions.roleId), eq(roles.system, true)),
+        isNull(users.disabledAt),
+        inForce,
+      ),
+    )
+    .orderBy(asc(users.name), asc(users.id));
+  const named = rows.filter((row) => !row.system);
+  return (named.length > 0 ? named : rows).map(({ userId, name }) => ({
+    userId,
+    name,
+  }));
 }

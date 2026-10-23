@@ -38,6 +38,7 @@ export default defineConfig({
     "shell.spec.ts",
     "stack.smoke.ts",
     "plan.spec.ts",
+    "requests.spec.ts",
     "terms.spec.ts",
   ],
   grepInvert: SKIPPED,

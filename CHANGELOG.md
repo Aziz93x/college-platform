@@ -4,6 +4,32 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Step 22: quick requests and the term readiness board (ADR-0030)
+
+- `/requests` (`requests.send`): a quick request from a sheet. It has:
+  - its words, and the axis its tasks count under, which the sender picks;
+  - its day, in the term's counted weeks and not before today;
+  - whom it reaches: everyone in the place but its sender, a role's holders, or people ticked under the search field;
+  - whether it asks for evidence.
+
+  A head sends to their department; the vice-dean and the dean to one department or the whole college. The request's tasks are made at once, by a pass of their own, and each person given one is told unless they turned such notices off. The page lists the term's requests the viewer reads, with whom each reached and who sent it.
+- `/readiness` (`readiness.view`): the term's board. Each row has its state, whom it waits on and the page that settles it:
+  - the term active;
+  - the framework published;
+  - someone in each department to complete its tasks;
+  - Rayat's SS01 and SF01 applied;
+  - every trainer they name on the platform;
+  - the latest pass done;
+  - each department's plan published.
+
+  A head sees the college's rows and their own department's plan. Where no role holds a row's key across the college, the admins are named.
+- The keys `requests.send` and `readiness.view` for the head, the vice-dean and the dean. Recorded as `quickRequest.send`, worded in the log. Migration `0028`: `quick_requests`, and `request` as a task's source and a pass's cause.
+- `seed:demo`: the head of Electrical's request to four of its trainers, the vice-dean's to Mechanical, and the dean's to the three heads, each with its tasks and its notices.
+- Tests:
+  - unit: the request's input, and the permission matrix for a department's request and the college's;
+  - on a real database: whom a request reaches and the refusals; the demo term's board, which owes the visitor's account and General Studies' plan, then turns fully green once they exist; the demo's requests; and the action's events;
+  - end to end: a head sends a request to twelve trainers in under 30 seconds; the sheet says what it still needs; the vice-dean's board and a head's; the trainer refused both pages; axe and touch targets.
+
 ### The admin's control panel (the owner's request, ADR-0029)
 
 - `/console`, the first page of the administration, for whoever holds one of its keys across the college:

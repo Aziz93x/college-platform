@@ -97,6 +97,26 @@ export async function departmentPlan(
   return { draft: withItems(draft), published: withItems(published), versions };
 }
 
+// The departments whose plan for a term has a published version: what the readiness board counts
+// (Step 22).
+export async function publishedPlanDepartments(
+  collegeId: string,
+  termId: string,
+  db: Db = getDb(),
+) {
+  const rows = await db
+    .selectDistinct({ departmentId: plans.departmentId })
+    .from(plans)
+    .where(
+      and(
+        eq(plans.collegeId, collegeId),
+        eq(plans.termId, termId),
+        eq(plans.status, "published"),
+      ),
+    );
+  return new Set(rows.map(({ departmentId }) => departmentId));
+}
+
 // A plan of the college, with the department its action checks the key in, and its term.
 export async function findPlan(
   collegeId: string,

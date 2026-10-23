@@ -15,6 +15,8 @@ export const notificationKinds = {
   // A new version of SS01 put a transfer of a section of the head's department in conflict, or left
   // it replacing a trainer who no longer teaches the section (ADR-0020).
   transferConflict: { href: "/sections", optional: true },
+  // A quick request that gave the person a task (Step 22).
+  quickRequest: { href: "/today", optional: true },
 } as const;
 
 export type NotificationKind = keyof typeof notificationKinds;
@@ -60,4 +62,6 @@ export type NotificationParams = {
     department: string;
     status: "conflict" | "otherTrainer";
   };
+  // The request's title, the day it is due in words and who sent it, as they were when it was sent.
+  quickRequest: { requestId: string; title: string; due: string; from: string };
 };

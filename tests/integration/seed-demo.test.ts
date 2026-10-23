@@ -358,6 +358,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "assignmentTemplateItem.create",
       // The term's tasks, generated (Step 20).
       "task.generate",
+      // The term's quick requests, by the head of Electrical, the vice-dean and the dean (Step 22).
+      "quickRequest.send",
       // The admin's wording of the sign-in page's help (ADR-0029).
       "text.override",
     ]),
@@ -802,7 +804,8 @@ it("generates the demo term's tasks, as many as its published framework's and pl
   const {
     rows: [{ live }],
   } = await pool.query(
-    "select count(*)::int as live from tasks where term_id = $1 and cancelled_at is null",
+    `select count(*)::int as live from tasks
+     where term_id = $1 and cancelled_at is null and source <> 'request'`,
     [term.id],
   );
   expect(live).toBe(preview);
@@ -1029,6 +1032,60 @@ it("gives each department's first trainer the secretary's assignment for the dem
     Object.values(demoAccounts).map(({ employeeNumber }) => employeeNumber),
   );
   expect(rows.filter((row) => tested.has(row.employee_number))).toEqual([]);
+});
+
+it("sends the demo term's three quick requests, each a task due on its own day for whom it names, who are told of it, the demo trainer in none (Step 22)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select q.title, u.email as sender, d.name as department, q.targets->>'type' as targets,
+      q.due_on::text as "dueOn",
+      (select count(*)::int from tasks t
+        where t.source_item_id = q.id and t.source = 'request' and t.cancelled_at is null
+          and t.due_on = q.due_on) as tasks,
+      (select count(*)::int from notifications n
+        where n.kind = 'quickRequest' and n.params->>'requestId' = q.id::text) as told
+    from quick_requests q join users u on u.id = q.sent_by
+    left join departments d on d.id = q.department_id
+    order by q.created_at`);
+  const mechanical = demoDepartments[2].name;
+  const { rows: inMechanical } = await pool.query(
+    `select count(distinct m.user_id)::int as people from memberships m
+     join departments d on d.id = m.department_id where d.name = $1`,
+    [mechanical],
+  );
+  expect(rows).toMatchObject([
+    {
+      sender: demoAccounts.head.email,
+      department: demoDepartments[1].name,
+      targets: "people",
+      tasks: 4,
+      told: 4,
+    },
+    {
+      sender: demoAccounts.viceDean.email,
+      department: mechanical,
+      targets: "everyone",
+      tasks: inMechanical[0].people,
+      told: inMechanical[0].people,
+    },
+    {
+      sender: demoAccounts.dean.email,
+      department: null,
+      targets: "people",
+      tasks: demoDepartments.length,
+      told: demoDepartments.length,
+    },
+  ]);
+  // Each due later than the one before, from the week after today's on.
+  const days = rows.map(({ dueOn }) => dueOn);
+  expect([...days].sort()).toEqual(days);
+  expect(new Set(days).size).toBe(3);
+  const { rows: trainer } = await pool.query(
+    `select count(*)::int as told from notifications n join people p on p.user_id = n.user_id
+     where p.employee_number = $1 and n.kind = 'quickRequest'`,
+    [demoAccounts.trainer.employeeNumber],
+  );
+  expect(trainer).toEqual([{ told: 0 }]);
 });
 
 it("words the sign-in page's help as the admin did, signs the head of Electrical in on a desktop and a phone and the trainer on theirs and their phone, and keeps the night before's failed pass behind the one that did its work (ADR-0029)", async () => {
