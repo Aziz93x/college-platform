@@ -5,6 +5,7 @@ import { createDb } from "../../src/platform/db/client.ts";
 import { seedBase } from "./base.ts";
 import { demoSecrets, seedDemoAccounts } from "./demo/accounts.ts";
 import { seedDemoAnnouncements } from "./demo/announcements.ts";
+import { seedDemoAssignments } from "./demo/assignments.ts";
 import { demoCollege, seedDemoCollege } from "./demo/college.ts";
 import { seedDemoDepartments } from "./demo/departments.ts";
 import { seedDemoFramework } from "./demo/framework.ts";
@@ -86,6 +87,7 @@ try {
     const rayat = await seedDemoRayat(ctx, collegeId);
     await seedDemoSections(ctx, collegeId, week, rayat?.newerSs01);
     await seedDemoPlans(ctx, collegeId);
+    await seedDemoAssignments(ctx, collegeId);
     await seedDemoTasks(ctx, collegeId);
     console.log(
       `seed:demo finished with --seed ${seed} --week ${week}: college ${collegeId}.`,

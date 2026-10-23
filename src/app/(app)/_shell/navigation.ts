@@ -1,4 +1,5 @@
 import {
+  BriefcaseBusiness,
   Building2,
   CalendarCheck,
   CalendarRange,
@@ -138,6 +139,13 @@ export const navigation = [
     href: "/plan",
     icon: ClipboardList,
     permission: "plan.edit",
+  },
+  // The responsibilities a head gives the department's people for the term (Step 21).
+  {
+    id: "assignments",
+    href: "/assignments",
+    icon: BriefcaseBusiness,
+    permission: "assignment.manage",
   },
   // A head announces to their department, the dean and the vice-dean to the college (ADR-0017).
   // Last, so Today still leads an admin setting the college up to its departments.

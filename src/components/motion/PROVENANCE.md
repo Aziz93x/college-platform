@@ -40,6 +40,11 @@ folder). These files are copied from https://github.com/starc007/ui-components a
 | `combobox/list.tsx` | `components/motion/combobox/list.tsx` |
 | `combobox/trigger.tsx` | `components/motion/combobox/trigger.tsx` |
 | `combobox/use-active-option.ts` | `components/motion/combobox/use-active-option.ts` |
+| `multi-select/context.tsx` | `components/motion/multi-select/context.tsx` |
+| `multi-select/content.tsx` | `components/motion/multi-select/content.tsx` |
+| `multi-select/list.tsx` | `components/motion/multi-select/list.tsx` |
+| `multi-select/trigger.tsx` | `components/motion/multi-select/trigger.tsx` |
+| `multi-select/index.tsx` | `components/motion/multi-select/index.tsx` |
 | `lib/popover-position.ts` | `components/motion/popover-position.ts` |
 | `range-slider.tsx` | `components/motion/range-slider.tsx` |
 | `action-swap.tsx` | `components/motion/action-swap.tsx` |
@@ -277,3 +282,26 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   trigger can move without a scroll or a resize: the transfer sheet focuses its trainer picker as
   it slides in, which opens the list, and the list stayed where the field had been, over it.
   `combobox/content.tsx` is active only while its list is open, so a closed one follows nothing.
+
+## Local changes from Step 21 (assignments)
+
+- `multi-select/`: made as the combobox was in Step 9. It is controlled only, and the page holds
+  the chosen values in the order they were chosen. A pick keeps the list open, clears what was
+  typed and leaves the focus in the field.
+  - The filter is the combobox's Arabic search, with digits typed on an Arabic keyboard matching
+    Latin ones.
+  - The field looks like the text fields (at least 44 px, `rounded-lg`, the input border drawn over
+    it, the focus ring) and grows with the chips that wrap in it.
+  - Its visible name is `MultiSelectLabel`, tied to the input. The list's name, the chips' names
+    (`removeLabel`) and the empty message come from the catalog, with no English defaults.
+  - A chip is one button that takes its option out: drawn 28 px tall, 44 px on a touch screen, as
+    the field's input is, so a row of chips meets the touch target where a separate 20 px button
+    would sit too close to the next row.
+  - Options are 44 px on a touch screen and read `text-start`. A chosen one keeps the foreground
+    colour, as the highlighted one does.
+  - The panel is the combobox's (`content.tsx`), which follows its field while open. The chips
+    enter and leave by scale and opacity, without the clip-path exit.
+  - Escape in the field closes an open list and goes no further. A sheet's focus trap hears keys on
+    the document, before the list's listener on the window, so the key closed the whole sheet.
+  - Gone: groups, labels and separators inside the list, the uncontrolled value, open state and
+    query, and the side and alignment options.

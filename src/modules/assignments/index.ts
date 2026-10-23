@@ -1,9 +1,4 @@
-export {
-  type AssignmentInput,
-  assignmentInput,
-  assignmentLimits,
-  dueWeekOf,
-} from "./domain/inputs.ts";
+export { assignmentInput, dueWeekOf } from "./domain/inputs.ts";
 export {
   assign,
   assignedItems,

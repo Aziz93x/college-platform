@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // How many people one change may assign at once: it only keeps a slip of the keyboard out of the
 // database. The service holds the weeks to the term's own.
-export const assignmentLimits = { people: 500 } as const;
+const assignmentLimits = { people: 500 } as const;
 
 // A template given to people of a department for a term: the whole term, or from a week to a week
 // of it (the owner's answers, 23 October 2026).

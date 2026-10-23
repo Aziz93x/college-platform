@@ -19,6 +19,7 @@ export default defineConfig({
   testDir: ".",
   // Every spec is here or named, with why it stays out, in tests/unit/stack-specs.test.ts.
   testMatch: [
+    "assignments.spec.ts",
     "audit.spec.ts",
     "auth.setup.ts",
     "auth.spec.ts",
