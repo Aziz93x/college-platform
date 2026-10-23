@@ -428,7 +428,11 @@ test(
           name: t(text.status.draft, { version: 1 }),
         }),
       ).toBeVisible();
-      await expect(page.getByText(/^تُنشئ المسودة/)).toBeVisible();
+      // The draft's preview: its one item reaches each section's trainer, and the new term has no
+      // sections yet.
+      await expect(
+        page.getByText(plural("impact", { tasks: 0 }), { exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: text.add })).toHaveCount(0);
       await page.getByRole("button", { name: text.publish }).click();
       await page
@@ -550,7 +554,8 @@ test(
   DATABASE,
   async ({ browser, account, hasTouch }) => {
     test.skip(hasTouch, "Timed once, on the desktop.");
-    test.setTimeout(20 * 60_000);
+    // About a minute on a build; a run that stalls fails within CI's job, retry and all.
+    test.setTimeout(4 * 60_000);
     const made = await headWithDraftTerm(account);
     try {
       const started = Date.now();
@@ -581,28 +586,25 @@ test(
             await head.choose(framework.fields.axis, axisOption(kind.axis));
             await head.choose(framework.fields.kind, kind.kind);
             await head.choose(framework.fields.appliesTo, kind.reach);
-            // Its file type alone.
+            // Its file type alone, the boxes taken all at once: a list of the ticked ones would
+            // shrink under the clicks.
             const types = sheet.getByRole("group", {
               name: framework.fields.types,
             });
-            const own = types.getByRole("checkbox", {
-              name: kind.type,
-              exact: true,
-            });
-            if ((await own.getAttribute("aria-checked")) !== "true") {
-              await head.click(own);
-            }
-            for (const other of await types
-              .getByRole("checkbox", { checked: true })
-              .all()) {
-              const name = await other.evaluate(
-                (box) =>
+            for (const box of await types.getByRole("checkbox").all()) {
+              const name = await box.evaluate(
+                (each) =>
                   document.getElementById(
-                    box.getAttribute("aria-labelledby") ?? "",
+                    each.getAttribute("aria-labelledby") ?? "",
                   )?.textContent,
               );
-              if (name !== kind.type) await head.click(other);
+              const ticked =
+                (await box.getAttribute("aria-checked")) === "true";
+              if (ticked !== (name === kind.type)) await head.click(box);
             }
+            await expect(
+              types.getByRole("checkbox", { checked: true }),
+            ).toHaveCount(1);
             await toValue(framework.fields.maxFiles, held.files, kind.files);
             held.files = kind.files;
             if (held.approval !== kind.approval) {
@@ -648,7 +650,7 @@ test(
         description: `${minutes.toFixed(1)} minutes for 50 items`,
       });
       expect(minutes).toBeLessThan(30);
-      expect(Date.now() - started).toBeLessThan(10 * 60_000);
+      expect(Date.now() - started).toBeLessThan(3 * 60_000);
     } finally {
       await made.remove();
     }

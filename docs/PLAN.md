@@ -1121,7 +1121,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 7:**
 - **The publisher.** Whoever holds `plan.publish` without `plan.edit` reads the department's draft, its preview and its flags on `/plan`, and publishes it, as ADR-0027's last consequence says. The navigation item and draft terms follow either key.
-- **The usability run.** `e2e/plan.spec.ts` builds 50 items of the demo plan's five kinds and counts a head's time with the keystroke-level model. That time must stay under 30 minutes, and the run itself under 10. Step 46 times a real head.
+- **The usability run.** `e2e/plan.spec.ts` builds 50 items of the demo plan's five kinds and counts a head's time with the keystroke-level model. That time must stay under 30 minutes, and the run itself under 3. Step 46 times a real head.
 - **The review load** names the week that asks the most beside the average (`busiestWeek()`).
 
 #### Step 20. Generation engine (L)
