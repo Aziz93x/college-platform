@@ -222,8 +222,15 @@ test(
       await periods.getByRole("button", { name: text.periods.save }).click();
       await expect(periods.getByText(text.periods.fixFirst)).toBeVisible();
       await step(second.name, "from", text.periods.later, 1);
+      // Saved as every edit form saves: Save and Discard once something changed, then nothing
+      // (UX review 2).
+      const discard = periods.getByRole("button", {
+        name: messages.ui.discard,
+      });
+      await expect(discard).toBeVisible();
       await periods.getByRole("button", { name: text.periods.save }).click();
       await expect(page.getByText(text.periods.saved)).toBeVisible();
+      await expect(discard).toHaveCount(0);
       await expect(
         periods.getByRole("listitem").filter({ hasText: periodic.name }),
       ).toContainText(t("periods.weeks", { from: 5, to: 6 }));
@@ -444,6 +451,15 @@ test.describe("a trainer", () => {
     await expect(
       page.getByRole("button", { name: text.calendar.add }),
     ).toHaveCount(0);
+    // A day of the calendar reads with its week first, as the weeks and the exam periods do
+    // (UX review 2).
+    await expect(
+      page.getByRole("region", { name: text.calendar.title }),
+    ).toContainText(
+      new RegExp(
+        `${t("calendar.week", { number: 0 }).replace("0", "\\d+")} · \\d`,
+      ),
+    );
     await page.goto("/terms");
     await expect(
       page.getByRole("heading", { name: messages.pages.forbidden.title }),

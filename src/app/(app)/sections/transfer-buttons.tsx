@@ -57,13 +57,16 @@ export function KeepTransferButton({ id }: { id: string }) {
 }
 
 // Cancelling a transfer, confirmed in a sheet as every change others feel is: the section's
-// trainers are Rayat's again from its week.
+// trainers are Rayat's again from its week, and the sheet's button says to whom it goes back.
 export function CancelTransferButton({
   id,
   sectionRef,
+  from,
 }: {
   id: string;
   sectionRef: string;
+  /** The trainer the section was transferred from, by name. */
+  from: string;
 }) {
   const t = useTranslations("sections.transfers");
   const ui = useTranslations("ui");
@@ -117,7 +120,11 @@ export function CancelTransferButton({
                 disabled={running}
                 value={running ? "running" : "idle"}
                 items={[
-                  { id: "idle", label: t("cancel.confirm"), icon: <X /> },
+                  {
+                    id: "idle",
+                    label: t("cancel.confirm", { from }),
+                    icon: <X />,
+                  },
                   {
                     id: "running",
                     label: t("cancel.running"),

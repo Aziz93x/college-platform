@@ -246,6 +246,11 @@ test(
       await expect(page.getByText(text.saved)).toBeVisible();
       // Where it lands in the term, as the toast says it.
       await expect(page.getByText("يقع في الأسبوع 1.")).toBeVisible();
+      // Clear of the sheet's actions, so the next item saves at once (UX review 2): a toast over
+      // them took the click, and the pointer resting on it kept it there.
+      await sheet
+        .getByRole("button", { name: framework.saveAndAdd })
+        .click({ trial: true, timeout: 2_000 });
       await expect(sheet.getByLabel(framework.fields.title)).toHaveValue("");
       await expect(save).toBeInViewport({ ratio: 1 });
       await sheet
@@ -265,6 +270,19 @@ test(
       }
       await save.click();
       await expect(sheet).toBeHidden();
+      // Taking one item out asks first, in a sheet that names it, as the framework's does
+      // (UX review 2).
+      await page
+        .getByRole("button", {
+          name: t(text.remove, { title: "تقرير الأسبوع الثالث" }),
+        })
+        .click();
+      const removing = page.getByRole("dialog", {
+        name: `حذف «تقرير الأسبوع الثالث» من المسودة`,
+      });
+      await expect(removing).toBeVisible();
+      await removing.getByRole("button", { name: messages.ui.cancel }).click();
+      await expect(removing).toBeHidden();
 
       if (!hasTouch) {
         const grid = page.getByRole("table", { name: text.grid.label });

@@ -284,7 +284,10 @@ test.describe("the admin", () => {
     await expect(ss01).toContainText(demoVisitor.employeeNumber);
     await expect(sf01).toContainText(text.pending.title);
     await expect(sf01).toContainText(t("diff.added", { count: 2 }));
-    await sf01.getByText(text.diff.samples).click();
+    // What changed opens as the log's rows do, its button saying it is open (UX review 2).
+    const samples = sf01.getByRole("button", { name: text.diff.samples });
+    await samples.click();
+    await expect(samples).toHaveAttribute("aria-expanded", "true");
     await expect(sf01.getByText(/^تغيّر حالة التسجيل/).first()).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
 

@@ -222,16 +222,17 @@ export function CalendarEvents({
                   </span>
                   <span className="font-medium text-sm">{event.title}</span>
                 </p>
+                {/* The week first, as every date of the term reads (UX review 2). */}
                 <p className="mt-1 text-sm tabular-nums">
-                  {event.days}
                   {weeksOf(event) ? (
                     <>
-                      <span aria-hidden> · </span>
                       <span className="text-muted-foreground">
                         {weeksOf(event)}
                       </span>
+                      <span aria-hidden> · </span>
                     </>
                   ) : null}
+                  {event.days}
                 </p>
                 {event.hijri ? (
                   <p className="text-muted-foreground text-xs tabular-nums">

@@ -1,11 +1,11 @@
 "use client";
 
-import { LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionSwapButton } from "@/components/motion/action-swap";
 import { AdaptiveStepper } from "@/components/motion/adaptive-stepper";
+import { SaveActions, useSaveState } from "@/components/save-actions";
 import { Button } from "@/components/ui/button";
 import type { ExamPeriod } from "@/modules/terms";
 import { saveExamPeriodsAction } from "../actions.ts";
@@ -13,9 +13,9 @@ import { saveExamPeriodsAction } from "../actions.ts";
 // The term's exam periods by week number (the owner's notes, 21 October 2026): a row for each type of
 // the college's catalog, with its weeks and their days where the term has a period of it. The
 // vice-dean adds one, moves its first and last weeks with the steppers or takes it away, and saves
-// them all at once. A period past the term's last week, or two that share a week, is an error here
-// as the vice-dean steps, and the server saves and activates the term with neither. Everyone else
-// reads them.
+// them all at once, as every form that edits a record saves (UX review 2). A period past the term's
+// last week, or two that share a week, is an error here as the vice-dean steps, and the server
+// saves and activates the term with neither. Everyone else reads them.
 export function ExamPeriods({
   termId,
   editable,
@@ -41,8 +41,16 @@ export function ExamPeriods({
   const id = useId();
   const [draft, setDraft] = useState<ExamPeriod[]>([...periods]);
   const [error, setError] = useState<string>();
-  const [running, setRunning] = useState(false);
+  const [state, setState] = useSaveState();
   const [, startTransition] = useTransition();
+  // The periods in the catalog's order, as compared with the saved ones.
+  const ordered = (list: readonly ExamPeriod[]) =>
+    JSON.stringify(
+      types.flatMap(
+        (type) => list.find((period) => period.type === type.code) ?? [],
+      ),
+    );
+  const dirty = ordered(draft) !== ordered(periods);
 
   const name = (code: string) =>
     types.find((type) => type.code === code)?.name ?? code;
@@ -78,15 +86,20 @@ export function ExamPeriods({
     )
     .at(0);
 
+  const edit = (next: (current: ExamPeriod[]) => ExamPeriod[]) => {
+    setDraft(next);
+    setError(undefined);
+    setState("idle");
+  };
   const change = (type: string, next: Partial<ExamPeriod>) =>
-    setDraft((current) =>
+    edit((current) =>
       current.map((period) =>
         period.type === type ? { ...period, ...next } : period,
       ),
     );
   // A new period takes the week after the latest one, or the term's first week.
   const add = (type: string) =>
-    setDraft((current) => {
+    edit((current) => {
       const week = Math.min(
         weeks,
         Math.max(0, ...current.map((period) => period.to)) + 1,
@@ -94,7 +107,7 @@ export function ExamPeriods({
       return [...current, { type, from: week, to: week }];
     });
   const remove = (type: string) =>
-    setDraft((current) => current.filter((period) => period.type !== type));
+    edit((current) => current.filter((period) => period.type !== type));
 
   const save = () => {
     if (draft.some(pastEnd) || overlap) {
@@ -102,18 +115,17 @@ export function ExamPeriods({
       return;
     }
     startTransition(async () => {
-      setRunning(true);
+      setState("saving");
       setError(undefined);
       const result = await saveExamPeriodsAction({ termId, periods: draft });
-      setRunning(false);
       const outcome = result?.data;
+      if (outcome?.status === "saved" || outcome?.status === "unchanged") {
+        setState("saved");
+        toast.success(t("saved"));
+        return;
+      }
+      setState("idle");
       switch (outcome?.status) {
-        case "saved":
-          toast.success(t("saved"));
-          return;
-        case "unchanged":
-          toast(t("unchanged"));
-          return;
         case "pastEnd":
           setError(
             t("refusedPastEnd", { periods: format.list(outcome.periods) }),
@@ -171,7 +183,13 @@ export function ExamPeriods({
         </p>
       </div>
       {editable ? (
-        <>
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            save();
+          }}
+        >
           <ul className="mt-4 divide-y border-t">
             {types.map((type, index) => {
               const row = `${id}-${index}`;
@@ -231,38 +249,33 @@ export function ExamPeriods({
               );
             })}
           </ul>
-          <div className="flex flex-col gap-3 border-t px-5 py-4 sm:px-6">
-            {overlap ? (
-              <p role="alert" className="text-alert text-sm">
-                {t("overlap", {
-                  first: name(overlap[0].type),
-                  second: name(overlap[1].type),
-                })}
-              </p>
-            ) : null}
-            {error ? (
-              <p role="alert" className="text-alert text-sm">
-                {error}
-              </p>
-            ) : null}
-            <div>
-              <ActionSwapButton
-                type="button"
-                onClick={save}
-                disabled={running}
-                value={running ? "saving" : "save"}
-                items={[
-                  { id: "save", label: t("save"), icon: <Save /> },
-                  {
-                    id: "saving",
-                    label: t("saving"),
-                    icon: <LoaderCircle className="animate-spin" />,
-                  },
-                ]}
+          {dirty || state !== "idle" || overlap || error ? (
+            <div className="flex flex-col gap-3 border-t px-5 py-4 sm:px-6">
+              {overlap ? (
+                <p role="alert" className="text-alert text-sm">
+                  {t("overlap", {
+                    first: name(overlap[0].type),
+                    second: name(overlap[1].type),
+                  })}
+                </p>
+              ) : null}
+              {error ? (
+                <p role="alert" className="text-alert text-sm">
+                  {error}
+                </p>
+              ) : null}
+              <SaveActions
+                dirty={dirty}
+                state={state}
+                onDiscard={() => {
+                  setDraft([...periods]);
+                  setError(undefined);
+                }}
+                words={{ save: t("save"), saving: t("saving") }}
               />
             </div>
-          </div>
-        </>
+          ) : null}
+        </form>
       ) : listed.length > 0 ? (
         <ul aria-label={t("title")} className="mt-4 divide-y border-t">
           {listed.map((period) => (

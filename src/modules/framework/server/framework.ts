@@ -50,7 +50,7 @@ const audit = (
   );
 
 // A term's framework: its latest published version and its draft, each with its items in order,
-// and how many versions it has published.
+// and every version, newest first, with how many items it holds.
 export async function termFramework(
   collegeId: string,
   termId: string,
@@ -63,11 +63,14 @@ export async function termFramework(
       status: frameworks.status,
       endorsedAt: frameworks.endorsedAt,
       publishedAt: frameworks.publishedAt,
+      items: sql<number>`count(${frameworkItems.id})::int`,
     })
     .from(frameworks)
+    .leftJoin(frameworkItems, eq(frameworkItems.frameworkId, frameworks.id))
     .where(
       and(eq(frameworks.collegeId, collegeId), eq(frameworks.termId, termId)),
     )
+    .groupBy(frameworks.id)
     .orderBy(desc(frameworks.version));
   const draft = versions.find(({ status }) => status === "draft");
   const published = versions.find(({ status }) => status === "published");
@@ -85,7 +88,7 @@ export async function termFramework(
       ...each,
       items: items.filter(({ frameworkId }) => frameworkId === each.id),
     };
-  return { draft: withItems(draft), published: withItems(published) };
+  return { draft: withItems(draft), published: withItems(published), versions };
 }
 
 // The item an item copies, as it was first entered, or the item itself: what the generation engine

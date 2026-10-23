@@ -7,6 +7,7 @@ import {
   getMessages,
   getTranslations,
 } from "next-intl/server";
+import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { sectionCounts } from "@/modules/academics";
@@ -30,9 +31,10 @@ import { getSetting } from "@/modules/settings";
 import { latestRun } from "@/modules/tasks";
 import { listExamPeriodTypes } from "@/modules/terms";
 import { ItemWords } from "../_items/item-words.tsx";
+import { Versions } from "../_items/versions.tsx";
 import { itemVocabulary } from "../_items/vocabulary.ts";
 import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
-import { FrameworkDraft } from "./framework-draft.tsx";
+import { FrameworkDraft, StartVersion } from "./framework-draft.tsx";
 import { TaskGeneration } from "./task-generation.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -113,27 +115,41 @@ export default async function FrameworkPage() {
 
   // The tasks the draft would create, for whoever prepares it: each department's holders of each
   // role and its sections' and courses' trainers in Rayat's SS01 in force (Step 17), and the term's
-  // weeks and exam periods, as the engine counts them (Step 20); and the sections an item for their
-  // trainers misses, having none yet.
-  const draftImpact = async (items: readonly FrameworkItemInput[]) => {
+  // weeks and exam periods, as the engine counts them (Step 20); the sections an item for their
+  // trainers misses, having none yet; and the reviews a week it asks of the department it asks most
+  // of, as a department's plan says them (UX review 2).
+  const draftPreview = async (items: readonly FrameworkItemInput[]) => {
     const [holders, sections, found] = await Promise.all([
       roleHolders(viewer.collegeId),
       sectionCounts(viewer.collegeId, term.id),
       termCalendar(viewer.collegeId, term.id),
     ]);
+    const departments = departmentsReached(holders, sections);
+    const shape = { weeks: term.weeks, periods: found?.term.periods ?? [] };
     const untaught = items.some((item) => reachesTrainers(item.appliesTo))
       ? Object.values(sections).reduce((sum, each) => sum + each.untaught, 0)
       : 0;
-    return t("impact", {
-      ...countTasks(items, departmentsReached(holders, sections), {
-        weeks: term.weeks,
-        periods: found?.term.periods ?? [],
+    const approvals = items.filter(({ evidence }) => evidence.requiresApproval);
+    const busiest = Math.max(
+      0,
+      ...departments.map(
+        (department) => countTasks(approvals, [department], shape).tasks,
+      ),
+    );
+    return {
+      impact: t("impact", {
+        ...countTasks(items, departments, shape),
+        untaught,
       }),
-      untaught,
-    });
+      reviews: t("reviewLoad", {
+        perWeek: Math.round(busiest / Math.max(term.weeks, 1)),
+        total: busiest,
+        weeks: term.weeks,
+      }),
+    };
   };
-  const impact =
-    preparing && draft ? await draftImpact(draft.items) : undefined;
+  const preview =
+    preparing && draft ? await draftPreview(draft.items) : undefined;
 
   // The latest pass of the generation engine over the term's tasks, for whoever publishes the
   // framework (Step 20).
@@ -202,55 +218,77 @@ export default async function FrameworkPage() {
   };
   const generated = manage && published ? generation() : undefined;
 
+  // The client parts' words, for whoever prepares the framework.
+  const client = (children: ReactNode) => (
+    <NextIntlClientProvider
+      messages={{
+        ui: messages.ui,
+        actions: messages.actions,
+        framework: messages.framework,
+      }}
+    >
+      {children}
+    </NextIntlClientProvider>
+  );
+  const date = (at: Date | null) =>
+    format.dateTime(at ?? new Date(), { dateStyle: "long" });
+  // The next version starts from the published one's head, as a department's plan's does.
+  const starts = open && manage && !draft;
+
   return (
     <>
       {header}
       <div className="flex flex-col gap-6">
-        {preparing ? (
-          <NextIntlClientProvider
-            messages={{
-              ui: messages.ui,
-              actions: messages.actions,
-              framework: messages.framework,
-            }}
-          >
-            <FrameworkDraft
-              termId={term.id}
-              draft={
-                draft && {
+        {preparing && draft
+          ? client(
+              <FrameworkDraft
+                draft={{
                   id: draft.id,
                   version: draft.version,
                   endorsed: Boolean(draft.endorsedAt),
                   items: draft.items.map(view),
-                }
-              }
-              hasPublished={Boolean(published)}
-              manage={manage}
-              endorse={endorse}
-              needsEndorsement={needsEndorsement}
-              impact={impact}
-              limits={frameworkLimits}
-              options={options}
-            />
-          </NextIntlClientProvider>
-        ) : null}
+                }}
+                manage={manage}
+                endorse={endorse}
+                needsEndorsement={needsEndorsement}
+                preview={preview}
+                limits={frameworkLimits}
+                options={options}
+              />,
+            )
+          : null}
         {published ? (
           <section
             aria-labelledby="framework-published"
             className="rounded-xl border bg-card shadow-xs"
           >
             <div className="px-5 pt-5 sm:px-6">
-              <h2 id="framework-published" className="font-medium text-base">
-                {t("published")}
-              </h2>
-              <p className="mt-1 text-muted-foreground text-sm">
-                {t("publishedVersion", {
-                  version: published.version,
-                  date: format.dateTime(published.publishedAt ?? new Date(), {
-                    dateStyle: "long",
-                  }),
-                })}
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2
+                    id="framework-published"
+                    className="font-medium text-base"
+                  >
+                    {t("published")}
+                  </h2>
+                  <p className="mt-1 text-muted-foreground text-sm">
+                    {t("publishedVersion", {
+                      version: published.version,
+                      date: date(published.publishedAt),
+                    })}
+                  </p>
+                </div>
+                {starts
+                  ? client(
+                      <StartVersion
+                        termId={term.id}
+                        label={t("newVersion", {
+                          version: (framework.versions[0]?.version ?? 0) + 1,
+                        })}
+                      />,
+                    )
+                  : null}
+              </div>
               {generated ? (
                 <TaskGeneration
                   following={generated.following ?? false}
@@ -270,10 +308,13 @@ export default async function FrameworkPage() {
               ))}
             </ol>
           </section>
-        ) : open && manage && !draft ? (
+        ) : starts ? (
           <EmptyState
             title={t("empty.title")}
             description={t("empty.description")}
+            action={client(
+              <StartVersion termId={term.id} label={t("empty.action")} />,
+            )}
           />
         ) : open && manage ? null : (
           <EmptyState
@@ -281,6 +322,26 @@ export default async function FrameworkPage() {
             description={t("notPublished.description")}
           />
         )}
+        {manage ? (
+          <Versions
+            id="framework-versions"
+            title={t("versions.title")}
+            versions={framework.versions.map((each) => ({
+              version: each.version,
+              words:
+                each.status === "draft"
+                  ? t("versions.draft", {
+                      version: each.version,
+                      items: each.items,
+                    })
+                  : t("versions.published", {
+                      version: each.version,
+                      items: each.items,
+                      date: date(each.publishedAt),
+                    }),
+            }))}
+          />
+        ) : null}
       </div>
     </>
   );

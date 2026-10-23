@@ -132,12 +132,28 @@ test(
           periods: examPeriodTypes[0].shortName,
         }),
       );
+      // Taking an item out asks first, in a sheet that names it, as the plan's does (UX review 2).
+      await draft
+        .getByRole("button", {
+          name: t("remove", { title: "تحليل نتائج الاختبار" }),
+        })
+        .click();
+      const removing = page.getByRole("dialog", {
+        name: t("removeTitle", { title: "تحليل نتائج الاختبار" }),
+      });
+      await removing.getByRole("button", { name: messages.ui.cancel }).click();
+      await expect(removing).toBeHidden();
+      await expect(draft.getByRole("listitem")).toHaveCount(1);
 
+      // Published from the draft's head, with the tasks it makes, when they are made, and the
+      // reviews a week it asks (UX review 2).
       await draft.getByRole("button", { name: text.publish }).click();
       const publish = page.getByRole("dialog", {
         name: t("publishTitle", { version: 1 }),
       });
       await expect(publish.getByText(/^ينشئ/)).toBeVisible();
+      await expect(publish).toContainText(text.publishDescription);
+      await expect(publish.getByText(/في أكثر الأقسام مراجعةً/)).toBeVisible();
       await publish.getByRole("button", { name: text.publishConfirm }).click();
       await expect(
         page.getByText(t("publishedToast", { version: 1 })),
@@ -146,9 +162,15 @@ test(
       await expect(published.getByRole("listitem")).toContainText(
         "تحليل نتائج الاختبار",
       );
+      // The next version starts from the published one's head, and the versions are listed.
       await expect(
-        page.getByRole("button", { name: text.newVersion }),
+        published.getByRole("button", {
+          name: t("newVersion", { version: 2 }),
+        }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: text.versions.title, exact: true }),
+      ).toContainText(/النسخة 1 · نُشرت .* · بند واحد/);
 
       // The term's tasks: no worker runs beside these tests, so the pass publishing queued waits,
       // and the page follows it as the worker writes it, without a reload (Step 20).
@@ -208,7 +230,9 @@ test.describe("a trainer", () => {
     await expect(published).toContainText("تحليل نتائج الاختبار");
     await expect(page.getByRole("button", { name: text.add })).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: text.newVersion }),
+      page.getByRole("button", {
+        name: new RegExp(t("newVersion", { version: "\\d+" })),
+      }),
     ).toHaveCount(0);
     // How the generation engine went over the term's tasks is for whoever publishes (Step 20).
     await expect(
