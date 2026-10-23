@@ -1,6 +1,6 @@
--- The generation engine (Step 20, ADR-0025): a term's tasks, each in its slot, and the engine's
--- passes over a term; a framework item carries the item it was copied from. Its inverse drops tasks
--- and generation_runs, then framework_items.origin_id.
+-- The generation engine (Step 20, ADR-0025): a term's tasks, each in its slot, a section's, a
+-- course's or a role holder's, and the engine's passes over a term; a framework item carries the item
+-- it was copied from. Its inverse drops tasks and generation_runs, then framework_items.origin_id.
 CREATE TABLE "generation_runs" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"college_id" uuid NOT NULL,
@@ -30,6 +30,7 @@ CREATE TABLE "tasks" (
 	"source_item_id" uuid NOT NULL,
 	"occurrence" integer NOT NULL,
 	"section_ref" text DEFAULT '' NOT NULL,
+	"course_code" text DEFAULT '' NOT NULL,
 	"place" text DEFAULT '' NOT NULL,
 	"holder_id" uuid,
 	"assignee_id" uuid,
@@ -45,11 +46,11 @@ CREATE TABLE "tasks" (
 	"cancelled_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "tasks_slot_unique" UNIQUE NULLS NOT DISTINCT("term_id","source","source_item_id","occurrence","department_id","section_ref","place","holder_id"),
+	CONSTRAINT "tasks_slot_unique" UNIQUE NULLS NOT DISTINCT("term_id","source","source_item_id","occurrence","department_id","section_ref","course_code","place","holder_id"),
 	CONSTRAINT "tasks_source" CHECK ("tasks"."source" in ('framework')),
 	CONSTRAINT "tasks_status" CHECK ("tasks"."status" in ('notStarted', 'inProgress', 'submitted', 'done', 'returned', 'notApplicable')),
 	CONSTRAINT "tasks_occurrence" CHECK ("tasks"."occurrence" >= 1),
-	CONSTRAINT "tasks_reach" CHECK (("tasks"."section_ref" = '' and "tasks"."place" = '' and "tasks"."holder_id" is not null) or ("tasks"."section_ref" <> '' and "tasks"."place" <> '' and "tasks"."holder_id" is null))
+	CONSTRAINT "tasks_reach" CHECK (("tasks"."section_ref" = '' and "tasks"."course_code" = '' and "tasks"."place" = '' and "tasks"."holder_id" is not null) or ("tasks"."section_ref" <> '' and "tasks"."course_code" = '' and "tasks"."place" <> '' and "tasks"."holder_id" is null) or ("tasks"."section_ref" = '' and "tasks"."course_code" <> '' and "tasks"."place" <> '' and "tasks"."holder_id" is null))
 );
 --> statement-breakpoint
 ALTER TABLE "framework_items" ADD COLUMN "origin_id" uuid;--> statement-breakpoint

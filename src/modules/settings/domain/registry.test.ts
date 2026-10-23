@@ -58,5 +58,5 @@ it("asks for the password again for the security settings and the audit log's re
     ),
   );
   expect(needsPassword("audit.retentionMonths")).toBe(true);
-  expect(needsPassword("review.weeklyCap")).toBe(false);
+  expect(needsPassword("reminders.digestHour")).toBe(false);
 });

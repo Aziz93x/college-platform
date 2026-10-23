@@ -197,6 +197,22 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         ? `${was.sectionRef} · ${lookups.term(was.termId) ?? was.termId}`
         : id;
     }
+    // A department's section template by its title, department and term, as it became or was
+    // taken out (Step 18).
+    case "sectionTemplate": {
+      const diff = entry.diff ?? {};
+      const was = isRecord(diff.to) ? diff.to : diff.from;
+      return isRecord(was) &&
+        typeof was.title === "string" &&
+        typeof was.departmentId === "string" &&
+        typeof was.termId === "string"
+        ? [
+            was.title,
+            lookups.department(was.departmentId) ?? was.departmentId,
+            lookups.term(was.termId) ?? was.termId,
+          ].join(" · ")
+        : id;
+    }
     // A portfolio axis by its title before the change (Step 14).
     case "axis": {
       const was = entry.diff?.from;

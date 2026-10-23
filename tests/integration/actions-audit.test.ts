@@ -110,10 +110,12 @@ const writes: Record<string, string[]> = {
   "(app)/terms/actions.ts#updateCalendarEventAction": ["calendarEvent.update"],
   "(app)/terms/actions.ts#removeCalendarEventAction": ["calendarEvent.delete"],
   // The next term, a draft with what it took from the term's calendar.
-  // The wizard copies the term's framework into the new term as a draft (Step 15).
+  // The wizard copies the term's framework into the new term as a draft (Step 15), and each
+  // department's section templates, recorded on the department (Step 18).
   "(app)/terms/actions.ts#openNextTermAction": [
     "term.create",
     "framework.create",
+    "sectionTemplate.copy",
   ],
   "(app)/terms/actions.ts#activateTermAction": ["term.activate"],
   "(app)/terms/actions.ts#closeTermAction": ["term.close"],
@@ -132,6 +134,9 @@ const writes: Record<string, string[]> = {
   "(app)/sections/actions.ts#transferSectionAction": ["sectionTransfer.create"],
   "(app)/sections/actions.ts#keepTransferAction": ["sectionTransfer.keep"],
   "(app)/sections/actions.ts#cancelTransferAction": ["sectionTransfer.cancel"],
+  "(app)/templates/actions.ts#addTemplateAction": ["sectionTemplate.create"],
+  "(app)/templates/actions.ts#updateTemplateAction": ["sectionTemplate.update"],
+  "(app)/templates/actions.ts#removeTemplateAction": ["sectionTemplate.delete"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -311,11 +316,11 @@ describe("every server action writes its event", () => {
     });
 
     await expectWrites("(app)/settings/actions.ts#saveSettingAction", {
-      key: "review.weeklyCap",
-      value: 31,
+      key: "reminders.digestHour",
+      value: 8,
     });
     await expectWrites("(app)/settings/actions.ts#resetSettingAction", {
-      key: "review.weeklyCap",
+      key: "reminders.digestHour",
     });
 
     const role = await expectWrites("(app)/roles/actions.ts#createRoleAction", {
@@ -624,6 +629,25 @@ describe("every server action writes its event", () => {
       draftId: draft.id,
     });
     expect((await queued()).at(-1)).toBe("framework");
+    // Electrical's section template, added and corrected; the wizard copies it into the next term,
+    // and the term's own is then taken out (Step 18).
+    const templates = "(app)/templates/actions.ts";
+    const examCopy = {
+      ...analysis,
+      title: "Midterm exam copy",
+      kind: "exam_copy",
+      appliesTo: { type: "eachCourse" },
+    };
+    const template = await expectWrites(`${templates}#addTemplateAction`, {
+      termId: term.id,
+      departmentId: created.id,
+      ...examCopy,
+    });
+    await expectWrites(`${templates}#updateTemplateAction`, {
+      templateId: template.id,
+      ...examCopy,
+      due: { type: "week", week: 7 },
+    });
     await expectWrites(`${terms}#openNextTermAction`, {
       fromId: term.id,
       name: "Autumn 1448",
@@ -638,6 +662,9 @@ describe("every server action writes its event", () => {
       [version.id],
     );
     await expectWrites(`${framework}#removeItemAction`, { itemId: copy.id });
+    await expectWrites(`${templates}#removeTemplateAction`, {
+      templateId: template.id,
+    });
     await expectWrites(`${terms}#activateTermAction`, { id: term.id });
     await expectWrites(`${terms}#closeTermAction`, { id: term.id });
     // The next Eid break, its last day a day later (ADR-0018).

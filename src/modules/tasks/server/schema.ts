@@ -33,9 +33,10 @@ const updatedAt = () =>
 // source item, by the item it was first entered as, so that a new version of the framework reaches
 // the same tasks; the occurrence of the item's due rule; the department; and either a section and a
 // place in it, named by the trainer Rayat gave the place at the term's start, which a transfer gives
-// to someone else, or the person whose role the item reaches. A task waits for a trainer not on the
-// platform by their employee number. A task its source no longer calls for is cancelled, not
-// deleted.
+// to someone else; or a course, by Rayat's code, and a place in it, one for each trainer its
+// sections started the term with (Step 18); or the person whose role the item reaches. A task waits
+// for a trainer not on the platform by their employee number. A task its source no longer calls for
+// is cancelled, not deleted.
 export const tasks = pgTable(
   "tasks",
   {
@@ -49,6 +50,7 @@ export const tasks = pgTable(
     sourceItemId: uuid("source_item_id").notNull(),
     occurrence: integer().notNull(),
     sectionRef: text("section_ref").notNull().default(""),
+    courseCode: text("course_code").notNull().default(""),
     place: text().notNull().default(""),
     holderId: uuid("holder_id").references(() => users.id, {
       onDelete: "cascade",
@@ -97,6 +99,7 @@ export const tasks = pgTable(
         table.occurrence,
         table.departmentId,
         table.sectionRef,
+        table.courseCode,
         table.place,
         table.holderId,
       )
@@ -109,10 +112,10 @@ export const tasks = pgTable(
       sql`${table.status} in ('notStarted', 'inProgress', 'submitted', 'done', 'returned', 'notApplicable')`,
     ),
     check("tasks_occurrence", sql`${table.occurrence} >= 1`),
-    // A task reaches a place in a section, or a holder of a role: one or the other.
+    // A task reaches a place in a section, a place in a course, or a holder of a role: one of them.
     check(
       "tasks_reach",
-      sql`(${table.sectionRef} = '' and ${table.place} = '' and ${table.holderId} is not null) or (${table.sectionRef} <> '' and ${table.place} <> '' and ${table.holderId} is null)`,
+      sql`(${table.sectionRef} = '' and ${table.courseCode} = '' and ${table.place} = '' and ${table.holderId} is not null) or (${table.sectionRef} <> '' and ${table.courseCode} = '' and ${table.place} <> '' and ${table.holderId} is null) or (${table.sectionRef} = '' and ${table.courseCode} <> '' and ${table.place} <> '' and ${table.holderId} is null)`,
     ),
   ],
 );

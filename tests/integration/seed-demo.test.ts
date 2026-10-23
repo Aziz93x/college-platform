@@ -13,7 +13,10 @@ import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import { demoSettings } from "../../db/seed/demo/settings.ts";
 import { rayatColumns } from "../../db/seed/rayat-columns.ts";
-import { unmatchedTrainers } from "../../src/modules/academics/index.ts";
+import {
+  sectionCounts,
+  unmatchedTrainers,
+} from "../../src/modules/academics/index.ts";
 import { settingsRegistry } from "../../src/modules/settings/index.ts";
 import {
   activeTerm,
@@ -338,6 +341,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "rayatImport.apply",
       // The head of Electrical's transfer of a section (Step 17).
       "sectionTransfer.create",
+      // The heads' section templates (Step 18).
+      "sectionTemplate.create",
       // The term's tasks, generated (Step 20).
       "task.generate",
     ]),
@@ -714,7 +719,7 @@ it("has the head of Electrical transfer a section to another trainer of the depa
   expect(unmatched[0].sections.length).toBeGreaterThan(0);
 });
 
-it("generates the demo term's tasks, as many as its published framework's preview counts, in under 10 s: one exam copy for each trainer of each section, none for a section with no trainer (Step 20)", async () => {
+it("generates the demo term's tasks, as many as its published framework's preview counts, in under 10 s: a grade analysis for each trainer of each section, none for a section with no trainer, and an exam copy for each trainer of each course, once for all their sections of it (Step 20)", async () => {
   const { db, pool } = await seededDatabase();
   const {
     rows: [{ id: collegeId }],
@@ -749,25 +754,116 @@ it("generates the demo term's tasks, as many as its published framework's previe
   expect(live).toBe(preview);
 
   // The third department's sections in the SS01 in force: a section Rayat gives two trainers has
-  // two exam copies after each exam, and one with none has none (lead review C).
-  const { rows: sections } = await pool.query(
-    `select cardinality(s.trainer_numbers) as trainers,
-       (select count(*)::int from tasks t
-         where t.term_id = $1 and t.section_ref = s.section_ref and t.kind = 'exam_copy') as copies,
-       (select count(distinct t.week)::int from tasks t
-         where t.term_id = $1 and t.kind = 'exam_copy') as exams
-     from rayat_sections s join rayat_imports i on i.id = s.import_id
+  // two grade analyses after each exam, and one with none has none (lead review C).
+  const inForce = `from rayat_sections s join rayat_imports i on i.id = s.import_id
      join departments d on d.id = s.department_id
      where i.term_id = $1 and i.kind = 'ss01' and i.status = 'applied' and d.name = $2
        and i.applied_at = (select max(applied_at) from rayat_imports
-         where term_id = $1 and kind = 'ss01' and status = 'applied')`,
+         where term_id = $1 and kind = 'ss01' and status = 'applied')`;
+  const { rows: sections } = await pool.query(
+    `select cardinality(s.trainer_numbers) as trainers,
+       (select count(*)::int from tasks t
+         where t.term_id = $1 and t.section_ref = s.section_ref and t.kind = 'grade_analysis') as tasks,
+       (select count(distinct t.week)::int from tasks t
+         where t.term_id = $1 and t.kind = 'grade_analysis') as exams
+     ${inForce}`,
     [term.id, demoDepartments[2].name],
   );
-  expect(sections.length).toBeGreaterThan(0);
-  for (const { trainers, copies, exams } of sections) {
+  expect(sections.map(({ trainers }) => trainers)).toContain(2);
+  expect(sections.map(({ trainers }) => trainers)).toContain(0);
+  for (const { trainers, tasks, exams } of sections) {
     expect(exams).toBeGreaterThan(0);
-    expect(copies).toBe(trainers * exams);
+    expect(tasks).toBe(trainers * exams);
   }
+  // Its courses: an exam copy after each exam for each trainer of the course, once however many of
+  // its sections they teach (the owner's answers, 22 October 2026).
+  const { rows: courses } = await pool.query(
+    `select s.course_code as course, count(distinct n.number)::int as trainers,
+       count(*)::int as places,
+       (select count(*)::int from tasks t
+         where t.term_id = $1 and t.course_code = s.course_code and t.kind = 'exam_copy') as tasks,
+       (select count(distinct t.week)::int from tasks t
+         where t.term_id = $1 and t.kind = 'exam_copy') as exams
+     ${inForce.replace("join departments", "cross join unnest(s.trainer_numbers) as n(number) join departments")}
+     group by s.course_code`,
+    [term.id, demoDepartments[2].name],
+  );
+  expect(courses.some(({ trainers, places }) => trainers < places)).toBe(true);
+  for (const { trainers, tasks, exams } of courses) {
+    expect(exams).toBeGreaterThan(0);
+    expect(tasks).toBe(trainers * exams);
+  }
+});
+
+// The owner's answer of 22 October 2026: a course's work reaches its trainer once for all their
+// sections of it, so each department shows it (Audit 6).
+it("has a trainer teach both sections of a course in each department, so an item for each course's trainer gives fewer tasks than one for each section's", async () => {
+  const { db, pool } = await seededDatabase();
+  const {
+    rows: [{ id: collegeId }],
+  } = await pool.query("select id from colleges");
+  const term = await activeTerm(collegeId, db);
+  if (!term) throw new Error("no active term");
+  const counts = await sectionCounts(collegeId, term.id, db);
+  const { rows: departments } = await pool.query(
+    "select id, name from departments order by name",
+  );
+  expect(
+    departments.map(({ id, name }) => ({
+      name,
+      fewer: counts[id].courses < counts[id].trainers,
+    })),
+  ).toEqual(departments.map(({ name }) => ({ name, fewer: true })));
+});
+
+it("gives Electrical and Mechanical section templates of their own, each on an axis and added by its department's head (Step 18)", async () => {
+  const { pool } = await seededDatabase();
+  const { rows } = await pool.query(`
+    select d.name as department, t.kind, a.code as axis, t.applies_to ->> 'type' as reach,
+      exists (
+        select 1 from memberships m join roles r on r.id = m.role_id and r.key = 'head'
+        where m.user_id::text = e.actor_id and m.department_id = t.department_id
+      ) as "byItsHead",
+      u.email
+    from section_templates t
+    join departments d on d.id = t.department_id
+    join axes a on a.id = t.axis_id
+    join audit_events e on e.entity_id = t.id::text and e.action = 'sectionTemplate.create'
+    join users u on u.id::text = e.actor_id
+    order by t.department_id, t.position`);
+  const of = (name: string) =>
+    rows
+      .filter(({ department }) => department === name)
+      .map(({ kind, axis, reach }) => `${kind} ${axis} ${reach}`);
+  // A course's work once for all its trainer's sections of it, and a section's work section by
+  // section (the owner's answers, 22 October 2026).
+  expect(of(demoDepartments[1].name)).toEqual([
+    "exam_copy 2 eachCourse",
+    "exam_copy 2 eachCourse",
+    "general 6 eachSection",
+    "homework 5 eachSection",
+  ]);
+  expect(of(demoDepartments[2].name)).toEqual([
+    "exam_copy 2 eachCourse",
+    "general 6 eachSection",
+  ]);
+  // None is an item the term's published framework already gives the same trainers: its kind,
+  // reach and due rule (Audit 6).
+  const { rows: repeated } = await pool.query(`
+    select t.title from section_templates t
+    where exists (
+      select 1 from framework_items i join frameworks f on f.id = i.framework_id
+      where f.status = 'published' and f.term_id = t.term_id and i.kind = t.kind
+        and i.applies_to = t.applies_to and i.due = t.due
+    )`);
+  expect(repeated).toEqual([]);
+  expect(of(demoDepartments[0].name)).toEqual([]);
+  expect(rows.every(({ byItsHead }) => byItsHead)).toBe(true);
+  expect(
+    rows
+      .filter(({ department }) => department === demoDepartments[1].name)
+      .every(({ email }) => email === demoAccounts.head.email),
+  ).toBe(true);
 });
 
 it("puts today in the week --week asks for, and exits 1 for a week outside the term", async () => {

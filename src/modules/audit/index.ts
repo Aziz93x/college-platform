@@ -1,4 +1,8 @@
-export { type AuditAction, auditActions } from "./domain/actions.ts";
+export {
+  type AuditAction,
+  type AuditEntity,
+  auditActions,
+} from "./domain/actions.ts";
 export { purgeAuditEvents } from "./server/purge.ts";
 export {
   type AuditCursor,

@@ -1,3 +1,4 @@
+import { canonical } from "../../../platform/validation/text.ts";
 import type {
   AppliesTo,
   EvidencePolicy,
@@ -22,21 +23,27 @@ export type SourceItem = {
 };
 
 // What a department holds that items reach: the people who hold each role in it, and each of its
-// sections with its places, each place by the trainer Rayat gave it at the term's start.
+// sections with its course, by Rayat's code, and its places, each place by the trainer Rayat gave it
+// at the term's start.
 export type Reach = {
   departmentId: string;
   holders: Readonly<Record<string, readonly string[]>>;
-  sections: readonly { ref: string; places: readonly string[] }[];
+  sections: readonly {
+    ref: string;
+    course: string;
+    places: readonly string[];
+  }[];
 };
 
 // A task's place in the term, its key: the item, the time its rule is due, the department, and the
-// section and place it is for, or the holder of the role there.
+// section or the course and the place it is for, or the holder of the role there.
 export type Slot = {
   item: string;
   occurrence: number;
   week: number;
   departmentId: string;
   sectionRef: string;
+  courseCode: string;
   place: string;
   holderId: string | null;
 };
@@ -46,6 +53,7 @@ export const slotKey = (slot: {
   occurrence: number;
   departmentId: string;
   sectionRef: string;
+  courseCode: string;
   place: string;
   holderId: string | null;
 }) =>
@@ -54,45 +62,68 @@ export const slotKey = (slot: {
     slot.occurrence,
     slot.departmentId,
     slot.sectionRef,
+    slot.courseCode,
     slot.place,
     slot.holderId ?? "",
   ].join("\u0000");
 
+// Each course of a department's sections, by its code, with its places: each trainer its sections
+// started the term with, once, and the sections where they did.
+function coursesOf(sections: Reach["sections"]) {
+  const courses = new Map<string, Map<string, string[]>>();
+  for (const section of sections) {
+    const places = courses.get(section.course) ?? new Map<string, string[]>();
+    courses.set(section.course, places);
+    for (const place of section.places) {
+      places.set(place, [...(places.get(place) ?? []), section.ref]);
+    }
+  }
+  return courses;
+}
+
 // The slots of a term's items: each item, in each department, once for each person who holds its
-// role, or for each place of each section, and each time it is due. countTasks() counts the same.
+// role, for each place of each section, or for each place of each course, and each time it is due.
+// countTasks() counts the same.
 export function slotsOf(
   items: readonly SourceItem[],
   reach: readonly Reach[],
 ): Slot[] {
   const slots: Slot[] = [];
   for (const department of reach) {
+    const courses = coursesOf(department.sections);
     for (const item of items) {
       item.weeks.forEach((week, index) => {
-        const at = { item: item.origin, occurrence: index + 1, week };
-        const { departmentId } = department;
-        if (item.appliesTo.type === "eachSection") {
-          for (const section of department.sections) {
-            for (const place of section.places) {
-              slots.push({
-                ...at,
-                departmentId,
-                sectionRef: section.ref,
-                place,
-                holderId: null,
-              });
+        const at = {
+          item: item.origin,
+          occurrence: index + 1,
+          week,
+          departmentId: department.departmentId,
+          sectionRef: "",
+          courseCode: "",
+          place: "",
+          holderId: null,
+        };
+        switch (item.appliesTo.type) {
+          case "eachSection":
+            for (const section of department.sections) {
+              for (const place of section.places) {
+                slots.push({ ...at, sectionRef: section.ref, place });
+              }
             }
-          }
-        } else {
-          for (const holderId of department.holders[item.appliesTo.roleId] ??
-            []) {
-            slots.push({
-              ...at,
-              departmentId,
-              sectionRef: "",
-              place: "",
-              holderId,
-            });
-          }
+            break;
+          case "eachCourse":
+            for (const [courseCode, places] of courses) {
+              for (const place of places.keys()) {
+                slots.push({ ...at, courseCode, place });
+              }
+            }
+            break;
+          case "role":
+            for (const holderId of department.holders[item.appliesTo.roleId] ??
+              []) {
+              slots.push({ ...at, holderId });
+            }
+            break;
         }
       });
     }
@@ -123,24 +154,56 @@ export type TermNow = {
   account: (employeeNumber: string) => string | undefined;
 };
 
+// Who holds a course's place in a week: its trainer, while they still teach one of the sections they
+// started the term with; once the last of those has moved, whoever holds the place they left in it
+// (the owner's rule, 23 October 2026).
+function courseHolder(
+  sections: readonly string[],
+  place: string,
+  week: number,
+  holder: TermNow["holder"],
+) {
+  for (let at = week; at >= 1; at--) {
+    const kept = sections.find((ref) => holder(ref, place, at) === place);
+    if (kept !== undefined) {
+      return at === week ? place : holder(kept, place, week);
+    }
+  }
+  return sections.length > 0 ? holder(sections[0], place, week) : place;
+}
+
 // The tasks the term's items call for. A section's task is for whoever holds its place in its week,
 // and once its week has passed, for whoever holds the place now: work still to do goes with the
-// section to the trainer a transfer gives it, from the week the transfer takes effect (Step 17).
+// section to the trainer a transfer gives it, from the week the transfer takes effect (Step 17). A
+// course's task is for whoever holds its place the same way (courseHolder()).
 export function wantedTasks(
   items: readonly SourceItem[],
   reach: readonly Reach[],
   term: TermNow,
 ): Wanted[] {
   const byOrigin = new Map(items.map((item) => [item.origin, item]));
+  const courses = new Map(
+    reach.map((department) => [
+      department.departmentId,
+      coursesOf(department.sections),
+    ]),
+  );
   return slotsOf(items, reach).map((slot) => {
     const item = byOrigin.get(slot.item) as SourceItem;
     let assignee: Assignee = { id: slot.holderId, number: null };
     if (slot.holderId === null) {
-      const number = term.holder(
-        slot.sectionRef,
-        slot.place,
-        Math.max(slot.week, term.week),
-      );
+      const week = Math.max(slot.week, term.week);
+      const number = slot.courseCode
+        ? courseHolder(
+            courses
+              .get(slot.departmentId)
+              ?.get(slot.courseCode)
+              ?.get(slot.place) ?? [],
+            slot.place,
+            week,
+            term.holder,
+          )
+        : term.holder(slot.sectionRef, slot.place, week);
       assignee = { id: term.account(number) ?? null, number };
     }
     return {
@@ -161,6 +224,7 @@ export type Task = {
   item: string;
   occurrence: number;
   sectionRef: string;
+  courseCode: string;
   place: string;
   holderId: string | null;
   departmentId: string;
@@ -187,16 +251,6 @@ export type Changes = {
   reassign: { id: string; assignee: Assignee }[];
   cancel: string[];
 };
-
-// Two values the same, however a database kept their keys.
-const canonical = (value: unknown): string =>
-  JSON.stringify(value, (_, each) =>
-    each && typeof each === "object" && !Array.isArray(each)
-      ? Object.fromEntries(
-          Object.entries(each).sort(([a], [b]) => a.localeCompare(b)),
-        )
-      : each,
-  );
 
 const sameAssignee = (a: Assignee, b: Assignee) =>
   a.id === b.id && a.number === b.number;

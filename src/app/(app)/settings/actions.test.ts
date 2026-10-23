@@ -48,14 +48,18 @@ beforeEach(() => {
 describe("saveSettingAction", () => {
   it("saves through setSetting as the viewer, from the request's address, and draws the page again", async () => {
     expect(
-      await saveSettingAction({ key: "review.weeklyCap", value: 31 }),
-    ).toEqual({ data: { status: "saved", value: 31 } });
-    expect(services.setSetting).toHaveBeenCalledWith("review.weeklyCap", 31, {
-      collegeId: "college-a",
-      actorId: "user-a",
-      ip: "10.0.30.1",
-      userAgent: "unit-test",
-    });
+      await saveSettingAction({ key: "reminders.digestHour", value: 8 }),
+    ).toEqual({ data: { status: "saved", value: 8 } });
+    expect(services.setSetting).toHaveBeenCalledWith(
+      "reminders.digestHour",
+      8,
+      {
+        collegeId: "college-a",
+        actorId: "user-a",
+        ip: "10.0.30.1",
+        userAgent: "unit-test",
+      },
+    );
     expect(cache.refresh).toHaveBeenCalledOnce();
     // Not a security setting: no password.
     expect(identity.reauthenticate).not.toHaveBeenCalled();
@@ -64,7 +68,7 @@ describe("saveSettingAction", () => {
   it("refuses a viewer without the setting's permission", async () => {
     request.permissions = new Set(["design.view"]);
     expect(
-      await saveSettingAction({ key: "review.weeklyCap", value: 31 }),
+      await saveSettingAction({ key: "reminders.digestHour", value: 8 }),
     ).toEqual({ serverError: "forbidden" });
     expect(services.setSetting).not.toHaveBeenCalled();
   });

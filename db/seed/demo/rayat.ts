@@ -75,9 +75,11 @@ export type DemoRayatDepartment = {
 // trainees' names, mobile numbers and grades included: the import drops them. Each course has two
 // sections that meet on two days, an eighth of them remote; a section now and then has more
 // trainees than seats; SF01 registers each section's trainees, a few dropped or withdrawn; SO01
-// gives some of them unexcused absence, barring those past a quarter of the course's hours. In the
-// third department, the first course's second section is taught by two trainers, one each day, and
-// the last course's second section has no trainer yet (lead review C).
+// gives some of them unexcused absence, barring those past a quarter of the course's hours. In each
+// department, one trainer teaches both sections of the third course, which an item for each course's
+// trainer gives one task (Audit 6). In the third department, the first course's second section is
+// taught by two trainers, one each day, and the last course's second section has no trainer yet
+// (lead review C).
 export function demoRayatFiles(
   random: () => number,
   term: { name: string; code: string },
@@ -142,9 +144,10 @@ export function demoRayatFiles(
           between(capacity - 9, capacity) + (random() < 0.08 ? 2 : 0),
           TRAINEES / 2,
         );
+        const both = position === 2;
         const trainer =
           department.trainers[
-            (position * 2 + section) % department.trainers.length
+            (position * 2 + (both ? 0 : section)) % department.trainers.length
           ];
         // The second day's trainer: another for a co-taught section, none for one without a trainer.
         const third = index === 2 && section === 1;

@@ -6,17 +6,17 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ### Step 20: the generation engine
 
-- Built before Steps 18 and 19, in a second session, at the owner's choice (ADR-0025). The term's latest published framework is the engine's only source until Step 19 adds the plan.
-- Each item makes a task in each department for each time its rule is due. A role's item makes one for each holder of the role. An item for each section's trainer makes one for each place of each section: each trainer Rayat names at the term's start, as the owner's rule has it.
-- A task is keyed by its slot: the item, kept across versions by `framework_items.origin_id`; the occurrence; the department; and the section's place or the role's holder. A second pass changes nothing.
-- A section's task goes to whoever holds its place in the task's week, or now, for a week already past. Started work still to do follows a transfer, and finished work stays with whoever did it. A trainer not on the platform keeps their place: their tasks wait for them, by employee number.
+- Built beside Step 18, in a second session, at the owner's choice (ADR-0025), and brought onto Step 18 and Audit 6 before it merged. The term's latest published framework is the engine's only source until Step 19 adds the plan.
+- Each item makes a task in each department for each time its rule is due. A role's item makes one for each holder of the role. An item for each section's trainer makes one for each place of each section: each trainer Rayat names at the term's start, as the owner's rule has it. An item for each course's trainer (Step 18) makes one for each place of each course: each trainer its sections started the term with, once for all their sections of it.
+- A task is keyed by its slot: the item, kept across versions by `framework_items.origin_id`; the occurrence; the department; and the section's or the course's place, or the role's holder. A second pass changes nothing.
+- A section's task goes to whoever holds its place in the task's week, or now, for a week already past. Started work still to do follows a transfer, and finished work stays with whoever did it. A course's task stays with its trainer while they still teach one of the sections they started the term with, and once the last of those has moved, it goes with that section to whoever holds the place (the owner's rule, 23 October 2026). A trainer not on the platform keeps their place: their tasks wait for them, by employee number.
 - A new version moves the tasks not started to its rules' weeks and words, cancels those it drops, and brings back a cancelled one it calls for again. Submitted, done and not applicable work is never touched.
 - A task is due on its week's last working day that is not a holiday.
 - Publishing a version, applying or rolling back SS01, and making or cancelling a transfer queue a pass. The worker runs the queued passes every minute, one at a time, a department per transaction, writing how far each has got. Each night it queues a pass over every term not yet closed. A pass that changed something writes `task.generate`, by the system, with its cause and counts.
 - `/framework` shows whoever publishes the framework the latest pass: waiting, running with its progress, done with what it changed, or failed. While a pass waits or runs, the page reads it again every 3 s.
-- The preview and the engine count the same weeks (`dueWeeks()`, `eventWeeks()`) and the same role holders (`roleHolders()`). Step 17's `transferTasks()` gives way to the places.
-- Migration `0020` adds `tasks` and `generation_runs`, and `framework_items.origin_id`, filled for versions already made.
-- `seed:demo` generates the demo term's tasks: 583 in 0.3 s, two of them waiting for the visiting trainer.
+- The preview and the engine count the same weeks (`dueWeeks()`, `eventWeeks()`), the same role holders (`roleHolders()`) and the same places of each section and course (`sectionPlaces()`), so a transfer Rayat has since confirmed changes neither count. Step 17's `transferTasks()` gives way to the places.
+- Migration `0021` adds `tasks` and `generation_runs`, and `framework_items.origin_id`, filled for versions already made.
+- `seed:demo` generates the demo term's tasks: 570 in 0.25 s, 480 for role holders, 58 exam copies for each course's trainers and 32 grade analyses for each section's, three of them waiting for the visiting trainer.
 - Tests:
   - fast-check properties: the tasks are as many as the preview counts, each in its own slot; a second pass finds nothing to do; finished work never changes, and started work changes only its assignee;
   - on a real database:
@@ -29,6 +29,39 @@ All notable changes are recorded here. Each entry names the plan step from docs/
     - the queued runs, the worker's jobs, and each change that queues a pass;
   - the demo's tasks equal its preview, under 10 s;
   - end to end on the desktop and the iPhone: the vice-dean follows a pass from waiting to done with axe, then a failed pass and none; a trainer does not see it.
+
+### ADR-0023 amended: the Rayat upload's budget measured alone
+
+- The test of a 25,000-row upload in 5 s now runs in its own Vitest project, `budget` (`tests/budget/rayat-upload.test.ts`), after the unit and integration tests and one file at a time, on a PostgreSQL of its own. Beside the other test files it once took 5.5 s on CI; alone there, it takes 2.4 s. The budget is unchanged.
+- Each run notes the upload's time as a test annotation, which GitHub shows beside the run.
+
+### Audit 6: steps 16-18
+
+- A task's payload starts as `blankPayload()`: each box unticked, a week field at the term's current week, each text and list empty. What the editor shows is then what the payload holds, so a homework left at its week, or a checklist with a box unticked, is an answer its kind's schema takes. The task card starts from it (a note under Step 26). Each advising session's day and notes, and each grade band's fields, are named by their number, and a band's trainees stop at 9,999, the most the field's four digits write.
+- `seed:demo`: the departments' templates no longer repeat the framework. Electrical asks for the practical exam's copy and the quizzes once per course, and the workshop's safety checklist and lab report samples once per section; Mechanical for the practical exam's copy and the safety checklist. In each department one trainer teaches both sections of the third course, so an item for each course's trainer counts fewer tasks than one for each section's.
+- The settings item opens again for `settings.manage` and `term.manage` only: `framework.publish`, the key of the catalogs that left Step 18, showed a page that then refused it.
+- The audit log names a section template by its title, department and term. A test gives every kind of entity the log records an event whose subject must not be its id.
+- `/templates`: the sheet says a template reaches each section's or each course's trainer, and the empty list asks for what the framework does not. End-to-end tests cover the trainer it refuses and a closed term's read-only list.
+- `canonical()` lives once, in `src/platform/validation/text.ts`. The step command says a PR's title is a Conventional Commit.
+- docs/reviews/audit-18.md holds the report and its resolution. Two enhancements and the log's words for an item's fields wait in docs/BACKLOG.md.
+
+### Step 18: Task kinds and section templates
+
+- Each kind's payload is a list of fields (`kindFields`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`): an exam copy names its exam type and day; a grade analysis counts trainees in each grade band, with its pass rate, average and follow-up, and no names; homework a title and week; e-learning a checklist; a training practice its methods and description; an advising log its sessions; and the others their own. The task card puts the editor before the evidence (Step 26).
+- No college lists (the owner's answers): exam types, training methods and kinds of development are what a trainer does in a course, which the trainer writes in the task in their own words, a list of entries for the methods. Each section's grade analysis takes the bands its trainer gives it, each a lower bound with its trainees.
+- An item reaches each course's trainers once for all their sections of it, beside each section's trainers (`appliesTo`: `eachCourse`), for the framework's items and the templates alike: a course's work such as its exam copies comes once per course, and a section's own such as its grade analysis once per section, and all of it goes into the course's portfolio as a whole (Step 31). The publish preview counts each department's course trainers from SS01 (`trainerCounts()`). In the demo framework the exam copy reaches each course's trainer and the grade analysis each section's.
+- Section templates (`section_templates`, migration `0020`): a department's items for its sections' trainers, each once per section or once per course, by term, each on one of the college's axes. A head adds, corrects and takes them out on `/templates` (`plan.edit`), one department at a time, below the framework's items for those trainers, which are the college's. They are the per-section and per-course part of the department's plan and stay drafts until Step 19 publishes it. A closed term's change no more, each change is in the log, and the Step 13 wizard copies each department's templates into the next term, recorded on the department.
+- `plan.edit` is back (docs/PLAN.md, section 0): the section templates are the first thing it guards, so the key returns with this step under the planning area, with its Arabic name and description and the head's grant. Migration `0020` gives it to the head of a college seeded while it was out. `plan.publish` and the other keys still wait for their steps.
+- The framework's item sheet, its words and its choices are shared by `/framework` and `/templates` (`src/app/(app)/_items`), and the department chooser by `/sections` and `/templates`.
+- `seed:demo`: the head of Electrical adds the plan's examples (the midterm and final exam copies with the head's approval, quizzes, three homework samples, the e-learning course and the training practices, each once per course, and a grade analysis a week after each exam for each section), and the head of Mechanical its exam copies and analysis.
+
+### The trial's size: the settings and keys nothing used (the owner's notes, docs/PLAN.md section 0)
+
+- Five settings and six permission keys that nothing read or checked are gone from the registries, the base seed, the catalog and the tests: `files.maxSizeMb`, `reminders.dueTomorrow`, `reminders.nothingUploaded`, `review.sampleRate` and `review.weeklyCap`; `plan.edit`, `plan.publish`, `assignment.manage`, `review.decide`, `portfolio.approve` and `indicators.view.college`. The settings screen and the roles grid no longer offer them, and the grid's indicators area goes with its only key. The step that first reads or checks each adds it back, Steps 19 to 35.
+- A database seeded before keeps their rows and nothing changes for anyone: `loadAccess()` ignores a stored key the code no longer knows, and settings are read only by their registered keys. A stored value applies again when its setting comes back.
+- `task.complete` stays: Step 17 reads it, a section moving only to someone who holds it.
+- The plan: section 0's note now records what came out and the step that adds each back, and the Step 7 notes under Steps 25, 27 and 29 say that each of those steps adds its own settings back.
+- Tests: the fixtures that used them use `sections.transfer`, `announcements.publish`, `rayat.import` and `reminders.digestHour`, and the reach test's dean holds the framework's endorsement, as the seeded dean has since Step 15. On the settings screen, the end-to-end count test runs on the phone with the digest hour, and the slider's test leaves with the sample rate, its only percentage; Step 29 brings both back.
 
 ### Lead review C: the term, the framework and Rayat (docs/reviews/lead-C.md)
 

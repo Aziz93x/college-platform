@@ -19,8 +19,8 @@ import {
   wantedTasks,
 } from "../../src/modules/tasks/index.ts";
 
-// The generation engine's properties (Step 20), on terms, items, departments, transfers and work
-// in every status that fast-check makes up: the preview counts the tasks the engine makes, running
+// The generation engine's properties (Step 20), on terms, items for roles, sections and courses,
+// departments, transfers and work in every status that fast-check makes up: the preview counts the tasks the engine makes, running
 // it again changes nothing, and it never changes finished work.
 
 const ROLES = ["r1", "r2"];
@@ -74,6 +74,7 @@ const items = fc.uniqueArray(
         roleId: fc.constantFrom(...ROLES),
       }),
       fc.constant({ type: "eachSection" as const }),
+      fc.constant({ type: "eachCourse" as const }),
     ),
     due: dueRule,
     required: fc.boolean(),
@@ -91,6 +92,7 @@ const reach: fc.Arbitrary<Reach[]> = fc.uniqueArray(
     sections: fc.uniqueArray(
       fc.record({
         ref: fc.constantFrom("s1", "s2", "s3"),
+        course: fc.constantFrom("c1", "c2"),
         places: fc.uniqueArray(fc.constantFrom("200101", "200102", "200103"), {
           maxLength: 2,
         }),
@@ -174,6 +176,7 @@ function apply(tasks: readonly Task[], changes: Changes): Task[] {
       occurrence: wanted.occurrence,
       departmentId: wanted.departmentId,
       sectionRef: wanted.sectionRef,
+      courseCode: wanted.courseCode,
       place: wanted.place,
       holderId: wanted.holderId,
       week: wanted.week,
@@ -206,6 +209,12 @@ describe("the generation engine", () => {
               (sum, section) => sum + section.places.length,
               0,
             ),
+            // Each trainer of each course once, however many of its sections they teach.
+            courseTrainers: new Set(
+              department.sections.flatMap((section) =>
+                section.places.map((place) => `${section.course} ${place}`),
+              ),
+            ).size,
           })),
           shape,
         );

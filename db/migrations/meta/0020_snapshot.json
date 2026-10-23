@@ -1,5 +1,5 @@
 {
-  "id": "e5a19fd3-8457-4b57-a158-022bece5899e",
+  "id": "f430f1b8-bb34-4cf4-981a-8da0687f5413",
   "prevId": "c8f29b4d-3d5f-42a6-9582-c13904b997ae",
   "version": "7",
   "dialect": "postgresql",
@@ -935,12 +935,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "origin_id": {
-          "name": "origin_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         },
         "position": {
           "name": "position",
@@ -2293,6 +2287,172 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.section_templates": {
+      "name": "section_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "college_id": {
+          "name": "college_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "department_id": {
+          "name": "department_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "axis_id": {
+          "name": "axis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "applies_to": {
+          "name": "applies_to",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due": {
+          "name": "due",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidence": {
+          "name": "evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "section_templates_term_idx": {
+          "name": "section_templates_term_idx",
+          "columns": [
+            {
+              "expression": "term_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "department_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "section_templates_college_id_colleges_id_fk": {
+          "name": "section_templates_college_id_colleges_id_fk",
+          "tableFrom": "section_templates",
+          "tableTo": "colleges",
+          "columnsFrom": ["college_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_templates_term_fk": {
+          "name": "section_templates_term_fk",
+          "tableFrom": "section_templates",
+          "tableTo": "terms",
+          "columnsFrom": ["college_id", "term_id"],
+          "columnsTo": ["college_id", "id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "section_templates_department_fk": {
+          "name": "section_templates_department_fk",
+          "tableFrom": "section_templates",
+          "tableTo": "departments",
+          "columnsFrom": ["college_id", "department_id"],
+          "columnsTo": ["college_id", "id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "section_templates_axis_fk": {
+          "name": "section_templates_axis_fk",
+          "tableFrom": "section_templates",
+          "tableTo": "axes",
+          "columnsFrom": ["college_id", "axis_id"],
+          "columnsTo": ["college_id", "id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.rayat_absences": {
       "name": "rayat_absences",
       "schema": "",
@@ -2901,471 +3061,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.generation_runs": {
-      "name": "generation_runs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "college_id": {
-          "name": "college_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_id": {
-          "name": "term_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "total": {
-          "name": "total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "done": {
-          "name": "done",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created": {
-          "name": "created",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated": {
-          "name": "updated",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "reassigned": {
-          "name": "reassigned",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "cancelled": {
-          "name": "cancelled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "queued_at": {
-          "name": "queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "generation_runs_term_idx": {
-          "name": "generation_runs_term_idx",
-          "columns": [
-            {
-              "expression": "term_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "queued_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "generation_runs_waiting_idx": {
-          "name": "generation_runs_waiting_idx",
-          "columns": [
-            {
-              "expression": "queued_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"generation_runs\".\"status\" in ('queued', 'running')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "generation_runs_college_id_colleges_id_fk": {
-          "name": "generation_runs_college_id_colleges_id_fk",
-          "tableFrom": "generation_runs",
-          "tableTo": "colleges",
-          "columnsFrom": ["college_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "generation_runs_term_fk": {
-          "name": "generation_runs_term_fk",
-          "tableFrom": "generation_runs",
-          "tableTo": "terms",
-          "columnsFrom": ["college_id", "term_id"],
-          "columnsTo": ["college_id", "id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "generation_runs_reason": {
-          "name": "generation_runs_reason",
-          "value": "\"generation_runs\".\"reason\" in ('framework', 'ss01', 'transfer', 'daily')"
-        },
-        "generation_runs_status": {
-          "name": "generation_runs_status",
-          "value": "\"generation_runs\".\"status\" in ('queued', 'running', 'done', 'failed')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tasks": {
-      "name": "tasks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "college_id": {
-          "name": "college_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_id": {
-          "name": "term_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_item_id": {
-          "name": "source_item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurrence": {
-          "name": "occurrence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "section_ref": {
-          "name": "section_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "place": {
-          "name": "place",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "holder_id": {
-          "name": "holder_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignee_id": {
-          "name": "assignee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignee_number": {
-          "name": "assignee_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "axis_id": {
-          "name": "axis_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "week": {
-          "name": "week",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "due_on": {
-          "name": "due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'notStarted'"
-        },
-        "policy": {
-          "name": "policy",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "tasks_term_department_idx": {
-          "name": "tasks_term_department_idx",
-          "columns": [
-            {
-              "expression": "term_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "department_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tasks_assignee_idx": {
-          "name": "tasks_assignee_idx",
-          "columns": [
-            {
-              "expression": "assignee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tasks_college_id_colleges_id_fk": {
-          "name": "tasks_college_id_colleges_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "colleges",
-          "columnsFrom": ["college_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tasks_holder_id_users_id_fk": {
-          "name": "tasks_holder_id_users_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "users",
-          "columnsFrom": ["holder_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "tasks_assignee_id_users_id_fk": {
-          "name": "tasks_assignee_id_users_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "users",
-          "columnsFrom": ["assignee_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "tasks_term_fk": {
-          "name": "tasks_term_fk",
-          "tableFrom": "tasks",
-          "tableTo": "terms",
-          "columnsFrom": ["college_id", "term_id"],
-          "columnsTo": ["college_id", "id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tasks_department_fk": {
-          "name": "tasks_department_fk",
-          "tableFrom": "tasks",
-          "tableTo": "departments",
-          "columnsFrom": ["college_id", "department_id"],
-          "columnsTo": ["college_id", "id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tasks_axis_fk": {
-          "name": "tasks_axis_fk",
-          "tableFrom": "tasks",
-          "tableTo": "axes",
-          "columnsFrom": ["college_id", "axis_id"],
-          "columnsTo": ["college_id", "id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "tasks_slot_unique": {
-          "name": "tasks_slot_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "term_id",
-            "source",
-            "source_item_id",
-            "occurrence",
-            "department_id",
-            "section_ref",
-            "place",
-            "holder_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "tasks_source": {
-          "name": "tasks_source",
-          "value": "\"tasks\".\"source\" in ('framework')"
-        },
-        "tasks_status": {
-          "name": "tasks_status",
-          "value": "\"tasks\".\"status\" in ('notStarted', 'inProgress', 'submitted', 'done', 'returned', 'notApplicable')"
-        },
-        "tasks_occurrence": {
-          "name": "tasks_occurrence",
-          "value": "\"tasks\".\"occurrence\" >= 1"
-        },
-        "tasks_reach": {
-          "name": "tasks_reach",
-          "value": "(\"tasks\".\"section_ref\" = '' and \"tasks\".\"place\" = '' and \"tasks\".\"holder_id\" is not null) or (\"tasks\".\"section_ref\" <> '' and \"tasks\".\"place\" <> '' and \"tasks\".\"holder_id\" is null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.calendar_events": {

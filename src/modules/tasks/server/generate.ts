@@ -73,7 +73,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     string,
     {
       holders: Record<string, string[]>;
-      sections: { ref: string; places: string[] }[];
+      sections: { ref: string; course: string; places: string[] }[];
     }
   >();
   const of = (id: string) => {
@@ -88,6 +88,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   for (const section of sections) {
     of(section.departmentId).sections.push({
       ref: section.ref,
+      course: section.courseCode,
       places: section.places(0).map((place) => place.first),
     });
   }
@@ -125,6 +126,7 @@ async function frameworkTasks(db: Db, termId: string): Promise<Task[]> {
       occurrence: tasks.occurrence,
       departmentId: tasks.departmentId,
       sectionRef: tasks.sectionRef,
+      courseCode: tasks.courseCode,
       place: tasks.place,
       holderId: tasks.holderId,
       week: tasks.week,
@@ -195,6 +197,7 @@ async function applyChanges(
           sourceItemId: wanted.item,
           occurrence: wanted.occurrence,
           sectionRef: wanted.sectionRef,
+          courseCode: wanted.courseCode,
           place: wanted.place,
           holderId: wanted.holderId,
         })),

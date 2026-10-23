@@ -8,6 +8,7 @@ import { notify } from "../../notifications/index.ts";
 import { listDepartments } from "../../org/index.ts";
 import { pendingRayat, rayatVersion } from "../../rayat/index.ts";
 import { terms } from "../../terms/index.ts";
+import { trainerCounts } from "../domain/counts.ts";
 import type { TransferInput } from "../domain/inputs.ts";
 import { readTransfers, type TransferStatus } from "../domain/transfers.ts";
 import { sectionTransfers } from "./schema.ts";
@@ -371,9 +372,9 @@ export async function unmatchedTrainers(
     });
 }
 
-// Each section of the term in SS01 in force, with its department and its places in a week after the
-// head's transfers (readTransfers()): what the generation engine makes the tasks for each section's
-// trainer for, one for each place (Step 20).
+// Each section of the term in SS01 in force, with its department, its course and its places in a
+// week after the head's transfers (readTransfers()): what the generation engine makes the tasks for
+// each section's or each course's trainer for, one for each place (Step 20).
 export async function sectionPlaces(
   collegeId: string,
   termId: string,
@@ -388,6 +389,7 @@ export async function sectionPlaces(
   return ss01.records.map((section) => ({
     ref: section.sectionRef,
     departmentId: section.departmentId,
+    courseCode: section.courseCode,
     places: (
       reads.get(section.sectionRef) ??
       readTransfers(section.trainerNumbers, ss01.uploadedAt, [])
@@ -395,25 +397,21 @@ export async function sectionPlaces(
   }));
 }
 
-// What each department's sections in SS01 in force give a framework's or a plan's items for each
-// section's trainer (Step 15): a task for each trainer of each section, and none for a section with
-// no trainer yet, which the preview names apart (the owner's rule, lead review C).
+// What each department's sections in SS01 in force give a framework's or a plan's items for their
+// trainers (trainerCounts()), by the trainers each section started the term with, as the generation
+// engine reaches them (sectionPlaces()): a transfer Rayat has since confirmed changes no count.
 export async function sectionCounts(
   collegeId: string,
   termId: string,
-  db: Db = getDb(),
+  db: Db | Tx = getDb(),
 ) {
-  const counts: Record<string, { trainers: number; untaught: number }> = {};
-  for (const { departmentId, trainerNumbers } of (
-    await rayatVersion(collegeId, termId, "ss01", db)
-  )?.records ?? []) {
-    counts[departmentId] ??= { trainers: 0, untaught: 0 };
-    const count = counts[departmentId];
-    const trainers = new Set(trainerNumbers).size;
-    count.trainers += trainers;
-    if (trainers === 0) count.untaught += 1;
-  }
-  return counts;
+  return trainerCounts(
+    (await sectionPlaces(collegeId, termId, db)).map((section) => ({
+      departmentId: section.departmentId,
+      courseCode: section.courseCode,
+      trainerNumbers: section.places(0).map(({ first }) => first),
+    })),
+  );
 }
 
 // A section of the term in SS01 in force, with its department, where transferring it is checked.

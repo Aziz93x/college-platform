@@ -22,18 +22,16 @@ const head = actor([{ permission: "accounts.resetPassword", departmentId: A }]);
 // The seeded keys of the roles a college-wide key could reach (db/seed/base.ts).
 const headKeys: PermissionKey[] = [
   "plan.edit",
-  "plan.publish",
-  "assignment.manage",
-  "review.decide",
-  "portfolio.approve",
+  "sections.transfer",
   "accounts.resetPassword",
   "accounts.linkEmployeeNumber",
+  "announcements.publish",
 ];
 const viceDeanKeys: PermissionKey[] = [
   "term.manage",
   "framework.publish",
   "rayat.import",
-  "indicators.view.college",
+  "announcements.publish",
 ];
 
 describe("reachesAccount", () => {
@@ -61,7 +59,7 @@ describe("reachesAccount", () => {
       ),
     );
 
-    it("reaches trainers, and anyone across the college whose every key it holds: the dean", () => {
+    it("reaches trainers, and anyone across the college whose every key it holds", () => {
       expect(
         reachesAccount(viceDean, "accounts.resetPassword", holder([A, B])),
       ).toBe(true);
@@ -69,7 +67,7 @@ describe("reachesAccount", () => {
         reachesAccount(
           viceDean,
           "accounts.resetPassword",
-          holder([null], ["indicators.view.college"]),
+          holder([null], ["announcements.publish"]),
         ),
       ).toBe(true);
     });
@@ -78,8 +76,8 @@ describe("reachesAccount", () => {
       ["an admin", holder([null], permissionKeys)],
       ["a head, whose employee number key it lacks", holder([A], headKeys)],
       [
-        "a dean also given the plans, a key across the college it lacks",
-        holder([null], ["indicators.view.college", "plan.edit"]),
+        "the dean, whose endorsement of the framework it lacks",
+        holder([null], ["announcements.publish", "framework.endorse"]),
       ],
     ])("does not reach %s", (_name, target) => {
       expect(reachesAccount(viceDean, "accounts.resetPassword", target)).toBe(

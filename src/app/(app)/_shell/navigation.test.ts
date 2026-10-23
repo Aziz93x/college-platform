@@ -122,6 +122,20 @@ it("opens the settings page for every key that edits a setting it shows", () => 
   }
 });
 
+// And for no other key: one that edits no setting there opens a page that refuses it (Audit 6).
+it("opens the settings page for no key that edits no setting it shows", () => {
+  const settings = navigation.find(({ id }) => id === "settings");
+  const editing = (Object.keys(settingsRegistry) as SettingKey[])
+    .filter((key) => settingControl(key))
+    .map((key) => settingsRegistry[key].permission);
+  const keys =
+    settings && "permission" in settings ? [settings.permission].flat() : [];
+  expect(keys).not.toEqual([]);
+  for (const permission of keys) {
+    expect(editing, permission).toContain(permission);
+  }
+});
+
 describe("orderFor", () => {
   const orders = { trainer: ["today"], head: ["review", "plan"] };
 

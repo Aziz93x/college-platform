@@ -38,14 +38,21 @@ const examCopy: SourceItem = {
   weeks: [8, 18],
   evidence: { ...POLICY, requiresApproval: true },
 };
+// The same from each course's trainer, once for all their sections of it (Step 18).
+const courseCopy: SourceItem = {
+  ...examCopy,
+  origin: "course",
+  appliesTo: { type: "eachCourse" },
+};
 
-// Electrical: two trainers, and two sections, one taught by two trainers.
+// Electrical: two trainers, and two sections of one course, one taught by two trainers: 200101
+// teaches both sections of the course, and 200102 one.
 const electrical = {
   departmentId: "electrical",
   holders: { [TRAINER]: ["u1", "u2"] },
   sections: [
-    { ref: "30101", places: ["200101"] },
-    { ref: "30102", places: ["200101", "200102"] },
+    { ref: "30101", course: "كهر 111", places: ["200101"] },
+    { ref: "30102", course: "كهر 111", places: ["200101", "200102"] },
   ],
 };
 
@@ -72,6 +79,7 @@ const task = (
   occurrence: wanted.occurrence,
   departmentId: wanted.departmentId,
   sectionRef: wanted.sectionRef,
+  courseCode: wanted.courseCode,
   place: wanted.place,
   holderId: wanted.holderId,
   week: wanted.week,
@@ -96,10 +104,27 @@ describe("slotsOf", () => {
       week: 18,
       departmentId: "electrical",
       sectionRef: "30102",
+      courseCode: "",
       place: "200102",
       holderId: null,
     });
     expect(slotsOf([examCopy], [{ ...electrical, sections: [] }])).toEqual([]);
+  });
+
+  it("gives an item for each course's trainer one slot for each trainer each course started with, once for all their sections of it", () => {
+    const slots = slotsOf([courseCopy], [electrical]);
+    // 200101 and 200102 in the one course, twice: one fewer than the 3 places of its sections.
+    expect(slots).toHaveLength(2 * 2);
+    expect(slots).toContainEqual({
+      item: "course",
+      occurrence: 1,
+      week: 8,
+      departmentId: "electrical",
+      sectionRef: "",
+      courseCode: "كهر 111",
+      place: "200101",
+      holderId: null,
+    });
   });
 });
 
@@ -126,6 +151,32 @@ describe("wantedTasks", () => {
       title: plan.title,
       policy: POLICY,
     });
+  });
+
+  it("keeps a course's task with its trainer while they teach one of their sections of it, and gives it with the last of them to whoever takes it", () => {
+    // 200101 hands 30101 to 200104 from week 12, and 30102 to 200105 from week 15.
+    const handed: TermNow = {
+      ...term(5),
+      holder: (ref, place, number) =>
+        place !== "200101"
+          ? place
+          : ref === "30101" && number >= 12
+            ? "200104"
+            : ref === "30102" && number >= 15
+              ? "200105"
+              : place,
+    };
+    const of = (week: number) =>
+      wantedTasks(
+        [{ ...courseCopy, weeks: [week] }],
+        [electrical],
+        handed,
+      ).find((each) => each.place === "200101")?.assignee.number;
+    expect(of(11)).toBe("200101");
+    // 30101 has gone, but 200101 still teaches 30102.
+    expect(of(13)).toBe("200101");
+    // 30102, their last section of the course, went to 200105.
+    expect(of(16)).toBe("200105");
   });
 
   it("gives a past week's task to whoever holds the place now: work still to do goes with the section", () => {

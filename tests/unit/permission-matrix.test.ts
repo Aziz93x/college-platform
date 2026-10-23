@@ -45,6 +45,8 @@ const ITEM = {
   },
   notes: "",
 };
+// A section template: a framework item for each course's trainers or each section's (Step 18).
+const TEMPLATE = { ...ITEM, appliesTo: { type: "eachCourse" } };
 vi.mock("@/modules/org", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/org")>()),
   createDepartment: async () => ({ status: "created", id: ID }),
@@ -178,6 +180,14 @@ vi.mock("@/modules/tasks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/tasks")>()),
   queueGeneration: async () => {},
 }));
+// A section template of the matrix's department, each change answered as done (Step 18).
+vi.mock("@/modules/planning", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/planning")>()),
+  findTemplate: async () => ({ id: ID, termId: ID, departmentId: DEPARTMENT }),
+  addTemplate: async () => ({ status: "saved", id: ID }),
+  updateTemplate: async () => ({ status: "saved" }),
+  removeTemplate: async () => ({ status: "saved" }),
+}));
 vi.mock("@/modules/axes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/axes")>()),
   updateAxis: async () => ({ status: "saved" }),
@@ -253,7 +263,7 @@ const checked: {
     module: "(app)/settings/actions.ts",
     action: "saveSettingAction",
     permission: "settings.manage",
-    input: { key: "review.weeklyCap", value: 31 },
+    input: { key: "reminders.digestHour", value: 8 },
   },
   {
     module: "(app)/settings/actions.ts",
@@ -265,7 +275,7 @@ const checked: {
     module: "(app)/settings/actions.ts",
     action: "resetSettingAction",
     permission: "settings.manage",
-    input: { key: "review.weeklyCap" },
+    input: { key: "reminders.digestHour" },
   },
   {
     module: "(app)/settings/actions.ts",
@@ -463,6 +473,21 @@ const checked: {
     module: "(app)/sections/actions.ts",
     action: action as string,
     permission: "sections.transfer" as const,
+    input,
+    inDepartment: true as const,
+  })),
+  // A department's section templates, the head's in their department (Step 18).
+  ...[
+    [
+      "addTemplateAction",
+      { termId: ID, departmentId: DEPARTMENT, ...TEMPLATE },
+    ],
+    ["updateTemplateAction", { templateId: ID, ...TEMPLATE }],
+    ["removeTemplateAction", { templateId: ID }],
+  ].map(([action, input]) => ({
+    module: "(app)/templates/actions.ts",
+    action: action as string,
+    permission: "plan.edit" as const,
     input,
     inDepartment: true as const,
   })),

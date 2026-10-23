@@ -11,13 +11,25 @@ export {
   type FrameworkItemInput,
   frameworkItemInput,
   frameworkLimits,
+  reachesTrainers,
+  type SectionTemplateInput,
+  sectionTemplateInput,
   type TaskKind,
   taskKinds,
 } from "./domain/inputs.ts";
 export {
+  blankPayload,
+  kindFields,
+  type Payload,
+  type PayloadField,
+  type PayloadLimits,
+  payloadLimits,
+} from "./domain/payloads.ts";
+export {
   addItem,
   copyFrameworkInto,
   endorseDraft,
+  offersItem,
   publishDraft,
   publishedItems,
   removeItem,
