@@ -131,12 +131,15 @@ describe("requiresTwoFactor", () => {
     expect(permissionKeys.filter((key) => requiresTwoFactor([key]))).toEqual([
       "audit.view",
       "settings.manage",
+      "system.manage",
+      "texts.manage",
       "college.manage",
       "departments.manage",
       "roles.manage",
       "people.manage",
       "accounts.resetPassword",
       "accounts.linkEmployeeNumber",
+      "accounts.sessions",
     ]);
   });
 });

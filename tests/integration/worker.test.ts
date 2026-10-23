@@ -34,8 +34,8 @@ function captureLogs() {
   return { logger, lines: () => parseLines(output) };
 }
 
-it("schedules the heartbeat every minute, logs each job and stops", async () => {
-  const { url } = await freshDatabase();
+it("schedules the heartbeat every minute, logs each job, records the beat and stops", async () => {
+  const { url, pool } = await freshDatabase();
   const { logger, lines } = captureLogs();
   const { boss, stop } = await startWorker({ databaseUrl: url, logger });
 
@@ -52,6 +52,14 @@ it("schedules the heartbeat every minute, logs each job and stops", async () => 
             jobId,
           }),
         ),
+      { timeout: 10_000, interval: 100 },
+    );
+    // The beat the system page reads (ADR-0029).
+    await vi.waitFor(
+      async () =>
+        expect(
+          (await pool.query("select worker from worker_heartbeats")).rows,
+        ).toEqual([{ worker: "worker" }]),
       { timeout: 10_000, interval: 100 },
     );
 

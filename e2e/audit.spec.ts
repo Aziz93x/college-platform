@@ -245,11 +245,14 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
       .getByRole("list", { name: nav.groups.administration })
       .getByRole("link"),
   ).toHaveText([
+    nav.console,
     nav.departments,
     nav.roles,
     nav.people,
     nav.settings,
+    nav.texts,
     nav.audit,
+    nav.system,
     nav.axes,
   ]);
 
@@ -273,7 +276,7 @@ test("the sidebar groups the administration pages and folds to its icon rail, as
   ).toBeVisible();
 });
 
-test("on a phone, the admin's fourteen pages leave four tabs and More, whose sheet opens the rest", async ({
+test("on a phone, the admin's seventeen pages leave four tabs and More, whose sheet opens the rest", async ({
   page,
   isMobile,
 }) => {
@@ -282,15 +285,18 @@ test("on a phone, the admin's fourteen pages leave four tabs and More, whose she
   const bar = page.getByRole("navigation", { name: shell.navigation });
   await expect(bar.getByRole("link")).toHaveText([
     nav.today,
+    nav.console,
     nav.departments,
     nav.roles,
-    nav.people,
   ]);
   await bar.getByRole("button", { name: shell.more }).click();
   const sheet = page.getByRole("dialog", { name: shell.moreTitle });
   await expect(sheet.getByRole("link")).toHaveText([
+    nav.people,
     nav.settings,
+    nav.texts,
     nav.audit,
+    nav.system,
     nav.axes,
     nav.terms,
     nav.framework,

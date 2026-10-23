@@ -70,6 +70,8 @@ module.exports = {
           "^src/platform/validation/digits\\.ts$",
           "^src/platform/validation/text\\.ts$",
           "(^|/)node_modules/zod/",
+          // The ICU message parser, which checks a college's wording of a text (ADR-0029).
+          "(^|/)node_modules/@formatjs/icu-messageformat-parser/",
           "(^|/)node_modules/vitest/",
           "^src/modules/[^/]+/index\\.ts$",
         ],

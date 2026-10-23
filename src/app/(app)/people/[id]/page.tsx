@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { forbidden, notFound } from "next/navigation";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, getTranslations } from "next-intl/server";
+import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { cache } from "react";
 import { z } from "zod";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
@@ -14,6 +14,7 @@ import {
   requireViewer,
   roleLabel,
 } from "@/modules/access";
+import { deviceOf, listSessions } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
 import { HistoryPanel } from "../../audit/history-panel.tsx";
@@ -22,6 +23,7 @@ import { parseCursor } from "../../audit/query.ts";
 import { AccountActions } from "../account-actions.tsx";
 import { GiveRole } from "../give-role.tsx";
 import { PersonForms } from "../person-forms.tsx";
+import { PersonSessions, type SessionRow } from "../person-sessions.tsx";
 import { peopleScope } from "../scope.ts";
 import { STATE_BADGE } from "../state-badge.ts";
 import { personView } from "../view.ts";
@@ -78,13 +80,45 @@ export default async function PersonPage({
   const givesRoles = authorize(viewer, "roles.manage", {
     collegeId: viewer.collegeId,
   });
-  const [t, ui, { ui: uiWords, actions, people, reauth, roles }, collegeRoles] =
-    await Promise.all([
-      getTranslations("people"),
-      getTranslations("ui"),
-      getMessages(),
-      givesRoles ? listRoles(viewer.collegeId) : [],
-    ]);
+  const [
+    t,
+    ui,
+    format,
+    { ui: uiWords, actions, people, reauth, roles },
+    collegeRoles,
+    signedIn,
+  ] = await Promise.all([
+    getTranslations("people"),
+    getTranslations("ui"),
+    getFormatter(),
+    getMessages(),
+    givesRoles ? listRoles(viewer.collegeId) : [],
+    person.can.sessions ? listSessions(person.userId) : undefined,
+  ]);
+  // Each session's device and times in words (ADR-0029).
+  const sessions = signedIn?.map((session): SessionRow => {
+    const { browser, system } = deviceOf(session.userAgent);
+    const when = (at: Date) =>
+      format.dateTime(at, { dateStyle: "medium", timeStyle: "short" });
+    return {
+      id: session.id,
+      device:
+        browser && system
+          ? t("sessions.device", {
+              browser: t(`sessions.browsers.${browser}`),
+              system: t(`sessions.systems.${system}`),
+            })
+          : browser
+            ? t(`sessions.browsers.${browser}`)
+            : system
+              ? t(`sessions.systems.${system}`)
+              : t("sessions.unknown"),
+      address: session.ipAddress,
+      signedIn: when(session.createdAt),
+      lastSeen: when(session.lastSeenAt),
+      remembered: session.remembered,
+    };
+  });
   return (
     <NextIntlClientProvider
       messages={{
@@ -169,6 +203,12 @@ export default async function PersonPage({
           />
         ) : null}
         <AccountActions person={person} card />
+        {sessions ? (
+          <PersonSessions
+            person={{ userId: person.userId, name: person.name }}
+            sessions={sessions}
+          />
+        ) : null}
         <PersonForms person={person} />
       </div>
       <HistoryPanel

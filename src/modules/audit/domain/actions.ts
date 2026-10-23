@@ -96,6 +96,18 @@ export const auditActions = [
   // A pass of the generation engine over a term's tasks that changed any, written by the system with
   // what it did (Step 20).
   "task.generate",
+  // A failed pass run again by an admin, from the system page (ADR-0029).
+  "generation.rerun",
+  // Someone's sessions ended by whoever holds accounts.sessions: one, all of theirs, or everyone's
+  // but the admin's own from the system page; and a new password required at their next request
+  // (ADR-0029).
+  "session.revoke",
+  "session.revokeAll",
+  "session.revokeEveryone",
+  "account.requirePasswordChange",
+  // The college's own wording of a message, and back to the default (ADR-0029).
+  "text.override",
+  "text.reset",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];
@@ -118,6 +130,8 @@ const auditEntities = [
   "plan",
   "assignmentTemplate",
   "assignment",
+  // A message of the catalog, by its key (ADR-0029).
+  "text",
 ] as const;
 
 export type AuditEntity = (typeof auditEntities)[number];
