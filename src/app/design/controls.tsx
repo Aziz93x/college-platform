@@ -29,17 +29,6 @@ import {
   ComboboxTrigger,
 } from "@/components/motion/combobox";
 import { Input } from "@/components/motion/input";
-import {
-  MultiSelect,
-  MultiSelectContent,
-  MultiSelectEmpty,
-  MultiSelectInput,
-  MultiSelectItem,
-  MultiSelectLabel,
-  MultiSelectList,
-  MultiSelectTrigger,
-  MultiSelectValue,
-} from "@/components/motion/multi-select";
 import { OverflowActions } from "@/components/motion/overflow-actions";
 import { RangeSlider } from "@/components/motion/range-slider";
 import {
@@ -92,11 +81,6 @@ export function Controls() {
   const [off, setOff] = useState(false);
   const [week, setWeek] = useState<string>(WEEKS[0]);
   const [person, setPerson] = useState<string>();
-  const [team, setTeam] = useState<string[]>(() =>
-    (t.raw("combobox.people") as [string, string][])
-      .slice(0, 2)
-      .map(([, number]) => number),
-  );
   const [sections, setSections] = useState(SECTIONS.start);
   // At its upper bound, where the leaving button once drew over the number (UX review 2, F1).
   const [full, setFull] = useState(SECTIONS.max);
@@ -269,40 +253,6 @@ export function Controls() {
             <ComboboxEmpty>{t("combobox.empty")}</ComboboxEmpty>
           </ComboboxContent>
         </Combobox>
-      </Demo>
-
-      <Demo id="multi-select" title={t("primitives.multi-select")}>
-        <MultiSelect
-          value={team}
-          onValueChange={setTeam}
-          className="w-full sm:w-72"
-        >
-          <MultiSelectLabel>{t("multiSelect.label")}</MultiSelectLabel>
-          <MultiSelectTrigger>
-            <MultiSelectValue
-              removeLabel={(name) => t("multiSelect.remove", { name })}
-            />
-            <MultiSelectInput placeholder={t("combobox.placeholder")} />
-          </MultiSelectTrigger>
-          <MultiSelectContent>
-            <MultiSelectList aria-label={t("multiSelect.list")}>
-              {people.map(([name, number]) => (
-                <MultiSelectItem
-                  key={number}
-                  value={number}
-                  textValue={name}
-                  keywords={[number]}
-                >
-                  <span className="block truncate">{name}</span>
-                  <span dir="ltr" className="text-muted-foreground text-xs">
-                    {number}
-                  </span>
-                </MultiSelectItem>
-              ))}
-            </MultiSelectList>
-            <MultiSelectEmpty>{t("combobox.empty")}</MultiSelectEmpty>
-          </MultiSelectContent>
-        </MultiSelect>
       </Demo>
 
       <Demo id="stepper" title={t("primitives.stepper")}>

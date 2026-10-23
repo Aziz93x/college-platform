@@ -6,17 +6,8 @@ import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionSwapButton } from "@/components/motion/action-swap";
 import { BottomSheet } from "@/components/motion/bottom-sheet";
-import {
-  MultiSelect,
-  MultiSelectContent,
-  MultiSelectEmpty,
-  MultiSelectInput,
-  MultiSelectItem,
-  MultiSelectLabel,
-  MultiSelectList,
-  MultiSelectTrigger,
-  MultiSelectValue,
-} from "@/components/motion/multi-select";
+import { Checkbox } from "@/components/motion/checkbox";
+import { searchCommands } from "@/components/motion/lib/command-search";
 import {
   Select,
   SelectContent,
@@ -25,14 +16,16 @@ import {
   SelectValue,
 } from "@/components/motion/select";
 import { Switch } from "@/components/motion/switch";
+import { NoResults, SearchField } from "@/components/search-field";
 import { Button } from "@/components/ui/button";
+import { toLatinDigits } from "@/platform/validation/digits";
 import { assignAction } from "./actions.ts";
 
 export type Person = { userId: string; name: string; employeeNumber: string };
 
-// Giving a template to people of the department, in a sheet: whom, chosen several at once, and the
-// whole term or from a week to a week of it, its tasks due in the last (the owner's answers,
-// 23 October 2026).
+// Giving a template to people of the department, in a sheet: whom, ticked in the department's list,
+// which a search narrows by name or employee number, and the whole term or from a week to a week of
+// it, its tasks due in the last (the owner's answers, 23 October 2026).
 export function AssignButton({
   termId,
   departmentId,
@@ -54,6 +47,7 @@ export function AssignButton({
   const id = useId();
   const [open, setOpen] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
   const [wholeTerm, setWholeTerm] = useState(true);
   const [from, setFrom] = useState("1");
   const [to, setTo] = useState(String(weeks));
@@ -62,6 +56,25 @@ export function AssignButton({
   const [, startTransition] = useTransition();
   const options = Array.from({ length: weeks }, (_, at) => String(at + 1));
   const lastWeek = wholeTerm ? weeks : Number(to);
+  // Those a search finds, and those it hides stay chosen.
+  const shown = query.trim()
+    ? searchCommands(
+        people.map((person) => ({
+          person,
+          label: person.name,
+          keywords: [person.employeeNumber],
+        })),
+        toLatinDigits(query),
+      ).map(({ person }) => person)
+    : people;
+  const toggle = (userId: string, checked: boolean) => {
+    setChosen((current) =>
+      checked
+        ? [...current, userId]
+        : current.filter((each) => each !== userId),
+    );
+    setProblem(undefined);
+  };
 
   const submit = () => {
     if (chosen.length === 0) return setProblem(t("required"));
@@ -86,6 +99,7 @@ export function AssignButton({
         );
         setOpen(false);
         setChosen([]);
+        setQuery("");
         return;
       }
       setProblem(
@@ -154,41 +168,48 @@ export function AssignButton({
             }}
             className="flex flex-col gap-4 pt-2 pb-2"
           >
-            <MultiSelect
-              value={chosen}
-              onValueChange={(value) => {
-                setChosen(value);
-                setProblem(undefined);
-              }}
-            >
-              <MultiSelectLabel>{t("people")}</MultiSelectLabel>
-              <MultiSelectTrigger>
-                <MultiSelectValue
-                  removeLabel={(name) => t("remove", { name })}
-                />
-                <MultiSelectInput placeholder={t("placeholder")} />
-              </MultiSelectTrigger>
-              <MultiSelectContent>
-                <MultiSelectList aria-label={t("list")}>
-                  {people.map((person) => (
-                    <MultiSelectItem
-                      key={person.userId}
-                      value={person.userId}
-                      textValue={person.name}
-                      keywords={[person.employeeNumber]}
-                    >
-                      <span className="block truncate">{person.name}</span>
-                      <span dir="ltr" className="text-muted-foreground text-xs">
-                        {person.employeeNumber}
-                      </span>
-                    </MultiSelectItem>
-                  ))}
-                </MultiSelectList>
-                <MultiSelectEmpty>
-                  {people.length === 0 ? t("everyone") : t("noPerson")}
-                </MultiSelectEmpty>
-              </MultiSelectContent>
-            </MultiSelect>
+            <fieldset className="flex flex-col gap-2 px-1">
+              <legend className="mb-1 font-medium text-sm">
+                {t("people")}
+              </legend>
+              {people.length === 0 ? (
+                <p className="text-muted-foreground text-sm">{t("everyone")}</p>
+              ) : (
+                <>
+                  <SearchField
+                    label={t("search")}
+                    placeholder={t("placeholder")}
+                    value={query}
+                    onChange={setQuery}
+                    results={shown.length}
+                  />
+                  {shown.length === 0 ? (
+                    <NoResults query={query} onClear={() => setQuery("")} />
+                  ) : (
+                    <ul aria-label={t("list")} className="flex flex-col gap-1">
+                      {shown.map((person) => (
+                        <li key={person.userId}>
+                          <Checkbox
+                            label={person.name}
+                            description={person.employeeNumber}
+                            checked={chosen.includes(person.userId)}
+                            onCheckedChange={(checked) =>
+                              toggle(person.userId, checked)
+                            }
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p
+                    aria-live="polite"
+                    className="text-muted-foreground text-sm"
+                  >
+                    {t("chosen", { count: chosen.length })}
+                  </p>
+                </>
+              )}
+            </fieldset>
             <div className="flex items-center justify-between gap-3 px-1">
               <span id={`${id}-whole`} className="font-medium text-sm">
                 {t("wholeTerm")}
@@ -216,7 +237,8 @@ export function AssignButton({
                 {problem}
               </p>
             ) : null}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* The actions stay at the sheet's foot over a long list, as the item sheet's do. */}
+            <div className="sticky -bottom-6 z-10 -mx-4 -mb-8 flex flex-wrap items-center gap-2 border-t bg-background px-4 pt-3 pb-6">
               <ActionSwapButton
                 type="submit"
                 disabled={running}

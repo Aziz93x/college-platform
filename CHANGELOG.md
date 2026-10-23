@@ -10,16 +10,13 @@ All notable changes are recorded here. Each entry names the plan step from docs/
   - each template the department assigns: the six every department shares (department secretary, specialty supervisor, workshops and labs supervisor, schedule coordinator, cooperative training coordinator, safety supervisor), then the department's own;
   - with whom each is given to in the term on view, for which weeks and the week their tasks are due, and its items;
   - a closed term's assignments are shown, and nothing changes them.
-- A template is given to one or more people of the department at once, found by name or employee number in the multi select, for the whole term or from a week to a week of it. Revoking asks once, in a sheet that names the person, and the role they lose where the template grants one.
+- A template is given to one or more people of the department at once, ticked in the department's list, which a search narrows by name or employee number, for the whole term or from a week to a week of it. Those the search hides stay chosen, and the sheet counts them. Revoking asks once, in a sheet that names the person, and the role they lose where the template grants one.
 - Each template item makes one task for each assignee, under the template's axis (the six's: axis 9), due once, in the assignment's last week or the term's. The engine reads assignments as a source of their own, `assignment`. Assigning, revoking, and changing a template's items or axis queue a pass.
 - The secretary's template grants the secretary's role in the department for the term: assigning it adds the membership, and revoking removes it. Someone who already held the role there keeps it.
 - A head adds the department's own templates, such as an inventory officer, with the axis their tasks go under. They rename them, remove them while no term has them assigned, and keep their items in the shared item sheet: the title, the kind and the evidence. No head changes the six.
 - `assignment.manage`, held in a department, covers all of it. The base seed gives it to the head, and migration `0026` to existing heads. The shell shows "التكليفات" to its holders.
 - Recorded as `assignmentTemplate.create`, `assignmentTemplate.update`, `assignmentTemplate.delete`, `assignmentTemplateItem.create`, `assignmentTemplateItem.update`, `assignmentTemplateItem.delete`, `assignment.create` and `assignment.revoke`, beside the grant's `membership.create` and `membership.delete`.
-- The multi select joins the design catalog:
-  - the chosen people show as chips, each taken out by a tap or by Backspace;
-  - the list stays open while choosing;
-  - Escape closes the list before it reaches a sheet around it.
+- No new animated component, as the owner's rule of 22 October asks: the people are Motion checkboxes under the shared search field, whose Escape now clears a search before it reaches a sheet around it, and closes the sheet only once there is nothing to clear (Audit 7).
 - `seed:demo` makes each department's secretary by the secretary's template instead of a membership. It also gives Electrical a safety supervisor for the term, a schedule coordinator for its first four weeks, and its own inventory officer for its last six, whose stock-taking needs the head's approval.
 - Tests:
   - unit: the permission matrix's eight new actions and the audit log's words for the new events;
@@ -30,11 +27,11 @@ All notable changes are recorded here. Each entry names the plan step from docs/
     - the demo's assignments and every new action's audit event;
   - end to end on the desktop and the iPhone:
     - the demo head's templates and holders;
-    - assigning two people for weeks 2 to 10, revoking one, and the grant in the database;
-    - the assign sheet with its list open, under axe and with 44 px targets;
+    - assigning two people for weeks 2 to 10, one found while the search hid the other, revoking one, and the grant in the database;
+    - Escape in the sheet's search, which clears it and keeps the sheet;
+    - the assign sheet under axe and with 44 px targets;
     - a department's own template and its item, renamed and removed;
-    - the page refused to a trainer;
-    - the multi select in the design catalog.
+    - the page refused to a trainer.
 
 ### UX review 2: Steps 11 to 20 (docs/reviews/ux-20.md)
 

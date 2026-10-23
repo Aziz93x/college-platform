@@ -20,7 +20,6 @@ const PRIMITIVES = [
   "switch",
   "select",
   "combobox",
-  "multi-select",
   "stepper",
   "slider",
   "tabs",
@@ -80,13 +79,6 @@ const OVERLAYS: Overlay[] = [
       page.getByRole("combobox", { name: design.combobox.label }),
     role: "listbox",
     name: design.combobox.list,
-  },
-  {
-    id: "multi-select",
-    trigger: (page) =>
-      page.getByRole("combobox", { name: design.multiSelect.label }),
-    role: "listbox",
-    name: design.multiSelect.list,
   },
   { id: "date-range", trigger: labelled(design.period.label), role: "grid" },
   {
@@ -168,43 +160,6 @@ test("the combobox's list follows its field when the field moves", async ({
       );
     })
     .toBeLessThan(24);
-});
-
-// The catalog starts with two people chosen, as a head's assignment of two trainers does (Step 21).
-test("the multi select takes several, keeps its list open, and takes one out by its chip or Backspace", async ({
-  page,
-}) => {
-  const [first, second, third] = design.combobox.people.map(([name]) => name);
-  const chip = (name: string) =>
-    page.getByRole("button", {
-      name: design.multiSelect.remove.replace("{name}", name),
-    });
-  await expect(chip(first)).toBeVisible();
-  await expect(chip(second)).toBeVisible();
-
-  const field = page.getByRole("combobox", { name: design.multiSelect.label });
-  await field.click();
-  const list = page.getByRole("listbox", { name: design.multiSelect.list });
-  await expect(list).toHaveAttribute("aria-multiselectable", "true");
-  await expect(list.getByRole("option", { name: first })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  // A digit typed on an Arabic keyboard finds an employee number.
-  await field.fill("٢٠٠١٠٣");
-  await list.getByRole("option", { name: third }).click();
-  await expect(chip(third)).toBeVisible();
-  await expect(list).toBeVisible();
-  await expect(field).toHaveValue("");
-  await expect(field).toBeFocused();
-
-  await chip(second).click();
-  await expect(chip(second)).toHaveCount(0);
-  await field.press("Backspace");
-  await expect(chip(third)).toHaveCount(0);
-  await expect(chip(first)).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(list).toBeHidden();
 });
 
 test("the bottom sheet takes focus, keeps Tab inside and gives focus back on close", async ({

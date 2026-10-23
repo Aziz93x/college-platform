@@ -137,25 +137,27 @@ test(
       const sheet = page.getByRole("dialog", {
         name: t("assign.title", { title: coordinator }),
       });
-      const people = sheet.getByRole("combobox", { name: text.assign.people });
-      // Two at once: one found by employee number, the next by name.
-      await people.fill(first.employeeNumber);
-      await page.getByRole("option", { name: first.name }).click();
-      await people.fill(second.name);
-      await page.getByRole("option", { name: second.name }).click();
-      for (const person of [first, second]) {
-        await expect(
-          sheet.getByRole("button", {
-            name: t("assign.remove", { name: person.name }),
-          }),
-        ).toBeVisible();
-      }
-      // Escape closes the list and keeps the sheet.
-      await page.keyboard.press("Escape");
-      await expect(
-        page.getByRole("listbox", { name: text.assign.list }),
-      ).toBeHidden();
+      const search = sheet.getByRole("searchbox", {
+        name: text.assign.search,
+      });
+      const list = sheet.getByRole("list", { name: text.assign.list });
+      const box = (name: string) =>
+        list.getByRole("checkbox", { name, exact: true });
+      // Two at once: one found by employee number, the next by name, the first staying chosen
+      // while the search hides them.
+      await search.fill(first.employeeNumber);
+      await box(first.name).click();
+      await search.fill(second.name);
+      await box(second.name).click();
+      await expect(box(first.name)).toHaveCount(0);
+      await expect(sheet).toContainText(t("assign.chosen", { count: 2 }));
+      // Escape clears the search and keeps the sheet.
+      await search.press("Escape");
+      await expect(search).toHaveValue("");
       await expect(sheet).toBeVisible();
+      for (const person of [first, second]) {
+        await expect(box(person.name)).toBeChecked();
+      }
       if (hasTouch) expect(await smallTargets(sheet)).toEqual([]);
 
       // From week 2 to week 10, its tasks due in the tenth.
@@ -218,10 +220,12 @@ test(
         t("assign.grants", { role: title("secretary") }),
       );
       await grant
-        .getByRole("combobox", { name: text.assign.people })
+        .getByRole("searchbox", { name: text.assign.search })
         .fill(second.employeeNumber);
-      await page.getByRole("option", { name: second.name }).click();
-      await page.keyboard.press("Escape");
+      await grant
+        .getByRole("list", { name: text.assign.list })
+        .getByRole("checkbox", { name: second.name, exact: true })
+        .click();
       await grant
         .getByRole("button", { name: text.assign.submit, exact: true })
         .click();
@@ -257,7 +261,7 @@ test(
   },
 );
 
-test("the sheet that assigns, with its list of the department's people open, has no serious issue and 44 px targets on a phone (Step 21)", async ({
+test("the sheet that assigns, with the department's people to tick, has no serious issue and 44 px targets on a phone (Step 21)", async ({
   browser,
   hasTouch,
 }) => {
@@ -270,14 +274,12 @@ test("the sheet that assigns, with its list of the department's people open, has
   const sheet = page.getByRole("dialog", {
     name: t("assign.title", { title: workshops }),
   });
-  await sheet.getByRole("combobox", { name: text.assign.people }).click();
-  const list = page.getByRole("listbox", { name: text.assign.list });
-  await expect(list).toHaveAttribute("aria-multiselectable", "true");
-  await expect(list.getByRole("option").first()).toBeVisible();
-  if (hasTouch) {
-    expect(await smallTargets(sheet)).toEqual([]);
-    expect(await smallTargets(list)).toEqual([]);
-  }
+  const list = sheet.getByRole("list", { name: text.assign.list });
+  await expect(list.getByRole("checkbox").first()).toBeVisible();
+  await expect(
+    sheet.getByRole("group", { name: text.assign.people }),
+  ).toContainText(t("assign.chosen", { count: 0 }));
+  if (hasTouch) expect(await smallTargets(sheet)).toEqual([]);
   // Last: the check writes the page's Arabic in Latin letters.
   expect(await seriousViolations(page)).toEqual([]);
 });

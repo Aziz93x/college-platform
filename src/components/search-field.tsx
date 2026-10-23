@@ -38,7 +38,11 @@ export function SearchField({
         value={value}
         onChange={onChange}
         onKeyDown={(event) => {
-          if (event.key === "Escape") onChange("");
+          if (event.key !== "Escape" || value === "") return;
+          // Clears the search and goes no further: a sheet around the field hears keys on the
+          // document after it, and closes on Escape only once there is nothing to clear.
+          event.preventDefault();
+          onChange("");
         }}
         startIcon={<Search />}
         endSlot={
