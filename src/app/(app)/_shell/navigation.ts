@@ -38,11 +38,13 @@ export type NavigationItem<Key extends string = PermissionKey> = {
   group?: NavigationGroup;
 };
 
-// An item as the shell draws it: its label translated and its icon rendered on the server.
+// An item as the shell draws it: its label translated and its icon rendered on the server, and a
+// shorter name for a phone's tab where the label is too long for one (nav.short.<id>).
 export type ShellLink = {
   id: string;
   href: string;
   label: string;
+  short?: string;
   icon: ReactNode;
   group?: NavigationGroup;
 };

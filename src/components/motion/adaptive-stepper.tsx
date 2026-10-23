@@ -184,7 +184,8 @@ export function AdaptiveStepper({
         ref={fieldsetRef}
         disabled={disabled}
         className={cn(
-          "relative isolate m-0 inline-block h-12 w-[13.5rem] max-w-full border-0 p-0",
+          // min-w-0: a fieldset's least width is its content's, so a narrow screen can shrink it.
+          "relative isolate m-0 inline-block h-12 w-[13.5rem] min-w-0 max-w-full border-0 p-0",
           className,
         )}
       >
@@ -229,6 +230,9 @@ function StepperAction({
       height={48 * scale}
       radius={24 * scale}
       transition={STEPPER_LIQUID_TRANSITION}
+      // A hidden action rests under the value that flows over its place: on top, its shape would
+      // cover the number's first digit (UX review 2).
+      className={hidden ? "z-0" : undefined}
     >
       <m.button
         ref={actionRef}

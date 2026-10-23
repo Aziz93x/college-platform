@@ -6,6 +6,12 @@ import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleIndicator,
+  CollapsibleTrigger,
+} from "@/components/motion/collapsible";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -422,21 +428,25 @@ async function DiffView({ kind, diff }: { kind: RayatKind; diff: RayatDiff }) {
           ))}
       </ul>
       {lines.length > 0 ? (
-        <details className="group rounded-lg border bg-card">
-          <summary className="flex min-h-11 cursor-pointer items-center px-4 font-medium text-sm">
+        // The log's way to open more, with its chevron (UX review 2).
+        <Collapsible className="rounded-lg border bg-card">
+          <CollapsibleTrigger className="rounded-lg px-4">
             {t("diff.samples")}
-          </summary>
-          <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto border-t px-4 py-3 text-xs leading-relaxed">
-            {lines.map((text) => (
-              <li key={text}>{text}</li>
-            ))}
-            {hidden > 0 ? (
-              <li className="text-muted-foreground">
-                {t("diff.more", { count: hidden })}
-              </li>
-            ) : null}
-          </ul>
-        </details>
+            <CollapsibleIndicator />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto border-t px-4 py-3 text-xs leading-relaxed">
+              {lines.map((text) => (
+                <li key={text}>{text}</li>
+              ))}
+              {hidden > 0 ? (
+                <li className="text-muted-foreground">
+                  {t("diff.more", { count: hidden })}
+                </li>
+              ) : null}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
       ) : null}
     </div>
   );

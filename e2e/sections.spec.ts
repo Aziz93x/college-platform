@@ -52,6 +52,18 @@ test("the head of Electrical sees the department's sections with their trainers,
   await expect(main.getByRole("article").first()).toContainText(
     text.transfers.status.conflict,
   );
+  // A transfer's day is written as every page writes one, not in figures (UX review 2).
+  await expect(main).not.toContainText(/\d+\/\d+\/\d+/);
+  // Keeping it and cancelling it are ghost buttons alike, neither looking disabled (UX review 2).
+  const colour = (name: string) =>
+    main
+      .getByRole("article")
+      .first()
+      .getByRole("button", { name })
+      .evaluate((button) => getComputedStyle(button).color);
+  expect(await colour(text.transfers.keep)).toBe(
+    await colour(text.transfers.cancel.button),
+  );
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) expect(await smallTargets(main)).toEqual([]);
 });
@@ -201,7 +213,12 @@ test(
         .getByRole("dialog", {
           name: t("transfers.cancel.title", { ref: section.ref }),
         })
-        .getByRole("button", { name: text.transfers.cancel.confirm })
+        // The sheet's button names whom the section goes back to (UX review 2).
+        .getByRole("button", {
+          name: t("transfers.cancel.confirm", {
+            from: section.trainers[0]?.name ?? "",
+          }),
+        })
         .click();
       await expect(page.getByText(text.transfers.cancel.done)).toBeVisible();
       await expect(card).not.toContainText(text.transfers.status.holds);

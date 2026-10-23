@@ -51,7 +51,14 @@ export function usePopoverPortalPosition(
     if (contentRef.current) observer.observe(contentRef.current);
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
+    // A trigger can move without a scroll or a resize, as one in a sheet sliding in does: followed
+    // frame by frame, so its panel never stays where the trigger was (UX review 2).
+    let frame = requestAnimationFrame(function follow() {
+      update();
+      frame = requestAnimationFrame(follow);
+    });
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);

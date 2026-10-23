@@ -32,9 +32,7 @@ Enhancements that reviewers defer land here; the product manager ranks them (doc
 
 ## Audit 6 (docs/reviews/audit-18.md)
 
-- Each kind's payload editor in the design catalog: `/design` shows each kind's `PayloadEditor` with its `PayloadView` beside it, and an end-to-end test fills each on desktop and iPhone with axe and the 44 px check, so the editor is checked on a screen before Step 26 mounts it on the task card. About 1 h; with UX review 2 or Step 26 (enhancement 1).
 - For the owner: show a head every published framework item their trainers receive, those for the trainer's role too, and warn in the sheet when a template has the kind and reach of one of them ("يطلب الإطار العام هذا من المدربين: «…»"), so Step 20 never generates the same work twice. About 45 min; a flow proposal, so an ADR and a note under Step 19, whose plan shows the inherited items locked, once the owner accepts it (enhancement 3).
-- The audit log's words for an item's fields: a framework item's or a section template's axis, kind and reach, and its due rule and evidence policy in the words `itemVocabulary()` builds, where the log shows an id, a kind's key and JSON today (Steps 15 and 18). About 30 min; for UX review 2, which reviews the audit log (minor 2's second half).
 
 ## UX review 1: should fix (docs/reviews/ux-10.md)
 
@@ -47,6 +45,42 @@ Every score is 4 or above without these; the review ranks them after its must-fi
 - S5. Smaller finish: the login page's 40 px desktop scroll and the tablet panel's alignment; the page search's empty footer strip on touch; `font-sans` for the header's `Ctrl K`; a skeleton of the profile's own; a way back to the list from an unknown record's 404; a stage line on the import; the page order's phone cut-off; a copy button for the two-factor key and backup codes; the profile's two-factor state as a badge; icon-only row actions on a phone, whose open bar covers the name (the touch check still finds that name link, `people-row-actions-390`).
 - Later: a filter for a role's members (the trainer role lists 40 before its add form), and a sticky header for the people table (47 rows).
 - A seven-day calendar cannot give 44 px days on a 320 px phone: the date range picker reaches 44 px from 360 px (UX review 1). Decide with Step 13, which uses it for holidays, whether a narrow phone gets a list of weeks instead.
+
+## UX review 2: should fix (docs/reviews/ux-20.md)
+
+Every score is 4 or above without these. The review's pull request fixed its must-fix items; there, the payload editors on `/design` became part of Step 26's Done when (decision 3), the audit log's words for items and the vice-dean's phone tabs were fixed (F4 and F3), and of these it also did the plan's empty state's copy (S3, its first item) and the plan bar's half step (S6, its last).
+
+- S1. Motion over the 200 ms token, added by this range: the term switcher's morph (a 260 ms spring in, 200 ms out, `popover-morph.tsx:214-215`) and the bell's stack (320 and 260 ms, `notification-stack.tsx:129,132`). With UX review 1's S1: `--duration-slow` on the standard curve.
+- S2. Numbers and plurals.
+  - Simple ICU arguments ignore the digits setting: with `nu-arab`, "الأسبوع {week}" stays "الأسبوع 9" while "{count, plural, …}" gives "٣ أسابيع". Format each numeric placeholder (`{week, number}`) in `shell.term.week`, `today.term.week`, `terms.*`, `framework.dueText.week`, `plan.list.week`, `plan.grid.*`, `sections.*`, `rayat.*`, `announcements.list.reads` and `framework.publishedVersion`, and add a catalog test that every numeric placeholder is formatted.
+  - Number agreement after a bare number: "كل {every} أسابيع" reads "كل 2 أسابيع" for 2, the sheet's default; "{weeks} أسبوعًا" in the plan's review load and "{capacity} مقعدًا" in sections are wrong under 11. Make each a plural.
+- S3. Copy.
+  - The next-term sheet names the calendar and the exam periods: say that the framework and each department's plan come too, as drafts.
+  - The "مهام الفصل" card lists zeros ("وعُدِّلت 0، وانتقلت 0 إلى مدرب آخر، وأُلغيت 0"): name only what changed.
+  - Evidence lines list both JPG and JPEG: show the one name people use.
+  - Read-only viewers of a transfer conflict read "أبقِ النقل حتى التقرير التالي، أو ألغِه": say who keeps or cancels it.
+  - A transfer's event names the new trainer "الشخص" ("المدرب الجديد") and the previous one by number (by name).
+  - Term events read "إضافة إلى تقويم الفصل الفصل التدريبي…": separate the subject with "·", or drop "الفصل" from the actions' names.
+  - The exam periods' overlap error asks to fix "الفترات المعلَّمة", but no row is marked: mark both rows.
+  - `axes.empty.description` names a shell command, and a trainer reading a term's calendar reads about a setting: say what the viewer can do.
+  - Sentences that name roles, which a college may rename ("وكيل التدريب"، "رئيس القسم"، "العميد"): name the key's holder, as "ينشر الخطة من يملك صلاحية نشر خطة القسم" does.
+- S4. The plan editor, next.
+  - Mark the exam weeks in the phone list's headings ("الأسبوع 5 · الدوري الأول"), and this week in the list and the grid.
+  - The marks are 24 px, and a tablet gets the grid from 768 px: on a coarse pointer give each mark its cell's 36 by 44 px.
+  - Preview in the sheet the weeks a rule lands in before saving; today only the toast says it, after the save.
+  - The week field takes 14 taps to reach week 15: offer the term's weeks with their dates, as the transfer sheet's "من الأسبوع" does.
+  - Seed a flagged draft item (a week after the theoretical final), so the flags have a demo state for reviews and end-to-end tests.
+  - Give `/plan` the history panel, as `/terms/<id>` has, for whoever reads the log.
+- S5. The kind field in the item sheet: under the select, one line from `kindFields[kind]` and the `kinds.fields.*` words saying what the trainer fills in ("يكتب المدرب: نوع الاختبار ويوم الاختبار"; "ملاحظات، اختيارية").
+- S6. Smaller finish.
+  - The kinds of event added by Steps 12 to 20 fall back to the history icon (`event-list.tsx:43-53`): give each its page's icon from the navigation.
+  - At 390 px the college's short name is cut to "تقنية …" since the switcher joined the header: hide it when it does not fit whole.
+  - A term's page and a new term load with the form's skeleton: shape it like the page.
+  - Half steps: `py-3.5` on the term rows and `py-2.5` on the weeks list.
+- Later:
+  - What changed since the published version, item by item, before the vice-dean or a head publishes.
+  - A table for sections, as docs/design/beui-map.md plans, once a department has more than about 20 (the demo has 12).
+  - A head who publishes a plan cannot see the generation pass: the "مهام الفصل" card shows only to those who publish the framework.
 
 ## Lead review A: proposals waiting for the owner (docs/reviews/lead-A.md)
 
@@ -68,7 +102,6 @@ The owner chose on 2026-10-22, and the review's pull request built what was chos
 - 7. Tell the dean when a framework draft waits for endorsement, and the vice-dean when it is endorsed: two notification kinds. 1 h; an ADR. Not chosen now.
 - 8. One upload for Rayat's three reports, each recognised by its headers and applied by one button. 2 h. The owner kept one upload a report.
 - 9, its other half: Rayat's check and insert in the worker, with progress (3 to 4 h), if a college's files outgrow ADR-0023's budget.
-- The vice-dean's phone tabs give the settings a tab and put "استيراد رايات" under "المزيد": a `navigation.order` default for the role, which is data. For UX review 2.
 - A digits-only check of SF01's and SO01's trainee numbers, so a column map that pointed at another column could not keep names. Low; the admin who edits the maps is trusted.
 
 ## Lead review B: proposals (docs/reviews/lead-B.md)

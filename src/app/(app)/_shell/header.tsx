@@ -21,9 +21,10 @@ export function Header({
   const accountLabels = useTranslations("auth.account");
   return (
     // Opaque, so nothing scrolled under it shows through (UX review 1). The college's name gives
-    // way first in a narrow header; the controls keep their size.
+    // way first in a narrow header, then the term switcher's week, and in the narrowest the gaps:
+    // the controls keep their 44 px, side by side (UX review 2).
     <header className="raise-on-scroll @container sticky top-0 z-30 bg-background">
-      <div className="flex h-16 items-center gap-3 px-4 lg:px-8">
+      <div className="flex h-16 items-center gap-3 px-4 @max-3xs:gap-0.5 @max-3xs:px-1 lg:px-8">
         {collegeName ? (
           <p className="min-w-0 flex-1 truncate font-medium @max-2xs:hidden lg:hidden">
             {collegeName}

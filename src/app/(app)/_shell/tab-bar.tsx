@@ -83,6 +83,8 @@ export function TabBar({
               <Link
                 href={link.href}
                 aria-current={current ? "page" : undefined}
+                // A short name on show keeps the page's whole name for screen readers.
+                aria-label={link.short ? link.label : undefined}
                 className={cn(
                   TAB,
                   current ? "text-foreground" : "text-muted-foreground",
@@ -91,7 +93,7 @@ export function TabBar({
                 <span aria-hidden className="[&>svg]:size-5">
                   {link.icon}
                 </span>
-                <span className={TAB_LABEL}>{link.label}</span>
+                <span className={TAB_LABEL}>{link.short ?? link.label}</span>
               </Link>
             </DockItem>
           );

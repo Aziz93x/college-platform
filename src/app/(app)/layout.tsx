@@ -1,6 +1,11 @@
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { getFormatter, getTimeZone, getTranslations } from "next-intl/server";
+import {
+  getFormatter,
+  getMessages,
+  getTimeZone,
+  getTranslations,
+} from "next-intl/server";
 import type { ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { platformName } from "@/i18n/platform-name";
@@ -100,10 +105,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       ? termWords("holiday")
       : termWords("week", { number: week.number })
     : undefined;
+  const short: Partial<Record<string, string>> = (await getMessages()).nav
+    .short;
   const links: ShellLink[] = items.map((item) => ({
     id: item.id,
     href: item.href,
     label: nav(item.id),
+    short: short[item.id],
     icon: <item.icon />,
     group: "group" in item ? item.group : undefined,
   }));

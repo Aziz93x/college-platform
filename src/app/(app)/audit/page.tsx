@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTimeZone, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { NoResults } from "@/components/search-field";
 import { Button } from "@/components/ui/button";
 import { authorize, requireViewer } from "@/modules/access";
 import { listAuditEvents } from "@/modules/audit";
@@ -68,21 +69,23 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
           actions={actions}
           today={wallClock(new Date(), timeZone).slice(0, 10)}
         />
+        {/* The identity art for a log with no events yet; a filtered one that matched none says so
+            in the list's place, as a search does (UX review 2). */}
         {events.length > 0 ? (
           <EventList events={events} level={2} origin />
+        ) : filtered ? (
+          <NoResults
+            said={t("empty.filtered")}
+            clear={
+              <Button asChild variant="outline">
+                <Link href="/audit">{t("filters.clear")}</Link>
+              </Button>
+            }
+          />
         ) : (
           <EmptyState
             title={t("empty.title")}
-            description={
-              filtered ? t("empty.description") : t("empty.unfiltered")
-            }
-            action={
-              filtered ? (
-                <Button asChild variant="outline">
-                  <Link href="/audit">{t("filters.clear")}</Link>
-                </Button>
-              ) : undefined
-            }
+            description={t("empty.unfiltered")}
           />
         )}
       </NextIntlClientProvider>

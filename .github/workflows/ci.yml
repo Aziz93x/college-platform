@@ -152,7 +152,9 @@ jobs:
   stack:
     name: Production stack
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The job takes about 8 minutes. On 23 October 2026 the runner's package mirror made WebKit's
+    # system packages alone take 24 minutes, and the 30 the job had ran out, so it gets 45.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0

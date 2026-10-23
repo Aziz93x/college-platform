@@ -181,7 +181,8 @@ export default async function SectionsPage({
     t("transfers.meta", {
       reason: transfer.reason,
       by: transfer.by ?? t("unknown"),
-      at: format.dateTime(transfer.at, { dateStyle: "medium" }),
+      // A day as every page writes it, its month in words (UX review 2).
+      at: format.dateTime(transfer.at, { dateStyle: "long" }),
     });
 
   return (
@@ -246,6 +247,7 @@ export default async function SectionsPage({
                     <CancelTransferButton
                       id={transfer.id}
                       sectionRef={transfer.sectionRef}
+                      from={name(transfer.from)}
                     />
                   ) : null}
                 </li>
@@ -443,7 +445,11 @@ async function SectionCard({
                   {each.status === "conflict" ? (
                     <KeepTransferButton id={each.id} />
                   ) : null}
-                  <CancelTransferButton id={each.id} sectionRef={section.ref} />
+                  <CancelTransferButton
+                    id={each.id}
+                    sectionRef={section.ref}
+                    from={name(each.from)}
+                  />
                 </div>
               ) : null}
             </li>

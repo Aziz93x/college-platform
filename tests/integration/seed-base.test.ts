@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterAll, expect, it } from "vitest";
 import {
+  defaultNavigationOrder,
   defaultRoles,
   examPeriodTypes,
   portfolioAxes,
@@ -137,6 +138,26 @@ it("gives the college Rayat's column maps, once, and keeps a map an admin change
     value: changed,
     version: 2,
   });
+});
+
+it("gives the default roles their order of pages, once, and keeps an order an admin changed (UX review 2)", async () => {
+  const { db, pool } = await freshDatabase();
+  const collegeId = await seedBase(db, college);
+  const order = async () =>
+    (
+      await pool.query(
+        "select value from settings where college_id = $1 and key = 'navigation.order'",
+        [collegeId],
+      )
+    ).rows[0]?.value;
+  expect(await order()).toEqual(defaultNavigationOrder);
+  const changed = { head: ["today", "people", "plan"] };
+  await pool.query(
+    "update settings set value = $2 where college_id = $1 and key = 'navigation.order'",
+    [collegeId, changed],
+  );
+  await seedBase(db, college);
+  expect(await order()).toEqual(changed);
 });
 
 it("leaves a default role's keys as the admins set them when it runs again", async () => {

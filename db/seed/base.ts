@@ -66,6 +66,31 @@ export const defaultRoles: {
   { key: "quality-reviewer", labels: { ar: "مراجع الجودة" }, permissions: [] },
 ];
 
+// The order of the default roles' pages (navigation.order), so a phone's first tabs hold each one's
+// work: the vice-dean's terms, framework and Rayat, the head's plan, sections and people (UX review
+// 2). The sidebar lists the administration's pages last whatever the order. Pages an order leaves
+// out follow it, and the roles page changes it.
+export const defaultNavigationOrder: Record<string, string[]> = {
+  "vice-dean": [
+    "today",
+    "terms",
+    "framework",
+    "rayat",
+    "sections",
+    "announcements",
+    "settings",
+  ],
+  head: [
+    "today",
+    "plan",
+    "sections",
+    "people",
+    "announcements",
+    "framework",
+    "rayat",
+  ],
+};
+
 // The holidays a college starts with (ADR-0018), for this Umm al-Qura year and the nine after it:
 // each Eid break from the weekend nearest so many days before its Eid to the weekend nearest so
 // many days after it, the averages of the Saudi calendars of 1443 to 1448
@@ -179,8 +204,8 @@ export function holidayYears(today = new Date().toISOString().slice(0, 10)) {
 
 // Idempotent: inserts the one college only while none exists and never updates it, and each of its
 // roles, with its keys, only while the college has no role with that key, so a re-run changes
-// nothing and never undoes the grid; Rayat's column maps while the college has none, leaving those
-// an admin changed; and the holidays of the years ahead it does not have yet, leaving those it has,
+// nothing and never undoes the grid; Rayat's column maps and the default roles' order of pages while
+// the college has none, leaving those an admin changed; and the holidays of the years ahead it does not have yet, leaving those it has,
 // adjusted or not; and the portfolio's axes and exam-period types it does not have yet. Returns the
 // id of the first college, the one db:seed made.
 export async function seedBase(
@@ -219,13 +244,18 @@ export async function seedBase(
     }
     await tx
       .insert(settings)
-      .values(
-        Object.entries(rayatColumns).map(([kind, value]) => ({
+      .values([
+        ...Object.entries(rayatColumns).map(([kind, value]) => ({
           collegeId: row.id,
           key: `rayat.columns.${kind}`,
           value,
         })),
-      )
+        {
+          collegeId: row.id,
+          key: "navigation.order",
+          value: defaultNavigationOrder,
+        },
+      ])
       .onConflictDoNothing();
     return row.id;
   });

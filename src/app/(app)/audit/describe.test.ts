@@ -20,10 +20,13 @@ const lookup = (key: string) =>
       catalog,
     );
 const words = Object.assign(
-  (key: string) => {
+  (key: string, values: Record<string, string> = {}) => {
     const word = lookup(key);
     if (typeof word !== "string") throw new Error(`no word ${key}`);
-    return word;
+    return Object.entries(values).reduce(
+      (said, [name, value]) => said.replaceAll(`{${name}}`, value),
+      word,
+    );
   },
   { has: (key: string) => typeof lookup(key) === "string" },
 ) satisfies Words;
@@ -31,6 +34,11 @@ const words = Object.assign(
 const HIND = "0199b2a4-0000-7000-8000-000000000001";
 const ELECTRICAL = "0199b2a4-0000-7000-8000-00000000000d";
 const SPRING = "0199b2a4-0000-7000-8000-0000000000a1";
+const AXIS = "0199b2a4-0000-7000-8000-0000000000b1";
+const SECRETARY = "0199b2a4-0000-7000-8000-0000000000c1";
+// An item's fields as the framework's and the plans' pages word them, here for what the tests use.
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 const lookups: Lookups = {
   person: (id) => (id === HIND ? "هند القحطاني" : undefined),
   department: (id) => (id === ELECTRICAL ? "التقنية الكهربائية" : undefined),
@@ -43,6 +51,18 @@ const lookups: Lookups = {
     kind === "weeklyDigest" ? "ملخص الأسبوع" : undefined,
   term: (id) => (id === SPRING ? "الفصل الثاني 1447" : undefined),
   calendarKind: (kind) => (kind === "holiday" ? "إجازة" : undefined),
+  item: {
+    axis: (id) => (id === AXIS ? "المحور 1: الخطط التدريبية" : undefined),
+    kind: (kind) => (kind === "meeting_minutes" ? "محضر اجتماع" : undefined),
+    appliesTo: (value) =>
+      isRecord(value) && value.roleId === SECRETARY ? "أمين القسم" : undefined,
+    due: (value) =>
+      isRecord(value) && value.type === "examPeriods"
+        ? `بعد الاختبارات بـ${value.weeks}`
+        : undefined,
+    evidence: (value) =>
+      isRecord(value) && value.required === true ? "مطلوبة: PDF" : undefined,
+  },
   college: "الكلية التقنية",
   labels: (labels) => labels.ar,
   dateTime: (iso) => `at ${iso}`,
@@ -284,6 +304,106 @@ describe("describeEvent", () => {
         { field: "النسخة", after: "2" },
         { field: "البنود", after: "14" },
       ],
+    });
+  });
+
+  it("names a framework item by its title, and words its fields, as the framework's page does (UX review 2)", () => {
+    const due = (weeks: number) => ({
+      type: "examPeriods",
+      side: "after",
+      weeks,
+      periodTypes: ["first-periodic"],
+    });
+    expect(
+      describeEvent(
+        entry({
+          entityType: "framework",
+          entityId: "f1",
+          action: "frameworkItem.update",
+          diff: {
+            from: {
+              termId: SPRING,
+              title: "تحليل نتائج الاختبار",
+              due: due(1),
+            },
+            to: { termId: SPRING, title: "تحليل نتائج الاختبار", due: due(2) },
+          },
+        }),
+        lookups,
+        words,
+      ),
+    ).toMatchObject({
+      action: "تعديل بند في الإطار العام",
+      subject: "«تحليل نتائج الاختبار» · الإطار العام · الفصل الثاني 1447",
+      changes: [
+        {
+          field: "الموعد",
+          before: "بعد الاختبارات بـ1",
+          after: "بعد الاختبارات بـ2",
+        },
+      ],
+    });
+  });
+
+  it("words what a plan's new item reaches, its axis, kind and evidence, and names the item first (UX review 2)", () => {
+    const described = describeEvent(
+      entry({
+        entityType: "plan",
+        entityId: "p1",
+        action: "planItem.create",
+        diff: {
+          to: {
+            termId: SPRING,
+            departmentId: ELECTRICAL,
+            title: "محاضر اجتماعات القسم",
+            axisId: AXIS,
+            kind: "meeting_minutes",
+            appliesTo: { type: "role", roleId: SECRETARY },
+            due: { type: "everyWeeks", every: 4 },
+            evidence: { required: true, types: ["pdf"], maxFiles: 1 },
+            notes: "",
+          },
+        },
+      }),
+      lookups,
+      words,
+    );
+    expect(described.subject).toBe(
+      "«محاضر اجتماعات القسم» · التقنية الكهربائية · الفصل الثاني 1447",
+    );
+    expect(described.changes).toEqual(
+      expect.arrayContaining([
+        { field: "المحور", after: "المحور 1: الخطط التدريبية" },
+        { field: "النوع", after: "محضر اجتماع" },
+        { field: "يشمل", after: "أمين القسم" },
+        { field: "الشواهد", after: "مطلوبة: PDF" },
+        { field: "ملاحظات", after: "" },
+      ]),
+    );
+    // Someone the college no longer has is named so, not by their account's id.
+    expect(
+      describeEvent(
+        entry({
+          entityType: "plan",
+          entityId: "p1",
+          action: "planItem.create",
+          diff: {
+            to: {
+              termId: SPRING,
+              departmentId: ELECTRICAL,
+              title: "جرد العهدة",
+              appliesTo: { type: "person", userId: "gone" },
+            },
+          },
+        }),
+        lookups,
+        words,
+      ).changes,
+    ).toContainEqual({ field: "يشمل", after: "شخص لم يعد في الكلية" });
+    // A rule the words cannot read is shown as it was recorded, not lost.
+    expect(described.changes).toContainEqual({
+      field: "الموعد",
+      after: JSON.stringify({ type: "everyWeeks", every: 4 }),
     });
   });
 

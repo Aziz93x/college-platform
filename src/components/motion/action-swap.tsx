@@ -53,7 +53,8 @@ const ICON_VARIANTS: Variants = {
 
 const VARIANT_CLASS = {
   primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-  ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
+  // In the foreground colour, as the button's ghost is: muted, it read as disabled (UX review 2).
+  ghost: "hover:bg-muted hover:text-foreground",
 } as const;
 
 export function ActionSwapText({

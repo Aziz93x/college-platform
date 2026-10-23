@@ -201,6 +201,17 @@ describe("a framework's versions", () => {
     const after = await termFramework(collegeId, termId, database.db);
     expect(after.draft?.items).toHaveLength(1);
     expect(after.published?.items).toHaveLength(2);
+    // Every version, newest first, with how many items it holds (UX review 2).
+    expect(
+      after.versions.map(({ version, status, items }) => [
+        version,
+        status,
+        items,
+      ]),
+    ).toEqual([
+      [2, "draft", 1],
+      [1, "published", 2],
+    ]);
   });
 
   it("waits for the dean's endorsement where the college asks for it, and a change takes it back", async () => {

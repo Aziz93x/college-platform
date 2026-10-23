@@ -13,14 +13,18 @@ import { savePageOrderAction } from "../actions.ts";
 type Page = { id: (typeof navigation)[number]["id"]; label: string };
 
 // The order of the role's pages in the sidebar and the phone's tab bar: each page moves up or down
-// a place, and the order is saved for the role.
+// a place, and the order is saved for the role. A line marks where a phone's tabs end and its
+// "More" begins (UX review 2).
 export function PageOrder({
   roleId,
   pages,
+  tabs,
 }: {
   roleId: string;
   /** The pages the role opens, in its current order. */
   pages: Page[];
+  /** How many of them a phone shows as tabs; the rest are under "More". */
+  tabs: number;
 }) {
   const t = useTranslations("roles.order");
   const refusals = useTranslations("actions");
@@ -80,10 +84,22 @@ export function PageOrder({
           </h2>
           <p className="mt-1 max-w-prose text-pretty text-muted-foreground text-sm">
             {t("description")}
+            {tabs < order.length ? ` ${t("phone", { count: tabs })}` : null}
           </p>
         </div>
         <ol aria-label={t("list")} className="flex flex-col gap-1 sm:max-w-md">
-          {order.map((page, index) => (
+          {order.map((page, index) => [
+            index === tabs ? (
+              <li
+                key="more"
+                aria-hidden
+                className="flex items-center gap-2 py-1 text-muted-foreground text-xs"
+              >
+                <span className="h-px flex-1 bg-border" />
+                {t("more")}
+                <span className="h-px flex-1 bg-border" />
+              </li>
+            ) : null,
             <m.li
               key={page.id}
               layout="position"
@@ -114,8 +130,8 @@ export function PageOrder({
               >
                 <ArrowDown aria-hidden className="size-4" />
               </button>
-            </m.li>
-          ))}
+            </m.li>,
+          ])}
         </ol>
         {refusal ? (
           <p role="alert" className="text-alert text-sm">

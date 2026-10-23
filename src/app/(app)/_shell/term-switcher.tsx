@@ -49,21 +49,26 @@ export function TermSwitcher({
   return (
     <MorphPopover open={open} onOpenChange={setOpen}>
       <MorphPopoverTrigger>
+        {/* In a narrow header only its icon shows: the week stays in its name and on Today
+            (UX review 2). */}
         <button
           type="button"
           aria-label={labels.open}
-          className="flex h-11 min-w-0 items-center gap-2 rounded-lg px-2.5 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
         >
           <CalendarDays aria-hidden className="size-4 shrink-0" />
           <span className="hidden min-w-0 truncate font-medium md:inline">
             {viewed?.name ?? labels.choose}
           </span>
           {week ? (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums @max-sm:hidden">
               {week}
             </span>
           ) : null}
-          <ChevronDown aria-hidden className="size-4 shrink-0 opacity-60" />
+          <ChevronDown
+            aria-hidden
+            className="size-4 shrink-0 opacity-60 @max-sm:hidden"
+          />
         </button>
       </MorphPopoverTrigger>
       <MorphPopoverContent align="end" className="w-72 p-2">

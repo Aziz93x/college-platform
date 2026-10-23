@@ -14,6 +14,16 @@ export type Lookups = {
   // A term by its id, and a kind of day of its calendar (Step 13).
   term: (id: string) => string | undefined;
   calendarKind: (kind: string) => string | undefined;
+  // An item of the framework or of a department's plan as their pages word it (Steps 15 and 19):
+  // its axis, kind, reach, due rule and evidence as its events recorded them, or nothing for what
+  // they cannot read (UX review 2).
+  item: {
+    axis: (id: string) => string | undefined;
+    kind: (kind: string) => string | undefined;
+    appliesTo: (value: unknown) => string | undefined;
+    due: (value: unknown) => string | undefined;
+    evidence: (value: unknown) => string | undefined;
+  };
   college: string;
   // A role's labels in the college's language.
   labels: (labels: Record<string, string>) => string;
@@ -23,8 +33,11 @@ export type Lookups = {
   list: (items: string[]) => string;
 };
 
-// The words under audit.* in the catalog, and whether it has one.
-export type Words = ((key: string) => string) & {
+// The words under audit.* in the catalog, with the values they name, and whether it has one.
+export type Words = ((
+  key: string,
+  values?: Record<string, string>,
+) => string) & {
   has: (key: string) => boolean;
 };
 
@@ -70,13 +83,16 @@ function format(
         return words.has(`twoFactor.${value}`)
           ? words(`twoFactor.${value}`)
           : value;
-      // A kind of notification, or of a day of a term's calendar: no name is both.
+      // A kind of notification, of a day of a term's calendar, or of an item's task: no name is two.
       case "kind":
         return (
           lookups.notificationKind(value) ??
           lookups.calendarKind(value) ??
+          lookups.item.kind(value) ??
           value
         );
+      case "axisId":
+        return lookups.item.axis(value) ?? value;
       // A term, and the term a department's plan was copied from (Step 19).
       case "termId":
       case "fromTermId":
@@ -109,8 +125,19 @@ function format(
       field === "permissions" ? items.map(lookups.permission) : items,
     );
   }
-  if (isRecord(value) && field === "labels") {
-    return lookups.labels(value as Record<string, string>);
+  if (isRecord(value)) {
+    const said =
+      field === "labels"
+        ? lookups.labels(value as Record<string, string>)
+        : field === "appliesTo"
+          ? (lookups.item.appliesTo(value) ??
+            ("userId" in value ? words("unknownPerson") : undefined))
+          : field === "due"
+            ? lookups.item.due(value)
+            : field === "evidence"
+              ? lookups.item.evidence(value)
+              : undefined;
+    if (said !== undefined) return said;
   }
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
@@ -171,13 +198,19 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         ? `${was.name} ${was.hijriYear}`
         : id;
     }
-    // The term's framework, by the term (Step 15).
+    // The term's framework, by the term (Step 15); an item of it by its title first (UX review 2).
     case "framework": {
       const diff = entry.diff ?? {};
       const was = isRecord(diff.to) ? diff.to : diff.from;
-      return isRecord(was) && typeof was.termId === "string"
-        ? (lookups.term(was.termId) ?? id)
-        : id;
+      if (!isRecord(was) || typeof was.termId !== "string") return id;
+      const term = lookups.term(was.termId) ?? id;
+      return typeof was.title === "string"
+        ? [
+            words("quoted", { title: was.title }),
+            words("groups.framework"),
+            term,
+          ].join(" · ")
+        : term;
     }
     // A Rayat import by its report and term (Step 16).
     case "rayatImport": {
@@ -215,7 +248,8 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
           ].join(" · ")
         : id;
     }
-    // A department's plan by its department and term (Step 19).
+    // A department's plan by its department and term (Step 19); an item of it by its title first
+    // (UX review 2).
     case "plan": {
       const diff = entry.diff ?? {};
       const was = isRecord(diff.to) ? diff.to : diff.from;
@@ -223,6 +257,9 @@ function subject(entry: AuditEntry, lookups: Lookups, words: Words) {
         typeof was.departmentId === "string" &&
         typeof was.termId === "string"
         ? [
+            ...(typeof was.title === "string"
+              ? [words("quoted", { title: was.title })]
+              : []),
             lookups.department(was.departmentId) ?? was.departmentId,
             lookups.term(was.termId) ?? was.termId,
           ].join(" · ")

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { createTranslator } from "next-intl";
 import { defaultRoles } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import messages from "../messages/ar.json" with { type: "json" };
+import { settingsRegistry } from "../src/modules/settings/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
 import { test } from "./support/accounts.ts";
 import { demo, STORAGE } from "./support/auth.ts";
@@ -192,6 +194,24 @@ test("the roles and a role's page have no serious accessibility issue", async ({
   expect(await seriousViolations(page)).toEqual([]);
   await open(page, trainer ?? "");
   expect(await seriousViolations(page)).toEqual([]);
+});
+
+test("a role's page order marks the pages a phone keeps under More (UX review 2)", async ({
+  page,
+}) => {
+  const head = defaultRoles.find(({ key }) => key === "head")?.labels.ar ?? "";
+  await open(page, "/roles");
+  await page.getByRole("link", { name: head }).click();
+  const order = page.getByRole("region", { name: text.order.title });
+  // The demo head's seven pages: four tabs, then "More".
+  await expect(order).toContainText(
+    createTranslator({
+      // The college's digits, the default, as the page writes numbers.
+      locale: `ar-u-nu-${settingsRegistry["locale.digits"].default}`,
+      messages,
+      namespace: "roles.order",
+    })("phone", { count: 4 }),
+  );
 });
 
 test.describe("touch targets", () => {

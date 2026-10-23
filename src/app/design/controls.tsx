@@ -72,6 +72,7 @@ export function Controls() {
     switch: useId(),
     select: useId(),
     stepper: useId(),
+    stepperFull: useId(),
     slider: useId(),
   };
   const [checked, setChecked] = useState(true);
@@ -81,6 +82,8 @@ export function Controls() {
   const [week, setWeek] = useState<string>(WEEKS[0]);
   const [person, setPerson] = useState<string>();
   const [sections, setSections] = useState(SECTIONS.start);
+  // At its upper bound, where the leaving button once drew over the number (UX review 2, F1).
+  const [full, setFull] = useState(SECTIONS.max);
   const [rate, setRate] = useState(SAMPLE_RATE.start);
   const [tab, setTab] = useState("week");
   const [swap, setSwap] = useState("save");
@@ -261,6 +264,24 @@ export function Controls() {
             aria-labelledby={ids.stepper}
             value={sections}
             onValueChange={setSections}
+            min={SECTIONS.min}
+            max={SECTIONS.max}
+            labels={{
+              decrease: t("stepper.decrease"),
+              increase: t("stepper.increase"),
+            }}
+            formatValue={(count) => format.number(count)}
+            formatValueText={(count) => t("stepper.value", { count })}
+          />
+        </div>
+        <div className="flex flex-col items-start gap-1.5">
+          <span id={ids.stepperFull} className="px-1 font-medium text-sm">
+            {t("stepper.full")}
+          </span>
+          <AdaptiveStepper
+            aria-labelledby={ids.stepperFull}
+            value={full}
+            onValueChange={setFull}
             min={SECTIONS.min}
             max={SECTIONS.max}
             labels={{

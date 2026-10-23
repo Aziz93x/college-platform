@@ -4,6 +4,7 @@ import { expectIdentityLoaded, identityImages } from "./identity-assets";
 import { settled } from "./screens/settled";
 import { STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { valueOnTop } from "./support/stepper.ts";
 import { expect, test } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
 
@@ -130,6 +131,36 @@ for (const { id, trigger, role, name, open } of OVERLAYS) {
     await expect(overlay).toBeHidden();
   });
 }
+
+// A transform moves a field without a scroll or a resize, as a sheet sliding in moves its first
+// field, which opens its list as the sheet takes focus (UX review 2: the transfer sheet's list once
+// stayed where the field had been, over it).
+test("the combobox's list follows its field when the field moves", async ({
+  page,
+}) => {
+  const field = page.getByRole("combobox", { name: design.combobox.label });
+  await field.click();
+  const list = page.getByRole("listbox", { name: design.combobox.list });
+  await expect(list).toBeVisible();
+  await field.evaluate((node) => {
+    const sample = node.closest<HTMLElement>("[data-primitive]");
+    if (sample) sample.style.transform = "translateY(-160px)";
+  });
+  // The gap between the field and its list, whether the list opened below it or above it.
+  await expect
+    .poll(async () => {
+      const [box, panel] = await Promise.all([
+        field.boundingBox(),
+        list.boundingBox(),
+      ]);
+      if (!box || !panel) return Number.POSITIVE_INFINITY;
+      return Math.min(
+        Math.abs(panel.y - (box.y + box.height)),
+        Math.abs(box.y - (panel.y + panel.height)),
+      );
+    })
+    .toBeLessThan(24);
+});
 
 test("the bottom sheet takes focus, keeps Tab inside and gives focus back on close", async ({
   page,
@@ -386,6 +417,24 @@ test("the catalog never scrolls sideways on a 320 px phone", async ({
       ),
     )
     .toBe(0);
+});
+
+test("a stepper shows its whole number at either bound", async ({ page }) => {
+  const stepper = (name: string) =>
+    page.getByRole("group", { name, exact: true });
+  // At its upper bound, only the button that lowers it is left.
+  const full = stepper(design.stepper.full);
+  await expect(full.getByRole("button")).toHaveCount(1);
+  await expect.poll(() => valueOnTop(full)).toBe(true);
+  // Stepped down to its lower bound, the other button leaves.
+  const sections = stepper(design.stepper.label);
+  const fewer = sections.getByRole("button", {
+    name: design.stepper.decrease,
+  });
+  await fewer.click();
+  await fewer.click();
+  await expect(fewer).toHaveCount(0);
+  await expect.poll(() => valueOnTop(sections)).toBe(true);
 });
 
 test("a progress bar exposes its value", async ({ page }) => {

@@ -14,6 +14,7 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/empty-state";
 import { BottomSheet } from "@/components/motion/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
   type ItemOptions,
   ItemSheet,
 } from "../_items/item-sheet.tsx";
+import { Versions } from "../_items/versions.tsx";
 import {
   addPlanItemAction,
   movePlanItemsAction,
@@ -179,7 +181,13 @@ export function PlanEditor({
     const current = editing;
     if (!current || !draft) return;
     const saved = (data: NonNullable<Result>["data"]) => {
-      toast.success(t("saved"), { description: landing(data) });
+      // Open for the next item, the sheet keeps its actions at the screen's foot, where the toast
+      // would cover them, and stay while the pointer rests on it: it speaks from the top instead
+      // (UX review 2).
+      toast.success(t("saved"), {
+        description: landing(data),
+        position: another ? "top-center" : undefined,
+      });
       if (another) setResetKey((key) => key + 1);
       else setEditing(undefined);
     };
@@ -258,52 +266,56 @@ export function PlanEditor({
       </p>
     ) : null;
 
-  // No version yet: the plan starts empty, or from the previous term's.
+  // No version yet: the plan starts empty, or from the previous term's, from the empty state that
+  // every page shows when it has nothing yet (UX review 2).
   if (!draft && !published) {
     return (
-      <section
-        aria-labelledby={`${id}-title`}
-        className="rounded-xl border bg-card shadow-xs"
-      >
-        <div className="flex flex-col gap-4 px-5 py-5 sm:px-6">
-          <div>
-            <h2 id={`${id}-title`} className="font-medium text-base">
-              {t("empty.title")}
-            </h2>
-            <p className="mt-1 max-w-prose text-pretty text-muted-foreground text-sm">
-              {editable ? t("empty.description") : t("closed")}
-            </p>
-          </div>
-          {editable ? (
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" disabled={busy} onClick={() => start()}>
-                {running === "start" ? (
-                  <LoaderCircle aria-hidden className="animate-spin" />
-                ) : (
-                  <FilePlus2 aria-hidden />
-                )}
-                {t("start")}
-              </Button>
-              {previous ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => start(previous.termId)}
-                >
-                  {running === "copy" ? (
+      <EmptyState
+        title={t("empty.title")}
+        description={
+          !editable
+            ? t("closed")
+            : previous
+              ? t("empty.description")
+              : t("empty.descriptionNew")
+        }
+        action={
+          editable ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" disabled={busy} onClick={() => start()}>
+                  {running === "start" ? (
                     <LoaderCircle aria-hidden className="animate-spin" />
                   ) : (
-                    <CopyPlus aria-hidden />
+                    <FilePlus2 aria-hidden />
                   )}
-                  {previous.words}
+                  {t("start")}
                 </Button>
+                {previous ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => start(previous.termId)}
+                  >
+                    {running === "copy" ? (
+                      <LoaderCircle aria-hidden className="animate-spin" />
+                    ) : (
+                      <CopyPlus aria-hidden />
+                    )}
+                    {previous.words}
+                  </Button>
+                ) : null}
+              </div>
+              {error ? (
+                <p role="alert" className="text-alert text-sm">
+                  {error}
+                </p>
               ) : null}
             </div>
-          ) : null}
-        </div>
-        {message}
-      </section>
+          ) : undefined
+        }
+      />
     );
   }
 
@@ -406,11 +418,34 @@ export function PlanEditor({
           </p>
         ) : null}
 
+        <div className="hidden border-t md:block">
+          <PlanGrid
+            items={items}
+            framework={framework}
+            weeks={weeks}
+            periods={periods}
+            editable={changes}
+            selected={selected}
+            busy={busy}
+            onSelect={setSelected}
+            onMove={move}
+            onEdit={(item) => {
+              setError(undefined);
+              setEditing(item);
+            }}
+            onRemove={(item) => {
+              setError(undefined);
+              setRemoving([item.id]);
+            }}
+          />
+        </div>
         {changes && selected.size > 0 ? (
+          // At the screen's foot while items are chosen, above the tab bar and over the grid's room
+          // for it, as the role grid's Save is (UX review 2).
           <div
             role="toolbar"
             aria-label={t("selection.label")}
-            className="hidden flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-2.5 sm:px-6 md:flex"
+            className="sticky bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-20 hidden flex-wrap items-center gap-2 rounded-b-xl border-t bg-card px-5 py-3 shadow-sm sm:px-6 md:flex lg:bottom-4"
           >
             <span className="font-medium text-sm">
               {t("selection.count", { count: selected.size })}
@@ -457,24 +492,6 @@ export function PlanEditor({
           </div>
         ) : null}
 
-        <div className="hidden border-t md:block">
-          <PlanGrid
-            items={items}
-            framework={framework}
-            weeks={weeks}
-            periods={periods}
-            editable={changes}
-            selected={selected}
-            busy={busy}
-            onSelect={setSelected}
-            onMove={move}
-            onEdit={(item) => {
-              setError(undefined);
-              setEditing(item);
-            }}
-            onRemove={(item) => remove([item.id])}
-          />
-        </div>
         <div className="border-t md:hidden">
           <PlanList
             items={items}
@@ -486,7 +503,10 @@ export function PlanEditor({
               setError(undefined);
               setEditing(item);
             }}
-            onRemove={(item) => remove([item.id])}
+            onRemove={(item) => {
+              setError(undefined);
+              setRemoving([item.id]);
+            }}
           />
         </div>
         <p aria-live="polite" className="sr-only">
@@ -494,26 +514,11 @@ export function PlanEditor({
         </p>
       </section>
 
-      {versions.length > 0 ? (
-        <section
-          aria-labelledby={`${id}-versions`}
-          className="rounded-xl border bg-card shadow-xs"
-        >
-          <h2
-            id={`${id}-versions`}
-            className="px-5 pt-5 font-medium text-base sm:px-6"
-          >
-            {t("versions.title")}
-          </h2>
-          <ol className="mt-3 divide-y border-t">
-            {versions.map((each) => (
-              <li key={each.version} className="px-5 py-3 text-sm sm:px-6">
-                {each.words}
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
+      <Versions
+        id={`${id}-versions`}
+        title={t("versions.title")}
+        versions={versions}
+      />
 
       {publishing && draft ? (
         <BottomSheet
@@ -590,8 +595,11 @@ export function PlanEditor({
             if (!next) setRemoving(undefined);
           }}
           snapPoints={["auto"]}
-          title={t("removeTitle", { count: removing.length })}
-          description={t("removeDescription")}
+          title={t("removeTitle", {
+            count: removing.length,
+            title: items.find(({ id }) => id === removing[0])?.title ?? "",
+          })}
+          description={t("removeDescription", { count: removing.length })}
           closeLabel={ui("close")}
         >
           <div className="flex flex-col gap-4 pt-2 pb-2">

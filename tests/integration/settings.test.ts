@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { seedBase } from "../../db/seed/base.ts";
+import { defaultNavigationOrder, seedBase } from "../../db/seed/base.ts";
 import {
   getSetting,
   resetSetting,
@@ -271,7 +271,9 @@ describe("setSetting and resetSetting", () => {
           database.db,
         ),
     );
+    // Beside the vice-dean's, as the base seed orders it (UX review 2).
     expect((await row("navigation.order")).value).toEqual({
+      ...defaultNavigationOrder,
       head: ["today", "roles"],
       trainer: ["settings", "today"],
     });

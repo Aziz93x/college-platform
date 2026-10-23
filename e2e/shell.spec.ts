@@ -2,8 +2,9 @@ import type { Locator, Page } from "@playwright/test";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoSettings } from "../db/seed/demo/settings.ts";
 import messages from "../messages/ar.json" with { type: "json" };
-import { STORAGE } from "./support/auth.ts";
+import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { signedIn } from "./support/pages.ts";
 import { expect, test } from "./support/test.ts";
 
 const { shell, nav, today, pages } = messages;
@@ -84,30 +85,48 @@ test("the current page is marked in the navigation of the device", async ({
 });
 
 // The rectangles of the controls in `scope` that are off a screen `width` px wide or smaller than
-// 44 px, as "name x..right × height".
+// 44 px, as "name x..right × height", and the controls that overlap another, as "name / name"
+// (UX review 2: the header's controls once lay over each other, each still 44 px on screen).
 const cramped = (scope: Locator, width: number) =>
-  scope.locator("a, button").evaluateAll(
-    (controls, screen) =>
+  scope.locator("a, button").evaluateAll((elements, screen) => {
+    const controls = elements
+      .filter((control) => control.getClientRects().length > 0)
+      .map((control) => ({
+        control,
+        name: control.getAttribute("aria-label") ?? control.textContent?.trim(),
+        box: control.getBoundingClientRect(),
+      }));
+    const small = controls
+      .filter(
+        ({ box }) =>
+          box.left < 0 ||
+          box.right > screen ||
+          box.width < 44 ||
+          box.height < 44,
+      )
+      .map(
+        ({ name, box }) =>
+          `${name} ${Math.round(box.left)}..${Math.round(box.right)} × ${Math.round(box.height)}`,
+      );
+    // More than a pixel shared, between two controls neither of which holds the other.
+    const overlapping = controls.flatMap((one, index) =>
       controls
-        .filter((control) => control.getClientRects().length > 0)
-        .map((control) => ({
-          name:
-            control.getAttribute("aria-label") ?? control.textContent?.trim(),
-          box: control.getBoundingClientRect(),
-        }))
+        .slice(index + 1)
         .filter(
-          ({ box }) =>
-            box.left < 0 ||
-            box.right > screen ||
-            box.width < 44 ||
-            box.height < 44,
+          (other) =>
+            !one.control.contains(other.control) &&
+            !other.control.contains(one.control) &&
+            Math.min(one.box.right, other.box.right) -
+              Math.max(one.box.left, other.box.left) >
+              1 &&
+            Math.min(one.box.bottom, other.box.bottom) -
+              Math.max(one.box.top, other.box.top) >
+              1,
         )
-        .map(
-          ({ name, box }) =>
-            `${name} ${Math.round(box.left)}..${Math.round(box.right)} × ${Math.round(box.height)}`,
-        ),
-    width,
-  );
+        .map((other) => `${one.name} / ${other.name}`),
+    );
+    return [...small, ...overlapping];
+  }, width);
 
 // How far the page scrolls sideways: nothing on a phone.
 const sideways = (page: Page) =>
@@ -174,6 +193,45 @@ test.describe("as the admin", () => {
       await expect(page.getByRole("tab", { selected: true })).toBeVisible();
       expect(await sideways(page)).toBe(0);
     });
+  }
+});
+
+test("a phone's tabs hold the vice-dean's and the head's own work, and Today leads each to the first of it (UX review 2)", async ({
+  browser,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "the tab bar is the phone's");
+  for (const { person, key, tabs } of [
+    {
+      person: demoAccounts.viceDean,
+      key: undefined,
+      tabs: ["terms", "framework", "rayat"] as const,
+    },
+    {
+      person: demoAccounts.head,
+      key: Buffer.from(demo.totpSecret),
+      tabs: ["plan", "sections", "people"] as const,
+    },
+  ]) {
+    const page = await signedIn(
+      browser,
+      { identifier: person.employeeNumber, password: demo.password },
+      key,
+    );
+    const bar = tabBar(page);
+    for (const id of ["today", ...tabs] as const) {
+      await expect(
+        bar.getByRole("link", { name: nav[id], exact: true }),
+      ).toBeVisible();
+    }
+    await expect(bar.getByRole("button", { name: shell.more })).toBeVisible();
+    const [first] = tabs;
+    await expect(
+      page.locator("main").getByRole("link", {
+        name: today.empty.next.replace("{page}", nav[first]),
+      }),
+    ).toHaveAttribute("href", `/${first}`);
+    await page.context().close();
   }
 });
 

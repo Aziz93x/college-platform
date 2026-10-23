@@ -39,6 +39,10 @@ export async function seriousViolations(
       );
     }
   });
+  // From the top of the page, as it loads: scrolled, the sticky header covers what passed under it,
+  // and axe counts the header's buttons over a target against the target's size, so a check would
+  // depend on where a test left the page (UX review 2).
+  await page.evaluate(() => window.scrollTo(0, 0));
   // Axe measures colors as they are drawn, so a fade still running lowers a text's contrast: the page
   // header's eyebrow fades in over 500 ms, and a check made that soon after a page opened failed on
   // it at random. Wait for the running animations that end in time. One that repeats forever, one
