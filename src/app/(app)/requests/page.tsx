@@ -9,6 +9,7 @@ import {
   getTranslations,
 } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
+import { FreshOnReturn } from "@/components/fresh-on-return";
 import { PageHeader } from "@/components/page-header";
 import {
   listRoles,
@@ -22,7 +23,7 @@ import { listPeople } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { requestLimits, termRequests } from "@/modules/requests";
 import { getSetting } from "@/modules/settings";
-import { isWorkingDay, termWeeks } from "@/modules/terms";
+import { isWorkingDay, nextDueDay, termWeeks } from "@/modules/terms";
 import { addDays, wallClock } from "@/platform/i18n/time-zone";
 import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
 import { type Place, type Reachable, RequestButton } from "./request-sheet.tsx";
@@ -47,8 +48,12 @@ export default async function RequestsPage() {
     getTranslations("requests"),
     viewedTerm(collegeId, preparesTerms(viewer)),
   ]);
+  // What others do changes the page, so a step back to it reads it again (lead review D).
   const header = (
-    <PageHeader title={t("title")} description={t("description")} />
+    <>
+      <PageHeader title={t("title")} description={t("description")} />
+      <FreshOnReturn />
+    </>
   );
   if (!term) {
     return (
@@ -164,10 +169,16 @@ export default async function RequestsPage() {
     : [];
   const first = counted[0]?.startsOn ?? term.startsOn;
   const last = counted.at(-1)?.endsOn ?? term.startsOn;
-  const open = term.status !== "closed" && today <= last;
+  const from = today > first ? today : first;
+  // The day the sheet starts on: this week's due day, or the next week's once it has passed. The
+  // sheet is offered while the term has one, as no day after it can be due (lead review D,
+  // proposal 4).
+  const starts =
+    found && term.status !== "closed"
+      ? nextDueDay(found.calendar, from)
+      : undefined;
   // The days among them a request may not be due on, which the picker offers none of: outside the
   // counted weeks, or off in them, a weekend or a holiday (lead review D, proposal 6).
-  const from = today > first ? today : first;
   const off: string[] = [];
   for (let each = from; found && each <= last; each = addDays(each, 1)) {
     const inWeek = counted.some(
@@ -224,7 +235,7 @@ export default async function RequestsPage() {
         title={t("title")}
         description={t("description")}
         actions={
-          open && axes.length > 0 ? (
+          starts && axes.length > 0 ? (
             <NextIntlClientProvider
               messages={{
                 ui: messages.ui,
@@ -238,12 +249,13 @@ export default async function RequestsPage() {
                 places={places}
                 axes={axes}
                 title={requestLimits.title}
-                day={{ min: from, max: last, today, off }}
+                day={{ min: from, max: last, today, off, starts }}
               />
             </NextIntlClientProvider>
           ) : undefined
         }
       />
+      <FreshOnReturn />
       {term.status === "closed" ? (
         <p className="-mt-2 mb-6 px-1 text-muted-foreground text-sm">
           {t("closed")}

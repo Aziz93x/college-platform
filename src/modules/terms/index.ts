@@ -17,6 +17,7 @@ export {
   type DayRange,
   dueDay,
   isWorkingDay,
+  nextDueDay,
   type TermCalendar,
   type TermWeek,
   termEndsOn,

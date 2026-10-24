@@ -68,10 +68,17 @@ export function RequestButton({
   axes: { value: string; label: string }[];
   title: number;
   /**
-   * The first and last day the request may be due: today or the term's start, and its end; and
-   * the days between them it may not be, outside the counted weeks or off in them.
+   * The first and last day the request may be due: today or the term's start, and its end; the
+   * days between them it may not be, outside the counted weeks or off in them; and the day it
+   * starts on, this week's due day or the next week's.
    */
-  day: { min: string; max: string; today: string; off: readonly string[] };
+  day: {
+    min: string;
+    max: string;
+    today: string;
+    off: readonly string[];
+    starts: string;
+  };
 }) {
   const t = useTranslations("requests.new");
   const refusals = useTranslations("requests.refusals");
@@ -85,7 +92,7 @@ export function RequestButton({
   const [place, setPlace] = useState(places[0]);
   const [title, setTitle] = useState("");
   const [axisId, setAxisId] = useState(axes[0]?.value ?? "");
-  const [dueOn, setDueOn] = useState<string | null>(null);
+  const [dueOn, setDueOn] = useState(day.starts);
   const [choice, setChoice] = useState<Choice>("everyone");
   const [roleId, setRoleId] = useState("");
   const [chosen, setChosen] = useState<string[]>([]);
@@ -112,6 +119,18 @@ export function RequestButton({
     );
     setProblem(undefined);
   };
+  // Everyone the search shows, ticked or unticked at once (lead review D, proposal 4).
+  const allShown =
+    shown.length > 0 && shown.every((person) => chosen.includes(keyOf(person)));
+  const toggleShown = (checked: boolean) => {
+    const keys = shown.map(keyOf);
+    setChosen((current) =>
+      checked
+        ? [...current, ...keys.filter((key) => !current.includes(key))]
+        : current.filter((key) => !keys.includes(key)),
+    );
+    setProblem(undefined);
+  };
   const moveTo = (value: string) => {
     const next = places.find((each) => (each.id ?? COLLEGE) === value);
     if (!next) return;
@@ -122,7 +141,7 @@ export function RequestButton({
   };
   const reset = () => {
     setTitle("");
-    setDueOn(null);
+    setDueOn(day.starts);
     setChoice("everyone");
     setRoleId("");
     setChosen([]);
@@ -151,7 +170,6 @@ export function RequestButton({
 
   const submit = () => {
     if (!title.trim()) return setProblem(t("required.title"));
-    if (!dueOn) return setProblem(t("required.due"));
     const reach = targets();
     if (typeof reach === "string") return setProblem(reach);
     setProblem(undefined);
@@ -273,9 +291,9 @@ export function RequestButton({
               <DateRangePickerDropdown
                 single
                 closeOnSelect
-                value={dueOn ? { from: dueOn, to: dueOn } : null}
+                value={{ from: dueOn, to: dueOn }}
                 onValueChange={(range) => {
-                  setDueOn(range?.from ?? null);
+                  if (range) setDueOn(range.from);
                   setProblem(undefined);
                 }}
                 words={dateWords}
@@ -351,23 +369,32 @@ export function RequestButton({
                     {shown.length === 0 ? (
                       <NoResults query={query} onClear={() => setQuery("")} />
                     ) : (
-                      <ul
-                        aria-label={t("listLabel", { place: place.name })}
-                        className="flex flex-col gap-1"
-                      >
-                        {shown.map((person) => (
-                          <li key={keyOf(person)}>
-                            <Checkbox
-                              label={person.name}
-                              description={person.description}
-                              checked={chosen.includes(keyOf(person))}
-                              onCheckedChange={(checked) =>
-                                toggle(keyOf(person), checked)
-                              }
-                            />
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        {/* Clear of the first person's hit area, which reaches 12 px above them. */}
+                        <Checkbox
+                          label={t("allShown")}
+                          checked={allShown}
+                          onCheckedChange={toggleShown}
+                          className="mb-2"
+                        />
+                        <ul
+                          aria-label={t("listLabel", { place: place.name })}
+                          className="flex flex-col gap-1"
+                        >
+                          {shown.map((person) => (
+                            <li key={keyOf(person)}>
+                              <Checkbox
+                                label={person.name}
+                                description={person.description}
+                                checked={chosen.includes(keyOf(person))}
+                                onCheckedChange={(checked) =>
+                                  toggle(keyOf(person), checked)
+                                }
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </>
                     )}
                     <p
                       aria-live="polite"

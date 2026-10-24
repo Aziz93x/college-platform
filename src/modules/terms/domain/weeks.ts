@@ -119,6 +119,15 @@ export function isWorkingDay(
   );
 }
 
+// The first day on or after a day that a week's tasks are due: that week's due day, or the next
+// week's once it has passed (lead review D, proposal 4). A week whose working days are all holidays
+// has none, as nothing is due on a holiday; after the term's last week there is none.
+export function nextDueDay(term: TermCalendar, day: Day) {
+  return termWeeks(term)
+    .map((week) => dueDay(term, week))
+    .find((due) => due >= day && isWorkingDay(term, due));
+}
+
 // A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
 // (ADR-0018), with the college's settings.
 export function calendarOf(

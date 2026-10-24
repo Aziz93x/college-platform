@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dueDay,
   isWorkingDay,
+  nextDueDay,
   type TermCalendar,
   termEndsOn,
   termWeeks,
@@ -155,6 +156,35 @@ describe("what the generation engine counts on", () => {
     expect(dueDay(thursdayOff, weeks[0])).toBe("2026-01-14");
     // A week the Eid al-Fitr break takes whole, as a term that counts every week numbers it.
     expect(dueDay(term, weeks[9])).toBe("2026-03-19");
+  });
+});
+
+describe("the day a quick request starts on (lead review D, proposal 4)", () => {
+  it("is this week's due day, that day itself included, and the next week's once it has passed", () => {
+    expect(nextDueDay(term, "2026-01-11")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-01-15")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-01-16")).toBe("2026-01-22");
+  });
+
+  it("is the first week's before the term, and none after its last week's", () => {
+    expect(nextDueDay(term, "2026-01-01")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-06-11")).toBe("2026-06-11");
+    expect(nextDueDay(term, "2026-06-12")).toBeUndefined();
+  });
+
+  it("moves with a holiday on the due day, and passes over a break", () => {
+    const thursdayOff = {
+      ...term,
+      holidays: [{ startsOn: "2026-01-15", endsOn: "2026-01-15" }],
+    };
+    expect(nextDueDay(thursdayOff, "2026-01-11")).toBe("2026-01-14");
+    expect(nextDueDay(thursdayOff, "2026-01-15")).toBe("2026-01-22");
+    // The Eid al-Fitr break: its weeks go without a number, and week 10 starts on 29 March.
+    expect(nextDueDay(term, "2026-03-15")).toBe("2026-04-02");
+    // A term that numbers the break's weeks has no due day in them either.
+    expect(nextDueDay({ ...term, skipHolidayWeeks: false }, "2026-03-15")).toBe(
+      "2026-04-02",
+    );
   });
 });
 

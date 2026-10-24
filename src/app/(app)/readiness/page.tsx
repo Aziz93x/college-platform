@@ -5,6 +5,7 @@ import { forbidden } from "next/navigation";
 import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
+import { FreshOnReturn } from "@/components/fresh-on-return";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -50,8 +51,12 @@ export default async function ReadinessPage() {
     getFormatter(),
     viewedTerm(viewer.collegeId, preparesTerms(viewer)),
   ]);
+  // What others do changes the page, so a step back to it reads it again (lead review D).
   const header = (
-    <PageHeader title={t("title")} description={t("description")} />
+    <>
+      <PageHeader title={t("title")} description={t("description")} />
+      <FreshOnReturn />
+    </>
   );
   if (!term) {
     return (
