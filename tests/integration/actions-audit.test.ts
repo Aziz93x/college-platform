@@ -6,6 +6,7 @@ import { createAccount } from "../../src/modules/identity/index.ts";
 import { notify } from "../../src/modules/notifications/index.ts";
 import { createDepartment } from "../../src/modules/org/index.ts";
 import { uploadRayat } from "../../src/modules/rayat/index.ts";
+import { getSetting } from "../../src/modules/settings/index.ts";
 import {
   calendarOf,
   calendarSettings,
@@ -46,9 +47,6 @@ vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/navigation", () => ({ redirect: () => {} }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
-  getFormatter: async () => ({
-    dateTime: (at: Date) => at.toISOString().slice(0, 10),
-  }),
 }));
 
 type Result =
@@ -980,6 +978,11 @@ describe("every server action writes its event", () => {
     expect(outcome.data).toEqual({ status: "sent", reached: 1 });
     expect(outcome.written).toEqual(writes[name]);
     expect(outcome.actors).toEqual([admin.userId, null]);
+    // Told by the pass that made the task, the day in the college's language and digits.
+    const [language, digits] = await Promise.all([
+      getSetting("locale.language", { collegeId }),
+      getSetting("locale.digits", { collegeId }),
+    ]);
     expect(
       await query(
         `select params->>'title' as title, params->>'due' as due, once_key as "onceKey"
@@ -989,10 +992,22 @@ describe("every server action writes its event", () => {
     ).toEqual([
       {
         title: "Attendance sheets",
-        due: week.startsOn,
+        due: new Intl.DateTimeFormat(`${language}-u-nu-${digits}`, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          timeZone: "UTC",
+        }).format(new Date(`${week.startsOn}T00:00:00Z`)),
         onceKey: expect.stringMatching(/^quickRequest:/),
       },
     ]);
+    // Its pass is a run of its own, recorded as done (lead review D, M2).
+    expect(
+      await query(
+        "select reason, status from generation_runs where term_id = $1",
+        [termId],
+      ),
+    ).toEqual([{ reason: "request", status: "done" }]);
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

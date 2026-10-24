@@ -22,6 +22,7 @@ export {
 export {
   notify,
   notifyAll,
+  notifyEach,
   retractAnnouncement,
 } from "./server/notify.ts";
 export {

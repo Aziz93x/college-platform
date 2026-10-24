@@ -5,6 +5,7 @@ import { roleHolders, roles } from "../../access/index.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { axes } from "../../axes/index.ts";
 import { users } from "../../identity/index.ts";
+import { notifyEach } from "../../notifications/index.ts";
 import { departments } from "../../org/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import {
@@ -41,13 +42,18 @@ export type RequestRefusal =
 
 // Sends a quick request (Step 22): checks it against the term, the college and its people, keeps
 // it with the evidence it asks for under the college's accepted types, and records
-// quickRequest.send. The caller then generates its tasks at once and tells those they reach.
+// quickRequest.send. `queue` queues the pass that makes its tasks, in the same transaction, so no
+// request is ever kept without one (lead review D, M2); it gives the pass's id, which the caller
+// then runs.
 export async function sendQuickRequest(
   input: QuickRequestInput,
   change: Change,
+  queue: (tx: Tx) => Promise<string>,
   at = new Date(),
   db: Db = getDb(),
-): Promise<{ status: "sent"; id: string } | { status: RequestRefusal }> {
+): Promise<
+  { status: "sent"; id: string; runId: string } | { status: RequestRefusal }
+> {
   const { collegeId } = change;
   if (!targetsFit(input.targets, input.departmentId)) {
     return { status: "targetsMismatch" };
@@ -156,13 +162,62 @@ export async function sendQuickRequest(
       },
       tx,
     );
-    return { status: "sent" as const, id };
+    return { status: "sent" as const, id, runId: await queue(tx) };
   });
+}
+
+// Tells each person a pass gave a task of a quick request, in the pass's transaction, once for each
+// request, unless they turned such notices off: those it reached when it was sent, and anyone it
+// reaches later, such as someone who joins its department after it was sent, even past its day (the
+// owner's answer, 23 October 2026). The day is written in the college's language and digits.
+export function tellReached(
+  tx: Tx,
+  collegeId: string,
+  requests: readonly {
+    id: string;
+    title: string;
+    dueOn: string;
+    sender: string | null;
+  }[],
+  reached: readonly { requestId: string; userId: string }[],
+  locale: string,
+) {
+  // A day of the calendar, read on UTC's clock so no time zone moves it.
+  const words = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  const byId = new Map(requests.map((request) => [request.id, request]));
+  const told = new Set<string>();
+  return notifyEach(
+    "quickRequest",
+    reached.flatMap(({ requestId, userId }) => {
+      const request = byId.get(requestId);
+      if (!request || told.has(`${requestId}:${userId}`)) return [];
+      told.add(`${requestId}:${userId}`);
+      return [
+        {
+          collegeId,
+          userId,
+          params: {
+            requestId,
+            title: request.title,
+            due: words.format(new Date(`${request.dueOn}T00:00:00Z`)),
+            from: request.sender ?? "",
+          },
+          onceKey: `quickRequest:${requestId}`,
+        },
+      ];
+    }),
+    tx,
+  );
 }
 
 // The term's quick requests, what the generation engine makes tasks of beside the framework's, the
 // plans' and the assignments' (ADR-0025): each with whom it reaches, the day it is due, and who sent
-// it, whom an "everyone" request leaves out.
+// it, whom an "everyone" request leaves out and whose name its notice gives.
 export function requestedItems(
   collegeId: string,
   termId: string,
@@ -178,8 +233,10 @@ export function requestedItems(
       targets: quickRequests.targets,
       evidence: quickRequests.evidence,
       sentBy: quickRequests.sentBy,
+      sender: users.name,
     })
     .from(quickRequests)
+    .leftJoin(users, eq(users.id, quickRequests.sentBy))
     .where(
       and(
         eq(quickRequests.collegeId, collegeId),

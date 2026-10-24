@@ -8,7 +8,7 @@ import { writeAudit } from "../../audit/index.ts";
 import { dueWeeks, publishedItems } from "../../framework/index.ts";
 import { people } from "../../identity/index.ts";
 import { publishedPlanItems } from "../../planning/index.ts";
-import { requestedItems } from "../../requests/index.ts";
+import { requestedItems, tellReached } from "../../requests/index.ts";
 import { getSetting } from "../../settings/index.ts";
 import {
   calendarOf,
@@ -58,6 +58,8 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     sections,
     numbers,
     timeZone,
+    language,
+    digits,
   ] = await Promise.all([
     findTerm(collegeId, termId, db),
     calendarSettings(collegeId, db),
@@ -72,6 +74,8 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
       .from(people)
       .where(eq(people.collegeId, collegeId)),
     getSetting("locale.timeZone", { collegeId }, db),
+    getSetting("locale.language", { collegeId }, db),
+    getSetting("locale.digits", { collegeId }, db),
   ]);
   if (!term) return undefined;
   const calendar = calendarOf(term, term.events, settings, term.breaks);
@@ -185,7 +189,16 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
         .find((each) => each.first === place)?.holder ?? place,
     account: (number) => accounts.get(number),
   };
-  return { term, version: published?.version, items, reach, now };
+  return {
+    term,
+    version: published?.version,
+    items,
+    reach,
+    now,
+    // What a request's notice says, in the college's language and digits.
+    requests: requested,
+    locale: `${language}-u-nu-${digits}`,
+  };
 }
 
 // The term's tasks from its framework, its plans and its assignments, as the engine compares them.
@@ -247,7 +260,25 @@ const stillToDo = and(
 
 const INSERT_BATCH = 500;
 
-// One department's changes, in one transaction, as many as still apply.
+// What a task made or revived gives back: whom a quick request's pass tells of it.
+const reachedColumns = {
+  source: tasks.source,
+  item: tasks.sourceItemId,
+  assigneeId: tasks.assigneeId,
+};
+
+// The quick requests' tasks among those made or revived, by request and person.
+const requestsReached = (
+  rows: { source: TaskSource; item: string; assigneeId: string | null }[],
+) =>
+  rows.flatMap(({ source, item, assigneeId }) =>
+    source === "request" && assigneeId
+      ? [{ requestId: item, userId: assigneeId }]
+      : [],
+  );
+
+// One department's changes, in one transaction, as many as still apply, with whom each quick
+// request's task made or revived is for.
 async function applyChanges(
   tx: Tx,
   collegeId: string,
@@ -255,6 +286,7 @@ async function applyChanges(
   changes: Changes,
 ) {
   let created = 0;
+  const reached: { requestId: string; userId: string }[] = [];
   for (let start = 0; start < changes.create.length; start += INSERT_BATCH) {
     const rows = await tx
       .insert(tasks)
@@ -274,8 +306,9 @@ async function applyChanges(
         })),
       )
       .onConflictDoNothing()
-      .returning({ id: tasks.id });
+      .returning(reachedColumns);
     created += rows.length;
+    reached.push(...requestsReached(rows));
   }
   let updated = 0;
   for (const { id, wanted } of changes.update) {
@@ -297,8 +330,9 @@ async function applyChanges(
           isNotNull(tasks.cancelledAt),
         ),
       )
-      .returning({ id: tasks.id });
+      .returning(reachedColumns);
     created += rows.length;
+    reached.push(...requestsReached(rows));
   }
   let reassigned = 0;
   for (const { id, assignee } of changes.reassign) {
@@ -321,7 +355,13 @@ async function applyChanges(
           .set({ cancelledAt: sql`now()`, updatedAt: sql`now()` })
           .where(and(inArray(tasks.id, changes.cancel), notStarted))
           .returning({ id: tasks.id });
-  return { created, updated, reassigned, cancelled: cancelled.length };
+  return {
+    created,
+    updated,
+    reassigned,
+    cancelled: cancelled.length,
+    reached,
+  };
 }
 
 // Generates a term's tasks from its latest published framework and plans and its assignments
@@ -391,9 +431,25 @@ export async function generateTerm(
 
   let gone = 0;
   for (const [, department] of byDepartment) {
-    const applied = await db.transaction((tx) =>
-      applyChanges(tx, collegeId, termId, department.changes),
-    );
+    // A quick request's people are told by the pass that gives them its task, in its transaction:
+    // whoever it reaches is told once, whenever they join, and no one hears of a task that is not
+    // there (lead review D, M2 and M3).
+    const applied = await db.transaction(async (tx) => {
+      const changed = await applyChanges(
+        tx,
+        collegeId,
+        termId,
+        department.changes,
+      );
+      await tellReached(
+        tx,
+        collegeId,
+        inputs.requests,
+        changed.reached,
+        inputs.locale,
+      );
+      return changed;
+    });
     done.created += applied.created;
     done.updated += applied.updated;
     done.reassigned += applied.reassigned;

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import {
   isOptional,
@@ -46,6 +46,51 @@ export async function notify<K extends NotificationKind>(
     .onConflictDoNothing()
     .returning({ id: notifications.id });
   return added.length > 0 ? "sent" : "duplicate";
+}
+
+// Tells each person their own notice of one kind, in two statements whatever their number (lead
+// review D, M3): those who turned the kind off are left out, and a once key already sent sends
+// nothing. Inside a transaction, pass it, so the notices commit with what they tell of. Returns how
+// many it told.
+export async function notifyEach<K extends NotificationKind>(
+  kind: K,
+  notices: readonly Omit<Notice<K>, "kind">[],
+  db: Db | Tx = getDb(),
+) {
+  if (notices.length === 0) return 0;
+  const muted = new Set(
+    (
+      await db
+        .select({ userId: notificationPrefs.userId })
+        .from(notificationPrefs)
+        .where(
+          and(
+            inArray(notificationPrefs.userId, [
+              ...new Set(notices.map(({ userId }) => userId)),
+            ]),
+            eq(notificationPrefs.kind, kind),
+            eq(notificationPrefs.channel, "inApp"),
+            eq(notificationPrefs.enabled, false),
+          ),
+        )
+    ).map(({ userId }) => userId),
+  );
+  const told = notices.filter(({ userId }) => !muted.has(userId));
+  if (told.length === 0) return 0;
+  const added = await db
+    .insert(notifications)
+    .values(
+      told.map((notice) => ({
+        collegeId: notice.collegeId,
+        userId: notice.userId,
+        kind,
+        params: notice.params,
+        onceKey: notice.onceKey,
+      })),
+    )
+    .onConflictDoNothing()
+    .returning({ id: notifications.id });
+  return added.length;
 }
 
 // Tells each of these people the same thing of a kind no one turns off, such as an announcement,

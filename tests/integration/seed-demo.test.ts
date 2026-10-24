@@ -788,7 +788,8 @@ it("generates the demo term's tasks, as many as its published framework's and pl
   } = await pool.query(
     `select status, reason, total, created, updated, reassigned, cancelled,
        extract(epoch from finished_at - started_at)::float as seconds
-     from generation_runs where term_id = $1 order by queued_at desc limit 1`,
+     from generation_runs where term_id = $1 and reason = 'framework'
+     order by queued_at desc limit 1`,
     [term.id],
   );
   expect(run).toMatchObject({
@@ -1129,6 +1130,10 @@ it("words the sign-in page's help as the admin did, signs the head of Electrical
       error: "Connection terminated unexpectedly",
     },
     { reason: "framework", status: "done", error: null },
+    // Each quick request's own pass, run as it was sent (lead review D, M2).
+    { reason: "request", status: "done", error: null },
+    { reason: "request", status: "done", error: null },
+    { reason: "request", status: "done", error: null },
   ]);
 });
 

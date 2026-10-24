@@ -206,21 +206,17 @@ vi.mock("@/modules/academics", async (importOriginal) => ({
 // A change that the term's tasks follow queues a pass of the generation engine (Step 20).
 vi.mock("@/modules/tasks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/tasks")>()),
-  queueGeneration: async () => {},
+  queueGeneration: async () => ID,
   // A failed pass run again from the system page (ADR-0029).
   rerunPass: async () => "queued",
-  // A quick request's tasks, made at once, and whom they reached (Step 22).
-  generateTerm: async () => undefined,
+  // A quick request's pass, run at once, and whom it reached (Step 22; lead review D).
+  runNow: async () => "done",
   itemAssignees: async () => [{ userId: ID, departmentId: DEPARTMENT }],
 }));
-// A quick request sent, and the person it reached told of it (Step 22).
+// A quick request sent, with its pass queued (Step 22; lead review D).
 vi.mock("@/modules/requests", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/requests")>()),
-  sendQuickRequest: async () => ({ status: "sent", id: ID }),
-}));
-vi.mock("@/modules/notifications", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/modules/notifications")>()),
-  notify: async () => "sent",
+  sendQuickRequest: async () => ({ status: "sent", id: ID, runId: ID }),
 }));
 // A text of the platform reworded or put back, against the college's catalog (ADR-0029).
 vi.mock("@/modules/texts", async (importOriginal) => ({
@@ -278,7 +274,6 @@ vi.mock("@/platform/files/table", () => ({
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
-  getFormatter: async () => ({ dateTime: (at: Date) => at.toISOString() }),
 }));
 vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));

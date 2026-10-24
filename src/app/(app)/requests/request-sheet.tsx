@@ -164,8 +164,13 @@ export function RequestButton({
       });
       setRunning(false);
       const data = result?.data;
-      if (data?.status === "sent") {
-        toast.success(t("sent", { count: data.reached }));
+      // Sent: its tasks made now, or by the worker within the minute.
+      if (data?.status === "sent" || data?.status === "pending") {
+        toast.success(
+          data.status === "sent"
+            ? t("sent", { count: data.reached })
+            : t("pending"),
+        );
         setOpen(false);
         reset();
         return;
