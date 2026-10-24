@@ -7,30 +7,38 @@ import { readSheet } from "read-excel-file/node";
 // is refused before the reader holds it in memory (lead review C).
 export const MAX_INFLATED_BYTES = 50 * 1024 * 1024;
 
-// Whether a ZIP archive inflates within a budget. Each entry is inflated in turn and counted, not
-// taken at the size the archive declares; the inflated bytes are dropped.
+// Whether a ZIP archive inflates within a budget, read as the workbook's reader reads it: record
+// after record from the first byte, each entry ended by its own header's size, or by the data
+// descriptor after it, so an entry the central directory leaves out counts too (the platform-wide
+// check). Each entry is inflated in turn and counted, not taken at the size the archive declares;
+// the inflated bytes are dropped.
+const DESCRIPTOR = Buffer.from([0x50, 0x4b, 0x07, 0x08]);
 function inflatesWithin(bytes: Uint8Array, budget: number) {
   const zip = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const u16 = (at: number) =>
     at + 2 <= zip.length ? zip.readUInt16LE(at) : -1;
   const u32 = (at: number) =>
     at + 4 <= zip.length ? zip.readUInt32LE(at) : -1;
-  // The end of the central directory, within its comment's 64 KiB of the file's end.
-  let end = zip.length - 22;
-  while (end >= Math.max(0, zip.length - 65_557) && u32(end) !== 0x06054b50) {
-    end -= 1;
-  }
-  if (end < 0 || u32(end) !== 0x06054b50) return false;
   let left = budget;
-  let entry = u32(end + 16);
-  for (let count = u16(end + 10); count > 0; count--) {
-    if (u32(entry) !== 0x02014b50) return false;
-    const local = u32(entry + 42);
-    if (u32(local) !== 0x04034b50) return false;
-    const start = local + 30 + u16(local + 26) + u16(local + 28);
-    const body = zip.subarray(start, start + u32(entry + 20));
-    const method = u16(entry + 10);
+  for (let at = 0; ; ) {
+    const signature = u32(at);
+    // The end of the central directory, as the reader stops there.
+    if (signature === 0x06054b50) return true;
+    // An entry of the central directory, which the reader passes over.
+    if (signature === 0x02014b50) {
+      at += 46 + u16(at + 28) + u16(at + 30) + u16(at + 32);
+      continue;
+    }
+    if (signature !== 0x04034b50) return false;
+    const method = u16(at + 8);
+    const size = u32(at + 18);
     if (method !== 0 && method !== 8) return false;
+    if (size === 0xffffffff || u32(at + 22) === 0xffffffff) return false;
+    const start = at + 30 + u16(at + 26) + u16(at + 28);
+    const sized = !(u16(at + 6) & 0x08) || size > 0;
+    const stop = sized ? start + size : zip.indexOf(DESCRIPTOR, start);
+    if (stop < start || stop > zip.length) return false;
+    const body = zip.subarray(start, stop);
     try {
       left -=
         method === 0
@@ -40,9 +48,8 @@ function inflatesWithin(bytes: Uint8Array, budget: number) {
       return false;
     }
     if (left < 0) return false;
-    entry += 46 + u16(entry + 28) + u16(entry + 30) + u16(entry + 32);
+    at = sized ? stop : stop + 16;
   }
-  return true;
 }
 
 // The cells of an uploaded table as text, row by row: the first sheet of an XLSX workbook, or a CSV
@@ -84,9 +91,10 @@ function decode(bytes: Uint8Array) {
 
 // Rows as CSV lines, each ended by CRLF as Excel writes them. A cell a spreadsheet would read as a
 // formula (=, +, -, @, a tab or a return first) gets a ' before it, so it shows as the text people
-// typed.
+// typed. Its first character alone decides, as Papa's own pattern misses a cell with a line break.
+const FORMULA = /^[=+\-@\t\r]/;
 export function csvLines(rows: string[][]) {
   return rows.length === 0
     ? ""
-    : `${Papa.unparse(rows, { escapeFormulae: true, newline: "\r\n" })}\r\n`;
+    : `${Papa.unparse(rows, { escapeFormulae: FORMULA, newline: "\r\n" })}\r\n`;
 }

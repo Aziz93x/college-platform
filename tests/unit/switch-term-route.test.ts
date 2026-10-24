@@ -63,6 +63,11 @@ describe("opening a page on a term", () => {
       "//elsewhere.example/plan",
       "https://elsewhere.example/plan",
       "/\\elsewhere.example",
+      // Paths of this origin that resolve to two leading slashes (the platform-wide check).
+      "/.//elsewhere.example/login",
+      "/..//elsewhere.example",
+      "/%2e//elsewhere.example",
+      "/a/..//elsewhere.example",
     ]) {
       expect(
         (await open("next", next)).headers.get("location"),
