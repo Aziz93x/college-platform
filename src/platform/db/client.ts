@@ -12,6 +12,10 @@ export function createDb(url: string) {
   pool.on("error", (error) =>
     logger.error({ reason: error.message }, "idle database connection lost"),
   );
+  // The pool takes its listener off a client it hands out, so a connection the server ends while a
+  // statement holds it would crash the process too. Each client keeps one of its own: the statement
+  // in flight rejects with the same error for its caller to report, and the pool drops the client.
+  pool.on("connect", (client) => client.on("error", () => {}));
   return { db: drizzle({ client: pool }), pool };
 }
 

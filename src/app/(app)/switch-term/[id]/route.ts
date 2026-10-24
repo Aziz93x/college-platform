@@ -19,14 +19,12 @@ export async function GET(
   ]);
   const here = new URL(request.url);
   const next = new URL(here.searchParams.get("next") ?? "/today", here);
+  // A path that dot segments leave starting with two slashes, as `/.//elsewhere` resolves, keeps
+  // this origin but would open another site from the header, so it opens Today too.
+  const own = next.origin === here.origin && !next.pathname.startsWith("//");
   const response = new NextResponse(null, {
     status: 303,
-    headers: {
-      Location:
-        next.origin === here.origin
-          ? `${next.pathname}${next.search}`
-          : "/today",
-    },
+    headers: { Location: own ? `${next.pathname}${next.search}` : "/today" },
   });
   if (terms.some((term) => term.id === id)) {
     response.cookies.set(TERM_COOKIE, id, {
