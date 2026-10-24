@@ -169,7 +169,12 @@ test(
         })),
       );
     } finally {
-      // Credentials, sessions and memberships go with each user; audit events stay.
+      // Credentials, sessions and memberships go with each user; audit events stay. Tasks a pass
+      // gave them meanwhile keep an account from being deleted (lead review D): they go first.
+      await pool.query(
+        "delete from tasks where holder_id in (select user_id from people where employee_number = any($1))",
+        [numbers],
+      );
       await pool.query(
         "delete from users where id in (select user_id from people where employee_number = any($1))",
         [numbers],
@@ -251,6 +256,10 @@ test(
       );
       expect(rows).toEqual([{ employee_number: numbers[0] }]);
     } finally {
+      await pool.query(
+        "delete from tasks where holder_id in (select user_id from people where employee_number = any($1))",
+        [numbers],
+      );
       await pool.query(
         "delete from users where id in (select user_id from people where employee_number = any($1))",
         [numbers],
@@ -513,6 +522,10 @@ test(
       );
       expect(rows).toEqual([{ key: "trainer", name: electrical }]);
     } finally {
+      await pool.query(
+        "delete from tasks where holder_id in (select user_id from people where employee_number = $1)",
+        [employeeNumber],
+      );
       await pool.query(
         "delete from users where id in (select user_id from people where employee_number = $1)",
         [employeeNumber],

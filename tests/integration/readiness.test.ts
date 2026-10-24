@@ -215,9 +215,12 @@ describe("the term readiness board", () => {
     );
     // The trainer whose account is disabled holds their sections' tasks: until an admin enables it,
     // which the people pages do, the row stays open and leads there (lead review D, proposal 1).
-    expect(
-      (await board()).find((row) => row.id === "matched"),
-    ).toMatchObject({ state: "open", unmatched: 0, disabled: 1, href: "/people" });
+    expect((await board()).find((row) => row.id === "matched")).toMatchObject({
+      state: "open",
+      unmatched: 0,
+      disabled: 1,
+      href: "/people",
+    });
     const disabled = await nameOf(demoAccounts.disabledTrainer.email);
     expect(
       (

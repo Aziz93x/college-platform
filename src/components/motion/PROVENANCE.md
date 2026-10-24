@@ -277,3 +277,10 @@ folder). These files are copied from https://github.com/starc007/ui-components a
   trigger can move without a scroll or a resize: the transfer sheet focuses its trainer picker as
   it slides in, which opens the list, and the list stayed where the field had been, over it.
   `combobox/content.tsx` is active only while its list is open, so a closed one follows nothing.
+
+## Local changes from lead review D (docs/reviews/lead-D.md)
+
+- `lib/command-search.ts`: the last search's items' words are kept normalized for the next search,
+  and the words typed are not kept. The texts page searches its 2,114 texts for each letter typed,
+  and normalizing them again took 32.1 ms of a query; kept, a query takes 8.2 ms, with the same
+  results in 180 searches over two item lists in turn.

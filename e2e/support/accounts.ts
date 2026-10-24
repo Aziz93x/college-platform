@@ -81,8 +81,13 @@ export const test = base.extend<{
       created.push(result.userId);
       return { ...account, ...result };
     });
-    // Sessions, credentials, two-factor and memberships go with the user; audit events stay.
+    // Sessions, credentials, two-factor and memberships go with the user; audit events stay. A
+    // pass that ran meanwhile, such as another test's quick request, may have given it tasks, which
+    // keep an account from being deleted (lead review D): they go first.
     if (created.length > 0) {
+      await pool.query("delete from tasks where holder_id = any($1)", [
+        created,
+      ]);
       await db.delete(users).where(inArray(users.id, created));
     }
     await pool.end();

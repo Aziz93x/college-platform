@@ -360,6 +360,8 @@ it("writes three weeks of the college's history, every event in the past and by 
       "task.generate",
       // The term's quick requests, by the head of Electrical, the vice-dean and the dean (Step 22).
       "quickRequest.send",
+      // The vice-dean's reminder to the admin, from the readiness board (lead review D, proposal 5).
+      "readiness.remind",
       // The admin's wording of the sign-in page's help (ADR-0029).
       "text.override",
     ]),

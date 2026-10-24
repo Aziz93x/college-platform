@@ -4,7 +4,7 @@ import type { Locator } from "@playwright/test";
 // action a person decides on, pointing at a control, pressing a button, and a key of an average
 // typist. A usability run counts a person's time by it as it works a screen, so a Done-when's time
 // is a person's, not the browser robot's (Audit 7; lead review D, M4).
-export const KLM = { think: 1.35, point: 1.1, press: 0.2, key: 0.28 };
+const KLM = { think: 1.35, point: 1.1, press: 0.2, key: 0.28 };
 
 // A person at a screen: each action done, and its time as the model counts it. `pick` opens one of
 // the screen's lists and picks an option, as that screen does it.

@@ -76,6 +76,10 @@ const CAST = [
 ];
 const FIRST_TRAINER = 200004;
 
+// The heads the cast gives, by employee number, in demoDepartments' order: none where demoAccounts
+// has the department's head.
+export const demoHeads = CAST.map(({ head }) => head);
+
 // Each department's generated trainers by employee number, in demoDepartments' order: the first is
 // its secretary for the demo term, by the secretary's assignment (Step 21).
 export const demoTrainers = CAST.map(({ trainers }, index) => {

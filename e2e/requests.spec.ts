@@ -4,8 +4,13 @@ import { createTranslator } from "next-intl";
 import { defaultRoles, portfolioAxes } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../db/seed/demo/departments.ts";
-import { type DemoAccount, demoTrainers } from "../db/seed/demo/people.ts";
+import {
+  type DemoAccount,
+  demoHeads,
+  demoTrainers,
+} from "../db/seed/demo/people.ts";
 import messages from "../messages/ar.json" with { type: "json" };
+import { holdersIn } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
 import { getSetting, settingsRegistry } from "../src/modules/settings/index.ts";
 import {
@@ -33,21 +38,23 @@ const framework = createTranslator({
   namespace: "framework",
 });
 const electrical = demoDepartments[1].name;
+const mechanical = demoDepartments[2].name;
 // Tests that read or write the database, which the stack's smoke cannot reach.
 const DATABASE = { tag: "@database" };
 
-// The trainer's role, and Electrical's trainers: the cast's and the demo accounts that train there.
+// The trainer's role, and Mechanical's trainers: the cast's and the demo accounts that train there.
+// The demo trainer, whose bell the notification tests read empty, is Electrical's (Audit 4).
 const trainer =
   defaultRoles.find(({ key }) => key === "trainer")?.labels.ar ?? "";
 const accounts: DemoAccount[] = Object.values(demoAccounts);
 const trainers =
-  demoTrainers[1].length +
+  demoTrainers[2].length +
   accounts.filter(({ roles }) =>
     roles.some(
       (role) =>
         "key" in role &&
         role.key === "trainer" &&
-        role.department === electrical,
+        role.department === mechanical,
     ),
   ).length;
 // Training practices, the axis a request for attendance sheets counts under.
@@ -93,10 +100,15 @@ async function startDay() {
   }
 }
 
-const asHead = (browser: Parameters<typeof signedIn>[0]) =>
+// A head of department, with the code every demo head's authenticator gives: Electrical's, or
+// another by employee number.
+const asHead = (
+  browser: Parameters<typeof signedIn>[0],
+  identifier = demoAccounts.head.employeeNumber,
+) =>
   signedIn(
     browser,
-    { identifier: demoAccounts.head.employeeNumber, password: demo.password },
+    { identifier, password: demo.password },
     Buffer.from(demo.totpSecret),
   );
 
@@ -117,15 +129,15 @@ async function choose(
 const sideways = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 
-test("the head of Electrical sends a quick request to all of the department's trainers in under 30 seconds of a head's time by the keystroke-level model, which then lists it with whom it reached (Step 22; lead review D, M4)", async ({
+test("the head of Mechanical sends a quick request to all of the department's trainers in under 30 seconds of a head's time by the keystroke-level model, which then lists it with whom it reached (Step 22; lead review D, M4)", async ({
   browser,
   hasTouch,
 }) => {
-  // The Done-when's 12 trainers are a department's, the owner's answer: Electrical's, all of them.
+  // The Done-when's 12 trainers are a department's, the owner's answer: Mechanical's, all of them.
   expect(trainers).toBeGreaterThanOrEqual(12);
   // The sending has 30 s of its own, timed below; signing in and the checks after it take more.
   test.setTimeout(120_000);
-  const page = await asHead(browser);
+  const page = await asHead(browser, demoHeads[2]);
   const title = `كشوف الحضور ${Date.now()}`;
   const sheet = page.getByRole("dialog", { name: text.new.title });
   const head = modelledPerson((label, option) =>
@@ -161,10 +173,9 @@ test("the head of Electrical sends a quick request to all of the department's tr
     .getByRole("listitem")
     .filter({ hasText: title });
   await expect(sent).toContainText(
-    t("targets.role", { role: trainer, place: electrical }),
+    t("targets.role", { role: trainer, place: mechanical }),
   );
   await expect(sent).toContainText(text.item.evidence);
-  await expect(sent).toContainText(demoAccounts.head.name);
   // Axe reads the page with its Arabic made Latin: the list last, then the sheet on a fresh page.
   expect(await seriousViolations(page)).toEqual([]);
   if (hasTouch) {
@@ -225,7 +236,7 @@ test(
     const chosen = (count: number) =>
       expect(sheet.getByText(t("new.chosen", { count }))).toBeVisible();
     const everyone = await boxes.count();
-    expect(everyone).toBeGreaterThan(12);
+    expect(everyone).toBeGreaterThanOrEqual(14);
     const [first, second, ...rest] = demoTrainers[1];
 
     // A search that shows one: ticking all ticks that one alone.
@@ -251,8 +262,12 @@ test(
     await expect(box(second)).not.toBeChecked();
     await expect(box(first)).toBeChecked();
     await chosen(everyone - 1);
-    // Twelve of them, as a head picks a group: as many more taken out.
-    for (const number of rest.slice(0, everyone - 13)) {
+    // Twelve of them, as a head picks a group: as many more taken out, the demo trainer among them,
+    // whose bell the notification tests read empty (Audit 4).
+    for (const number of [
+      demoAccounts.trainer.employeeNumber,
+      ...rest.slice(0, everyone - 14),
+    ]) {
       await box(number).click();
     }
     await chosen(12);
@@ -265,6 +280,7 @@ test(
       .filter({ hasText: title });
     await expect(sent).toContainText(t("targets.people", { count: 12 }));
     await expect(sent).toContainText(t("item.due", { date: full(day) }));
+    await expect(sent).toContainText(demoAccounts.head.name);
     await page.context().close();
   },
 );
@@ -398,6 +414,9 @@ test("the board links each row only where its viewer opens the page: the dean th
     password: demo.password,
   });
   await viceDean.goto("/readiness");
+  await expect(
+    viceDean.getByRole("region", { name: board.plans }),
+  ).toBeVisible();
   const hrefs = await linked(viceDean);
   expect(hrefs).not.toContain("/people");
   expect(hrefs).toContain("/rayat");
@@ -435,12 +454,22 @@ test("the board links each row only where its viewer opens the page: the dean th
 // The pages of what others have done since read again when a step back in the browser shows them:
 // Next.js shows the page as it was drawn, kept hidden or in its cache, and asks the server for
 // nothing (lead review D). The words the college gives a page's description, set meanwhile, are the
-// change each must show.
-const RETURNS = [
+// change each must show; the board's are reworded by three tests.
+const BOARD_WORDS = "readiness.description";
+const RETURNS: {
+  path: string;
+  key: string;
+  words: string;
+  admin?: boolean;
+  /** In a browser without the Navigation API, which hears the step from popstate alone. */
+  bare?: boolean;
+}[] = [
+  { path: "/readiness", key: BOARD_WORDS, words: board.description },
   {
     path: "/readiness",
-    key: "readiness.description",
+    key: BOARD_WORDS,
     words: board.description,
+    bare: true,
   },
   { path: "/requests", key: "requests.description", words: text.description },
   {
@@ -469,7 +498,9 @@ const sidebarOf = (page: Page) =>
   page
     .locator("aside")
     .getByRole("navigation", { name: messages.shell.navigation });
-// The words the college gives a message, until the test puts them back.
+// The words the college gives a message, until the test puts them back. Tests that reword the same
+// message take its lock, as the suite runs fully parallel: none then writes or deletes the words
+// another is waiting to read.
 const OVERRIDE = `insert into text_overrides (college_id, key, value)
   select id, $1, $2 from colleges
   on conflict (college_id, key) do update set value = excluded.value`;
@@ -479,15 +510,23 @@ const databaseUrl = () => {
   return url;
 };
 
-for (const { path, key, words, admin } of RETURNS) {
+for (const { path, key, words, admin, bare } of RETURNS) {
   test(
-    `${path} reads again when a step back in the browser shows it, so it never shows the past (lead review D)`,
-    DATABASE,
+    `${path} reads again when a step back in the browser shows it, so it never shows the past${bare ? ", where the browser has no Navigation API" : ""} (lead review D)`,
+    { ...DATABASE, lock: key },
     async ({ browser, isMobile }) => {
       test.skip(isMobile, "a phone has the tab bar");
       const { pool } = createDb(databaseUrl());
       const reworded = `${words} (${randomUUID().slice(0, 8)})`;
       const viewer = await viewerOf(browser, admin);
+      if (bare) {
+        await viewer.context().addInitScript(() => {
+          Object.defineProperty(window, "navigation", {
+            value: undefined,
+            configurable: true,
+          });
+        });
+      }
       try {
         await viewer.goto(path);
         await expect(viewer.getByText(words)).toBeVisible();
@@ -508,11 +547,11 @@ for (const { path, key, words, admin } of RETURNS) {
 
 test(
   "the board reads again when the browser goes back to it past other pages, and a link back to it asks the server once (lead review D)",
-  DATABASE,
+  { ...DATABASE, lock: BOARD_WORDS },
   async ({ browser, isMobile }) => {
     test.skip(isMobile, "a phone has the tab bar");
     const { pool } = createDb(databaseUrl());
-    const key = "readiness.description";
+    const key = BOARD_WORDS;
     const [first, second] = [1, 2].map(
       () => `${board.description} (${randomUUID().slice(0, 8)})`,
     );
@@ -567,6 +606,143 @@ test(
       await pool.end();
       await viewer.context().close();
     }
+  },
+);
+
+// A long press on the back button steps over several entries at once, here from the board to an
+// earlier visit of it: the page stays shown throughout, so only hearing the step reads it again.
+for (const bare of [false, true]) {
+  test(
+    `the board reads again when a step of two entries goes back to an earlier visit of it${bare ? ", where the browser has no Navigation API" : ""} (lead review D)`,
+    { ...DATABASE, lock: BOARD_WORDS },
+    async ({ browser, isMobile }) => {
+      test.skip(isMobile, "a phone has the tab bar");
+      const { pool } = createDb(databaseUrl());
+      const reworded = `${board.description} (${randomUUID().slice(0, 8)})`;
+      const viewer = await viewerOf(browser);
+      if (bare) {
+        await viewer.context().addInitScript(() => {
+          Object.defineProperty(window, "navigation", {
+            value: undefined,
+            configurable: true,
+          });
+        });
+      }
+      const sidebar = sidebarOf(viewer);
+      try {
+        await viewer.goto("/readiness");
+        await expect(viewer.getByText(board.description)).toBeVisible();
+        for (const [name, path] of [
+          [nav.today, /\/today/],
+          [nav.readiness, /\/readiness/],
+        ] as const) {
+          await sidebar.getByRole("link", { name }).click();
+          await viewer.waitForURL(path);
+        }
+        await expect(viewer.getByText(board.description)).toBeVisible();
+        await pool.query(OVERRIDE, [BOARD_WORDS, reworded]);
+        await viewer.evaluate(() => history.go(-2));
+        await expect(viewer.getByText(reworded)).toBeVisible();
+        // The step went back two entries: the next one is Today's.
+        await viewer.goForward();
+        await viewer.waitForURL(/\/today/);
+      } finally {
+        await pool.query("delete from text_overrides where key = $1", [
+          BOARD_WORDS,
+        ]);
+        await pool.end();
+        await viewer.context().close();
+      }
+    },
+  );
+}
+
+// The board reaches the owners of its open rows (lead review D, proposal 5): whoever sees a row
+// reminds them, once a day each, and the reminder opens the row's page; the console lists the open
+// rows its viewer owns. The demo's vice-dean reminded the admin of the matched row today already.
+test(
+  "whoever sees an open row reminds its owners once a day, the reminder opens its page, and the console lists the admin's open rows (lead review D, proposal 5)",
+  DATABASE,
+  async ({ browser, isMobile }) => {
+    test.skip(
+      isMobile,
+      "a row's owners are reminded once a day: one project reminds them",
+    );
+    const { db, pool } = createDb(databaseUrl());
+    const collegeId = (await findCollegeId(db)) ?? "";
+    const generalStudies = demoDepartments[0].name;
+    const [{ id: departmentId }] = (
+      await pool.query("select id from departments where name = $1", [
+        generalStudies,
+      ])
+    ).rows;
+    const publishers =
+      (await holdersIn(collegeId, [departmentId], "plan.publish", db)).get(
+        departmentId,
+      ) ?? [];
+    // General Studies' plan unreminded today, as the demo leaves it, should a retry come after.
+    await pool.query(
+      "delete from notifications where kind = 'readinessReminder' and once_key like $1",
+      [`readiness:%:plan:${departmentId}:%`],
+    );
+    await pool.end();
+    const matched = board.rows.matched.title;
+    const plan = r("rows.plan.title", { department: generalStudies });
+
+    const dean = await signedIn(browser, {
+      identifier: demoAccounts.dean.employeeNumber,
+      password: demo.password,
+    });
+    await dean.goto("/readiness");
+    const remind = (title: string) =>
+      dean.getByRole("button", { name: r("remind.label", { title }) });
+    await remind(matched).click();
+    await expect(dean.getByText(board.remind.none)).toBeVisible();
+    await remind(plan).click();
+    await expect(
+      dean.getByText(r("remind.done", { count: publishers.length })),
+    ).toBeVisible();
+    // A settled row has no one to remind.
+    await expect(remind(board.rows.framework.title)).toHaveCount(0);
+    await dean.context().close();
+
+    const admin = await (
+      await browser.newContext({ storageState: STORAGE.admin })
+    ).newPage();
+    // The matched row waits on the admin alone, who reminds no one of it.
+    await admin.goto("/readiness");
+    await expect(
+      admin.getByRole("heading", { level: 1, name: board.title }),
+    ).toBeVisible();
+    await expect(
+      admin.getByRole("button", {
+        name: r("remind.label", { title: matched }),
+      }),
+    ).toHaveCount(0);
+    // The vice-dean's reminder, which opens the page that settles it.
+    await admin.goto("/notifications");
+    const reminder = admin
+      .getByRole("link")
+      .filter({ hasText: matched })
+      .filter({ hasText: demoAccounts.viceDean.name });
+    await expect(reminder).toHaveAttribute("href", "/rayat");
+    // The console lists the admin's open row, linked to the same page.
+    await admin.goto("/console");
+    const list = new Intl.ListFormat(locale);
+    await expect(
+      admin.getByRole("link", {
+        name: messages.console.attention.readiness
+          .replace("{title}", matched)
+          .replace(
+            "{detail}",
+            list.format([
+              r("rows.matched.open", { count: 1 }),
+              r("rows.matched.disabled", { count: 1 }),
+            ]),
+          ),
+      }),
+    ).toHaveAttribute("href", "/rayat");
+    await admin.context().close();
   },
 );
 

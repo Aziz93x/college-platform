@@ -47,6 +47,7 @@ vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/navigation", () => ({ redirect: () => {} }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+  getFormatter: async () => ({ list: (items: string[]) => items.join(", ") }),
 }));
 
 type Result =
@@ -191,6 +192,8 @@ const writes: Record<string, string[]> = {
     "quickRequest.send",
     "task.generate",
   ],
+  // The owners of an open row of the readiness board reminded (lead review D, proposal 5).
+  "(app)/readiness/actions.ts#remindOwnersAction": ["readiness.remind"],
 };
 
 const PASSWORD = "correct-horse-battery";
@@ -1008,6 +1011,33 @@ describe("every server action writes its event", () => {
         [termId],
       ),
     ).toEqual([{ reason: "request", status: "done" }]);
+  });
+
+  it("a reminder from the readiness board writes its event by its sender, and tells the row's owner (lead review D, proposal 5)", async () => {
+    // A draft term's row waits on whoever holds term.manage across the college: a vice-dean here.
+    const owner = await person("A Vice-Dean");
+    await joinRole({
+      userId: owner.userId,
+      collegeId,
+      role: { key: "vice-dean" },
+    });
+    const [{ id: termId }] = await query(
+      `insert into terms (college_id, name, starts_on, weeks)
+       values ($1, 'Reminders term', current_date + 30, 18) returning id`,
+      [collegeId],
+    );
+    const name = "(app)/readiness/actions.ts#remindOwnersAction";
+    const outcome = await run(name, { termId, row: { id: "term" } });
+    expect(outcome.data).toEqual({ status: "reminded", count: 1 });
+    expect(outcome.written).toEqual(writes[name]);
+    expect(outcome.actors).toEqual([admin.userId]);
+    expect(
+      await query(
+        `select params->>'href' as href, params->>'title' as title from notifications
+         where user_id = $1 and kind = 'readinessReminder'`,
+        [owner.userId],
+      ),
+    ).toEqual([{ href: `/terms/${termId}`, title: "rows.term.title" }]);
   });
 
   it("turning one's own two-factor off writes account.disableTwoFactor, by its owner", async () => {

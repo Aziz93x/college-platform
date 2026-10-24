@@ -229,6 +229,7 @@ describe("a kind turned off", () => {
       announcement: true,
       transferConflict: true,
       quickRequest: true,
+      readinessReminder: true,
     });
     // Turning on what was never turned off changes nothing.
     expect(

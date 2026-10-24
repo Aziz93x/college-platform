@@ -4,6 +4,31 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ## Unreleased
 
+### Lead review D: department planning, the head's part (docs/reviews/lead-D.md)
+
+- `/assignments` reads a template that someone holds as assigned, so its card no longer offers a delete that the server then refuses (M1). Its query compared an assignment's template with the assignment's own id.
+- A quick request's pass is a run (M2). It is queued in the request's own transaction and run at once, so `/system` and the console show it. A failed pass is recorded and queued again for the worker, and the sender reads that the tasks come within the minute, never "try again", which doubled everyone's task. A failed pass records the database's own words.
+- The pass tells the people it gives or revives a task: two statements whatever their number, those who turned the kind off left out, each told once (M3). Someone who joins a request's place later is reached by the next pass, even past its day, and told once (ADR-0032, the owner's choice).
+- One pass at a time per term (proposal 7): a run is claimed under an advisory lock on its term while no other run of the term is running. A run left running for fifteen minutes no longer holds it.
+- Step 22's Done-when is a head's time by the keystroke-level model, which Step 19's run shares (`e2e/support/model.ts`). Mechanical's head sends to its trainer role, all 13 of them, in 25.5 s (M4, the owner's answer).
+- The readiness board links a row only where its viewer opens the page, by that page's own rule (M5). A failed pass's row names whoever holds `system.manage` and links `/system`.
+- The vice-dean reads every department's plan and changes none: the key `plan.view`, migration `0029` (proposal 3).
+- The board's matched row stays open while a trainer SS01 names has a disabled account, and `/sections` marks that trainer (proposal 1).
+- A quick request's day is a working day: the service refuses a day off (`dueOff`), and the sheet offers none (proposal 6).
+- The request sheet starts on this week's due day, or the next week's once it has passed, and «اختيار كل الظاهرين» ticks everyone its search shows (proposal 4).
+- «ذكّرهم» on an open row of the board reminds its owners, once a day each, with the kind `readinessReminder`, which opens the row's page. A reminder that reached someone is recorded as `readiness.remind`. The console lists the open rows its viewer owns (proposal 5, ADR-0033).
+- The assign sheet's weeks show their days, and its range starts on this week (proposal 8).
+- The board, `/requests`, `/console` and `/system` read themselves again when a step back or forward in the browser shows them, which Next.js otherwise shows as drawn (`FreshOnReturn`). ADR-0007's decision stays the owner's.
+- Smaller:
+  - an account that holds tasks is never deleted with them (`tasks.holder_id` restricts, migration `0030`);
+  - the `quickRequest` kind's hint names no role;
+  - the search keeps the last search's words normalized for the next, so the texts page's query takes 8.2 ms instead of 32.1.
+- `seed:demo`: the vice-dean reminded the admin of the matched row, and the demo's requests run their passes as the action does.
+- Tests:
+  - unit: the next due day, the board's words for every row and state, the reminder's notice, and the permission matrix for a reminder of a plan's row and a college row;
+  - on a real database: the held template; the request's run, done, failed and made good; the statements for twelve people as for one; the late joiner and the muted person; a pass waiting for another of its term; a Friday refused; the disabled trainer; the reminder's rules, each checked to fail without its part; the restricted delete; the reminder's event; and the demo seed;
+  - end to end: the head's time by the model; the default day and ticking all shown; the board's links by viewer and the vice-dean's read of a plan; the reminder, its notice and the console's list; the assign sheet's weeks; and each of the four pages read again after a step back, the board also without the Navigation API, after five pages and after a step of two entries to an earlier visit of it. The tests that reword the board's description share a lock, and the fixtures delete a throwaway account's tasks before it.
+
 ### Step 22: quick requests and the term readiness board (ADR-0030)
 
 - `/requests` (`requests.send`): a quick request from a sheet. It has:

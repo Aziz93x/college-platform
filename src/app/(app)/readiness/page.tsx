@@ -3,24 +3,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden } from "next/navigation";
 import { connection } from "next/server";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { FreshOnReturn } from "@/components/fresh-on-return";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
-import {
-  authorize,
-  permittedDepartments,
-  requireViewer,
-} from "@/modules/access";
+import { permittedDepartments, requireViewer } from "@/modules/access";
 import {
   type ReadinessRow,
   type ReadinessState,
   termReadiness,
 } from "@/modules/readiness";
 import { preparesTerms, viewedTerm } from "../_shell/term.ts";
-import { peopleScope } from "../people/scope.ts";
-import { planAccess } from "../plan/access.ts";
+import { RemindButton } from "./remind-button.tsx";
+import { readinessWords, rowOpens } from "./rows.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
@@ -45,9 +42,8 @@ export default async function ReadinessPage() {
   const viewer = await requireViewer();
   const reach = permittedDepartments(viewer, "readiness.view");
   if (reach !== "college" && reach.length === 0) forbidden();
-  const [t, rayat, format, { term }] = await Promise.all([
+  const [t, format, { term }] = await Promise.all([
     getTranslations("readiness"),
-    getTranslations("rayat"),
     getFormatter(),
     viewedTerm(viewer.collegeId, preparesTerms(viewer)),
   ]);
@@ -70,101 +66,19 @@ export default async function ReadinessPage() {
     );
   }
 
-  const rows = await termReadiness(viewer.collegeId, term, reach);
+  const [rows, words, messages] = await Promise.all([
+    termReadiness(viewer.collegeId, term, reach),
+    readinessWords(),
+    getMessages(),
+  ]);
   const done = rows.filter((row) => row.state === "done").length;
-  // Whether the viewer opens the page that settles a row, by the rule that page itself applies, so
-  // the board offers no page that would refuse them; the row's owners are named either way (lead
-  // review D, M5). The term's page and the framework open to everyone.
-  const plans = planAccess(viewer);
-  const rayatHeld = permittedDepartments(viewer, "rayat.import");
-  const opens = (row: ReadinessRow) => {
-    switch (row.id) {
-      case "people":
-        return peopleScope(viewer) !== undefined;
-      case "matched":
-        return row.href === "/people"
-          ? peopleScope(viewer) !== undefined
-          : rayatHeld === "college" || rayatHeld.length > 0;
-      case "rayat":
-        return rayatHeld === "college" || rayatHeld.length > 0;
-      case "plan":
-        return plans.opens(row.departmentId);
-      case "tasks":
-        return (
-          row.href !== "/system" ||
-          authorize(viewer, "system.manage", { collegeId: viewer.collegeId })
-        );
-      case "term":
-      case "framework":
-        return true;
-    }
-  };
-  const words = (row: ReadinessRow) => {
-    switch (row.id) {
-      case "term":
-        return {
-          title: t("rows.term.title"),
-          detail: t("rows.term.detail", { status: row.status }),
-        };
-      case "people":
-        return {
-          title: t("rows.people.title"),
-          detail:
-            row.state === "done"
-              ? t("rows.people.done")
-              : t("rows.people.open", {
-                  departments: format.list(row.lacking),
-                }),
-        };
-      case "rayat":
-        return {
-          title: t("rows.rayat.title"),
-          detail:
-            row.state === "done"
-              ? t("rows.rayat.done")
-              : t("rows.rayat.open", {
-                  reports: format.list(
-                    row.missing.map((kind) => rayat(`reports.${kind}.title`)),
-                  ),
-                }),
-        };
-      case "matched":
-        return {
-          title: t("rows.matched.title"),
-          detail: !row.imported
-            ? t("rows.matched.waiting")
-            : row.state === "done"
-              ? t("rows.matched.done")
-              : format.list([
-                  ...(row.unmatched > 0
-                    ? [t("rows.matched.open", { count: row.unmatched })]
-                    : []),
-                  ...(row.disabled > 0
-                    ? [t("rows.matched.disabled", { count: row.disabled })]
-                    : []),
-                ]),
-        };
-      case "tasks":
-        return {
-          title: t("rows.tasks.title"),
-          detail: t("rows.tasks.detail", { run: row.run ?? "none" }),
-        };
-      case "plan":
-        return {
-          title: t("rows.plan.title", { department: row.department }),
-          detail:
-            row.state === "done" ? t("rows.plan.done") : t("rows.plan.open"),
-        };
-      case "framework":
-        return {
-          title: t("rows.framework.title"),
-          detail:
-            row.state === "done"
-              ? t("rows.framework.done")
-              : t("rows.framework.open"),
-        };
-    }
-  };
+  const opens = rowOpens(viewer);
+  // An open row's owners, but the viewer, may be reminded of it while its term is not closed (lead
+  // review D, proposal 5).
+  const remindable = (row: ReadinessRow) =>
+    term.status !== "closed" &&
+    row.state === "open" &&
+    row.owners.some(({ userId }) => userId !== viewer.userId);
   const list = (shown: ReadinessRow[]) => (
     <ul className="flex flex-col divide-y">
       {shown.map((row) => {
@@ -190,19 +104,32 @@ export default async function ReadinessPage() {
                   : t("nobody")}
               </p>
             </div>
-            {opens(row) ? (
-              <Link
-                href={row.href}
-                aria-label={t("openLabel", { title })}
-                className="inline-flex min-h-11 shrink-0 items-center gap-1 self-start rounded-md px-2 text-sm underline-offset-4 hover:underline sm:self-center"
-              >
-                {t("open")}
-                <ChevronRight
-                  aria-hidden
-                  className="size-4 text-muted-foreground rtl:-scale-x-100"
+            <div className="flex shrink-0 flex-wrap items-center gap-1 self-start sm:self-center">
+              {remindable(row) ? (
+                <RemindButton
+                  termId={term.id}
+                  row={
+                    row.id === "plan"
+                      ? { id: "plan", departmentId: row.departmentId }
+                      : { id: row.id }
+                  }
+                  title={title}
                 />
-              </Link>
-            ) : null}
+              ) : null}
+              {opens(row) ? (
+                <Link
+                  href={row.href}
+                  aria-label={t("openLabel", { title })}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1 self-start rounded-md px-2 text-sm underline-offset-4 hover:underline sm:self-center"
+                >
+                  {t("open")}
+                  <ChevronRight
+                    aria-hidden
+                    className="size-4 text-muted-foreground rtl:-scale-x-100"
+                  />
+                </Link>
+              ) : null}
+            </div>
           </li>
         );
       })}
@@ -212,7 +139,12 @@ export default async function ReadinessPage() {
   const planRows = rows.filter((row) => row.id === "plan");
 
   return (
-    <>
+    <NextIntlClientProvider
+      messages={{
+        actions: messages.actions,
+        readiness: { remind: messages.readiness.remind },
+      }}
+    >
       {header}
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-3">
@@ -243,6 +175,6 @@ export default async function ReadinessPage() {
           </section>
         ) : null}
       </div>
-    </>
+    </NextIntlClientProvider>
   );
 }

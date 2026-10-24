@@ -1121,7 +1121,7 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Audit 7:**
 - **The publisher.** Whoever holds `plan.publish` without `plan.edit` reads the department's draft, its preview and its flags on `/plan`, and publishes it, as ADR-0027's last consequence says. The navigation item and draft terms follow either key.
-- **The usability run.** `e2e/plan.spec.ts` builds 50 items of the demo plan's five kinds and counts a head's time with the keystroke-level model. That time must stay under 30 minutes, and the run itself under 3. Step 46 times a real head.
+- **The usability run.** `e2e/plan.spec.ts` builds 50 items of the demo plan's five kinds and counts a head's time with the keystroke-level model. That time must stay under 30 minutes, and the run itself under 3. Step 46 times a real head. The model is `e2e/support/model.ts`, which Step 22's Done-when counts by too (lead review D, M4).
 - **The review load** names the week that asks the most beside the average (`busiestWeek()`).
 
 #### Step 20. Generation engine (L)
@@ -1180,6 +1180,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **Page:** `/assignments`, one department at a time: each template with whom it is given to, for which weeks and the week their tasks are due, and its items. The assign sheet ticks several people in the department's list, under the shared search field. The owner's rule of 22 October kept the multi select out, since checkboxes and a search do the job (Audit 7). A department's own templates are kept there, their items in the shared item sheet.
 - **Seed and tests:** `seed:demo` makes each department's secretary by assignment, as Step 10's note asks, and gives Electrical a safety supervisor, a schedule coordinator for weeks 1 to 4 and its own inventory officer for weeks 13 to 18. `tests/integration/assignments.test.ts` checks the Done-when.
 
+**Notes from lead review D:** a department's own template counts as assigned while any term has it given, so `/assignments` offers to delete only one no term holds (M1). The assign sheet's weeks show their days, and its range starts on this week. A task held by a person keeps its account from being deleted (`tasks.holder_id` restricts, migration `0030`).
+
 > **Checkpoint: Audit 7.** Run `/audit 19-21`.
 
 #### Step 22. Quick requests and the term readiness board (M)
@@ -1214,6 +1216,15 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - **Sending:** `/requests` keeps the request, generates its tasks at once with the cause `request`, and tells each person it reached (`quickRequest`).
 - **The board:** `/readiness` (`src/modules/readiness`) reads its rows when it is opened. A head sees the college's rows and their own department's plan. Where no role holds a row's key across the college, the board names the admins.
 
+**Notes from lead review D (docs/reviews/lead-D.md)**
+
+- **The Done-when's 12 trainers are a department's** (the owner's answer, 23 October 2026). The test has Mechanical's head send to its trainer role, all 13 of them, and times the head by the keystroke-level model (`e2e/support/model.ts`): about 25 s, under the 30. Electrical's trainers stay out of it, since the demo trainer's bell must read empty (Audit 4).
+- **Whom a request reaches stays live** (ADR-0032). Someone who joins its place later gets its task at the next pass, even past its day, and the pass that gives a task tells its person. A request's pass is a run (`generation_runs`), queued with the request and run at once, and one pass at a time runs per term.
+- **The sheet** starts on this week's due day, or the next week's once it has passed (`nextDueDay()`), offers only working days of the counted weeks, and ticks everyone its search shows at once ("اختيار كل الظاهرين").
+- **The board** links a row only where its viewer opens its page, names a trainer whose account is disabled as unmatched, and reminds a row's owners (ADR-0033): «ذكّرهم» once a day each, with the kind `readinessReminder`, which opens the row's page. The console lists the open rows its viewer owns.
+- **The vice-dean reads every department's plan** (`plan.view`, migration `0029`), as section 1 says, and changes none.
+- **A step back shows the past.** Next.js shows a page reached by the browser's back or forward as it was drawn, and asks the server for nothing; a link back reads it again. `FreshOnReturn` reads the board, the requests, the console and `/system` again after such a step. ADR-0007's decision stays the owner's.
+
 > **Checkpoint: Lead review D.** Run `/lead-review D`, then tag `v0.4-D`.
 
 ### Section E. The trainer's work loop (steps 23 to 28)
@@ -1238,6 +1249,11 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Notes from Step 5**
 
 - Today already greets with the time of day and the date on the college's clock (`src/app/(app)/today/`). BeUI here: pull to refresh on phones and expandable control (the head's one-tap reminder).
+
+**Notes from lead review D**
+
+- Today shows what others have done since, as the board does: a step back in the browser shows it as it was drawn, unless it reads itself again (`FreshOnReturn`, Step 22's note) or the owner decides ADR-0007 otherwise.
+- A quick request's notice opens `/today`, which in the review's trace read "لا شيء مطلوب منك الآن" right after telling the trainer of a task due that day. Here and in Step 26, the notice opens the task. A reminder from the board already opens its row's page (ADR-0033).
 
 **Note from ADR-0008:** on option A, Today and the bell are the only way trainers and heads learn about work, and the head's reminders are in-app. "Nothing uploaded this week" and its one-tap reminder move to Step 27, after evidence exists (Step 25).
 

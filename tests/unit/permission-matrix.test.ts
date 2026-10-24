@@ -218,6 +218,11 @@ vi.mock("@/modules/requests", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/requests")>()),
   sendQuickRequest: async () => ({ status: "sent", id: ID, runId: ID }),
 }));
+// The owners of a row of the readiness board reminded (lead review D, proposal 5).
+vi.mock("@/modules/readiness", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/readiness")>()),
+  remindOwners: async () => ({ status: "reminded", count: 1 }),
+}));
 // A text of the platform reworded or put back, against the college's catalog (ADR-0029).
 vi.mock("@/modules/texts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/texts")>()),
@@ -274,6 +279,7 @@ vi.mock("@/platform/files/table", () => ({
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
+  getFormatter: async () => ({ list: (items: string[]) => items.join(", ") }),
 }));
 vi.mock("next/cache", () => ({ refresh: () => {} }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -673,6 +679,23 @@ const checked: {
     action: "sendQuickRequestAction",
     permission: "requests.send",
     input: { ...REQUEST, departmentId: null },
+  },
+  // A row of the readiness board, whose owners whoever sees it may remind: a department's plan in
+  // that department, and a row of the college's wherever the key is held, as a head sees them (lead
+  // review D, proposal 5).
+  {
+    module: "(app)/readiness/actions.ts",
+    action: "remindOwnersAction",
+    permission: "readiness.view",
+    input: { termId: ID, row: { id: "plan", departmentId: DEPARTMENT } },
+    inDepartment: true,
+  },
+  {
+    module: "(app)/readiness/actions.ts",
+    action: "remindOwnersAction",
+    permission: "readiness.view",
+    input: { termId: ID, row: { id: "matched" } },
+    inDepartment: true,
   },
   // The portfolio's axes, the admin's catalog: a vice-dean renames none (Step 14).
   {

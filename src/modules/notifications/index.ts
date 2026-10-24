@@ -11,7 +11,7 @@ export {
   type NotificationKind,
   type NotificationParams,
   notificationKindKeys,
-  notificationKinds,
+  notificationPage,
 } from "./domain/kinds.ts";
 export { sendWeeklyDigests } from "./server/digest.ts";
 export {

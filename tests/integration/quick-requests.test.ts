@@ -533,6 +533,22 @@ describe("a quick request's pass", () => {
     expect(await toldOf(result.id)).toEqual([told]);
   });
 
+  it("keeps its tasks when someone deletes the account of a person it reached: the deletion is refused (lead review D)", async () => {
+    const kept_ = await departmentWith("Kept", 1);
+    const [held] = kept_.trainers;
+    const result = await kept(request({ departmentId: kept_.id }));
+    expect(await runAtOnce(result.runId)).toBe("done");
+    await expect(
+      query("delete from users where id = $1", [held]),
+    ).rejects.toMatchObject({
+      code: "23001",
+      constraint: "tasks_holder_id_users_id_fk",
+    });
+    expect(
+      (await tasksOf(result.id)).map(({ assigneeId }) => assigneeId),
+    ).toEqual([held]);
+  });
+
   it("waits while another pass of its term is running, for the worker to run it after, and not for one left running too long (proposal 7)", async () => {
     const result = await kept(request({ title: "جدول المراقبة" }));
     const [other] = await query(

@@ -1,8 +1,8 @@
-// What the platform tells a person about is code: each kind, the page it opens, whether its people
-// may turn it off, and what its message is filled with. The words are data,
+// What the platform tells a person about is code: each kind, the page it opens (or how its params
+// name it), whether its people may turn it off, and what its message is filled with. The words are data,
 // notifications.kinds.<kind> in messages/*.json, whose variables are the kind's params. A step that
 // tells people something new adds its kind here.
-export const notificationKinds = {
+const notificationKinds = {
   // A role given to the person, across the college or in a department (Steps 9 and 10).
   membershipAdded: { href: "/profile", optional: true },
   // A role taken from them.
@@ -17,6 +17,12 @@ export const notificationKinds = {
   transferConflict: { href: "/sections", optional: true },
   // A quick request that gave the person a task (Step 22).
   quickRequest: { href: "/today", optional: true },
+  // A responsibility of the term, open on the readiness board, that someone reminded its owner of;
+  // it opens the page that settles it (lead review D, proposal 5).
+  readinessReminder: {
+    href: ({ href }: NotificationParams["readinessReminder"]) => href,
+    optional: true,
+  },
 } as const;
 
 export type NotificationKind = keyof typeof notificationKinds;
@@ -32,6 +38,15 @@ export function isNotificationKind(value: string): value is NotificationKind {
 // Whether a person may turn a kind off.
 export function isOptional(kind: NotificationKind) {
   return notificationKinds[kind].optional;
+}
+
+// The page a notification opens: its kind's, or the one its params name.
+export function notificationPage(
+  kind: NotificationKind,
+  params: Record<string, unknown>,
+) {
+  const { href } = notificationKinds[kind];
+  return typeof href === "string" ? href : href(params as never);
 }
 
 // A role and where it is held, named as they were when the message was sent.
@@ -64,4 +79,11 @@ export type NotificationParams = {
   };
   // The request's title, the day it is due in words and who sent it, as they were when it was sent.
   quickRequest: { requestId: string; title: string; due: string; from: string };
+  // The board's row as it read when the reminder was sent, who sent it, and the row's page.
+  readinessReminder: {
+    title: string;
+    detail: string;
+    from: string;
+    href: string;
+  };
 };

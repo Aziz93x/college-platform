@@ -22,10 +22,13 @@ import { toLatinDigits } from "@/platform/validation/digits";
 import { assignAction } from "./actions.ts";
 
 export type Person = { userId: string; name: string; employeeNumber: string };
+// A week of the term by its number, and its days in words.
+export type Week = { number: number; days: string };
 
 // Giving a template to people of the department, in a sheet: whom, ticked in the department's list,
 // which a search narrows by name or employee number, and the whole term or from a week to a week of
-// it, its tasks due in the last (the owner's answers, 23 October 2026).
+// it, its tasks due in the last (the owner's answers, 23 October 2026). Each week shows its days,
+// and a range starts on this week (lead review D, proposal 8).
 export function AssignButton({
   termId,
   departmentId,
@@ -33,6 +36,7 @@ export function AssignButton({
   people,
   staffed,
   weeks,
+  thisWeek,
 }: {
   termId: string;
   departmentId: string;
@@ -41,8 +45,10 @@ export function AssignButton({
   people: Person[];
   /** Whether the department has anyone in the term: none left means each holds it already. */
   staffed: boolean;
-  /** The term's weeks. */
-  weeks: number;
+  /** The term's weeks, each with its days. */
+  weeks: Week[];
+  /** The week reached today, which a range starts on. */
+  thisWeek: number;
 }) {
   const t = useTranslations("assignments.assign");
   const ui = useTranslations("ui");
@@ -52,13 +58,12 @@ export function AssignButton({
   const [chosen, setChosen] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [wholeTerm, setWholeTerm] = useState(true);
-  const [from, setFrom] = useState("1");
-  const [to, setTo] = useState(String(weeks));
+  const [from, setFrom] = useState(String(thisWeek));
+  const [to, setTo] = useState(String(weeks.length));
   const [problem, setProblem] = useState<string>();
   const [running, setRunning] = useState(false);
   const [, startTransition] = useTransition();
-  const options = Array.from({ length: weeks }, (_, at) => String(at + 1));
-  const lastWeek = wholeTerm ? weeks : Number(to);
+  const lastWeek = wholeTerm ? weeks.length : Number(to);
   // Those a search finds, and those it hides stay chosen.
   const shown = query.trim()
     ? searchCommands(
@@ -131,9 +136,9 @@ export function AssignButton({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((week) => (
-            <SelectItem key={week} value={week}>
-              {t("weekOption", { week: Number(week) })}
+          {weeks.map((week) => (
+            <SelectItem key={week.number} value={String(week.number)}>
+              {t("weekDays", { week: week.number, days: week.days })}
             </SelectItem>
           ))}
         </SelectContent>
