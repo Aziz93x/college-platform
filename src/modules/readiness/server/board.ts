@@ -58,7 +58,14 @@ export async function termReadiness(
     unmatched,
     published,
     run,
-    [termOwners, frameworkOwners, peopleOwners, rayatOwners, planOwners],
+    [
+      termOwners,
+      frameworkOwners,
+      peopleOwners,
+      rayatOwners,
+      planOwners,
+      systemOwners,
+    ],
   ] = await Promise.all([
     publishedItems(collegeId, term.id, db),
     listDepartments(collegeId, db),
@@ -76,6 +83,7 @@ export async function termReadiness(
           "people.manage",
           "rayat.import",
           "plan.publish",
+          "system.manage",
         ] as const
       ).map((key) => holdersAcross(collegeId, key, db)),
     ),
@@ -150,6 +158,7 @@ export async function termReadiness(
       owners: peopleOwners,
       href: "/rayat",
     },
+    // A failed pass is run again on the system page, by whoever holds its key there (lead review D).
     {
       id: "tasks",
       run: pass,
@@ -157,8 +166,8 @@ export async function termReadiness(
         pass === "queued" || pass === "running"
           ? "working"
           : settled(pass === "done"),
-      owners: frameworkOwners,
-      href: "/framework",
+      owners: pass === "failed" ? systemOwners : frameworkOwners,
+      href: pass === "failed" ? "/system" : "/framework",
     },
     ...shown.map((department) => {
       const own = publishers.get(department.id) ?? [];

@@ -330,6 +330,8 @@ describe("a quick request", () => {
     expect(await refused(request({ dueOn: "2026-08-22" }))).toBe("dueOutside");
     expect(await refused(request({ dueOn: "2027-01-01" }))).toBe("dueOutside");
     expect(await refused(request({ dueOn: "2026-08-31" }))).toBe("duePast");
+    // The Friday of the third week, a day off (lead review D, proposal 6).
+    expect(await refused(request({ dueOn: "2026-09-11" }))).toBe("dueOff");
     expect(await refused(request({ axisId: nobody }))).toBe("axisNotFound");
     expect(await refused(request({ departmentId: nobody }))).toBe(
       "departmentNotFound",

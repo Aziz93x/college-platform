@@ -107,6 +107,18 @@ export function dueDay(
   );
 }
 
+// Whether a day is worked: one of the college's working days, and in none of the term's holidays,
+// the days a task can be due on (ADR-0025; lead review D, proposal 6).
+export function isWorkingDay(
+  term: Pick<TermCalendar, "holidays" | "workingDays">,
+  day: Day,
+) {
+  return (
+    term.workingDays.has(weekday(day)) &&
+    !term.holidays.some((range) => within(day, range))
+  );
+}
+
 // A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
 // (ADR-0018), with the college's settings.
 export function calendarOf(

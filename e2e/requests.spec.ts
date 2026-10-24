@@ -186,6 +186,87 @@ test("the vice-dean sees each of the term's responsibilities with its state, who
   await head.context().close();
 });
 
+// The pages a viewer's board links, the term's page under one name.
+const linked = async (page: Page) =>
+  (
+    await page
+      .locator("main")
+      .getByRole("link")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href")))
+  ).map((href) => href?.replace(/^\/terms\/.+$/, "/terms/…"));
+
+test("the board links each row only where its viewer opens the page: the dean the term and the framework alone, and the vice-dean each department's plan as well, which they read and do not change (lead review D, M5 and proposal 3)", async ({
+  browser,
+}) => {
+  const dean = await signedIn(browser, {
+    identifier: demoAccounts.dean.employeeNumber,
+    password: demo.password,
+  });
+  await dean.goto("/readiness");
+  await expect(
+    dean.getByRole("heading", { level: 1, name: board.title }),
+  ).toBeVisible();
+  // The term's row, the framework's and the tasks', whose page is the framework's.
+  expect(new Set(await linked(dean))).toEqual(
+    new Set(["/terms/…", "/framework"]),
+  );
+  // Whom the rows without a link wait on is still named.
+  await expect(
+    dean
+      .getByRole("region", { name: board.college })
+      .getByRole("listitem")
+      .filter({ hasText: board.rows.people.title }),
+  ).toContainText(r("owners", { names: demoAccounts.admin.name }));
+  for (const href of new Set(
+    await dean
+      .locator("main")
+      .getByRole("link")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+  )) {
+    await dean.goto(href ?? "/");
+    await expect(dean.getByText(pages.forbidden.title)).toHaveCount(0);
+  }
+  await dean.context().close();
+
+  const viceDean = await signedIn(browser, {
+    identifier: demoAccounts.viceDean.employeeNumber,
+    password: demo.password,
+  });
+  await viceDean.goto("/readiness");
+  const hrefs = await linked(viceDean);
+  expect(hrefs).not.toContain("/people");
+  expect(hrefs).toContain("/rayat");
+  expect(
+    hrefs.filter((href) => href?.startsWith("/plan?department=")),
+  ).toHaveLength(demoDepartments.length);
+  await viceDean
+    .getByRole("link", {
+      name: r("openLabel", {
+        title: r("rows.plan.title", { department: electrical }),
+      }),
+    })
+    .click();
+  await viceDean.waitForURL(/\/plan\?department=/);
+  await expect(
+    viceDean.getByRole("heading", { level: 1, name: messages.plan.title }),
+  ).toBeVisible();
+  await expect(viceDean.getByText(pages.forbidden.title)).toHaveCount(0);
+  // Electrical's published plan, read: nothing on it edits, publishes or starts a version.
+  for (const name of [
+    messages.plan.add,
+    messages.plan.publish,
+    messages.plan.start,
+  ]) {
+    await expect(viceDean.getByRole("button", { name })).toHaveCount(0);
+  }
+  await expect(
+    viceDean.getByRole("button", {
+      name: new RegExp(`^${messages.plan.newVersion.split("{")[0]}`),
+    }),
+  ).toHaveCount(0);
+  await viceDean.context().close();
+});
+
 test.describe("without the keys", () => {
   test.use({ storageState: STORAGE.trainer });
 

@@ -22,8 +22,8 @@ import { listPeople } from "@/modules/identity";
 import { listDepartments } from "@/modules/org";
 import { requestLimits, termRequests } from "@/modules/requests";
 import { getSetting } from "@/modules/settings";
-import { termWeeks } from "@/modules/terms";
-import { wallClock } from "@/platform/i18n/time-zone";
+import { isWorkingDay, termWeeks } from "@/modules/terms";
+import { addDays, wallClock } from "@/platform/i18n/time-zone";
 import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
 import { type Place, type Reachable, RequestButton } from "./request-sheet.tsx";
 
@@ -165,6 +165,16 @@ export default async function RequestsPage() {
   const first = counted[0]?.startsOn ?? term.startsOn;
   const last = counted.at(-1)?.endsOn ?? term.startsOn;
   const open = term.status !== "closed" && today <= last;
+  // The days among them a request may not be due on, which the picker offers none of: outside the
+  // counted weeks, or off in them, a weekend or a holiday (lead review D, proposal 6).
+  const from = today > first ? today : first;
+  const off: string[] = [];
+  for (let each = from; found && each <= last; each = addDays(each, 1)) {
+    const inWeek = counted.some(
+      (week) => week.startsOn <= each && each <= week.endsOn,
+    );
+    if (!inWeek || !isWorkingDay(found.calendar, each)) off.push(each);
+  }
   const axes = groups
     .flatMap((group) => group.axes)
     .map((axis) => ({
@@ -228,7 +238,7 @@ export default async function RequestsPage() {
                 places={places}
                 axes={axes}
                 title={requestLimits.title}
-                day={{ min: today > first ? today : first, max: last, today }}
+                day={{ min: from, max: last, today, off }}
               />
             </NextIntlClientProvider>
           ) : undefined

@@ -7,13 +7,19 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { EmptyState } from "@/components/empty-state";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
-import { permittedDepartments, requireViewer } from "@/modules/access";
+import {
+  authorize,
+  permittedDepartments,
+  requireViewer,
+} from "@/modules/access";
 import {
   type ReadinessRow,
   type ReadinessState,
   termReadiness,
 } from "@/modules/readiness";
 import { preparesTerms, viewedTerm } from "../_shell/term.ts";
+import { peopleScope } from "../people/scope.ts";
+import { planAccess } from "../plan/access.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
@@ -61,6 +67,30 @@ export default async function ReadinessPage() {
 
   const rows = await termReadiness(viewer.collegeId, term, reach);
   const done = rows.filter((row) => row.state === "done").length;
+  // Whether the viewer opens the page that settles a row, by the rule that page itself applies, so
+  // the board offers no page that would refuse them; the row's owners are named either way (lead
+  // review D, M5). The term's page and the framework open to everyone.
+  const plans = planAccess(viewer);
+  const rayatHeld = permittedDepartments(viewer, "rayat.import");
+  const opens = (row: ReadinessRow) => {
+    switch (row.id) {
+      case "people":
+        return peopleScope(viewer) !== undefined;
+      case "rayat":
+      case "matched":
+        return rayatHeld === "college" || rayatHeld.length > 0;
+      case "plan":
+        return plans.opens(row.departmentId);
+      case "tasks":
+        return (
+          row.href !== "/system" ||
+          authorize(viewer, "system.manage", { collegeId: viewer.collegeId })
+        );
+      case "term":
+      case "framework":
+        return true;
+    }
+  };
   const words = (row: ReadinessRow) => {
     switch (row.id) {
       case "term":
@@ -145,24 +175,26 @@ export default async function ReadinessPage() {
                   : t("nobody")}
               </p>
             </div>
-            <Link
-              href={row.href}
-              aria-label={t("openLabel", { title })}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1 self-start rounded-md px-2 text-sm underline-offset-4 hover:underline sm:self-center"
-            >
-              {t("open")}
-              <ChevronRight
-                aria-hidden
-                className="size-4 text-muted-foreground rtl:-scale-x-100"
-              />
-            </Link>
+            {opens(row) ? (
+              <Link
+                href={row.href}
+                aria-label={t("openLabel", { title })}
+                className="inline-flex min-h-11 shrink-0 items-center gap-1 self-start rounded-md px-2 text-sm underline-offset-4 hover:underline sm:self-center"
+              >
+                {t("open")}
+                <ChevronRight
+                  aria-hidden
+                  className="size-4 text-muted-foreground rtl:-scale-x-100"
+                />
+              </Link>
+            ) : null}
           </li>
         );
       })}
     </ul>
   );
   const college = rows.filter((row) => row.id !== "plan");
-  const plans = rows.filter((row) => row.id === "plan");
+  const planRows = rows.filter((row) => row.id === "plan");
 
   return (
     <>
@@ -184,7 +216,7 @@ export default async function ReadinessPage() {
           </h2>
           {list(college)}
         </section>
-        {plans.length > 0 ? (
+        {planRows.length > 0 ? (
           <section aria-labelledby="readiness-plans" className={card}>
             <h2
               id="readiness-plans"
@@ -192,7 +224,7 @@ export default async function ReadinessPage() {
             >
               {t("plans")}
             </h2>
-            {list(plans)}
+            {list(planRows)}
           </section>
         ) : null}
       </div>

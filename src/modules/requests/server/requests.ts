@@ -12,6 +12,7 @@ import {
   calendarOf,
   calendarSettings,
   findTerm,
+  isWorkingDay,
   termWeeks,
 } from "../../terms/index.ts";
 import { type QuickRequestInput, targetsFit } from "../domain/input.ts";
@@ -26,13 +27,14 @@ type Change = {
 };
 
 // Why a request is not sent: its term is gone or closed; its day is outside the term's counted
-// weeks, or already past on the college's clock; its axis, department or role is not the
-// college's; someone chosen holds no role in their department for the term; or chosen people of
-// a department's request belong to another.
+// weeks, a day off there, or already past on the college's clock; its axis, department or role is
+// not the college's; someone chosen holds no role in their department for the term; or chosen
+// people of a department's request belong to another.
 export type RequestRefusal =
   | "termNotFound"
   | "termClosed"
   | "dueOutside"
+  | "dueOff"
   | "duePast"
   | "axisNotFound"
   | "departmentNotFound"
@@ -66,15 +68,16 @@ export async function sendQuickRequest(
   ]);
   if (!term) return { status: "termNotFound" };
   if (term.status === "closed") return { status: "termClosed" };
-  const counted = termWeeks(
-    calendarOf(term, term.events, settings, term.breaks),
-  ).some(
+  const calendar = calendarOf(term, term.events, settings, term.breaks);
+  const counted = termWeeks(calendar).some(
     (week) =>
       week.number !== null &&
       week.startsOn <= input.dueOn &&
       input.dueOn <= week.endsOn,
   );
   if (!counted) return { status: "dueOutside" };
+  // Due on a working day, as every task is (ADR-0025; lead review D, proposal 6).
+  if (!isWorkingDay(calendar, input.dueOn)) return { status: "dueOff" };
   if (input.dueOn < wallClock(at, timeZone).slice(0, 10)) {
     return { status: "duePast" };
   }

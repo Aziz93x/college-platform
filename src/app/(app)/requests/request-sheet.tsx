@@ -67,8 +67,11 @@ export function RequestButton({
   places: Place[];
   axes: { value: string; label: string }[];
   title: number;
-  /** The first and last day the request may be due: today or the term's start, and its end. */
-  day: { min: string; max: string; today: string };
+  /**
+   * The first and last day the request may be due: today or the term's start, and its end; and
+   * the days between them it may not be, outside the counted weeks or off in them.
+   */
+  day: { min: string; max: string; today: string; off: readonly string[] };
 }) {
   const t = useTranslations("requests.new");
   const refusals = useTranslations("requests.refusals");
@@ -76,6 +79,7 @@ export function RequestButton({
   const actions = useTranslations("actions");
   const locale = useLocale();
   const dateWords = useDateRangeWords(t("fields.due"));
+  const off = new Set(day.off);
   const id = useId();
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState(places[0]);
@@ -280,6 +284,7 @@ export function RequestButton({
                 weekStartsOn={firstDayOfWeek(locale)}
                 min={day.min}
                 max={day.max}
+                isUnavailable={(date) => off.has(date)}
                 today={day.today}
                 aria-describedby={`${id}-due-hint`}
               />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dueDay,
+  isWorkingDay,
   type TermCalendar,
   termEndsOn,
   termWeeks,
@@ -26,6 +27,18 @@ const term: TermCalendar = {
   skipHolidayWeeks: true,
   workingDays: SUNDAY_TO_THURSDAY,
 };
+
+it("works a day that is one of the college's working days and in no holiday (lead review D, proposal 6)", () => {
+  // Sunday and Thursday of the term's first week.
+  expect(isWorkingDay(term, "2026-01-11")).toBe(true);
+  expect(isWorkingDay(term, "2026-01-15")).toBe(true);
+  // Its Friday and Saturday.
+  expect(isWorkingDay(term, "2026-01-16")).toBe(false);
+  expect(isWorkingDay(term, "2026-01-17")).toBe(false);
+  // Founding Day, a Sunday, and a Tuesday of the Eid al-Fitr break.
+  expect(isWorkingDay(term, "2026-02-22")).toBe(false);
+  expect(isWorkingDay(term, "2026-03-17")).toBe(false);
+});
 
 it("counts the working days from the week's first day", () => {
   expect([...workingDays(0, 5)]).toEqual([0, 1, 2, 3, 4]);
