@@ -734,7 +734,7 @@ describe("a quick request to people chosen in two departments", () => {
 
 // Last too: the holidays it adds move the weeks after them.
 describe("a quick request whose day a holiday takes after it is sent", () => {
-  it("is due on the last day worked before it, which its notice names, and in the week before once a break takes its own (lead review D)", async () => {
+  it("is due on the last day worked before it in its week, which its notice names, and keeps its day when a break takes the whole week (lead review D)", async () => {
     const team = await departmentWith("Survey", 1);
     // Wednesday of week 5, and Tuesday of week 4.
     const wednesday = await sent(
@@ -797,13 +797,14 @@ describe("a quick request whose day a holiday takes after it is sent", () => {
         },
       ]);
 
-      // A break that takes week 4's every working day: its Tuesday falls back to the Thursday
-      // before, in week 3, and the weeks after it count on from 4.
+      // A break that takes week 4's every working day: its Tuesday keeps its day, never moved into
+      // a week that may have passed, in the week the break's days reach, 3; the weeks after it
+      // count on from 4.
       await dayOff("2026-09-13", "2026-09-17");
       await generate();
       expect(await days(tuesday)).toEqual([
-        { week: 3, dueOn: "2026-09-10" },
-        { week: 3, dueOn: "2026-09-10" },
+        { week: 3, dueOn: "2026-09-15" },
+        { week: 3, dueOn: "2026-09-15" },
       ]);
       expect(await days(wednesday)).toEqual([
         { week: 4, dueOn: "2026-09-22" },

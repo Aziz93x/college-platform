@@ -29,7 +29,7 @@ All notable changes are recorded here. Each entry names the plan step from docs/
   - the matched row counts the trainers a section's work goes to from this week on, after the head's transfers; until SS01 is applied it waits on its importers, and the trainers not on the platform are owned by whoever may add them from Rayat's page;
   - a head's board links no draft term's page, and a sender who does not prepare terms reminds no one of a draft's rows;
   - once a request is kept, a failure after reads as pending, and a failed request's pass is queued again once for the worker's next round, whoever ran it (migration `0031`);
-  - a request whose day a holiday or a break takes later is due on the last day worked before it, and the notice of someone who joins after says so;
+  - a request whose day a holiday takes later is due on the last day worked before it in its week, or the first after it there, and keeps its day when the whole week is off, as a week's own tasks do; the notice of someone who joins after says so;
   - the sheet opens on the page's day now unless its sender picked one still allowed; `FreshOnReturn` keeps a step by its history entry, and hears a page brought back from the browser's cache; and the end-to-end teardown removes a throwaway account's roles before its tasks.
 - `seed:demo`: the vice-dean reminded the admin of the matched row, and the demo's requests run their passes as the action does.
 - Tests:

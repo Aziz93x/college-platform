@@ -194,22 +194,34 @@ describe("the day a quick request is due once its own is taken off (lead review 
     expect(workingDayBy(term, "2026-01-13")).toBe("2026-01-13");
   });
 
-  it("falls back to the last day worked before a holiday, a weekend or a break", () => {
-    // Founding Day, a Sunday: the Thursday before.
-    expect(workingDayBy(term, "2026-02-22")).toBe("2026-02-19");
+  it("falls back to the last day worked before it in its week, off a holiday or a weekend", () => {
+    const thursdayOff = {
+      ...term,
+      holidays: [
+        ...term.holidays,
+        { startsOn: "2026-01-15", endsOn: "2026-01-15" },
+      ],
+    };
+    expect(workingDayBy(thursdayOff, "2026-01-15")).toBe("2026-01-14");
     expect(workingDayBy(term, "2026-01-16")).toBe("2026-01-15");
-    // A Tuesday of the Eid al-Fitr break, whose weeks go without a number: the last Thursday of
-    // Ramadan before it, in week 9.
-    expect(workingDayBy(term, "2026-03-17")).toBe("2026-03-12");
-    expect(weekReached(termWeeks(term), "2026-03-12")).toBe(9);
   });
 
-  it("is the first day worked after it when the term has none before", () => {
+  it("is the first day worked after it in its week when none is before, and never leaves the week", () => {
+    // Founding Day, the Sunday that opens week 7: its Monday, not the Thursday of week 6.
+    expect(workingDayBy(term, "2026-02-22")).toBe("2026-02-23");
+    expect(weekReached(termWeeks(term), "2026-02-23")).toBe(7);
     const startsOff = {
       ...term,
       holidays: [{ startsOn: "2026-01-11", endsOn: "2026-01-13" }],
     };
     expect(workingDayBy(startsOff, "2026-01-12")).toBe("2026-01-14");
+  });
+
+  it("keeps its day when holidays take its whole week, as a week's own tasks stay in it", () => {
+    // A Tuesday of the Eid al-Fitr break, whose weeks go without a number: still week 9's, and not
+    // moved to a Thursday that may have passed when the break was set.
+    expect(workingDayBy(term, "2026-03-17")).toBe("2026-03-17");
+    expect(weekReached(termWeeks(term), "2026-03-17")).toBe(9);
   });
 });
 

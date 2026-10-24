@@ -82,8 +82,8 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   const calendar = calendarOf(term, term.events, settings, term.breaks);
   const weeks = termWeeks(calendar);
   const shape = { weeks: term.weeks, periods: term.periods };
-  // A request is due on its own day, or on the last day worked before it once a holiday or a break
-  // takes it, its notice saying so (lead review D).
+  // A request is due on its own day, or once a holiday takes it on the last day worked before it in
+  // its week, or the first after it there, its notice saying so (lead review D).
   const requests = requested.map((request) => ({
     ...request,
     dueOn: workingDayBy(calendar, request.dueOn),
