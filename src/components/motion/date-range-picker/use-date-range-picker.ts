@@ -20,6 +20,7 @@ export function useDateRangePickerController({
   weekStartsOn,
   min,
   max,
+  isUnavailable,
   today: givenToday,
   disabled = false,
   autoFocus = false,
@@ -114,7 +115,10 @@ export function useDateRangePickerController({
     timeZone: "UTC",
   });
   const unavailable = (date: string) =>
-    disabled || Boolean(min && date < min) || Boolean(max && date > max);
+    disabled ||
+    Boolean(min && date < min) ||
+    Boolean(max && date > max) ||
+    Boolean(isUnavailable?.(date));
   // A range's interior lies between its ends, so its ends alone decide.
   const rangeAvailable = (range: DateRange) =>
     parse(range.from) <= parse(range.to ?? range.from) &&

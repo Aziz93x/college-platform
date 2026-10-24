@@ -55,6 +55,9 @@ const permissions = {
   "plan.edit": { area: "planning", requiresTwoFactor: false },
   // Publish a department's plan, whose tasks are then generated (Step 19).
   "plan.publish": { area: "planning", requiresTwoFactor: false },
+  // Read a department's plan without changing it: its draft, its published version and the
+  // earlier ones. Held across the college, every department's (lead review D, proposal 3).
+  "plan.view": { area: "planning", requiresTwoFactor: false },
   // Assign a department's responsibilities to its people for a term and revoke them, and keep the
   // department's own templates (Step 21). Assigning a template that grants a role, as the
   // secretary's does, gives that role in the department for the term: the keys the admin gave it.

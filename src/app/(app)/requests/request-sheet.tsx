@@ -25,6 +25,7 @@ import type { RequestTargets } from "@/modules/requests";
 import { firstDayOfWeek } from "@/platform/i18n/language";
 import { toLatinDigits } from "@/platform/validation/digits";
 import { sendQuickRequestAction } from "./actions.ts";
+import { openingDay, problemOf } from "./sheet-state.ts";
 
 // Someone a request may reach in a place: in their department, as the generation engine reaches
 // them in the term.
@@ -55,20 +56,34 @@ const keyOf = (person: { userId: string; departmentId: string }) =>
 // one place, the axis its tasks count under, its day, whom it reaches (everyone there but the
 // sender, a role's holders, or people ticked in the place's list, which a search narrows), and
 // whether it asks for evidence. Its tasks are made as it is sent, and the toast says how many it
-// reached.
+// reached. It keeps what was typed while the page stays open; its place and its people are read
+// from the page as it is now, and its day as openingDay() says (lead review D).
 export function RequestButton({
   termId,
   places,
   axes,
   title: limit,
+  people: most,
   day,
 }: {
   termId: string;
   places: Place[];
   axes: { value: string; label: string }[];
   title: number;
-  /** The first and last day the request may be due: today or the term's start, and its end. */
-  day: { min: string; max: string; today: string };
+  /** How many people one request may name. */
+  people: number;
+  /**
+   * The first and last day the request may be due: today or the term's start, and its end; the
+   * days between them it may not be, outside the counted weeks or off in them; and the day it
+   * starts on, this week's due day or the next week's.
+   */
+  day: {
+    min: string;
+    max: string;
+    today: string;
+    off: readonly string[];
+    starts: string;
+  };
 }) {
   const t = useTranslations("requests.new");
   const refusals = useTranslations("requests.refusals");
@@ -76,12 +91,16 @@ export function RequestButton({
   const actions = useTranslations("actions");
   const locale = useLocale();
   const dateWords = useDateRangeWords(t("fields.due"));
+  const off = new Set(day.off);
   const id = useId();
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState(places[0]);
+  const [placeId, setPlaceId] = useState(places[0]?.id ?? COLLEGE);
+  const place =
+    places.find((each) => (each.id ?? COLLEGE) === placeId) ?? places[0];
   const [title, setTitle] = useState("");
   const [axisId, setAxisId] = useState(axes[0]?.value ?? "");
-  const [dueOn, setDueOn] = useState<string | null>(null);
+  const [dueOn, setDueOn] = useState(day.starts);
+  const [picked, setPicked] = useState(false);
   const [choice, setChoice] = useState<Choice>("everyone");
   const [roleId, setRoleId] = useState("");
   const [chosen, setChosen] = useState<string[]>([]);
@@ -108,17 +127,33 @@ export function RequestButton({
     );
     setProblem(undefined);
   };
+  // Everyone the search shows, ticked or unticked at once (lead review D, proposal 4).
+  const allShown =
+    shown.length > 0 && shown.every((person) => chosen.includes(keyOf(person)));
+  const toggleShown = (checked: boolean) => {
+    const keys = shown.map(keyOf);
+    setChosen((current) =>
+      checked
+        ? [...current, ...keys.filter((key) => !current.includes(key))]
+        : current.filter((key) => !keys.includes(key)),
+    );
+    setProblem(undefined);
+  };
   const moveTo = (value: string) => {
-    const next = places.find((each) => (each.id ?? COLLEGE) === value);
-    if (!next) return;
-    setPlace(next);
+    if (!places.some((each) => (each.id ?? COLLEGE) === value)) return;
+    setPlaceId(value);
     setRoleId("");
     setChosen([]);
     setQuery("");
   };
+  const openSheet = () => {
+    setDueOn(openingDay(day, { dueOn, picked }));
+    setOpen(true);
+  };
   const reset = () => {
     setTitle("");
-    setDueOn(null);
+    setDueOn(day.starts);
+    setPicked(false);
     setChoice("everyone");
     setRoleId("");
     setChosen([]);
@@ -131,13 +166,14 @@ export function RequestButton({
     if (choice === "holders") {
       return roleId ? { type: "role", roleId } : t("required.role");
     }
-    const picked = place.people.filter((person) =>
+    const named = place.people.filter((person) =>
       chosen.includes(keyOf(person)),
     );
-    return picked.length > 0
+    if (named.length > most) return t("required.most", { count: most });
+    return named.length > 0
       ? {
           type: "people",
-          people: picked.map(({ userId, departmentId }) => ({
+          people: named.map(({ userId, departmentId }) => ({
             userId,
             departmentId,
           })),
@@ -147,7 +183,6 @@ export function RequestButton({
 
   const submit = () => {
     if (!title.trim()) return setProblem(t("required.title"));
-    if (!dueOn) return setProblem(t("required.due"));
     const reach = targets();
     if (typeof reach === "string") return setProblem(reach);
     setProblem(undefined);
@@ -164,16 +199,24 @@ export function RequestButton({
       });
       setRunning(false);
       const data = result?.data;
-      if (data?.status === "sent") {
-        toast.success(t("sent", { count: data.reached }));
+      // Sent: its tasks made now, or by the worker within the minute.
+      if (data?.status === "sent" || data?.status === "pending") {
+        toast.success(
+          data.status === "sent"
+            ? t("sent", { count: data.reached })
+            : t("pending"),
+        );
         setOpen(false);
         reset();
         return;
       }
+      const problem = problemOf(result);
       setProblem(
         data
           ? refusals(data.status)
-          : actions(result?.serverError ?? "unexpected"),
+          : "refusal" in problem
+            ? refusals(problem.refusal)
+            : actions(problem.action),
       );
     });
   };
@@ -210,7 +253,7 @@ export function RequestButton({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button type="button" onClick={openSheet}>
         <Send aria-hidden />
         {t("button")}
       </Button>
@@ -264,9 +307,12 @@ export function RequestButton({
               <DateRangePickerDropdown
                 single
                 closeOnSelect
-                value={dueOn ? { from: dueOn, to: dueOn } : null}
+                value={{ from: dueOn, to: dueOn }}
                 onValueChange={(range) => {
-                  setDueOn(range?.from ?? null);
+                  if (range) {
+                    setDueOn(range.from);
+                    setPicked(true);
+                  }
                   setProblem(undefined);
                 }}
                 words={dateWords}
@@ -275,6 +321,7 @@ export function RequestButton({
                 weekStartsOn={firstDayOfWeek(locale)}
                 min={day.min}
                 max={day.max}
+                isUnavailable={(date) => off.has(date)}
                 today={day.today}
                 aria-describedby={`${id}-due-hint`}
               />
@@ -341,23 +388,32 @@ export function RequestButton({
                     {shown.length === 0 ? (
                       <NoResults query={query} onClear={() => setQuery("")} />
                     ) : (
-                      <ul
-                        aria-label={t("listLabel", { place: place.name })}
-                        className="flex flex-col gap-1"
-                      >
-                        {shown.map((person) => (
-                          <li key={keyOf(person)}>
-                            <Checkbox
-                              label={person.name}
-                              description={person.description}
-                              checked={chosen.includes(keyOf(person))}
-                              onCheckedChange={(checked) =>
-                                toggle(keyOf(person), checked)
-                              }
-                            />
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        {/* Clear of the first person's hit area, which reaches 12 px above them. */}
+                        <Checkbox
+                          label={t("allShown")}
+                          checked={allShown}
+                          onCheckedChange={toggleShown}
+                          className="mb-2"
+                        />
+                        <ul
+                          aria-label={t("listLabel", { place: place.name })}
+                          className="flex flex-col gap-1"
+                        >
+                          {shown.map((person) => (
+                            <li key={keyOf(person)}>
+                              <Checkbox
+                                label={person.name}
+                                description={person.description}
+                                checked={chosen.includes(keyOf(person))}
+                                onCheckedChange={(checked) =>
+                                  toggle(keyOf(person), checked)
+                                }
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </>
                     )}
                     <p
                       aria-live="polite"

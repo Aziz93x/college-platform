@@ -107,6 +107,44 @@ export function dueDay(
   );
 }
 
+// Whether a day is worked: one of the college's working days, and in none of the term's holidays,
+// the days a task can be due on (ADR-0025; lead review D, proposal 6).
+export function isWorkingDay(
+  term: Pick<TermCalendar, "holidays" | "workingDays">,
+  day: Day,
+) {
+  return (
+    term.workingDays.has(weekday(day)) &&
+    !term.holidays.some((range) => within(day, range))
+  );
+}
+
+// The first day on or after a day that a week's tasks are due: that week's due day, or the next
+// week's once it has passed (lead review D, proposal 4). A week whose working days are all holidays
+// has none, as nothing is due on a holiday; after the term's last week there is none.
+export function nextDueDay(term: TermCalendar, day: Day) {
+  return termWeeks(term)
+    .map((week) => dueDay(term, week))
+    .find((due) => due >= day && isWorkingDay(term, due));
+}
+
+// The day a task set for a day is due: that day while it is worked, else the last day worked before
+// it in its week, or the first after it there, and the day itself when holidays take the whole week,
+// as a week's own tasks move off its holidays and never out of it (dueDay). A quick request's day
+// that a holiday or a break takes later moves so, and its tasks keep their week (lead review D).
+export function workingDayBy(term: TermCalendar, day: Day): Day {
+  const week = weekOf(term, day);
+  if (!week || isWorkingDay(term, day)) return day;
+  const worked = Array.from({ length: 7 }, (_, index) =>
+    addDays(week.startsOn, index),
+  ).filter((each) => isWorkingDay(term, each));
+  return (
+    worked.filter((each) => each < day).at(-1) ??
+    worked.find((each) => each > day) ??
+    day
+  );
+}
+
 // A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
 // (ADR-0018), with the college's settings.
 export function calendarOf(

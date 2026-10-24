@@ -543,8 +543,15 @@ describe("a department's own templates", () => {
       "تسليم العهد",
     ]);
 
-    // Assigned, it stays; revoked, it goes with its items.
+    // Assigned, it stays, and the page reads it as assigned, so it offers no delete (lead review D,
+    // M1); revoked, it goes with its items.
+    const assignedOf = async (id: string) =>
+      (await departmentTemplates(collegeId, electrical, database.db)).find(
+        (template) => template.id === id,
+      )?.assigned;
+    expect(await assignedOf(own.id)).toBe(false);
     await assigned({ templateId: own.id, userIds: [people.salem] });
+    expect(await assignedOf(own.id)).toBe(true);
     await expect(
       deleteTemplate(own.id, change(), database.db),
     ).resolves.toEqual({ status: "assigned" });
@@ -552,6 +559,7 @@ describe("a department's own templates", () => {
       await termAssignments(collegeId, termId, electrical, database.db)
     ).find(({ templateId }) => templateId === own.id);
     await revokeAssignment(assignment?.id ?? "", change(), database.db);
+    expect(await assignedOf(own.id)).toBe(false);
     await expect(
       removeTemplateItem(first.id, change(), database.db),
     ).resolves.toEqual({ status: "removed" });

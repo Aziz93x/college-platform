@@ -176,12 +176,13 @@ export const navigation = [
     icon: Presentation,
     permission: ["sections.transfer", "rayat.import"],
   },
-  // The department's plan a head prepares for the term (Step 19).
+  // The department's plan a head prepares for the term (Step 19), which the vice-dean reads (lead
+  // review D, proposal 3).
   {
     id: "plan",
     href: "/plan",
     icon: ClipboardList,
-    permission: ["plan.edit", "plan.publish"],
+    permission: ["plan.edit", "plan.publish", "plan.view"],
   },
   // The responsibilities a head gives the department's people for the term (Step 21).
   {

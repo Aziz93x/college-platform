@@ -110,6 +110,9 @@ export const auditActions = [
   // The college's own wording of a message, and back to the default (ADR-0029).
   "text.override",
   "text.reset",
+  // The owners of an open row of the term readiness board, reminded by someone who sees it (lead
+  // review D, proposal 5).
+  "readiness.remind",
 ] as const;
 
 export type AuditAction = (typeof auditActions)[number];

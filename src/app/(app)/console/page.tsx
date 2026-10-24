@@ -5,6 +5,7 @@ import { forbidden } from "next/navigation";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
+import { FreshOnReturn } from "@/components/fresh-on-return";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -16,12 +17,15 @@ import {
 } from "@/modules/access";
 import { listAuditEvents } from "@/modules/audit";
 import { listDepartments } from "@/modules/org";
+import { rowKeyOf, termReadiness } from "@/modules/readiness";
 import { systemStatus, WORKER_LATE_MS } from "@/modules/system";
 import { listRuns } from "@/modules/tasks";
 import { consoleKeys, navigation } from "../_shell/navigation.ts";
+import { preparesTerms, viewedTerm } from "../_shell/term.ts";
 import { EventList } from "../audit/event-list.tsx";
 import { eventRows } from "../audit/lookups.ts";
 import { STATE_BADGE } from "../people/state-badge.ts";
+import { readinessWords, rowOpens } from "../readiness/rows.ts";
 import { failedTerms } from "./attention.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,20 +46,45 @@ export default async function ConsolePage() {
   const holds = (key: PermissionKey) => authorize(viewer, key, { collegeId });
   if (!consoleKeys.some(holds)) forbidden();
 
-  const [t, nav, { audit }, people, departments, roles, status, runs, log] =
-    await Promise.all([
-      getTranslations("console"),
-      getTranslations("nav"),
-      getMessages(),
-      holds("people.manage") ? listDirectory(collegeId) : undefined,
-      holds("departments.manage") ? listDepartments(collegeId) : undefined,
-      holds("roles.manage") ? listRoles(collegeId) : undefined,
-      holds("system.manage") ? systemStatus() : undefined,
-      holds("system.manage") ? listRuns(collegeId) : undefined,
-      holds("audit.view")
-        ? listAuditEvents(collegeId, {}, { limit: 6 })
-        : undefined,
-    ]);
+  const [
+    t,
+    nav,
+    { audit },
+    people,
+    departments,
+    roles,
+    status,
+    runs,
+    log,
+    { term },
+    words,
+  ] = await Promise.all([
+    getTranslations("console"),
+    getTranslations("nav"),
+    getMessages(),
+    holds("people.manage") ? listDirectory(collegeId) : undefined,
+    holds("departments.manage") ? listDepartments(collegeId) : undefined,
+    holds("roles.manage") ? listRoles(collegeId) : undefined,
+    holds("system.manage") ? systemStatus() : undefined,
+    holds("system.manage") ? listRuns(collegeId) : undefined,
+    holds("audit.view")
+      ? listAuditEvents(collegeId, {}, { limit: 6 })
+      : undefined,
+    viewedTerm(collegeId, preparesTerms(viewer)),
+    readinessWords(),
+  ]);
+  // The readiness board's open rows of the term on view that the viewer owns, where they open the
+  // row's page (lead review D, proposal 5).
+  const opens = rowOpens(viewer);
+  const owned =
+    term && term.status !== "closed"
+      ? (await termReadiness(collegeId, term, "college")).filter(
+          (row) =>
+            row.state === "open" &&
+            row.owners.some(({ userId }) => userId === viewer.userId) &&
+            opens(row),
+        )
+      : [];
   const events = log ? await eventRows(collegeId, log.events) : undefined;
 
   const states = people
@@ -109,6 +138,13 @@ export default async function ConsolePage() {
       href: "/system",
     });
   }
+  for (const row of owned) {
+    attention.push({
+      id: `readiness-${rowKeyOf(row)}`,
+      text: t("attention.readiness", words(row)),
+      href: row.href,
+    });
+  }
 
   // Every page of the administration the viewer opens but this one, with its own description.
   const pages = navigation.filter(
@@ -127,6 +163,8 @@ export default async function ConsolePage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      {/* What others do changes the page: a step back to it reads it again (lead review D). */}
+      <FreshOnReturn />
       <div className="flex flex-col gap-6">
         <section aria-labelledby="attention-title" className={card}>
           <h2 id="attention-title" className="text-lg">

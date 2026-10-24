@@ -45,24 +45,35 @@ function tokenScore(token: string, field: string) {
   return 0;
 }
 
+// The last search's items' words as matched: a search runs over the same items for each letter
+// typed, such as the texts page's 2,114 texts, where working them out again took three quarters of
+// a query (lead review D). Only the last search's are kept, so they never outgrow one search's
+// items or outlast its people, and the words typed are not kept.
+let known = new Map<string, string>();
+
 /** Match every query word across fields and put direct name matches first. */
 export function searchCommands<T extends SearchableCommand>(
   items: T[],
   query: string,
 ): T[] {
-  const normalized = normalize(query);
-  if (!normalized) return items;
-  const tokens = normalized.split(/\s+/);
-  return items
+  const typed = normalize(query);
+  if (!typed) return items;
+  const tokens = typed.split(/\s+/);
+  const seen = new Map<string, string>();
+  const normalized = (value: string) => {
+    const found = seen.get(value) ?? known.get(value) ?? normalize(value);
+    seen.set(value, found);
+    return found;
+  };
+  const found = items
     .map((item) => {
-      const label = normalize(item.label);
+      const label = normalized(item.label);
       const fields = [
         label,
-        normalize(item.group ?? ""),
-        ...(item.keywords ?? []).map(normalize),
+        normalized(item.group ?? ""),
+        ...(item.keywords ?? []).map(normalized),
       ];
-      let score =
-        label === normalized ? 10000 : label.startsWith(normalized) ? 2000 : 0;
+      let score = label === typed ? 10000 : label.startsWith(typed) ? 2000 : 0;
       for (const token of tokens) {
         const best = Math.max(
           ...fields.map((field, index) => {
@@ -78,4 +89,6 @@ export function searchCommands<T extends SearchableCommand>(
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .map(({ item }) => item);
+  known = seen;
+  return found;
 }

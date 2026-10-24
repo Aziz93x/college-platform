@@ -34,6 +34,9 @@ const asHead = (browser: Parameters<typeof signedIn>[0]) =>
   );
 const card = (page: Page, name: string) =>
   page.getByRole("region", { name, exact: true });
+// A week of the sheet's list as its words begin, before its days (lead review D, proposal 8).
+const weekNamed = (week: number) =>
+  new RegExp(`^${t("assign.weekDays", { week, days: "" })}`);
 // A week from a sheet's list of weeks, chosen by a finger on a phone.
 async function chooseWeek(
   page: Page,
@@ -43,10 +46,7 @@ async function chooseWeek(
   hasTouch: boolean,
 ) {
   await sheet.getByRole("button", { name: new RegExp(`^${label}`) }).click();
-  const option = page.getByRole("option", {
-    name: t("assign.weekOption", { week }),
-    exact: true,
-  });
+  const option = page.getByRole("option", { name: weekNamed(week) });
   if (hasTouch) await option.tap();
   else await option.click();
 }
@@ -98,6 +98,18 @@ test("the head of Electrical sees the six shared templates and the department's 
   await expect(
     secretary.getByRole("button", {
       name: t("template.editLabel", { title: title("secretary") }),
+    }),
+  ).toHaveCount(0);
+  // The department's own template that someone holds this term offers no delete, which the server
+  // would refuse (lead review D, M1).
+  await expect(
+    own.getByRole("button", {
+      name: t("template.editLabel", { title: "مسؤول العهد" }),
+    }),
+  ).toBeVisible();
+  await expect(
+    own.getByRole("button", {
+      name: t("template.deleteLabel", { title: "مسؤول العهد" }),
     }),
   ).toHaveCount(0);
 
@@ -160,8 +172,12 @@ test(
       }
       if (hasTouch) expect(await smallTargets(sheet)).toEqual([]);
 
-      // From week 2 to week 10, its tasks due in the tenth.
+      // A range starts on this week: the demo term's ninth, or its eighth when today is in an Eid
+      // break (lead review D, proposal 8). From week 2 to week 10, its tasks due in the tenth.
       await sheet.getByRole("switch", { name: text.assign.wholeTerm }).click();
+      await expect(
+        sheet.getByRole("button", { name: new RegExp(`^${text.assign.from}`) }),
+      ).toHaveText(new RegExp(`${weekNamed(9).source}|${weekNamed(8).source}`));
       await chooseWeek(page, sheet, text.assign.from, 2, hasTouch);
       await chooseWeek(page, sheet, text.assign.to, 10, hasTouch);
       await expect(sheet).toContainText(t("assign.due", { week: 10 }));

@@ -143,7 +143,6 @@ export async function departmentTemplates(
       title: assignmentTemplates.title,
       axisId: assignmentTemplates.axisId,
       grantsRoleId: assignmentTemplates.grantsRoleId,
-      assigned: sql<boolean>`exists (select 1 from ${assignments} where ${assignments.templateId} = ${assignmentTemplates.id})`,
     })
     .from(assignmentTemplates)
     .where(
@@ -159,21 +158,27 @@ export async function departmentTemplates(
       sql`${assignmentTemplates.departmentId} is not null`,
       asc(assignmentTemplates.id),
     );
-  const items =
-    templates.length > 0
-      ? await db
-          .select(itemColumns)
-          .from(assignmentTemplateItems)
-          .where(
-            inArray(
-              assignmentTemplateItems.templateId,
-              templates.map(({ id }) => id),
-            ),
-          )
-          .orderBy(asc(assignmentTemplateItems.position))
-      : [];
+  const ids = templates.map(({ id }) => id);
+  // Which of them a term has assigned, read on their own: a correlated subquery in the select's
+  // fields lost its tables, and read every template as never assigned (lead review D, M1).
+  const [items, held] =
+    ids.length > 0
+      ? await Promise.all([
+          db
+            .select(itemColumns)
+            .from(assignmentTemplateItems)
+            .where(inArray(assignmentTemplateItems.templateId, ids))
+            .orderBy(asc(assignmentTemplateItems.position)),
+          db
+            .selectDistinct({ templateId: assignments.templateId })
+            .from(assignments)
+            .where(inArray(assignments.templateId, ids)),
+        ])
+      : [[], []];
+  const assigned = new Set(held.map(({ templateId }) => templateId));
   return templates.map((template) => ({
     ...template,
+    assigned: assigned.has(template.id),
     items: items.filter(({ templateId }) => templateId === template.id),
   }));
 }

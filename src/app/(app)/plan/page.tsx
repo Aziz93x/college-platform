@@ -14,7 +14,6 @@ import { sectionCounts } from "@/modules/academics";
 import {
   listDirectory,
   listRoles,
-  permittedDepartments,
   requireViewer,
   roleHolders,
   roleLabel,
@@ -38,6 +37,7 @@ import { listExamPeriodTypes } from "@/modules/terms";
 import { itemVocabulary } from "../_items/vocabulary.ts";
 import { DepartmentSelect } from "../_shell/department-select.tsx";
 import { termCalendar, viewedTerm } from "../_shell/term.ts";
+import { planAccess } from "./access.ts";
 import { PlanEditor, type PlanItem } from "./plan-editor.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,23 +49,14 @@ export async function generateMetadata(): Promise<Metadata> {
 // A department's plan for the term on view (Step 19), one department at a time: its draft, which
 // whoever holds plan.edit there fills, its published version, which never changes, and the
 // framework's items for the department beside them, locked. Whoever holds plan.publish there
-// publishes the draft, reading it without plan.edit (ADR-0027; Audit 7). A closed term's plan is
-// shown, and nothing changes it.
+// publishes the draft, reading it without plan.edit (ADR-0027; Audit 7), and whoever holds plan.view
+// there reads it all and changes nothing (lead review D, proposal 3). A closed term's plan is shown,
+// and nothing changes it.
 export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   await connection();
   const viewer = await requireViewer();
-  const edits = permittedDepartments(viewer, "plan.edit");
-  const publishesIn = permittedDepartments(viewer, "plan.publish");
-  const holds = (keys: typeof edits, id: string) =>
-    keys === "college" || keys.includes(id);
-  if (
-    edits !== "college" &&
-    edits.length === 0 &&
-    publishesIn !== "college" &&
-    publishesIn.length === 0
-  ) {
-    forbidden();
-  }
+  const access = planAccess(viewer);
+  if (!access.any) forbidden();
   const scope = { collegeId: viewer.collegeId };
   // A head prepares the next term's plan while it is still a draft (Step 19).
   const [t, { terms, term }, params] = await Promise.all([
@@ -111,10 +102,10 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     getSetting("files.acceptedTypes", scope),
     termCalendar(viewer.collegeId, term.id),
   ]);
-  // The departments whose plan the viewer edits or publishes, in the college's order; the one
-  // chosen, or the first.
+  // The departments whose plan the viewer edits, publishes or reads, in the college's order; the
+  // one chosen, or the first.
   const planned = departments.filter(
-    ({ id, active }) => active && (holds(edits, id) || holds(publishesIn, id)),
+    ({ id, active }) => active && access.opens(id),
   );
   const department =
     planned.find(({ id }) => id === params.department?.toString()) ??
@@ -192,7 +183,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
   const { draft, published, versions } = plan;
   const open = term.status !== "closed";
-  const publishes = holds(publishesIn, department.id);
+  const publishes = access.publishes(department.id);
   const date = (at: Date | null) =>
     at ? format.dateTime(at, { dateStyle: "long" }) : "";
   // The draft's preview: the tasks it makes in the department, and the reviews a week that it and
@@ -293,7 +284,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                     }),
             }))}
             editable={open}
-            edits={holds(edits, department.id)}
+            edits={access.edits(department.id)}
             publishes={publishes}
             previous={versions.length === 0 ? offered : undefined}
             preview={preview}

@@ -11,7 +11,7 @@ export {
   type NotificationKind,
   type NotificationParams,
   notificationKindKeys,
-  notificationKinds,
+  notificationPage,
 } from "./domain/kinds.ts";
 export { sendWeeklyDigests } from "./server/digest.ts";
 export {
@@ -22,6 +22,7 @@ export {
 export {
   notify,
   notifyAll,
+  notifyEach,
   retractAnnouncement,
 } from "./server/notify.ts";
 export {

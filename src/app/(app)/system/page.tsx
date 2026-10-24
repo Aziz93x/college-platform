@@ -3,6 +3,7 @@ import { forbidden } from "next/navigation";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getFormatter, getMessages, getTranslations } from "next-intl/server";
+import { FreshOnReturn } from "@/components/fresh-on-return";
 import { AnimatedBadge } from "@/components/motion/animated-badge";
 import { PageHeader } from "@/components/page-header";
 import { authorize, requireViewer } from "@/modules/access";
@@ -94,6 +95,8 @@ export default async function SystemPage() {
       }}
     >
       <PageHeader title={t("title")} description={t("description")} />
+      {/* What others do changes the page: a step back to it reads it again (lead review D). */}
+      <FreshOnReturn />
       <div className="flex flex-col gap-6">
         <section aria-labelledby="checks-title" className={card}>
           <h2 id="checks-title" className="text-lg">

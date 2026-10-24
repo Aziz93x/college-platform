@@ -3,7 +3,7 @@ import {
   describeNotification,
   isNotificationKind,
   type NotificationEntry,
-  notificationKinds,
+  notificationPage,
   type Words,
 } from "@/modules/notifications";
 
@@ -42,7 +42,7 @@ export async function notificationViews(
     kind: entry.kind,
     ...describeNotification(entry, words, list),
     href: isNotificationKind(entry.kind)
-      ? notificationKinds[entry.kind].href
+      ? notificationPage(entry.kind, entry.params)
       : "/notifications",
     unread: entry.readAt === null,
     iso: entry.createdAt.toISOString(),

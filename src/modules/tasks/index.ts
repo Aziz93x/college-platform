@@ -17,6 +17,7 @@ export {
   queueGeneration,
   queueOpenTerms,
   rerunPass,
+  runNow,
   runQueued,
 } from "./server/runs.ts";
 export { generationRuns } from "./server/schema.ts";

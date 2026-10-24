@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -53,8 +54,10 @@ export const tasks = pgTable(
     sectionRef: text("section_ref").notNull().default(""),
     courseCode: text("course_code").notNull().default(""),
     place: text().notNull().default(""),
+    // An account is never deleted with its tasks, done ones among them: history is append-only (lead
+    // review D).
     holderId: uuid("holder_id").references(() => users.id, {
-      onDelete: "cascade",
+      onDelete: "restrict",
     }),
     assigneeId: uuid("assignee_id").references(() => users.id, {
       onDelete: "set null",
@@ -145,6 +148,9 @@ export const generationRuns = pgTable(
     reassigned: integer().notNull().default(0),
     cancelled: integer().notNull().default(0),
     error: text(),
+    // A quick request's pass queued again after the one before it failed, which is not queued again
+    // itself (lead review D).
+    retry: boolean().notNull().default(false),
     queuedAt: timestamp("queued_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

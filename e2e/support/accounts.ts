@@ -1,7 +1,8 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import type { Pool } from "pg";
 import { joinRole } from "../../src/modules/access/index.ts";
-import { createAccount, users } from "../../src/modules/identity/index.ts";
+import { createAccount } from "../../src/modules/identity/index.ts";
 import { departments, findCollegeId } from "../../src/modules/org/index.ts";
 import { createDb } from "../../src/platform/db/client.ts";
 import { test as base } from "./test.ts";
@@ -22,6 +23,29 @@ type NewTestAccount = {
   /** A trainer in the department of this name. */
   trainerIn?: string;
 };
+
+// Deletes accounts a test made. A pass of the generation engine may be giving them tasks meanwhile,
+// such as another test's quick request, and a task keeps its holder's account (lead review D): their
+// roles go first, so no later pass reaches them, then their tasks and the accounts, again while a
+// pass that was already running gives them one more. Sessions, credentials, two-factor and
+// memberships go with each account; audit events stay.
+export async function deleteAccounts(pool: Pool, userIds: readonly string[]) {
+  if (userIds.length === 0) return;
+  await pool.query("delete from memberships where user_id = any($1)", [
+    userIds,
+  ]);
+  for (let tries = 1; ; tries += 1) {
+    await pool.query("delete from tasks where holder_id = any($1)", [userIds]);
+    try {
+      await pool.query("delete from users where id = any($1)", [userIds]);
+      return;
+    } catch (error) {
+      if (tries === 5 || (error as { code?: string }).code !== "23001") {
+        throw error;
+      }
+    }
+  }
+}
 
 // Accounts made for one test and removed after it, in the database the server under test uses,
 // so a test that locks an account or changes a password never touches the demo accounts.
@@ -81,10 +105,7 @@ export const test = base.extend<{
       created.push(result.userId);
       return { ...account, ...result };
     });
-    // Sessions, credentials, two-factor and memberships go with the user; audit events stay.
-    if (created.length > 0) {
-      await db.delete(users).where(inArray(users.id, created));
-    }
+    await deleteAccounts(pool, created);
     await pool.end();
   },
 });
