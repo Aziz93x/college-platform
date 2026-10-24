@@ -204,6 +204,27 @@
       "when": 1792789098180,
       "tag": "0028_quick_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792822232405,
+      "tag": "0029_plan_view",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792826136955,
+      "tag": "0030_task_holder_restrict",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792833514050,
+      "tag": "0031_pass_retry",
+      "breakpoints": true
     }
   ]
 }

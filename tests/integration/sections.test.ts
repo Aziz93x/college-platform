@@ -220,7 +220,14 @@ describe("a term's sections", () => {
       {
         ref: "30101",
         departmentId: electrical,
-        trainers: [{ number: "200101", userId: people.first, name: "first" }],
+        trainers: [
+          {
+            number: "200101",
+            userId: people.first,
+            name: "first",
+            disabled: false,
+          },
+        ],
         registrations: [
           { status: "مسجل", count: 2 },
           { status: "منسحب", count: 1 },
@@ -230,7 +237,12 @@ describe("a term's sections", () => {
         ref: "30102",
         departmentId: electrical,
         trainers: [
-          { number: "200102", userId: people.second, name: "second" },
+          {
+            number: "200102",
+            userId: people.second,
+            name: "second",
+            disabled: false,
+          },
           { number: "200109" },
         ],
         registrations: [],
@@ -245,7 +257,12 @@ describe("a term's sections", () => {
         ref: "30201",
         departmentId: mechanical,
         trainers: [
-          { number: "200104", userId: people.mechanic, name: "mechanic" },
+          {
+            number: "200104",
+            userId: people.mechanic,
+            name: "mechanic",
+            disabled: false,
+          },
         ],
         registrations: [],
       },
@@ -334,10 +351,22 @@ describe("a section's transfer", () => {
     const made = await transfer({});
     if (made.status !== "transferred") throw new Error(made.status);
     expect((await section("30101", 5))?.trainers).toEqual([
-      { number: "200101", userId: people.first, name: "first" },
+      {
+        number: "200101",
+        userId: people.first,
+        name: "first",
+        disabled: false,
+      },
     ]);
     expect(await section("30101", 6)).toMatchObject({
-      trainers: [{ number: "200103", userId: people.third, name: "third" }],
+      trainers: [
+        {
+          number: "200103",
+          userId: people.third,
+          name: "third",
+          disabled: false,
+        },
+      ],
       transfers: [
         {
           id: made.id,

@@ -19,6 +19,7 @@ import { EASE_OUT, SPRING_SWAP } from "@/components/motion/lib/ease";
 import { useDismiss } from "@/components/motion/lib/use-dismiss";
 import type { NotificationStackItem } from "@/components/motion/notification-stack";
 import { markReadAction } from "../notifications/actions.ts";
+import { loadsWhole } from "./term-cookie.ts";
 
 // The stack loads when the bell is first reached for, so no page pays for it before (ADR-0010).
 const loadStack = () => import("@/components/motion/notification-stack");
@@ -100,7 +101,11 @@ export function Bell({
     close();
     startOpening(async () => {
       await markReadAction({ ids: [item.id] });
-      router.push(item.href);
+      if (loadsWhole(item.href)) {
+        window.location.assign(item.href);
+      } else {
+        router.push(item.href);
+      }
     });
   };
   return (

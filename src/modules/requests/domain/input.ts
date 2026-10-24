@@ -7,7 +7,9 @@ export const requestLimits = { title: 200, people: 500 } as const;
 
 // Whom a quick request reaches (Step 22): everyone who holds a role in its department, or in each
 // department when it is the whole college's; the holders of one role there; or chosen people, each
-// in a department they hold a role in for the term.
+// in a department they hold a role in for the term. Someone who holds a role in two departments is
+// listed, and reached, in each, as a request to the whole college reaches them (ADR-0030), so each
+// person is chosen once in each department, and ticking all of a list keeps to it (lead review D).
 const requestTargets = z.discriminatedUnion("type", [
   z.object({ type: z.literal("everyone") }),
   z.object({ type: z.literal("role"), roleId: z.uuid() }),
@@ -19,7 +21,11 @@ const requestTargets = z.discriminatedUnion("type", [
       .max(requestLimits.people)
       .refine(
         (people) =>
-          new Set(people.map(({ userId }) => userId)).size === people.length,
+          new Set(
+            people.map(
+              ({ userId, departmentId }) => `${departmentId}:${userId}`,
+            ),
+          ).size === people.length,
       ),
   }),
 ]);

@@ -16,12 +16,15 @@ export {
   calendarOf,
   type DayRange,
   dueDay,
+  isWorkingDay,
+  nextDueDay,
   type TermCalendar,
   type TermWeek,
   termEndsOn,
   termWeeks,
   weekOf,
   weekReached,
+  workingDayBy,
 } from "./domain/weeks.ts";
 export {
   estimateHolidays,

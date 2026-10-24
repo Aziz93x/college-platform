@@ -105,6 +105,13 @@ Each one that the owner accepts gets an ADR and a note under its step before it 
 - 10. Migrations expand, then contract, and each states its inverse; Step 42's drill runs the previous image on the migrated database. 1.5 h; ADR-0011. Lead review B found what a rollback to `v0.1-A`'s image would do on today's schema: its sign-in ignores `users.disabled_at`, so disabled accounts sign in again, and its access ignores `memberships.department_id`, so the heads' department keys count across the college.
 - 11. End two-factor setup without the redirect bounce through `/`, so ADR-0009 #9's full page load holds on that path. 1 h; no plan change. (ADR-0014 removed the bounce: the setup's last step now sends the person on itself, with the router; the full page load there is what remains.)
 
+## Lead review D (docs/reviews/lead-D.md)
+
+The owner chose on 2026-10-23, and the review's pull request built what was chosen: M4's 12 are a department's trainers, all of them; a request's reach stays live (ADR-0032); and proposals 4 and 5 (ADR-0033). It fixed the five must-fix items and built proposals 1, 3, 6, 7 and 8 and the smaller items, but one. Waiting:
+
+- A quick request reads the college's settings 16 or 17 times (the review's statement log): `calendarSettings()` and `getSetting()` in the service and in the pass, and next-intl's request configuration for the notice. Timed as the send makes them, 17 reads in three groups each read at once, they take 4.8 ms at the median (p95 8.4 to 10.3 ms), against 0.7 ms for one read, of a send's 168 ms. Reading them once saves about 4 ms and 16 statements a send. It passes the settings through `sendQuickRequest()`, through `generateTerm()`, which the worker and the seed also call, and through the notice's words. Take it with the load level lead review A's proposal 6 asks the owner for, where 16 statements a send weigh more.
+- The `announcement` kind's hint, «ما يعلنه رئيس قسمك أو عمادة الكلية…», names roles a college may rename, the pattern UX review 2's S3 drops and the review's pull request dropped from `quickRequest`'s. A change of one text; take it with Step 27, which words the notices together.
+
 ## Lead review C: proposals (docs/reviews/lead-C.md)
 
 The owner chose on 2026-10-22, and the review's pull request built what was chosen: proposal 1 (a task for each trainer of a section, a note under Step 20), 2 (ADR-0022), 3 (ADR-0020), 5 (ADR-0021) and 9 as a measured budget (ADR-0023); proposals 4 and 6 and the smaller items it fixed as defects. Waiting:

@@ -23,7 +23,14 @@ type Change = {
 
 // A trainer by the employee number Rayat or a transfer names them with, and the person of the
 // college with that number; none while they are not on the platform.
-export type Trainer = { number: string; userId?: string; name?: string };
+// A section's trainer: their employee number, and their account where they have one, which an admin
+// may have disabled (lead review D, proposal 1).
+export type Trainer = {
+  number: string;
+  userId?: string;
+  name?: string;
+  disabled?: boolean;
+};
 
 export type SectionTransfer = {
   id: string;
@@ -59,6 +66,7 @@ async function peopleByNumber(collegeId: string, db: Db | Tx) {
       number: people.employeeNumber,
       userId: people.userId,
       name: users.name,
+      disabled: sql<boolean>`${users.disabledAt} is not null`,
     })
     .from(people)
     .innerJoin(users, eq(users.id, people.userId))
@@ -370,6 +378,47 @@ export async function unmatchedTrainers(
         departmentId: sections[0].departmentId,
       };
     });
+}
+
+// Whom the generation engine gives the sections' work from a week of the term on: whoever holds a
+// place of a section of SS01 in force in that week or a later one, after the head's transfers
+// (readTransfers()), each employee number once with its account, none when it has none. A trainer
+// whose sections were handed on before then is not among them (lead review D).
+export async function trainersAhead(
+  collegeId: string,
+  termId: string,
+  week: number,
+  db: Db = getDb(),
+) {
+  const [ss01, transfers, byNumber] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+    peopleByNumber(collegeId, db),
+  ]);
+  if (!ss01) return [];
+  const { reads } = readAll(transfers, ss01);
+  const numbers = new Set<string>();
+  for (const section of ss01.records) {
+    const read = reads.get(section.sectionRef);
+    // A section's places change hands only in the weeks its transfers take effect.
+    const weeks = [
+      week,
+      ...transfers
+        .filter(
+          (transfer) =>
+            transfer.sectionRef === section.sectionRef && transfer.week > week,
+        )
+        .map((transfer) => transfer.week),
+    ];
+    for (const number of read
+      ? weeks.flatMap((each) => read.trainersInWeek(each))
+      : section.trainerNumbers) {
+      numbers.add(number);
+    }
+  }
+  return [...numbers]
+    .sort((a, b) => a.localeCompare(b))
+    .map((number) => ({ number, account: byNumber.get(number) }));
 }
 
 // Each section of the term in SS01 in force, with its department, its course and its places in a

@@ -27,7 +27,7 @@ import {
   revokeAssignmentAction,
   updateTemplateItemAction,
 } from "./actions.ts";
-import { AssignButton, type Person } from "./assign-sheet.tsx";
+import { AssignButton, type Person, type Week } from "./assign-sheet.tsx";
 import { ConfirmButton } from "./confirm-button.tsx";
 import { TemplateButton } from "./template-sheet.tsx";
 
@@ -66,7 +66,10 @@ export type Template = {
 type Props = {
   termId: string;
   departmentId: string;
-  weeks: number;
+  /** The term's weeks, each with its days. */
+  weeks: Week[];
+  /** The week reached today, which a range starts on. */
+  thisWeek: number;
   /** The term is not closed: its assignments change. */
   editable: boolean;
   templates: Template[];
@@ -116,6 +119,7 @@ function TemplateCard({
   termId,
   departmentId,
   weeks,
+  thisWeek,
   editable,
   people,
   axes,
@@ -178,6 +182,7 @@ function TemplateCard({
               people={people.filter(({ userId }) => !held.has(userId))}
               staffed={people.length > 0}
               weeks={weeks}
+              thisWeek={thisWeek}
             />
           ) : null}
           {own ? (

@@ -27,9 +27,11 @@ import { listAxes } from "@/modules/axes";
 import { frameworkLimits } from "@/modules/framework";
 import { listDepartments } from "@/modules/org";
 import { getSetting } from "@/modules/settings";
+import { termWeeks, weekReached } from "@/modules/terms";
+import { wallClock } from "@/platform/i18n/time-zone";
 import { itemVocabulary } from "../_items/vocabulary.ts";
 import { DepartmentSelect } from "../_shell/department-select.tsx";
-import { preparesTerms, viewedTerm } from "../_shell/term.ts";
+import { preparesTerms, termCalendar, viewedTerm } from "../_shell/term.ts";
 import { AssignmentsBoard, type Template } from "./assignments-board.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -96,16 +98,48 @@ export default async function AssignmentsPage({
     );
   }
 
-  const [templates, assigned, holders, directory, groups, roles, accepted] =
-    await Promise.all([
-      departmentTemplates(viewer.collegeId, department.id),
-      termAssignments(viewer.collegeId, term.id, department.id),
-      roleHolders(viewer.collegeId, term.id),
-      listDirectory(viewer.collegeId, { departments: [department.id] }),
-      listAxes(viewer.collegeId),
-      listRoles(viewer.collegeId),
-      getSetting("files.acceptedTypes", { collegeId: viewer.collegeId }),
-    ]);
+  const [
+    templates,
+    assigned,
+    holders,
+    directory,
+    groups,
+    roles,
+    accepted,
+    found,
+    timeZone,
+  ] = await Promise.all([
+    departmentTemplates(viewer.collegeId, department.id),
+    termAssignments(viewer.collegeId, term.id, department.id),
+    roleHolders(viewer.collegeId, term.id),
+    listDirectory(viewer.collegeId, { departments: [department.id] }),
+    listAxes(viewer.collegeId),
+    listRoles(viewer.collegeId),
+    getSetting("files.acceptedTypes", { collegeId: viewer.collegeId }),
+    termCalendar(viewer.collegeId, term.id),
+    getSetting("locale.timeZone", { collegeId: viewer.collegeId }),
+  ]);
+  // The term's weeks as the assign sheet offers them, each with its days, and the week reached
+  // today, which the sheet's range starts on (lead review D, proposal 8).
+  const counted = found
+    ? termWeeks(found.calendar).filter((week) => week.number !== null)
+    : [];
+  const days = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const weeks = counted.map((week) => ({
+    number: week.number ?? 0,
+    days: days.formatRange(
+      new Date(`${week.startsOn}T00:00:00Z`),
+      new Date(`${week.endsOn}T00:00:00Z`),
+    ),
+  }));
+  const thisWeek = Math.max(
+    1,
+    weekReached(counted, wallClock(new Date(), timeZone).slice(0, 10)),
+  );
   // Whom the department assigns: those who hold a role in it in the term on view, as the generation
   // engine reaches them.
   const members = new Set(
@@ -186,7 +220,8 @@ export default async function AssignmentsPage({
             key={department.id}
             termId={term.id}
             departmentId={department.id}
-            weeks={term.weeks}
+            weeks={weeks}
+            thisWeek={thisWeek}
             editable={term.status !== "closed"}
             templates={shown}
             people={directory

@@ -10,10 +10,7 @@ import {
   MorphPopoverTrigger,
 } from "@/components/motion/popover-morph";
 import { cn } from "@/components/ui/cn";
-import { TERM_COOKIE } from "./term-cookie.ts";
-
-// A year: the term cookie lasts as long as the sidebar's.
-const KEEP = 60 * 60 * 24 * 365;
+import { TERM_COOKIE, TERM_KEEP } from "./term-cookie.ts";
 
 // The term switcher in the header (Step 13, BeUI's morph popover as a select): the term the viewer
 // looks at, with today's week in it, and the other terms they may see. Choosing one keeps it in a
@@ -41,7 +38,7 @@ export function TermSwitcher({
 
   const choose = (id: string) => {
     // biome-ignore lint/suspicious/noDocumentCookie: one choice of what to look at, read by the server's layout, as the sidebar's.
-    document.cookie = `${TERM_COOKIE}=${id}; path=/; max-age=${KEEP}; samesite=lax`;
+    document.cookie = `${TERM_COOKIE}=${id}; path=/; max-age=${TERM_KEEP}; samesite=lax`;
     setOpen(false);
     router.refresh();
   };

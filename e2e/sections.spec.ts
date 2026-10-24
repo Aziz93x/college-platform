@@ -68,6 +68,27 @@ test("the head of Electrical sees the department's sections with their trainers,
   if (hasTouch) expect(await smallTargets(main)).toEqual([]);
 });
 
+test("marks a section's trainer whose account an admin disabled, whose tasks no one can sign in to do (lead review D, proposal 1)", async ({
+  browser,
+}) => {
+  const page = await signedIn(browser, {
+    identifier: demoAccounts.viceDean.employeeNumber,
+    password: demo.password,
+  });
+  await page.goto("/sections");
+  const main = page.locator("main");
+  await main
+    .getByRole("button", { name: new RegExp(`^${text.filters.department}`) })
+    .click();
+  await page
+    .getByRole("option", { name: demoDepartments[0].name, exact: true })
+    .click();
+  await expect(main).toContainText(
+    t("disabledAccount", { name: demoAccounts.disabledTrainer.name }),
+  );
+  await page.context().close();
+});
+
 test("the vice-dean, who imports Rayat, reads each department's sections without changing them, one department at a time, and finds one by its reference (ADR-0021)", async ({
   browser,
   hasTouch,

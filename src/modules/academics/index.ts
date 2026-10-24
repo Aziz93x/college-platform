@@ -13,6 +13,7 @@ export {
   sectionPlaces,
   type Trainer,
   tellTransferConflicts,
+  trainersAhead,
   transferCandidates,
   transferSection,
   transferStates,

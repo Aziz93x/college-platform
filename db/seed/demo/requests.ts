@@ -2,17 +2,13 @@ import { eq, inArray } from "drizzle-orm";
 import { holdersIn } from "../../../src/modules/access/index.ts";
 import { listAxes } from "../../../src/modules/axes/index.ts";
 import { people, users } from "../../../src/modules/identity/index.ts";
-import { notify } from "../../../src/modules/notifications/index.ts";
 import { listDepartments } from "../../../src/modules/org/index.ts";
 import {
   quickRequests,
   sendQuickRequest,
 } from "../../../src/modules/requests/index.ts";
 import { getSetting } from "../../../src/modules/settings/index.ts";
-import {
-  generateTerm,
-  itemAssignees,
-} from "../../../src/modules/tasks/index.ts";
+import { queueGeneration, runNow } from "../../../src/modules/tasks/index.ts";
 import {
   activeTerm,
   calendarOf,
@@ -28,8 +24,9 @@ import { demoDepartments } from "./departments.ts";
 import { deviceOf } from "./device.ts";
 import { demoTrainers } from "./people.ts";
 
-// The demo term's quick requests (Step 22), each sent as the requests page sends it: kept, its
-// tasks made at once by a pass of its own, and each person it reached told. The head of Electrical
+// The demo term's quick requests (Step 22), each sent as the requests page sends it, by the same
+// functions: kept with its pass queued, and that pass run at once, which makes its tasks and tells
+// each person it reached (lead review D, M2). The head of Electrical
 // asked four of the department's trainers for their attendance sheets by the end of next week; the
 // vice-dean asked everyone in Mechanical for the practical exams' timetable a week later; and the
 // dean asked the three heads for their proposals for next year's operating plan, as a document. The
@@ -45,15 +42,12 @@ export async function seedDemoRequests({ db }: { db: Db }, collegeId: string) {
     .limit(1);
   if (sent) return;
 
-  const [settings, timeZone, language, digits, departments, groups] =
-    await Promise.all([
-      calendarSettings(collegeId, db),
-      getSetting("locale.timeZone", { collegeId }, db),
-      getSetting("locale.language", { collegeId }, db),
-      getSetting("locale.digits", { collegeId }, db),
-      listDepartments(collegeId, db),
-      listAxes(collegeId, db),
-    ]);
+  const [settings, timeZone, departments, groups] = await Promise.all([
+    calendarSettings(collegeId, db),
+    getSetting("locale.timeZone", { collegeId }, db),
+    listDepartments(collegeId, db),
+    listAxes(collegeId, db),
+  ]);
   const calendar = calendarOf(term, term.events, settings, term.breaks);
   const weeks = termWeeks(calendar).filter((week) => week.number !== null);
   const today = wallClock(new Date(), timeZone).slice(0, 10);
@@ -64,12 +58,6 @@ export async function seedDemoRequests({ db }: { db: Db }, collegeId: string) {
       weeks.find((each) => each.number === reached + ahead) ?? weeks.at(-1);
     return week ? dueDay(calendar, week) : today;
   };
-  const words = new Intl.DateTimeFormat(`${language}-u-nu-${digits}`, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
   const axis = (code: string) => {
     const found = groups
       .flatMap((group) => group.axes)
@@ -167,6 +155,7 @@ export async function seedDemoRequests({ db }: { db: Db }, collegeId: string) {
     const made = await sendQuickRequest(
       { ...input, termId: term.id },
       change,
+      (tx) => queueGeneration(collegeId, term.id, "request", tx),
       new Date(),
       db,
     );
@@ -175,28 +164,8 @@ export async function seedDemoRequests({ db }: { db: Db }, collegeId: string) {
         `seed:demo: «${input.title}» was not sent (${made.status})`,
       );
     }
-    await generateTerm(collegeId, term.id, "request", { db });
-    for (const { userId } of await itemAssignees(
-      term.id,
-      "request",
-      made.id,
-      db,
-    )) {
-      await notify(
-        {
-          collegeId,
-          userId,
-          kind: "quickRequest",
-          params: {
-            requestId: made.id,
-            title: input.title,
-            due: words.format(new Date(`${input.dueOn}T00:00:00Z`)),
-            from: sender.name,
-          },
-          onceKey: `quickRequest:${made.id}`,
-        },
-        db,
-      );
+    if ((await runNow(made.runId, { db })) !== "done") {
+      throw new Error(`seed:demo: «${input.title}»'s pass did not run`);
     }
   }
 }

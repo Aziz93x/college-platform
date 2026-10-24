@@ -8,7 +8,7 @@ import { demoDepartments } from "../db/seed/demo/departments.ts";
 import messages from "../messages/ar.json" with { type: "json" };
 import { settingsRegistry } from "../src/modules/settings/index.ts";
 import { createDb } from "../src/platform/db/client.ts";
-import { type TestAccount, test } from "./support/accounts.ts";
+import { deleteAccounts, type TestAccount, test } from "./support/accounts.ts";
 import { demo, STORAGE, signIn, signOut } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
 import { confirmIfAsked, open, owned, signedIn } from "./support/pages.ts";
@@ -37,6 +37,18 @@ function database() {
   if (!url) throw new Error("e2e: DATABASE_URL is not set (see .env.local)");
   return createDb(url).pool;
 }
+
+// The accounts of the people with these employee numbers, which a test made.
+const imported = async (
+  pool: ReturnType<typeof database>,
+  numbers: readonly string[],
+) =>
+  (
+    await pool.query(
+      "select user_id from people where employee_number = any($1)",
+      [numbers],
+    )
+  ).rows.map(({ user_id }) => user_id as string);
 
 // A person's row in the list, found by their employee number.
 async function find(page: Page, person: { employeeNumber: string }) {
@@ -169,11 +181,7 @@ test(
         })),
       );
     } finally {
-      // Credentials, sessions and memberships go with each user; audit events stay.
-      await pool.query(
-        "delete from users where id in (select user_id from people where employee_number = any($1))",
-        [numbers],
-      );
+      await deleteAccounts(pool, await imported(pool, numbers));
       await pool.end();
     }
   },
@@ -251,10 +259,7 @@ test(
       );
       expect(rows).toEqual([{ employee_number: numbers[0] }]);
     } finally {
-      await pool.query(
-        "delete from users where id in (select user_id from people where employee_number = any($1))",
-        [numbers],
-      );
+      await deleteAccounts(pool, await imported(pool, numbers));
       await pool.end();
     }
   },
@@ -513,10 +518,7 @@ test(
       );
       expect(rows).toEqual([{ key: "trainer", name: electrical }]);
     } finally {
-      await pool.query(
-        "delete from users where id in (select user_id from people where employee_number = $1)",
-        [employeeNumber],
-      );
+      await deleteAccounts(pool, await imported(pool, [employeeNumber]));
       await pool.end();
     }
   },

@@ -135,8 +135,14 @@ export default async function SectionsPage({
   const own = sections.filter(
     (section) => section.departmentId === department.id,
   );
+  // A trainer by name, or by number while they are not on the platform, marked when an admin has
+  // disabled their account, which leaves their sections' tasks with no one (lead review D).
   const name = (trainer: Trainer) =>
-    trainer.name ?? t("notOnPlatform", { number: trainer.number });
+    trainer.name === undefined
+      ? t("notOnPlatform", { number: trainer.number })
+      : trainer.disabled
+        ? t("disabledAccount", { name: trainer.name })
+        : trainer.name;
   // The search's matches, in the page's order: by reference, course, or trainer by name or number.
   const matched = query.trim()
     ? new Set(

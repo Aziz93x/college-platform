@@ -15,6 +15,7 @@ import { seedDemoNotifications } from "./demo/notifications.ts";
 import { seedDemoPlans } from "./demo/plans.ts";
 import { createRandom } from "./demo/random.ts";
 import { seedDemoRayat } from "./demo/rayat.ts";
+import { seedDemoReminders } from "./demo/reminders.ts";
 import { seedDemoRequests } from "./demo/requests.ts";
 import { seedDemoSections } from "./demo/sections.ts";
 import { seedDemoSettings } from "./demo/settings.ts";
@@ -92,6 +93,7 @@ try {
     await seedDemoAssignments(ctx, collegeId);
     await seedDemoTasks(ctx, collegeId);
     await seedDemoRequests(ctx, collegeId);
+    await seedDemoReminders(ctx, collegeId);
     // After the term's tasks, whose pass runs only while the term has none (ADR-0029).
     await seedDemoControlPanel(ctx, collegeId);
     console.log(

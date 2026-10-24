@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   dueDay,
+  isWorkingDay,
+  nextDueDay,
   type TermCalendar,
   termEndsOn,
   termWeeks,
   weekDays,
   weekOf,
   weekReached,
+  workingDayBy,
   workingDays,
 } from "./weeks.ts";
 
@@ -26,6 +29,18 @@ const term: TermCalendar = {
   skipHolidayWeeks: true,
   workingDays: SUNDAY_TO_THURSDAY,
 };
+
+it("works a day that is one of the college's working days and in no holiday (lead review D, proposal 6)", () => {
+  // Sunday and Thursday of the term's first week.
+  expect(isWorkingDay(term, "2026-01-11")).toBe(true);
+  expect(isWorkingDay(term, "2026-01-15")).toBe(true);
+  // Its Friday and Saturday.
+  expect(isWorkingDay(term, "2026-01-16")).toBe(false);
+  expect(isWorkingDay(term, "2026-01-17")).toBe(false);
+  // Founding Day, a Sunday, and a Tuesday of the Eid al-Fitr break.
+  expect(isWorkingDay(term, "2026-02-22")).toBe(false);
+  expect(isWorkingDay(term, "2026-03-17")).toBe(false);
+});
 
 it("counts the working days from the week's first day", () => {
   expect([...workingDays(0, 5)]).toEqual([0, 1, 2, 3, 4]);
@@ -142,6 +157,71 @@ describe("what the generation engine counts on", () => {
     expect(dueDay(thursdayOff, weeks[0])).toBe("2026-01-14");
     // A week the Eid al-Fitr break takes whole, as a term that counts every week numbers it.
     expect(dueDay(term, weeks[9])).toBe("2026-03-19");
+  });
+});
+
+describe("the day a quick request starts on (lead review D, proposal 4)", () => {
+  it("is this week's due day, that day itself included, and the next week's once it has passed", () => {
+    expect(nextDueDay(term, "2026-01-11")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-01-15")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-01-16")).toBe("2026-01-22");
+  });
+
+  it("is the first week's before the term, and none after its last week's", () => {
+    expect(nextDueDay(term, "2026-01-01")).toBe("2026-01-15");
+    expect(nextDueDay(term, "2026-06-11")).toBe("2026-06-11");
+    expect(nextDueDay(term, "2026-06-12")).toBeUndefined();
+  });
+
+  it("moves with a holiday on the due day, and passes over a break", () => {
+    const thursdayOff = {
+      ...term,
+      holidays: [{ startsOn: "2026-01-15", endsOn: "2026-01-15" }],
+    };
+    expect(nextDueDay(thursdayOff, "2026-01-11")).toBe("2026-01-14");
+    expect(nextDueDay(thursdayOff, "2026-01-15")).toBe("2026-01-22");
+    // The Eid al-Fitr break: its weeks go without a number, and week 10 starts on 29 March.
+    expect(nextDueDay(term, "2026-03-15")).toBe("2026-04-02");
+    // A term that numbers the break's weeks has no due day in them either.
+    expect(nextDueDay({ ...term, skipHolidayWeeks: false }, "2026-03-15")).toBe(
+      "2026-04-02",
+    );
+  });
+});
+
+describe("the day a quick request is due once its own is taken off (lead review D)", () => {
+  it("is its own day while it is worked", () => {
+    expect(workingDayBy(term, "2026-01-13")).toBe("2026-01-13");
+  });
+
+  it("falls back to the last day worked before it in its week, off a holiday or a weekend", () => {
+    const thursdayOff = {
+      ...term,
+      holidays: [
+        ...term.holidays,
+        { startsOn: "2026-01-15", endsOn: "2026-01-15" },
+      ],
+    };
+    expect(workingDayBy(thursdayOff, "2026-01-15")).toBe("2026-01-14");
+    expect(workingDayBy(term, "2026-01-16")).toBe("2026-01-15");
+  });
+
+  it("is the first day worked after it in its week when none is before, and never leaves the week", () => {
+    // Founding Day, the Sunday that opens week 7: its Monday, not the Thursday of week 6.
+    expect(workingDayBy(term, "2026-02-22")).toBe("2026-02-23");
+    expect(weekReached(termWeeks(term), "2026-02-23")).toBe(7);
+    const startsOff = {
+      ...term,
+      holidays: [{ startsOn: "2026-01-11", endsOn: "2026-01-13" }],
+    };
+    expect(workingDayBy(startsOff, "2026-01-12")).toBe("2026-01-14");
+  });
+
+  it("keeps its day when holidays take its whole week, as a week's own tasks stay in it", () => {
+    // A Tuesday of the Eid al-Fitr break, whose weeks go without a number: still week 9's, and not
+    // moved to a Thursday that may have passed when the break was set.
+    expect(workingDayBy(term, "2026-03-17")).toBe("2026-03-17");
+    expect(weekReached(termWeeks(term), "2026-03-17")).toBe(9);
   });
 });
 

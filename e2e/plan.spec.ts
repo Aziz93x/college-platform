@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
 import { defaultRoles, portfolioAxes } from "../db/seed/base.ts";
 import { demoAccounts } from "../db/seed/demo/accounts.ts";
@@ -12,6 +12,7 @@ import { createDb } from "../src/platform/db/client.ts";
 import { type TestAccount, test } from "./support/accounts.ts";
 import { demo, STORAGE } from "./support/auth.ts";
 import { seriousViolations } from "./support/axe.ts";
+import { modelledPerson } from "./support/model.ts";
 import { signedIn } from "./support/pages.ts";
 import { expect } from "./support/test.ts";
 import { smallTargets } from "./support/touch.ts";
@@ -455,39 +456,6 @@ test(
   },
 );
 
-// The keystroke-level model's times (Card, Moran and Newell), in seconds: a mental step before each
-// action a person decides on, pointing at a control, pressing a button, and a key of an average
-// typist. The usability run counts a head's time by it as it works the sheet (Audit 7).
-const KLM = { think: 1.35, point: 1.1, press: 0.2, key: 0.28 };
-
-// A head at the item sheet: each action done, and its time as the model counts it.
-function modelledHead(page: Page, hasTouch: boolean) {
-  let seconds = 0;
-  return {
-    seconds: () => seconds,
-    // Decides, points and presses.
-    click: async (target: Locator) => {
-      seconds += KLM.think + KLM.point + KLM.press;
-      await target.click();
-    },
-    // Decides, points, then presses a stepper's button as often as it takes.
-    step: async (target: Locator, times: number) => {
-      seconds += KLM.think + KLM.point + times * KLM.press;
-      for (let pressed = 0; pressed < times; pressed++) await target.click();
-    },
-    // Decides and types into the field that has the focus.
-    type: async (target: Locator, words: string) => {
-      seconds += KLM.think + words.length * KLM.key;
-      await target.fill(words);
-    },
-    // Opens one of the sheet's lists and picks an option.
-    choose: async (label: string, option: string) => {
-      seconds += KLM.think + 2 * (KLM.point + KLM.press);
-      await choose(page, label, option, hasTouch);
-    },
-  };
-}
-
 // A department's term plan of 50 items, as a head enters it: the kinds of Electrical's demo plan,
 // ten of each, each item with its own title and week, and the first of each kind setting its axis,
 // kind, reach, evidence and approval, which the sheet keeps for the next (Step 19, Audit 7).
@@ -560,7 +528,9 @@ test(
     try {
       const started = Date.now();
       const page = await onTerm(browser, made.person, made.termId);
-      const head = modelledHead(page, hasTouch);
+      const head = modelledPerson((label, option) =>
+        choose(page, label, option, hasTouch),
+      );
       await head.click(page.getByRole("button", { name: text.start }));
       await head.click(page.getByRole("button", { name: text.add }));
       const sheet = page.getByRole("dialog", { name: text.addTitle });

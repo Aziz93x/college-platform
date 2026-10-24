@@ -23,13 +23,13 @@ describe("quickRequestInput", () => {
     ["a day that is no date", { dueOn: "2026-13-01" }],
     ["no one chosen", { targets: { type: "people", people: [] } }],
     [
-      "someone chosen twice",
+      "someone chosen twice in one department",
       {
         targets: {
           type: "people",
           people: [
             { userId: ID, departmentId: ID },
-            { userId: ID, departmentId: OTHER },
+            { userId: ID, departmentId: ID },
           ],
         },
       },
@@ -38,6 +38,20 @@ describe("quickRequestInput", () => {
     expect(quickRequestInput.safeParse({ ...request, ...change }).success).toBe(
       false,
     );
+  });
+
+  it("takes someone chosen in each of two departments, as the whole college's list shows them (lead review D)", () => {
+    const targets = {
+      type: "people",
+      people: [
+        { userId: ID, departmentId: ID },
+        { userId: ID, departmentId: OTHER },
+      ],
+    };
+    expect(
+      quickRequestInput.safeParse({ ...request, departmentId: null, targets })
+        .success,
+    ).toBe(true);
   });
 });
 

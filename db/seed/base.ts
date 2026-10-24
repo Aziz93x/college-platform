@@ -58,6 +58,8 @@ export const defaultRoles: {
       "announcements.publish",
       "requests.send",
       "readiness.view",
+      // Section 1: every department, read only (lead review D, proposal 3).
+      "plan.view",
     ],
   },
   {

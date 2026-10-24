@@ -46,6 +46,8 @@ export interface DateRangePickerProps {
   weekStartsOn: number;
   min?: string;
   max?: string;
+  /** Days between min and max that cannot be chosen, such as a term's days off (lead review D). */
+  isUnavailable?: (date: string) => boolean;
   /** The day it is on the clock that counts, the college's (YYYY-MM-DD); the browser's own day when absent. */
   today?: string;
   disabled?: boolean;

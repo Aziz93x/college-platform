@@ -86,13 +86,13 @@ export async function holdersIn(
   return held;
 }
 
-// The enabled people who hold a key through a role in force across the college, by name: whom the
-// readiness board names for what a key settles (Step 22). The system role holds every key in code,
-// not through its role's keys, so its holders are named only where no other role holds the key
-// across the college: the admins, who settle it or give the role that does.
+// The enabled people who hold each of these keys through roles in force across the college, by
+// name: whom the readiness board names for what the keys settle (Step 22). The system role holds
+// every key in code, not through its role's keys, so its holders are named only where no one else
+// holds them all across the college: the admins, who settle it or give the role that does.
 export async function holdersAcross(
   collegeId: string,
-  key: PermissionKey,
+  keys: readonly PermissionKey[],
   db: Db | Tx = getDb(),
 ) {
   const rows = await db
@@ -100,6 +100,7 @@ export async function holdersAcross(
       userId: users.id,
       name: users.name,
       system: roles.system,
+      key: rolePermissions.permission,
     })
     .from(memberships)
     .innerJoin(roles, eq(roles.id, memberships.roleId))
@@ -107,7 +108,7 @@ export async function holdersAcross(
       rolePermissions,
       and(
         eq(rolePermissions.roleId, memberships.roleId),
-        eq(rolePermissions.permission, key),
+        inArray(rolePermissions.permission, [...keys]),
       ),
     )
     .innerJoin(users, eq(users.id, memberships.userId))
@@ -122,9 +123,21 @@ export async function holdersAcross(
       ),
     )
     .orderBy(asc(users.name), asc(users.id));
-  const named = rows.filter((row) => !row.system);
-  return (named.length > 0 ? named : rows).map(({ userId, name }) => ({
-    userId,
-    name,
-  }));
+  const held = new Map<
+    string,
+    { name: string; system: boolean; keys: Set<string> }
+  >();
+  for (const { userId, name, system, key } of rows) {
+    const person = held.get(userId) ?? { name, system, keys: new Set() };
+    person.system ||= system;
+    if (key && !system) person.keys.add(key);
+    held.set(userId, person);
+  }
+  const holders = [...held].map(([userId, person]) => ({ userId, ...person }));
+  const named = holders.filter((person) =>
+    keys.every((key) => person.keys.has(key)),
+  );
+  return (
+    named.length > 0 ? named : holders.filter(({ system }) => system)
+  ).map(({ userId, name }) => ({ userId, name }));
 }
