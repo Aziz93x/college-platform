@@ -38,13 +38,15 @@ if (browser) {
 
 // Reads its page again from the server when a step back or forward shows it, whether the step is
 // heard before the page shows or after, so a page of what other people have done since never shows
-// the past. A page answers for its own entry of the history alone.
+// the past. A page that shows answers for a step to the entry it shows on; a page already shown,
+// for a step to an entry of its own address, as Next.js keeps it shown there, an earlier visit of it
+// included.
 export function FreshOnReturn() {
   const router = useRouter();
   useEffect(() => {
-    const own = entry();
+    const own = window.location.href;
     const readAgain = () => {
-      if (traversed !== own || entry() !== own) return;
+      if (traversed !== entry() || window.location.href !== own) return;
       traversed = undefined;
       router.refresh();
     };

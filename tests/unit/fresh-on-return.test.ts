@@ -83,6 +83,18 @@ describe("a page that reads itself again on a step back to it", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it("reads itself again for a step of two entries to an earlier visit of it, as it stays shown", () => {
+    const board = link("/readiness");
+    show()();
+    link("/today");
+    link("/readiness");
+    const hide = show();
+    // Next.js keeps the page of the same address shown: its effect does not run again.
+    step(board);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    hide();
+  });
+
   it("reads itself again when the browser brings the whole page back from its own cache", () => {
     link("/console");
     const hide = show();
