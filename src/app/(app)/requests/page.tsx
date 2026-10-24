@@ -249,6 +249,7 @@ export default async function RequestsPage() {
                 places={places}
                 axes={axes}
                 title={requestLimits.title}
+                people={requestLimits.people}
                 day={{ min: from, max: last, today, off, starts }}
               />
             </NextIntlClientProvider>

@@ -2,7 +2,6 @@ export { transferInput, transferLengths } from "./domain/inputs.ts";
 export { sectionTransfers } from "./server/schema.ts";
 export {
   cancelTransfer,
-  disabledTrainers,
   findSection,
   findTransfer,
   keepTransfer,
@@ -14,6 +13,7 @@ export {
   sectionPlaces,
   type Trainer,
   tellTransferConflicts,
+  trainersAhead,
   transferCandidates,
   transferSection,
   transferStates,

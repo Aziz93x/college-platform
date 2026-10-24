@@ -17,6 +17,7 @@ import {
   findTerm,
   termWeeks,
   weekReached,
+  workingDayBy,
 } from "../../terms/index.ts";
 import {
   type Changes,
@@ -81,6 +82,12 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
   const calendar = calendarOf(term, term.events, settings, term.breaks);
   const weeks = termWeeks(calendar);
   const shape = { weeks: term.weeks, periods: term.periods };
+  // A request is due on its own day, or on the last day worked before it once a holiday or a break
+  // takes it, its notice saying so (lead review D).
+  const requests = requested.map((request) => ({
+    ...request,
+    dueOn: workingDayBy(calendar, request.dueOn),
+  }));
 
   // A plan's items reach their own department alone, and an assignment's its person there, once,
   // at its end (the owner's answers, 23 October 2026).
@@ -109,39 +116,37 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
       appliesTo: { type: "person" as const, userId },
       weeks: [dueWeekOf(toWeek, term.weeks)],
     })),
-    // A request is due on its own day, in the week that holds it: everyone's but its sender's, a
-    // role's in its department or in each, or each chosen person's in their department.
-    ...requested.flatMap(
-      ({ id, targets, sentBy, ...request }): SourceItem[] => {
-        const item = {
-          source: "request" as const,
-          origin: id,
-          title: request.title,
-          axisId: request.axisId,
-          kind: "general" as const,
-          weeks: [weekReached(weeks, request.dueOn)],
-          dueOn: request.dueOn,
-          evidence: request.evidence,
-        };
-        if (targets.type === "people") {
-          return targets.people.map((person) => ({
-            ...item,
-            departmentId: person.departmentId,
-            appliesTo: { type: "person" as const, userId: person.userId },
-          }));
-        }
-        return [
-          {
-            ...item,
-            departmentId: request.departmentId ?? undefined,
-            appliesTo:
-              targets.type === "everyone"
-                ? { type: "everyone" as const, except: sentBy }
-                : { type: "role" as const, roleId: targets.roleId },
-          },
-        ];
-      },
-    ),
+    // A request is due on its day, in the week that holds it: everyone's but its sender's, a role's
+    // in its department or in each, or each chosen person's in their department.
+    ...requests.flatMap(({ id, targets, sentBy, ...request }): SourceItem[] => {
+      const item = {
+        source: "request" as const,
+        origin: id,
+        title: request.title,
+        axisId: request.axisId,
+        kind: "general" as const,
+        weeks: [weekReached(weeks, request.dueOn)],
+        dueOn: request.dueOn,
+        evidence: request.evidence,
+      };
+      if (targets.type === "people") {
+        return targets.people.map((person) => ({
+          ...item,
+          departmentId: person.departmentId,
+          appliesTo: { type: "person" as const, userId: person.userId },
+        }));
+      }
+      return [
+        {
+          ...item,
+          departmentId: request.departmentId ?? undefined,
+          appliesTo:
+            targets.type === "everyone"
+              ? { type: "everyone" as const, except: sentBy }
+              : { type: "role" as const, roleId: targets.roleId },
+        },
+      ];
+    }),
   ];
 
   const departments = new Map<
@@ -196,7 +201,7 @@ async function termInputs(collegeId: string, termId: string, at: Date, db: Db) {
     reach,
     now,
     // What a request's notice says, in the college's language and digits.
-    requests: requested,
+    requests,
     locale: `${language}-u-nu-${digits}`,
   };
 }

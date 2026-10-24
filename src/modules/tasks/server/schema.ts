@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -147,6 +148,9 @@ export const generationRuns = pgTable(
     reassigned: integer().notNull().default(0),
     cancelled: integer().notNull().default(0),
     error: text(),
+    // A quick request's pass queued again after the one before it failed, which is not queued again
+    // itself (lead review D).
+    retry: boolean().notNull().default(false),
     queuedAt: timestamp("queued_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

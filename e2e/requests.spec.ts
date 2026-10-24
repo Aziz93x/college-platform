@@ -12,6 +12,7 @@ import {
 import messages from "../messages/ar.json" with { type: "json" };
 import { holdersIn } from "../src/modules/access/index.ts";
 import { findCollegeId } from "../src/modules/org/index.ts";
+import { remindOwners } from "../src/modules/readiness/index.ts";
 import { getSetting, settingsRegistry } from "../src/modules/settings/index.ts";
 import {
   activeTerm,
@@ -685,7 +686,9 @@ test(
       "delete from notifications where kind = 'readinessReminder' and once_key like $1",
       [`readiness:%:plan:${departmentId}:%`],
     );
+    const term = await activeTerm(collegeId, db);
     await pool.end();
+    if (!term) throw new Error("the demo term is missing");
     const matched = board.rows.matched.title;
     const plan = r("rows.plan.title", { department: generalStudies });
 
@@ -719,13 +722,17 @@ test(
         name: r("remind.label", { title: matched }),
       }),
     ).toHaveCount(0);
-    // The vice-dean's reminder, which opens the page that settles it.
+    // The vice-dean's reminder, which names its term and opens the page that settles it on it.
     await admin.goto("/notifications");
     const reminder = admin
       .getByRole("link")
       .filter({ hasText: matched })
-      .filter({ hasText: demoAccounts.viceDean.name });
-    await expect(reminder).toHaveAttribute("href", "/rayat");
+      .filter({ hasText: demoAccounts.viceDean.name })
+      .filter({ hasText: term.name });
+    await expect(reminder).toHaveAttribute(
+      "href",
+      `/switch-term/${term.id}?next=${encodeURIComponent("/rayat")}`,
+    );
     // The console lists the admin's open row, linked to the same page.
     await admin.goto("/console");
     const list = new Intl.ListFormat(locale);
@@ -743,6 +750,73 @@ test(
       }),
     ).toHaveAttribute("href", "/rayat");
     await admin.context().close();
+  },
+);
+
+// A reminder of a term other than the one on view opens its row's page on that term, which the
+// header then shows (lead review D): the next term's plan, which Electrical's head has not entered.
+test(
+  "a reminder of the next term's plan names that term, and opens the plan on it (lead review D)",
+  DATABASE,
+  async ({ browser, isMobile }) => {
+    test.skip(isMobile, "the header names the term on a wide screen");
+    const { db, pool } = createDb(databaseUrl());
+    const collegeId = (await findCollegeId(db)) ?? "";
+    const name = `الفصل القادم ${randomUUID().slice(0, 8)}`;
+    const {
+      rows: [next],
+    } = await pool.query(
+      "insert into terms (college_id, name, starts_on, weeks) values ($1, $2, '2035-01-07', 18) returning id",
+      [collegeId, name],
+    );
+    try {
+      const [[{ id: departmentId }], [{ id: viceDean }]] = await Promise.all(
+        [
+          ["select id from departments where name = $1", electrical],
+          [
+            "select id from users where email = $1",
+            demoAccounts.viceDean.email,
+          ],
+        ].map(
+          async ([query, value]) => (await pool.query(query, [value])).rows,
+        ),
+      );
+      expect(
+        await remindOwners(
+          { termId: next.id, row: { id: "plan", departmentId } },
+          { reach: "college", drafts: true },
+          { collegeId, actorId: viceDean },
+          () => ({
+            title: r("rows.plan.title", { department: electrical }),
+            detail: r("rows.plan.open"),
+          }),
+          new Date(),
+          db,
+        ),
+      ).toMatchObject({ status: "reminded" });
+
+      const head = await signedIn(
+        browser,
+        {
+          identifier: demoAccounts.head.employeeNumber,
+          password: demo.password,
+        },
+        Buffer.from(demo.totpSecret),
+      );
+      await head.goto("/notifications");
+      await head.getByRole("link").filter({ hasText: name }).click();
+      await expect(head).toHaveURL(
+        new RegExp(`/plan\\?department=${departmentId}$`),
+      );
+      await expect(head.getByRole("banner").getByText(name)).toBeVisible();
+      await head.context().close();
+    } finally {
+      await pool.query("delete from notifications where once_key like $1", [
+        `readiness:${next.id}:%`,
+      ]);
+      await pool.query("delete from terms where id = $1", [next.id]);
+      await pool.end();
+    }
   },
 );
 

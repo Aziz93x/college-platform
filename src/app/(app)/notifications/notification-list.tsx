@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useId, useTransition } from "react";
 import { cn } from "@/components/ui/cn";
+import { loadsWhole } from "../_shell/term-cookie.ts";
 import { markReadAction } from "./actions.ts";
 import type { NotificationView } from "./view.ts";
 
@@ -82,7 +83,11 @@ function NotificationItem({
       if (notification.unread) {
         await markReadAction({ ids: [notification.id] });
       }
-      router.push(notification.href);
+      if (loadsWhole(notification.href)) {
+        window.location.assign(notification.href);
+      } else {
+        router.push(notification.href);
+      }
     });
   };
 

@@ -347,13 +347,12 @@ export async function tellTransferConflicts(
   return told;
 }
 
-// The trainers SS01 in force names whom `kept` keeps, by their account or its lack: each employee
-// number with the sections it teaches and the department of the first.
-async function namedTrainers(
+// The trainers SS01 in force names who are not on the platform: each employee number no person of
+// the college has, with the sections it teaches and the department of the first (Step 17).
+export async function unmatchedTrainers(
   collegeId: string,
   termId: string,
-  kept: (account: { disabled: boolean } | undefined) => boolean,
-  db: Db,
+  db: Db = getDb(),
 ) {
   const [ss01, byNumber] = await Promise.all([
     rayatVersion(collegeId, termId, "ss01", db),
@@ -362,7 +361,7 @@ async function namedTrainers(
   const missing = new Map<string, { ref: string; departmentId: string }[]>();
   for (const section of ss01?.records ?? []) {
     for (const number of section.trainerNumbers) {
-      if (!kept(byNumber.get(number))) continue;
+      if (byNumber.has(number)) continue;
       missing.set(number, [
         ...(missing.get(number) ?? []),
         { ref: section.sectionRef, departmentId: section.departmentId },
@@ -381,29 +380,45 @@ async function namedTrainers(
     });
 }
 
-// The trainers SS01 in force names who are not on the platform: each employee number no person of
-// the college has, with the sections it teaches and the department of the first (Step 17).
-export function unmatchedTrainers(
+// Whom the generation engine gives the sections' work from a week of the term on: whoever holds a
+// place of a section of SS01 in force in that week or a later one, after the head's transfers
+// (readTransfers()), each employee number once with its account, none when it has none. A trainer
+// whose sections were handed on before then is not among them (lead review D).
+export async function trainersAhead(
   collegeId: string,
   termId: string,
+  week: number,
   db: Db = getDb(),
 ) {
-  return namedTrainers(collegeId, termId, (account) => !account, db);
-}
-
-// The trainers SS01 in force names whose account is disabled: on the platform, and given their
-// sections' tasks, which no one can sign in to do (lead review D, proposal 1).
-export function disabledTrainers(
-  collegeId: string,
-  termId: string,
-  db: Db = getDb(),
-) {
-  return namedTrainers(
-    collegeId,
-    termId,
-    (account) => account?.disabled === true,
-    db,
-  );
+  const [ss01, transfers, byNumber] = await Promise.all([
+    rayatVersion(collegeId, termId, "ss01", db),
+    transfersOf(db, collegeId, termId),
+    peopleByNumber(collegeId, db),
+  ]);
+  if (!ss01) return [];
+  const { reads } = readAll(transfers, ss01);
+  const numbers = new Set<string>();
+  for (const section of ss01.records) {
+    const read = reads.get(section.sectionRef);
+    // A section's places change hands only in the weeks its transfers take effect.
+    const weeks = [
+      week,
+      ...transfers
+        .filter(
+          (transfer) =>
+            transfer.sectionRef === section.sectionRef && transfer.week > week,
+        )
+        .map((transfer) => transfer.week),
+    ];
+    for (const number of read
+      ? weeks.flatMap((each) => read.trainersInWeek(each))
+      : section.trainerNumbers) {
+      numbers.add(number);
+    }
+  }
+  return [...numbers]
+    .sort((a, b) => a.localeCompare(b))
+    .map((number) => ({ number, account: byNumber.get(number) }));
 }
 
 // Each section of the term in SS01 in force, with its department, its course and its places in a

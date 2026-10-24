@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, gte, lt, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  lt,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { type Db, getDb, type Tx } from "../../../platform/db/client.ts";
 import { writeAudit } from "../../audit/index.ts";
 import { terms } from "../../terms/index.ts";
@@ -47,12 +58,14 @@ type Run = {
   collegeId: string;
   termId: string;
   reason: GenerationReason;
+  retry: boolean;
 };
 const runColumns = {
   id: generationRuns.id,
   collegeId: generationRuns.collegeId,
   termId: generationRuns.termId,
   reason: generationRuns.reason,
+  retry: generationRuns.retry,
 };
 
 // One claim at a time on a term's passes, held until the claim's transaction ends. A pass is
@@ -89,19 +102,24 @@ async function claimable(tx: Tx, run: Run) {
 const CLAIM_BATCH = 20;
 
 // The run waiting longest, or one left running too long, of a term with no other pass running, now
-// the caller's; none when none waits.
-async function claim(db: Db) {
+// the caller's, but those it passes over; none when none waits.
+async function claim(db: Db, passOver: string[]) {
   return db.transaction(async (tx) => {
     const waiting = await tx
       .select(runColumns)
       .from(generationRuns)
       .where(
-        or(
-          eq(generationRuns.status, "queued"),
-          and(
-            eq(generationRuns.status, "running"),
-            lt(generationRuns.startedAt, STALE),
+        and(
+          or(
+            eq(generationRuns.status, "queued"),
+            and(
+              eq(generationRuns.status, "running"),
+              lt(generationRuns.startedAt, STALE),
+            ),
           ),
+          passOver.length > 0
+            ? notInArray(generationRuns.id, passOver)
+            : undefined,
         ),
       )
       .orderBy(asc(generationRuns.queuedAt), asc(generationRuns.id))
@@ -123,8 +141,16 @@ const reasonOf = (error: unknown) =>
       : error.message
     : String(error);
 
-// Runs a claimed pass, writing how far it has got and then what it did, or why it failed.
-async function execute(db: Db, run: Run, now: () => Date) {
+// Runs a claimed pass, writing how far it has got and then what it did, or why it failed. A quick
+// request's pass that fails is queued again for the worker, which runs it within the minute, as its
+// sender read, whoever ran it; once, so a fault that lasts cannot keep queueing passes (ADR-0032).
+// Other passes wait for the next, or for an admin to run them again (ADR-0029). Gives whether it
+// was done, and the pass queued again.
+async function execute(
+  db: Db,
+  run: Run,
+  now: () => Date,
+): Promise<{ done: boolean; again?: string }> {
   try {
     const result = await generateTerm(run.collegeId, run.termId, run.reason, {
       at: now(),
@@ -150,29 +176,44 @@ async function execute(db: Db, run: Run, now: () => Date) {
         }),
       })
       .where(eq(generationRuns.id, run.id));
-    return "done" as const;
+    return { done: true };
   } catch (error) {
-    await db
-      .update(generationRuns)
-      .set({
-        status: "failed",
-        finishedAt: sql`now()`,
-        error: reasonOf(error),
-      })
-      .where(eq(generationRuns.id, run.id));
-    return "failed" as const;
+    return db.transaction(async (tx) => {
+      await tx
+        .update(generationRuns)
+        .set({
+          status: "failed",
+          finishedAt: sql`now()`,
+          error: reasonOf(error),
+        })
+        .where(eq(generationRuns.id, run.id));
+      if (run.reason !== "request" || run.retry) return { done: false };
+      const [again] = await tx
+        .insert(generationRuns)
+        .values({
+          collegeId: run.collegeId,
+          termId: run.termId,
+          reason: run.reason,
+          retry: true,
+        })
+        .returning({ id: generationRuns.id });
+      return { done: false, again: again.id };
+    });
   }
 }
 
 // Runs the queued passes one after another until none waits: a later pass, or the nightly one,
-// does what a failed one left undone. Gives how many it ran.
+// does what a failed one left undone. A pass queued again as one fails waits for the next round, a
+// minute on, so that a fault soon over is not met again at once. Gives how many it ran.
 export async function runQueued(
   db: Db = getDb(),
   now: () => Date = () => new Date(),
 ) {
+  const later: string[] = [];
   let ran = 0;
-  for (let run = await claim(db); run; run = await claim(db)) {
-    await execute(db, run, now);
+  for (let run = await claim(db, later); run; run = await claim(db, later)) {
+    const { again } = await execute(db, run, now);
+    if (again) later.push(again);
     ran += 1;
   }
   return ran;
@@ -180,9 +221,8 @@ export async function runQueued(
 
 // Runs one queued pass now, in the request that queued it, as the worker runs one: a quick
 // request's, which makes its tasks at once (ADR-0030). It is left to the worker when the worker has
-// taken it or another pass of its term is running; when it fails, it is recorded so, and the same
-// pass is queued again for the worker, which runs it within the minute (lead review D, M2). Gives
-// "done", or "pending" for a pass the worker runs.
+// taken it or another pass of its term is running; when it fails, it is recorded so, and queued
+// again for the worker (lead review D, M2). Gives "done", or "pending" for a pass the worker runs.
 export async function runNow(
   runId: string,
   { db = getDb(), now = () => new Date() }: { db?: Db; now?: () => Date } = {},
@@ -198,9 +238,9 @@ export async function runNow(
     return queued && (await claimable(tx, queued)) ? queued : undefined;
   });
   if (!run) return "pending" as const;
-  if ((await execute(db, run, now)) === "done") return "done" as const;
-  await queueGeneration(run.collegeId, run.termId, run.reason, db);
-  return "pending" as const;
+  return (await execute(db, run, now)).done
+    ? ("done" as const)
+    : ("pending" as const);
 }
 
 // The latest pass over a term's tasks, for the page that shows it.

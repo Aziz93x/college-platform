@@ -9,6 +9,7 @@ import {
   weekDays,
   weekOf,
   weekReached,
+  workingDayBy,
   workingDays,
 } from "./weeks.ts";
 
@@ -185,6 +186,30 @@ describe("the day a quick request starts on (lead review D, proposal 4)", () => 
     expect(nextDueDay({ ...term, skipHolidayWeeks: false }, "2026-03-15")).toBe(
       "2026-04-02",
     );
+  });
+});
+
+describe("the day a quick request is due once its own is taken off (lead review D)", () => {
+  it("is its own day while it is worked", () => {
+    expect(workingDayBy(term, "2026-01-13")).toBe("2026-01-13");
+  });
+
+  it("falls back to the last day worked before a holiday, a weekend or a break", () => {
+    // Founding Day, a Sunday: the Thursday before.
+    expect(workingDayBy(term, "2026-02-22")).toBe("2026-02-19");
+    expect(workingDayBy(term, "2026-01-16")).toBe("2026-01-15");
+    // A Tuesday of the Eid al-Fitr break, whose weeks go without a number: the last Thursday of
+    // Ramadan before it, in week 9.
+    expect(workingDayBy(term, "2026-03-17")).toBe("2026-03-12");
+    expect(weekReached(termWeeks(term), "2026-03-12")).toBe(9);
+  });
+
+  it("is the first day worked after it when the term has none before", () => {
+    const startsOff = {
+      ...term,
+      holidays: [{ startsOn: "2026-01-11", endsOn: "2026-01-13" }],
+    };
+    expect(workingDayBy(startsOff, "2026-01-12")).toBe("2026-01-14");
   });
 });
 

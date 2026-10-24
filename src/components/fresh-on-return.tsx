@@ -7,35 +7,44 @@ import { useEffect } from "react";
 // or in its cache, and asks the server for nothing; a link back to a page reads it again on its own
 // (lead review D). The step is heard from the Navigation API, which tells of it before the router
 // shows the page, or else from popstate, whose listener the router added first and so shows the page
-// before this one hears it: `traversed` is where it went, and each page shown now reads itself
-// again when it hears of one.
+// before this one hears it; and from pageshow when the browser brings the whole document back from
+// its own cache. `traversed` is the entry it went to, by the key the Navigation API keeps for it
+// while the router replaces its state, or else by its address, so a link to that page later is not
+// taken for it; each page shown now reads itself again when it hears of one.
+type Navigation = EventTarget & { currentEntry?: { key: string } | null };
+const browser = typeof window === "undefined" ? undefined : window;
+const navigation = (browser as { navigation?: Navigation } | undefined)
+  ?.navigation;
+const entry = () => navigation?.currentEntry?.key ?? window.location.href;
 let traversed: string | undefined;
 const shown = new Set<() => void>();
 function heard() {
-  traversed = window.location.href;
+  traversed = entry();
   for (const readAgain of shown) readAgain();
 }
-if (typeof window !== "undefined") {
-  const { navigation } = window as { navigation?: EventTarget };
+if (browser) {
   if (navigation) {
     navigation.addEventListener("currententrychange", (event) => {
       const { navigationType } = event as Event & { navigationType?: string };
       if (navigationType === "traverse") heard();
     });
   } else {
-    window.addEventListener("popstate", heard, { capture: true });
+    browser.addEventListener("popstate", heard, { capture: true });
   }
+  browser.addEventListener("pageshow", (event) => {
+    if ((event as PageTransitionEvent).persisted) heard();
+  });
 }
 
 // Reads its page again from the server when a step back or forward shows it, whether the step is
 // heard before the page shows or after, so a page of what other people have done since never shows
-// the past. A page answers for its own address alone.
+// the past. A page answers for its own entry of the history alone.
 export function FreshOnReturn() {
   const router = useRouter();
   useEffect(() => {
-    const own = window.location.href;
+    const own = entry();
     const readAgain = () => {
-      if (traversed !== own || window.location.href !== own) return;
+      if (traversed !== own || entry() !== own) return;
       traversed = undefined;
       router.refresh();
     };

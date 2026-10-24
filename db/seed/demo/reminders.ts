@@ -51,7 +51,7 @@ export async function seedDemoReminders({ db }: { db: Db }, collegeId: string) {
   const list = new Intl.ListFormat(locale);
   const reminded = await remindOwners(
     { termId: term.id, row: { id: "matched" } },
-    "college",
+    { reach: "college", drafts: true },
     {
       collegeId,
       actorId: viceDean.id,

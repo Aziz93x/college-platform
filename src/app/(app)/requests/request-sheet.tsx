@@ -25,6 +25,7 @@ import type { RequestTargets } from "@/modules/requests";
 import { firstDayOfWeek } from "@/platform/i18n/language";
 import { toLatinDigits } from "@/platform/validation/digits";
 import { sendQuickRequestAction } from "./actions.ts";
+import { openingDay, problemOf } from "./sheet-state.ts";
 
 // Someone a request may reach in a place: in their department, as the generation engine reaches
 // them in the term.
@@ -55,18 +56,22 @@ const keyOf = (person: { userId: string; departmentId: string }) =>
 // one place, the axis its tasks count under, its day, whom it reaches (everyone there but the
 // sender, a role's holders, or people ticked in the place's list, which a search narrows), and
 // whether it asks for evidence. Its tasks are made as it is sent, and the toast says how many it
-// reached.
+// reached. It keeps what was typed while the page stays open; its place and its people are read
+// from the page as it is now, and its day as openingDay() says (lead review D).
 export function RequestButton({
   termId,
   places,
   axes,
   title: limit,
+  people: most,
   day,
 }: {
   termId: string;
   places: Place[];
   axes: { value: string; label: string }[];
   title: number;
+  /** How many people one request may name. */
+  people: number;
   /**
    * The first and last day the request may be due: today or the term's start, and its end; the
    * days between them it may not be, outside the counted weeks or off in them; and the day it
@@ -89,10 +94,13 @@ export function RequestButton({
   const off = new Set(day.off);
   const id = useId();
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState(places[0]);
+  const [placeId, setPlaceId] = useState(places[0]?.id ?? COLLEGE);
+  const place =
+    places.find((each) => (each.id ?? COLLEGE) === placeId) ?? places[0];
   const [title, setTitle] = useState("");
   const [axisId, setAxisId] = useState(axes[0]?.value ?? "");
   const [dueOn, setDueOn] = useState(day.starts);
+  const [picked, setPicked] = useState(false);
   const [choice, setChoice] = useState<Choice>("everyone");
   const [roleId, setRoleId] = useState("");
   const [chosen, setChosen] = useState<string[]>([]);
@@ -132,16 +140,20 @@ export function RequestButton({
     setProblem(undefined);
   };
   const moveTo = (value: string) => {
-    const next = places.find((each) => (each.id ?? COLLEGE) === value);
-    if (!next) return;
-    setPlace(next);
+    if (!places.some((each) => (each.id ?? COLLEGE) === value)) return;
+    setPlaceId(value);
     setRoleId("");
     setChosen([]);
     setQuery("");
   };
+  const openSheet = () => {
+    setDueOn(openingDay(day, { dueOn, picked }));
+    setOpen(true);
+  };
   const reset = () => {
     setTitle("");
     setDueOn(day.starts);
+    setPicked(false);
     setChoice("everyone");
     setRoleId("");
     setChosen([]);
@@ -154,13 +166,14 @@ export function RequestButton({
     if (choice === "holders") {
       return roleId ? { type: "role", roleId } : t("required.role");
     }
-    const picked = place.people.filter((person) =>
+    const named = place.people.filter((person) =>
       chosen.includes(keyOf(person)),
     );
-    return picked.length > 0
+    if (named.length > most) return t("required.most", { count: most });
+    return named.length > 0
       ? {
           type: "people",
-          people: picked.map(({ userId, departmentId }) => ({
+          people: named.map(({ userId, departmentId }) => ({
             userId,
             departmentId,
           })),
@@ -197,10 +210,13 @@ export function RequestButton({
         reset();
         return;
       }
+      const problem = problemOf(result);
       setProblem(
         data
           ? refusals(data.status)
-          : actions(result?.serverError ?? "unexpected"),
+          : "refusal" in problem
+            ? refusals(problem.refusal)
+            : actions(problem.action),
       );
     });
   };
@@ -237,7 +253,7 @@ export function RequestButton({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button type="button" onClick={openSheet}>
         <Send aria-hidden />
         {t("button")}
       </Button>
@@ -293,7 +309,10 @@ export function RequestButton({
                 closeOnSelect
                 value={{ from: dueOn, to: dueOn }}
                 onValueChange={(range) => {
-                  if (range) setDueOn(range.from);
+                  if (range) {
+                    setDueOn(range.from);
+                    setPicked(true);
+                  }
                   setProblem(undefined);
                 }}
                 words={dateWords}

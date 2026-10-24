@@ -1,4 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedBase } from "../../db/seed/base.ts";
 import { addMembership } from "../../src/modules/access/index.ts";
@@ -9,7 +10,10 @@ import {
   sendQuickRequest,
   termRequests,
 } from "../../src/modules/requests/index.ts";
-import { settingsRegistry } from "../../src/modules/settings/index.ts";
+import {
+  getSetting,
+  settingsRegistry,
+} from "../../src/modules/settings/index.ts";
 import {
   generateTerm,
   itemAssignees,
@@ -81,6 +85,15 @@ const runOf = async (id: string) =>
       [id],
     )
   )[0];
+// The term's passes from a request's own on, in the order they were queued.
+const passesFrom = (runId: string) =>
+  query(
+    `select reason, status, retry from generation_runs
+     where term_id = $1
+       and (queued_at, id) >= (select queued_at, id from generation_runs where id = $2)
+     order by queued_at, id`,
+    [termId, runId],
+  );
 // Whom a request has told, once each.
 const toldOf = async (requestId: string) =>
   (
@@ -571,5 +584,233 @@ describe("a quick request's pass", () => {
     expect(
       (await tasksOf(result.id)).map(({ assigneeId }) => assigneeId),
     ).toEqual(named("hind", "salem"));
+  });
+
+  it("that the worker runs and that fails is queued again for its next round, which makes each task once and tells each person once (lead review D)", async () => {
+    // What the cases before left waiting, run first.
+    await runQueued(database.db, () => AT);
+    const result = await kept(request({ title: "طلب يتعثر عند العامل" }));
+    await query(
+      "alter table tasks add constraint worker_fails check (title <> 'طلب يتعثر عند العامل')",
+    );
+    try {
+      // The round runs the request's pass, which fails, and leaves it queued again for the next.
+      expect(await runQueued(database.db, () => AT)).toBe(1);
+    } finally {
+      await query("alter table tasks drop constraint worker_fails");
+    }
+    expect(await passesFrom(result.runId)).toEqual([
+      { reason: "request", status: "failed", retry: false },
+      { reason: "request", status: "queued", retry: true },
+    ]);
+    expect(await tasksOf(result.id)).toEqual([]);
+
+    expect(await runQueued(database.db, () => AT)).toBe(1);
+    expect(await passesFrom(result.runId)).toEqual([
+      { reason: "request", status: "failed", retry: false },
+      { reason: "request", status: "done", retry: true },
+    ]);
+    expect(
+      (await tasksOf(result.id)).map(({ assigneeId }) => assigneeId),
+    ).toEqual(named("hind", "salem"));
+    expect(await toldOf(result.id)).toEqual(named("hind", "salem"));
+  });
+
+  it("queued again that fails again is not queued once more, nor is a pass of another cause that fails: the next pass makes its tasks (lead review D)", async () => {
+    await runQueued(database.db, () => AT);
+    await query(
+      "alter table tasks add constraint fails_twice check (title <> 'طلب يتعثر مرتين')",
+    );
+    let result: Awaited<ReturnType<typeof kept>>;
+    try {
+      result = await kept(request({ title: "طلب يتعثر مرتين" }));
+      expect(await runAtOnce(result.runId)).toBe("pending");
+      expect(await runQueued(database.db, () => AT)).toBe(1);
+      expect(await runQueued(database.db, () => AT)).toBe(0);
+      // A pass of another cause that fails waits for the next, or for an admin (ADR-0029).
+      await queueGeneration(collegeId, termId, "daily", database.db);
+      expect(await runQueued(database.db, () => AT)).toBe(1);
+      expect(await runQueued(database.db, () => AT)).toBe(0);
+    } finally {
+      await query("alter table tasks drop constraint fails_twice");
+    }
+    expect(await passesFrom(result.runId)).toEqual([
+      { reason: "request", status: "failed", retry: false },
+      { reason: "request", status: "failed", retry: true },
+      { reason: "daily", status: "failed", retry: false },
+    ]);
+
+    await generate();
+    expect(
+      (await tasksOf(result.id)).map(({ assigneeId }) => assigneeId),
+    ).toEqual(named("hind", "salem"));
+    expect(await toldOf(result.id)).toEqual(named("hind", "salem"));
+  });
+
+  it("that the database drops mid-way is left running, and the worker takes it over once left too long: each task made once, each person told once (lead review D)", async () => {
+    await runQueued(database.db, () => AT);
+    const result = await kept(request({ title: "طلب ينقطع" }));
+    // A database that stops answering once the pass has begun to make the request's tasks, so that
+    // not even its failure can be written. What the pass began is rolled back, as the server does
+    // with a connection it loses.
+    const pool = new Pool({ connectionString: database.url });
+    let down = false;
+    const dropping = drizzle({
+      client: pool,
+      logger: {
+        logQuery: (statement) => {
+          if (down && !/^(begin|rollback)/.test(statement)) {
+            throw new Error("Connection terminated unexpectedly");
+          }
+          if (statement.startsWith('insert into "tasks"')) down = true;
+        },
+      },
+    });
+    try {
+      await expect(runAtOnce(result.runId, dropping)).rejects.toThrow(
+        "Connection terminated unexpectedly",
+      );
+    } finally {
+      await pool.end();
+    }
+    expect(await runOf(result.runId)).toMatchObject({ status: "running" });
+    expect(await tasksOf(result.id)).toEqual([]);
+    // The pass holds its term while it may still be running; once left running longer than fifteen
+    // minutes, it has stopped, and the worker takes it over.
+    expect(await runQueued(database.db, () => AT)).toBe(0);
+    await query(
+      "update generation_runs set started_at = now() - interval '16 minutes' where id = $1",
+      [result.runId],
+    );
+    expect(await runQueued(database.db, () => AT)).toBe(1);
+    expect(await runOf(result.runId)).toMatchObject({ status: "done" });
+    expect(
+      (await tasksOf(result.id)).map(({ assigneeId }) => assigneeId),
+    ).toEqual(named("hind", "salem"));
+    expect(await toldOf(result.id)).toEqual(named("hind", "salem"));
+  });
+});
+
+// Last, in departments of its own, so that no case before it counts the person it adds.
+describe("a quick request to people chosen in two departments", () => {
+  it("from the vice-dean, reaches someone chosen in each of the two once in each, and tells them once (lead review D)", async () => {
+    const [first, second] = [
+      await departmentWith("Civil", 0),
+      await departmentWith("Chemical", 0),
+    ];
+    const both = await trainerIn(first.id, "Rakan");
+    await addMembership(
+      { userId: both, roleId: trainerRole, departmentId: second.id },
+      change("viceDean"),
+      database.db,
+    );
+    const id = await sent(
+      request({
+        departmentId: null,
+        targets: {
+          type: "people",
+          people: [
+            { userId: both, departmentId: first.id },
+            { userId: both, departmentId: second.id },
+          ],
+        },
+      }),
+      "viceDean",
+    );
+    await generate();
+    expect(
+      (await tasksOf(id))
+        .map(({ assigneeId, departmentId }) => [assigneeId, departmentId])
+        .sort((a, b) => a[1].localeCompare(b[1])),
+    ).toEqual(
+      [
+        [both, first.id],
+        [both, second.id],
+      ].sort((a, b) => a[1].localeCompare(b[1])),
+    );
+    expect(await toldOf(id)).toEqual([both]);
+  });
+});
+
+// Last too: the holidays it adds move the weeks after them.
+describe("a quick request whose day a holiday takes after it is sent", () => {
+  it("is due on the last day worked before it, which its notice names, and in the week before once a break takes its own (lead review D)", async () => {
+    const team = await departmentWith("Survey", 1);
+    // Wednesday of week 5, and Tuesday of week 4.
+    const wednesday = await sent(
+      request({
+        departmentId: team.id,
+        title: "تقرير الزيارة",
+        dueOn: "2026-09-23",
+      }),
+    );
+    const tuesday = await sent(
+      request({
+        departmentId: team.id,
+        title: "خطة الأسبوع",
+        dueOn: "2026-09-15",
+      }),
+    );
+    await generate();
+    const days = async (id: string) =>
+      (await tasksOf(id)).map(({ week, dueOn }) => ({ week, dueOn }));
+    expect(await days(wednesday)).toEqual([{ week: 5, dueOn: "2026-09-23" }]);
+    expect(await days(tuesday)).toEqual([{ week: 4, dueOn: "2026-09-15" }]);
+
+    const added: string[] = [];
+    const dayOff = async (startsOn: string, endsOn: string) => {
+      const [{ id }] = await query(
+        `insert into calendar_events (college_id, term_id, kind, title, starts_on, ends_on)
+         values ($1, $2, 'holiday', 'إجازة', $3, $4) returning id`,
+        [collegeId, termId, startsOn, endsOn],
+      );
+      added.push(id);
+    };
+    try {
+      // A holiday on the Wednesday: the Tuesday before, in its week, for everyone, and for someone
+      // who joins after, whose notice names that day.
+      await dayOff("2026-09-23", "2026-09-23");
+      const joiner = await trainerIn(team.id, "Faisal");
+      await generate();
+      expect(await days(wednesday)).toEqual([
+        { week: 5, dueOn: "2026-09-22" },
+        { week: 5, dueOn: "2026-09-22" },
+      ]);
+      const [language, digits] = await Promise.all([
+        getSetting("locale.language", { collegeId }, database.db),
+        getSetting("locale.digits", { collegeId }, database.db),
+      ]);
+      expect(
+        await query(
+          `select params->>'due' as due from notifications
+           where user_id = $1 and once_key = $2`,
+          [joiner, `quickRequest:${wednesday}`],
+        ),
+      ).toEqual([
+        {
+          due: new Intl.DateTimeFormat(`${language}-u-nu-${digits}`, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            timeZone: "UTC",
+          }).format(new Date("2026-09-22T00:00:00Z")),
+        },
+      ]);
+
+      // A break that takes week 4's every working day: its Tuesday falls back to the Thursday
+      // before, in week 3, and the weeks after it count on from 4.
+      await dayOff("2026-09-13", "2026-09-17");
+      await generate();
+      expect(await days(tuesday)).toEqual([
+        { week: 3, dueOn: "2026-09-10" },
+        { week: 3, dueOn: "2026-09-10" },
+      ]);
+      expect(await days(wednesday)).toEqual([
+        { week: 4, dueOn: "2026-09-22" },
+        { week: 4, dueOn: "2026-09-22" },
+      ]);
+    } finally {
+      await query("delete from calendar_events where id = any($1)", [added]);
+    }
   });
 });

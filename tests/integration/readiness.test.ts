@@ -3,10 +3,16 @@ import { demoAccounts } from "../../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import {
+  listSections,
+  transferSection,
+} from "../../src/modules/academics/index.ts";
+import {
   addMembership,
+  createRole,
   disableAccount,
   holdersIn,
   listRoles,
+  setRolePermissions,
 } from "../../src/modules/access/index.ts";
 import { listAxes } from "../../src/modules/axes/index.ts";
 import { createAccount } from "../../src/modules/identity/index.ts";
@@ -22,7 +28,15 @@ import {
 } from "../../src/modules/readiness/index.ts";
 import { getSetting } from "../../src/modules/settings/index.ts";
 import { queueGeneration, runQueued } from "../../src/modules/tasks/index.ts";
-import { activeTerm } from "../../src/modules/terms/index.ts";
+import {
+  activeTerm,
+  calendarOf,
+  calendarSettings,
+  createTerm,
+  termWeeks,
+  weekReached,
+} from "../../src/modules/terms/index.ts";
+import { wallClock } from "../../src/platform/i18n/time-zone.ts";
 import {
   createTestDatabase,
   runScript,
@@ -47,6 +61,38 @@ const read = (row: ReadinessRow) => ({
   state: row.state,
   owners: row.owners.map(({ name }) => name),
 });
+
+// A person of the college with the role across it, or in a department.
+let numbered = 0;
+async function holderOf(
+  name: string,
+  roleId: string,
+  departmentId: string | null,
+) {
+  const admin = await nameOf(demoAccounts.admin.email);
+  numbered += 1;
+  const userId = await database.db.transaction(
+    async (tx) =>
+      (
+        await createAccount(
+          {
+            collegeId,
+            name,
+            email: `${name.replaceAll(" ", ".")}@oasis.example`,
+            employeeNumber: `99${String(numbered).padStart(4, "0")}`,
+          },
+          tx,
+          `password-${name}`,
+        )
+      ).userId,
+  );
+  await addMembership(
+    { userId, roleId, departmentId },
+    { collegeId, actorId: admin.id },
+    database.db,
+  );
+  return { userId, name };
+}
 
 const nameOf = async (email: string) =>
   (
@@ -137,6 +183,36 @@ describe("the term readiness board", () => {
       "tasks",
       electrical,
     ]);
+  });
+
+  it("names whoever adds the trainers not on the platform from Rayat's page for them, not whoever manages people alone (lead review D)", async () => {
+    const admin = await nameOf(demoAccounts.admin.email);
+    const change = { collegeId, actorId: admin.id };
+    const made = await createRole(
+      { label: "شؤون المنسوبين" },
+      "ar",
+      change,
+      database.db,
+    );
+    if (made.status !== "created") throw new Error(made.status);
+    const keys = (permissions: ("people.manage" | "rayat.import")[]) =>
+      setRolePermissions(made.id, { permissions }, change, database.db);
+    await keys(["people.manage"]);
+    const clerk = await holderOf("Nawaf Clerk", made.id, null);
+    const owners = async (id: string) =>
+      (await board())
+        .find((row) => row.id === id)
+        ?.owners.map(({ name }) => name);
+    try {
+      // The visitor is not on the platform: Rayat's page, which the clerk cannot open, adds them.
+      expect(await owners("people")).toEqual([clerk.name]);
+      expect(await owners("matched")).toEqual([admin.name]);
+      // With Rayat's key too, the clerk adds them there.
+      await keys(["people.manage", "rayat.import"]);
+      expect(await owners("matched")).toEqual([clerk.name]);
+    } finally {
+      await keys([]);
+    }
   });
 
   it("turns fully green once the visitor has an account, the disabled trainer's is enabled, and General Studies' plan is published", async () => {
@@ -243,5 +319,98 @@ describe("the term readiness board", () => {
     const rows = await board();
     expect(rows.filter((row) => row.state !== "done").map(read)).toEqual([]);
     expect(rows).toHaveLength(6 + demoDepartments.length);
+  });
+
+  it("counts the trainers a section's work goes to from this week on, after the head's transfers (lead review D)", async () => {
+    const admin = await nameOf(demoAccounts.admin.email);
+    const change = { collegeId, actorId: admin.id };
+    const electrical = department[demoDepartments[1].name];
+    const trainer = (await listRoles(collegeId, database.db)).find(
+      (role) => role.key === "trainer",
+    );
+    if (!trainer) throw new Error("the trainer role is missing");
+    const joiner = await holderOf("Joiner Trainer", trainer.id, electrical);
+    // This week of the term, on the college's clock.
+    const [settings, timeZone] = await Promise.all([
+      calendarSettings(collegeId, database.db),
+      getSetting("locale.timeZone", { collegeId }, database.db),
+    ]);
+    const week = weekReached(
+      termWeeks(calendarOf(term, term.events, settings, term.breaks)),
+      wallClock(new Date(), timeZone).slice(0, 10),
+    );
+    expect(week).toBeGreaterThan(1);
+    // Every section of one of Electrical's trainers, handed from this week on to the joiner.
+    const { sections } = await listSections(
+      collegeId,
+      term.id,
+      [electrical],
+      week,
+      database.db,
+    );
+    const leaver = sections[0].trainers[0];
+    for (const section of sections.filter((each) =>
+      each.trainers.some(({ number }) => number === leaver.number),
+    )) {
+      const moved = await transferSection(
+        {
+          termId: term.id,
+          sectionRef: section.ref,
+          fromNumber: leaver.number,
+          toUserId: joiner.userId,
+          week,
+          reason: "انتقل إلى كلية أخرى",
+        },
+        change,
+        database.db,
+      );
+      expect(moved.status).toBe("transferred");
+    }
+    const matched = async () =>
+      (await board()).find((row) => row.id === "matched");
+    const disable = (userId: string, disabled: boolean) =>
+      disableAccount(userId, disabled, change, database.db);
+
+    // The joiner leaves too: their account disabled, the work they were given waits on it.
+    await disable(joiner.userId, true);
+    expect(await matched()).toMatchObject({
+      state: "open",
+      unmatched: 0,
+      disabled: 1,
+      href: "/people",
+    });
+    // The trainer whose sections were handed on is disabled instead: they held the weeks before
+    // this one alone, whose work is behind.
+    await disable(joiner.userId, false);
+    if (!leaver.userId) throw new Error("the trainer has no account");
+    await disable(leaver.userId, true);
+    expect(await matched()).toMatchObject({
+      state: "done",
+      unmatched: 0,
+      disabled: 0,
+    });
+  });
+
+  it("leaves the matched row of a term whose SS01 is not applied to whoever imports it, whom it waits on (lead review D)", async () => {
+    const viceDean = await nameOf(demoAccounts.viceDean.email);
+    const next = await createTerm(
+      { name: "الفصل التدريبي الثاني 1448", startsOn: "2027-01-10", weeks: 18 },
+      { collegeId, actorId: viceDean.id },
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    const rows = await termReadiness(
+      collegeId,
+      { id: next.id, status: "draft" },
+      "college",
+      database.db,
+    );
+    const matched = rows.find((row) => row.id === "matched");
+    expect(matched).toMatchObject({ imported: false, href: "/rayat" });
+    expect(matched && read(matched)).toEqual({
+      id: "matched",
+      state: "open",
+      owners: [viceDean.name],
+    });
   });
 });

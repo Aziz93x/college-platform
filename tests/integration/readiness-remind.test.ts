@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { demoAccounts } from "../../db/seed/demo/accounts.ts";
 import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { holdersIn } from "../../src/modules/access/index.ts";
+import { notificationPage } from "../../src/modules/notifications/index.ts";
 import { listDepartments } from "../../src/modules/org/index.ts";
 import {
   type ReadinessRow,
@@ -9,7 +10,7 @@ import {
   remindOwners,
 } from "../../src/modules/readiness/index.ts";
 import { getSetting } from "../../src/modules/settings/index.ts";
-import { activeTerm } from "../../src/modules/terms/index.ts";
+import { activeTerm, createTerm } from "../../src/modules/terms/index.ts";
 import { wallClock } from "../../src/platform/i18n/time-zone.ts";
 import {
   createTestDatabase,
@@ -23,6 +24,7 @@ import {
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 let collegeId: string;
 let termId: string;
+let termName: string;
 let timeZone: string;
 const department: Record<string, string> = {};
 const DAY = 86_400_000;
@@ -48,14 +50,18 @@ const remind = (
   {
     reach = "college",
     at = new Date(),
+    term = termId,
+    drafts = true,
   }: {
     reach?: "college" | string[];
     at?: Date;
+    term?: string;
+    drafts?: boolean;
   } = {},
 ) =>
   remindOwners(
-    { termId, row },
-    reach,
+    { termId: term, row },
+    { reach, drafts },
     { collegeId, actorId: sender.id },
     words,
     at,
@@ -91,6 +97,7 @@ beforeAll(async () => {
   const term = await activeTerm(collegeId, database.db);
   if (!term) throw new Error("the demo term is missing");
   termId = term.id;
+  termName = term.name;
   timeZone = await getSetting("locale.timeZone", { collegeId }, database.db);
   for (const each of await listDepartments(collegeId, database.db)) {
     department[each.name] = each.id;
@@ -120,6 +127,8 @@ describe("reminding the owners of an open row of the board", () => {
           detail: "detail of matched",
           from: viceDean.name,
           href: "/rayat",
+          termId,
+          term: termName,
         },
         onceKey: `readiness:${termId}:matched:${day}`,
       },
@@ -202,7 +211,7 @@ describe("reminding the owners of an open row of the board", () => {
     expect(
       await remindOwners(
         { termId: crypto.randomUUID(), row: { id: "matched" } },
-        "college",
+        { reach: "college", drafts: true },
         { collegeId, actorId: viceDean.id },
         words,
         new Date(),
@@ -210,6 +219,49 @@ describe("reminding the owners of an open row of the board", () => {
       ),
     ).toEqual({ status: "notFound" });
     expect(await events()).toHaveLength(before);
+  });
+
+  it("finds no row of a term before it starts for a sender who does not prepare terms, whose board shows none (lead review D)", async () => {
+    const viceDean = await person(demoAccounts.viceDean.email);
+    const next = await createTerm(
+      { name: "الفصل التدريبي الثاني 1448", startsOn: "2027-01-10", weeks: 18 },
+      { collegeId, actorId: viceDean.id },
+      database.db,
+    );
+    if (next.status !== "created") throw new Error(next.status);
+    const plan: RowKey = {
+      id: "plan",
+      departmentId: department[demoDepartments[1].name],
+    };
+    const before = (await events()).length;
+    expect(
+      await remind(viceDean, plan, { term: next.id, drafts: false }),
+    ).toEqual({ status: "notFound" });
+    expect(await events()).toHaveLength(before);
+    // The vice-dean prepares terms: the next term's plan, not published yet, reaches its head, in
+    // words that name the term, with a link that opens the plan on it.
+    expect(await remind(viceDean, plan, { term: next.id })).toEqual({
+      status: "reminded",
+      count: 1,
+    });
+    const [{ userId: head }] =
+      (
+        await holdersIn(
+          collegeId,
+          [plan.departmentId],
+          "plan.publish",
+          database.db,
+        )
+      ).get(plan.departmentId) ?? [];
+    const [{ params }] = (await remindersOf(head)).slice(-1);
+    expect(params).toMatchObject({
+      href: `/plan?department=${plan.departmentId}`,
+      termId: next.id,
+      term: "الفصل التدريبي الثاني 1448",
+    });
+    expect(notificationPage("readinessReminder", params)).toBe(
+      `/switch-term/${next.id}?next=${encodeURIComponent(`/plan?department=${plan.departmentId}`)}`,
+    );
   });
 
   it("leaves out an owner who turned such reminders off", async () => {

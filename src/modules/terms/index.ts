@@ -24,6 +24,7 @@ export {
   termWeeks,
   weekOf,
   weekReached,
+  workingDayBy,
 } from "./domain/weeks.ts";
 export {
   estimateHolidays,

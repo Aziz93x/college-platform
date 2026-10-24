@@ -29,15 +29,20 @@ type Change = {
 // settled, a pass is at work on it, or its term is closed; or no one but the sender owns it.
 type RemindRefusal = "notFound" | "notOpen" | "nobody";
 
+// What the sender sees of the board: the plans of their departments or of the whole college, and a
+// term before it starts only if they prepare terms.
+type SenderView = { reach: "college" | readonly string[]; drafts: boolean };
+
 // Reminds the owners of an open row of a term's readiness board, its sender aside, with a notice
-// that opens the row's page (lead review D, proposal 5). The row is read again, as the board shows
-// it to the sender, so a settled row reminds no one and its owners are whoever owns it now. Each
+// that names the term and opens the row's page on it (lead review D, proposal 5). The row is read again, as the board shows
+// it to the sender, so a settled row reminds no one, a row they do not see is not found, and its
+// owners are whoever owns it now. Each
 // owner is reminded of a row once a day on the college's clock, by the notice's once key, unless
 // they turned such reminders off. `words` names the row in the college's language, as the board
 // does. Records readiness.remind when it reminded anyone; `count` may be 0.
 export async function remindOwners(
   input: { termId: string; row: RowKey },
-  reach: "college" | readonly string[],
+  view: SenderView,
   change: Change,
   words: (row: ReadinessRow) => { title: string; detail: string },
   at = new Date(),
@@ -45,10 +50,12 @@ export async function remindOwners(
 ): Promise<{ status: "reminded"; count: number } | { status: RemindRefusal }> {
   const { collegeId } = change;
   const term = await findTerm(collegeId, input.termId, db);
-  if (!term) return { status: "notFound" };
+  if (!term || (term.status === "draft" && !view.drafts)) {
+    return { status: "notFound" };
+  }
   const key = rowKeyOf(input.row);
   const [rows, timeZone, [sender]] = await Promise.all([
-    termReadiness(collegeId, term, reach, db),
+    termReadiness(collegeId, term, view.reach, db, at),
     getSetting("locale.timeZone", { collegeId }, db),
     db
       .select({ name: users.name })
@@ -71,7 +78,13 @@ export async function remindOwners(
       owners.map(({ userId }) => ({
         collegeId,
         userId,
-        params: { ...said, from: sender?.name ?? "", href: row.href },
+        params: {
+          ...said,
+          from: sender?.name ?? "",
+          href: row.href,
+          termId: term.id,
+          term: term.name,
+        },
         onceKey: `readiness:${term.id}:${key}:${day}`,
       })),
       tx,

@@ -12,7 +12,8 @@ type Viewer = Parameters<typeof authorize>[0];
 
 // Whether the viewer opens the page that settles a row, by the rule that page itself applies, so
 // nothing offers them a page that would refuse them; the row's owners are named either way (lead
-// review D, M5). The term's page and the framework open to everyone.
+// review D, M5). The framework opens to everyone, and a term's page too but a draft's, which only
+// whoever manages the college's terms opens, though whoever prepares a plan sees its board.
 export function rowOpens(viewer: Viewer) {
   const plans = planAccess(viewer);
   const rayat = permittedDepartments(viewer, "rayat.import");
@@ -35,6 +36,10 @@ export function rowOpens(viewer: Viewer) {
           authorize(viewer, "system.manage", { collegeId: viewer.collegeId })
         );
       case "term":
+        return (
+          row.status !== "draft" ||
+          authorize(viewer, "term.manage", { collegeId: viewer.collegeId })
+        );
       case "framework":
         return true;
     }

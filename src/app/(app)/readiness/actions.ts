@@ -5,6 +5,7 @@ import { z } from "zod";
 import { viewerAction } from "@/modules/access";
 import { requestMeta } from "@/modules/identity";
 import { remindOwners } from "@/modules/readiness";
+import { preparesTerms } from "../_shell/term.ts";
 import { readinessWords } from "./rows.ts";
 
 // A row of the board: one of the college's by its id, or a department's plan.
@@ -20,7 +21,8 @@ const remindInput = z.object({
 
 // Reminds the owners of an open row of the readiness board (lead review D, proposal 5), for
 // whoever sees the row there: readiness.view in the plan's department or across the college, or,
-// for the college's rows, wherever the viewer holds it, as the board shows them to a head.
+// for the college's rows, wherever the viewer holds it, as the board shows them to a head. A term
+// before it starts is the board's of whoever prepares terms.
 export const remindOwnersAction = viewerAction
   .metadata({ name: "remindOwners" })
   .inputSchema(remindInput)
@@ -41,7 +43,7 @@ export const remindOwnersAction = viewerAction
       );
       return remindOwners(
         parsedInput,
-        reach,
+        { reach, drafts: preparesTerms(viewer) },
         {
           collegeId: viewer.collegeId,
           actorId: viewer.userId,

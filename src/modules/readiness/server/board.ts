@@ -1,5 +1,6 @@
 import { type Db, getDb } from "../../../platform/db/client.ts";
-import { disabledTrainers, unmatchedTrainers } from "../../academics/index.ts";
+import { wallClock } from "../../../platform/i18n/time-zone.ts";
+import { trainersAhead } from "../../academics/index.ts";
 import {
   holdersAcross,
   holdersIn,
@@ -10,8 +11,16 @@ import { publishedItems } from "../../framework/index.ts";
 import { listDepartments } from "../../org/index.ts";
 import { publishedPlanDepartments } from "../../planning/index.ts";
 import { listRayatImports, type RayatKind } from "../../rayat/index.ts";
+import { getSetting } from "../../settings/index.ts";
 import { type GenerationStatus, latestRun } from "../../tasks/index.ts";
-import type { TermStatus } from "../../terms/index.ts";
+import {
+  calendarOf,
+  calendarSettings,
+  findTerm,
+  type TermStatus,
+  termWeeks,
+  weekReached,
+} from "../../terms/index.ts";
 
 // Settled, still owed, or at work: a pass of the generation engine waiting or running.
 export type ReadinessState = "done" | "open" | "working";
@@ -39,6 +48,18 @@ export type ReadinessRow = {
 // The reports a term needs; SO01 a college may leave out (docs/PLAN.md, section 9).
 const needed = ["ss01", "sf01"] as const satisfies readonly RayatKind[];
 
+// The week of a term a day has reached on the college's clock, its first before it starts.
+async function weekAt(collegeId: string, termId: string, at: Date, db: Db) {
+  const [term, settings, timeZone] = await Promise.all([
+    findTerm(collegeId, termId, db),
+    calendarSettings(collegeId, db),
+    getSetting("locale.timeZone", { collegeId }, db),
+  ]);
+  if (!term) return 1;
+  const weeks = termWeeks(calendarOf(term, term.events, settings, term.breaks));
+  return Math.max(1, weekReached(weeks, wallClock(at, timeZone).slice(0, 10)));
+}
+
 // A term's readiness board: the college's rows, which whoever holds a key across the college
 // settles, and the plan of each active department the viewer reaches, which its own holders
 // publish, or the admins where it has none; every department's to whoever sees the board across
@@ -48,6 +69,7 @@ export async function termReadiness(
   term: { id: string; status: TermStatus },
   reach: "college" | readonly string[],
   db: Db = getDb(),
+  at = new Date(),
 ): Promise<ReadinessRow[]> {
   const [
     framework,
@@ -55,8 +77,7 @@ export async function termReadiness(
     roles,
     holders,
     imports,
-    unmatched,
-    disabled,
+    ahead,
     published,
     run,
     [
@@ -66,6 +87,7 @@ export async function termReadiness(
       rayatOwners,
       planOwners,
       systemOwners,
+      addingOwners,
     ],
   ] = await Promise.all([
     publishedItems(collegeId, term.id, db),
@@ -73,21 +95,24 @@ export async function termReadiness(
     listRoles(collegeId, db),
     roleHolders(collegeId, term.id, db),
     listRayatImports(collegeId, term.id, db),
-    unmatchedTrainers(collegeId, term.id, db),
-    disabledTrainers(collegeId, term.id, db),
+    weekAt(collegeId, term.id, at, db).then((week) =>
+      trainersAhead(collegeId, term.id, week, db),
+    ),
     publishedPlanDepartments(collegeId, term.id, db),
     latestRun(collegeId, term.id, db),
     Promise.all(
       (
         [
-          "term.manage",
-          "framework.publish",
-          "people.manage",
-          "rayat.import",
-          "plan.publish",
-          "system.manage",
+          ["term.manage"],
+          ["framework.publish"],
+          ["people.manage"],
+          ["rayat.import"],
+          ["plan.publish"],
+          ["system.manage"],
+          // Rayat's page lists the trainers not on the platform, to whoever adds them there.
+          ["rayat.import", "people.manage"],
         ] as const
-      ).map((key) => holdersAcross(collegeId, key, db)),
+      ).map((keys) => holdersAcross(collegeId, keys, db)),
     ),
   ]);
   const active = departments.filter((each) => each.active);
@@ -121,6 +146,8 @@ export async function termReadiness(
     (kind) => !imports.some((each) => each.kind === kind && each.current),
   );
   const imported = !missing.includes("ss01");
+  const unmatched = ahead.filter(({ account }) => !account).length;
+  const disabled = ahead.filter(({ account }) => account?.disabled).length;
   const settled = (done: boolean): ReadinessState => (done ? "done" : "open");
   const pass = run?.status ?? null;
 
@@ -152,19 +179,22 @@ export async function termReadiness(
       owners: rayatOwners,
       href: "/rayat",
     },
-    // Every trainer SS01 names can do their sections' tasks: on the platform, and their account not
-    // disabled (lead review D, proposal 1). Rayat's page adds the missing; the people pages enable.
+    // Every trainer given a section's work from this week on, after the head's transfers, can do
+    // it: on the platform, and their account not disabled (lead review D, proposal 1). It waits on
+    // SS01's importers until they apply it; Rayat's page then adds the missing, and the people
+    // pages enable.
     {
       id: "matched",
-      unmatched: unmatched.length,
-      disabled: disabled.length,
+      unmatched,
+      disabled,
       imported,
-      state: settled(
-        imported && unmatched.length === 0 && disabled.length === 0,
-      ),
-      owners: peopleOwners,
-      href:
-        unmatched.length === 0 && disabled.length > 0 ? "/people" : "/rayat",
+      state: settled(imported && unmatched === 0 && disabled === 0),
+      owners: !imported
+        ? rayatOwners
+        : unmatched > 0
+          ? addingOwners
+          : peopleOwners,
+      href: unmatched === 0 && disabled > 0 ? "/people" : "/rayat",
     },
     // A failed pass is run again on the system page, by whoever holds its key there (lead review D).
     {

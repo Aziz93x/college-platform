@@ -17,10 +17,12 @@ const notificationKinds = {
   transferConflict: { href: "/sections", optional: true },
   // A quick request that gave the person a task (Step 22).
   quickRequest: { href: "/today", optional: true },
-  // A responsibility of the term, open on the readiness board, that someone reminded its owner of;
-  // it opens the page that settles it (lead review D, proposal 5).
+  // A responsibility of a term, open on the readiness board, that someone reminded its owner of;
+  // it opens the page that settles it on that term, as choosing it in the header does (lead review
+  // D, proposal 5).
   readinessReminder: {
-    href: ({ href }: NotificationParams["readinessReminder"]) => href,
+    href: ({ href, termId }: NotificationParams["readinessReminder"]) =>
+      `/switch-term/${termId}?next=${encodeURIComponent(href)}`,
     optional: true,
   },
 } as const;
@@ -79,11 +81,14 @@ export type NotificationParams = {
   };
   // The request's title, the day it is due in words and who sent it, as they were when it was sent.
   quickRequest: { requestId: string; title: string; due: string; from: string };
-  // The board's row as it read when the reminder was sent, who sent it, and the row's page.
+  // The board's row as it read when the reminder was sent, who sent it, the row's page, and its
+  // term with its name then.
   readinessReminder: {
     title: string;
     detail: string;
     from: string;
     href: string;
+    termId: string;
+    term: string;
   };
 };

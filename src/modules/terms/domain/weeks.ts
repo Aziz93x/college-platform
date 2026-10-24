@@ -128,6 +128,20 @@ export function nextDueDay(term: TermCalendar, day: Day) {
     .find((due) => due >= day && isWorkingDay(term, due));
 }
 
+// The day a task set for a day is due: that day while it is worked, else the last day worked before
+// it in the term, as a week's tasks move off its holidays, or the first after it when the term has
+// none before. A quick request's day that a holiday or a break takes later moves so (lead review D).
+export function workingDayBy(term: TermCalendar, day: Day): Day {
+  const last = termEndsOn(term);
+  for (let each = day; each >= term.startsOn; each = addDays(each, -1)) {
+    if (each <= last && isWorkingDay(term, each)) return each;
+  }
+  for (let each = addDays(day, 1); each <= last; each = addDays(each, 1)) {
+    if (isWorkingDay(term, each)) return each;
+  }
+  return day;
+}
+
 // A term's calendar as the week utilities count it: its own holidays and the college's Eid breaks
 // (ADR-0018), with the college's settings.
 export function calendarOf(
