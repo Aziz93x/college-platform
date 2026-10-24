@@ -6,9 +6,18 @@ All notable changes are recorded here. Each entry names the plan step from docs/
 
 ### ADR-0031: the head delegates the review and the portfolios' approval (the owner's request)
 
-- Recorded now, to be built with Steps 29 and 30. A head may delegate the review and the portfolios' approval, each on its own, to one person or more of their department, for the term. A delegate decides beside the head and never on their own work, and each decision keeps who made it. The review's delegates see exam copies before their day, as the head does.
-- A delegation will be an assignment whose template grants a role holding the approval's key (ADR-0028), so the grant needs nothing new. The app does not change until Step 29.
-- The plan: the head's row in section 1, the review model in section 3, and notes under Steps 29 and 30.
+- Recorded now, to be built with Steps 29 and 30. A head may delegate the review and the portfolios' approval, each on its own, to one person or more of their department, for the term. A delegate decides beside the head and never on their own work; the head decides their own. Each decision keeps who made it, and the head may reopen a delegate's decision during the term.
+- An exam copy is seen by its trainer, the head and the review's delegates, and by no one else, ever. Everywhere else, in portfolios and the files made from them included, it shows as submitted and approved, without its content. Its trainer uploads a sample with it, pages of it or marked answers, which stands for it in the portfolio, for every reader, once the copy is approved (the owner's answers of 24 October).
+- The two keys count in a department only, so no admin or college-wide role reviews, approves or sees an exam copy. They do no more than the two approvals.
+- A delegation will be an assignment whose template grants a role holding the approval's key (ADR-0028). It ends with its holder's last other role in the department. Giving one asks for the giver's own keys, and no one gives one to themselves. The app does not change until Step 29.
+- Reviewed against the code by several agents (docs/reviews/adr-0031.md), and amended with the owner's answers of 24 October. The privacy record's row for assignments is corrected: revoking an assignment deletes its row, and who assigned and revoked it is kept in the audit log only.
+- Tests: `tests/integration/assignment-grant.test.ts` proves the grant the delegations build on, on a real database.
+- The plan: the head's row in section 1, the exam copy and the review model in section 3, and notes under Steps 25, 26, 29, 30, 32 and 33.
+
+### ADR-0034: the head sets which axes a portfolio requires (the owner's answer)
+
+- Recorded now, to be built with Steps 31, 30, 32 and 33. The head marks each axis required or optional for the department's portfolios. A required axis always shows, an item with nothing uploaded empty and counted as missing; an optional axis shows only what was uploaded to it, and is left out when nothing was. Until the head marks them, every axis is required but the closing group's.
+- The plan: the portfolios in section 3, and notes under Steps 30 to 33.
 
 ### Step 22: quick requests and the term readiness board (ADR-0030)
 
