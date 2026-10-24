@@ -23,7 +23,14 @@ type Change = {
 
 // A trainer by the employee number Rayat or a transfer names them with, and the person of the
 // college with that number; none while they are not on the platform.
-export type Trainer = { number: string; userId?: string; name?: string };
+// A section's trainer: their employee number, and their account where they have one, which an admin
+// may have disabled (lead review D, proposal 1).
+export type Trainer = {
+  number: string;
+  userId?: string;
+  name?: string;
+  disabled?: boolean;
+};
 
 export type SectionTransfer = {
   id: string;
@@ -59,6 +66,7 @@ async function peopleByNumber(collegeId: string, db: Db | Tx) {
       number: people.employeeNumber,
       userId: people.userId,
       name: users.name,
+      disabled: sql<boolean>`${users.disabledAt} is not null`,
     })
     .from(people)
     .innerJoin(users, eq(users.id, people.userId))
@@ -339,12 +347,13 @@ export async function tellTransferConflicts(
   return told;
 }
 
-// The trainers SS01 in force names who are not on the platform: each employee number no person of
-// the college has, with the sections it teaches and the department of the first (Step 17).
-export async function unmatchedTrainers(
+// The trainers SS01 in force names whom `kept` keeps, by their account or its lack: each employee
+// number with the sections it teaches and the department of the first.
+async function namedTrainers(
   collegeId: string,
   termId: string,
-  db: Db = getDb(),
+  kept: (account: { disabled: boolean } | undefined) => boolean,
+  db: Db,
 ) {
   const [ss01, byNumber] = await Promise.all([
     rayatVersion(collegeId, termId, "ss01", db),
@@ -353,7 +362,7 @@ export async function unmatchedTrainers(
   const missing = new Map<string, { ref: string; departmentId: string }[]>();
   for (const section of ss01?.records ?? []) {
     for (const number of section.trainerNumbers) {
-      if (byNumber.has(number)) continue;
+      if (!kept(byNumber.get(number))) continue;
       missing.set(number, [
         ...(missing.get(number) ?? []),
         { ref: section.sectionRef, departmentId: section.departmentId },
@@ -370,6 +379,31 @@ export async function unmatchedTrainers(
         departmentId: sections[0].departmentId,
       };
     });
+}
+
+// The trainers SS01 in force names who are not on the platform: each employee number no person of
+// the college has, with the sections it teaches and the department of the first (Step 17).
+export function unmatchedTrainers(
+  collegeId: string,
+  termId: string,
+  db: Db = getDb(),
+) {
+  return namedTrainers(collegeId, termId, (account) => !account, db);
+}
+
+// The trainers SS01 in force names whose account is disabled: on the platform, and given their
+// sections' tasks, which no one can sign in to do (lead review D, proposal 1).
+export function disabledTrainers(
+  collegeId: string,
+  termId: string,
+  db: Db = getDb(),
+) {
+  return namedTrainers(
+    collegeId,
+    termId,
+    (account) => account?.disabled === true,
+    db,
+  );
 }
 
 // Each section of the term in SS01 in force, with its department, its course and its places in a

@@ -76,8 +76,11 @@ export default async function ReadinessPage() {
     switch (row.id) {
       case "people":
         return peopleScope(viewer) !== undefined;
-      case "rayat":
       case "matched":
+        return row.href === "/people"
+          ? peopleScope(viewer) !== undefined
+          : rayatHeld === "college" || rayatHeld.length > 0;
+      case "rayat":
         return rayatHeld === "college" || rayatHeld.length > 0;
       case "plan":
         return plans.opens(row.departmentId);
@@ -127,7 +130,14 @@ export default async function ReadinessPage() {
             ? t("rows.matched.waiting")
             : row.state === "done"
               ? t("rows.matched.done")
-              : t("rows.matched.open", { count: row.unmatched }),
+              : format.list([
+                  ...(row.unmatched > 0
+                    ? [t("rows.matched.open", { count: row.unmatched })]
+                    : []),
+                  ...(row.disabled > 0
+                    ? [t("rows.matched.disabled", { count: row.disabled })]
+                    : []),
+                ]),
         };
       case "tasks":
         return {

@@ -4,6 +4,7 @@ import { demoDepartments } from "../../db/seed/demo/departments.ts";
 import { demoVisitor } from "../../db/seed/demo/rayat.ts";
 import {
   addMembership,
+  disableAccount,
   holdersIn,
   listRoles,
 } from "../../src/modules/access/index.ts";
@@ -29,7 +30,8 @@ import {
 } from "./support/database.ts";
 
 // The term readiness board (Step 22) on the demo database: the demo term owes General Studies'
-// plan, which its head has not entered, and the account of the visitor Electrical's SS01 names.
+// plan, which its head has not entered, the account of the visitor Electrical's SS01 names, and the
+// enabling of the trainer whose account an admin disabled (lead review D, proposal 1).
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 let collegeId: string;
 let term: NonNullable<Awaited<ReturnType<typeof activeTerm>>>;
@@ -107,6 +109,7 @@ describe("the term readiness board", () => {
     ]);
     expect(rows.find((row) => row.id === "matched")).toMatchObject({
       unmatched: 1,
+      disabled: 1,
       imported: true,
       href: "/rayat",
     });
@@ -136,7 +139,7 @@ describe("the term readiness board", () => {
     ]);
   });
 
-  it("turns fully green once the visitor has an account and General Studies' plan is published", async () => {
+  it("turns fully green once the visitor has an account, the disabled trainer's is enabled, and General Studies' plan is published", async () => {
     const admin = await nameOf(demoAccounts.admin.email);
     const roles = await listRoles(collegeId, database.db);
     const trainer = roles.find((role) => role.key === "trainer");
@@ -210,6 +213,23 @@ describe("the term readiness board", () => {
     expect((await publishPlan(draft.id, change, database.db)).status).toBe(
       "published",
     );
+    // The trainer whose account is disabled holds their sections' tasks: until an admin enables it,
+    // which the people pages do, the row stays open and leads there (lead review D, proposal 1).
+    expect(
+      (await board()).find((row) => row.id === "matched"),
+    ).toMatchObject({ state: "open", unmatched: 0, disabled: 1, href: "/people" });
+    const disabled = await nameOf(demoAccounts.disabledTrainer.email);
+    expect(
+      (
+        await disableAccount(
+          disabled.id,
+          false,
+          { collegeId, actorId: admin.id },
+          database.db,
+        )
+      ).status,
+    ).toBe("saved");
+
     // Publishing queues a pass, which the worker runs.
     await queueGeneration(collegeId, term.id, "plan", database.db);
     expect((await board()).find((row) => row.id === "tasks")?.state).toBe(

@@ -1,5 +1,5 @@
 import { type Db, getDb } from "../../../platform/db/client.ts";
-import { unmatchedTrainers } from "../../academics/index.ts";
+import { disabledTrainers, unmatchedTrainers } from "../../academics/index.ts";
 import {
   holdersAcross,
   holdersIn,
@@ -31,7 +31,7 @@ export type ReadinessRow = {
   | { id: "framework" }
   | { id: "people"; lacking: string[] }
   | { id: "rayat"; missing: RayatKind[] }
-  | { id: "matched"; unmatched: number; imported: boolean }
+  | { id: "matched"; unmatched: number; disabled: number; imported: boolean }
   | { id: "tasks"; run: GenerationStatus | null }
   | { id: "plan"; departmentId: string; department: string }
 );
@@ -56,6 +56,7 @@ export async function termReadiness(
     holders,
     imports,
     unmatched,
+    disabled,
     published,
     run,
     [
@@ -73,6 +74,7 @@ export async function termReadiness(
     roleHolders(collegeId, term.id, db),
     listRayatImports(collegeId, term.id, db),
     unmatchedTrainers(collegeId, term.id, db),
+    disabledTrainers(collegeId, term.id, db),
     publishedPlanDepartments(collegeId, term.id, db),
     latestRun(collegeId, term.id, db),
     Promise.all(
@@ -150,13 +152,19 @@ export async function termReadiness(
       owners: rayatOwners,
       href: "/rayat",
     },
+    // Every trainer SS01 names can do their sections' tasks: on the platform, and their account not
+    // disabled (lead review D, proposal 1). Rayat's page adds the missing; the people pages enable.
     {
       id: "matched",
       unmatched: unmatched.length,
+      disabled: disabled.length,
       imported,
-      state: settled(imported && unmatched.length === 0),
+      state: settled(
+        imported && unmatched.length === 0 && disabled.length === 0,
+      ),
       owners: peopleOwners,
-      href: "/rayat",
+      href:
+        unmatched.length === 0 && disabled.length > 0 ? "/people" : "/rayat",
     },
     // A failed pass is run again on the system page, by whoever holds its key there (lead review D).
     {
