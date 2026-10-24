@@ -71,7 +71,7 @@ Each step heading carries a size: S is about one session, M two or three, L four
 | System admin (مدير النظام) | College profile and branding; departments and their Rayat matching values; accounts and role assignments; Rayat column map; portfolio axes catalog (locked); settings | Audit log, system health, backups | Admin console |
 | Dean (العميد) | College vision, mission and leadership message for portfolio front matter; optional endorsement of each term's framework | College and department indicators as totals; approved portfolios | College summary |
 | Vice-dean for training (وكيل التدريب) | Terms: Rayat name, start date, number of weeks, holidays, exam weeks, grade deadlines. The general framework: college-wide items under the axes with due weeks and evidence policies. Rayat uploads (SS01, SF01, optional SO01) | Every department down to trainer, section, task and evidence, read only | Term and framework |
-| Department head (رئيس القسم) | Department plan on top of the framework; section task templates (tests, homework, grade analysis, e-learning, practices) and their evidence policies; assignments; quick requests; review sample and portfolio approvals; section transfers; account help for own trainers; Rayat uploads for the whole college, as the vice-dean, when the admin gives the key (ADR-0019) | Department work, indicators, what is missing per trainer and axis | Today (head) |
+| Department head (رئيس القسم) | Department plan on top of the framework; section task templates (tests, homework, grade analysis, e-learning, practices) and their evidence policies; assignments; quick requests; review sample and portfolio approvals, each of which they may delegate for the term to people of their department (ADR-0031); section transfers; account help for own trainers; Rayat uploads for the whole college, as the vice-dean, when the admin gives the key (ADR-0019) | Department work, indicators, what is missing per trainer and axis | Today (head) |
 | Department secretary (أمين القسم) | Meetings, minutes, decisions, recommendations, improvement plans, department documents, draft department portfolio | Department plan and calendar | Department |
 | Trainer (المدرب) | Professional profile; tasks and evidence per section; assignment tasks; initiatives, participations and development; portfolio curation and next-term goals | Own tasks, sections, indicators, portfolio | Today (trainer) |
 | Quality reviewer (optional) | Comments on portfolios | Approved portfolios | Portfolios |
@@ -189,7 +189,7 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 **Task kinds** are code: each has a Zod payload schema, an editor, a read view and indicator mappings.
 
 - `general`: a plain item with optional evidence.
-- `exam_copy`: quiz, midterm, final or practical; question paper and answer key; hidden from others until the exam date.
+- `exam_copy`: quiz, midterm, final or practical; question paper and answer key; seen only by its trainer, the head and the review's delegates, never by anyone else. Its trainer uploads a sample with it, pages of it or marked answers, which stands for it in the portfolio, for every reader, once the copy is approved (ADR-0031).
 - `grade_analysis`: counts per grade band, pass rate, average, follow-up actions; never trainee names.
 - `homework`: title, week, sample files.
 - `e_learning`: checklist (course shell, content, activities) and evidence.
@@ -206,11 +206,11 @@ dependency-cruiser enforces the direction `app → modules → platform`. Module
 
 **Task status:** not started → in progress → submitted → done, plus returned (back to the trainer with a note) and not applicable (with a reason). Overdue is a flag on top of the status, not a status.
 
-**Review model.** Uploading the required evidence completes a task. Each week the platform picks a sample for the head: 10% by default, capped at a weekly number; both are settings. The head approves each trainer's portfolio at mid-term and at term end and sees what changed since the last approval. A head can mark one or two task kinds as "requires approval", for example exam copies. The department portfolio freezes on a date the head sets and lists what is missing.
+**Review model.** Uploading the required evidence completes a task. Each week the platform picks a sample for the head: 10% by default, capped at a weekly number; both are settings. The head approves each trainer's portfolio at mid-term and at term end and sees what changed since the last approval. A head can mark one or two task kinds as "requires approval", for example exam copies. The head may delegate the review and the portfolio approvals, each for the term, to people of the department they pick, who decide beside the head but never on their own work; the head decides their own (ADR-0031). The department portfolio freezes on a date the head sets and lists what is missing.
 
 **Rayat import.** Rayat exports its reports as XLSX. SS01 and SF01 are mandatory; SO01 is optional. Column names come from a versioned mapping in settings, seeded from the real headers in section 9, and only the columns marked there are stored. From SF01 that means term, department, course, section reference, trainee number, registration status and trainee status, never names, mobile numbers or grades. The raw file is discarded after parsing. Each import shows a validation report and a diff against the previous import before it is applied, and it can be rolled back.
 
-**Portfolios.** A portfolio is a computed view of tasks grouped by axis: 11 axes in 3 groups, plus the optional closing group. Each approval freezes an immutable version (snapshot, PDF, hash). Two audiences exist: internal, with evidence pages, and display, a summary for the dean and external visits.
+**Portfolios.** A portfolio is a computed view of tasks grouped by axis: 11 axes in 3 groups, plus the optional closing group. The head marks each axis required or optional for the department: a required axis always shows, an item with nothing uploaded empty and missing; an optional one shows only what was uploaded to it (ADR-0034). Each approval freezes an immutable version (snapshot, PDF, hash). Two audiences exist: internal, with evidence pages, and display, a summary for the dean and external visits.
 
 ## 4. Design system and UX quality bar
 
@@ -1334,6 +1334,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 20 (ADR-0025):** the engine moves and cancels only tasks not started. A task's first evidence starts it, so a new version of the framework or plan never cancels work with evidence.
 
+**Note from ADR-0031 (amended 24 October 2026):** an exam copy's evidence has two parts, kept apart: the copy's own files and its sample, pages of it or marked answers. Each view shows the part it may: the portfolio the sample, once the copy is approved, and the copy's own files only in its circle.
+
 #### Step 26. The task card and the done flow (L)
 
 **Goal:** one card for every kind, and finishing takes seconds.
@@ -1362,6 +1364,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from Step 18:** each kind's payload is a list of fields (`kindFields`, `src/modules/framework/domain/payloads.ts`), from which come its schema (`payloadSchema()`), its editor (`PayloadEditor`) and its read view (`PayloadView`, both in `src/app/(app)/_kinds`). The card puts the editor before the evidence, starts a task's payload as `blankPayload(kindFields[kind], week)` with the term's current week, so that what the editor shows is what the payload holds (Audit 6), and its action checks a payload with `payloadSchema(kind)`. The page passes both the kind's fields (`kindFields[kind]`) and the editor `payloadLimits`: a client component imports only types from a module, whose index would bring its server code into the browser's bundle. The trainer writes a course's exam types, methods and kinds of development in their own words, and gives each section's grade analysis its bands (the owner's notes under Step 18). Files are the task's evidence, not its payload: an exam copy's paper and key, homework samples.
 
 **Note from UX review 2 (docs/reviews/ux-20.md, decision 3):** each kind's editor is checked where it lives, not in the design catalog. Added to Done when: each kind's editor and its read view on the task card, on desktop and on iPhone emulation, with no serious axe issue and every control at 44 px.
+
+**Note from ADR-0031 (amended 24 October 2026):** an exam copy's card asks for the copy and, beside it, its sample, which the portfolio shows for the copy once it is approved; the card says so, and that the copy itself stays with its trainer, the head and the review's delegates.
 
 #### Step 27. Notifications in the work loop (S)
 
@@ -1413,11 +1417,27 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from ADR-0008:** the task card shows the head's note first on returned work (moved from Step 26), and the return notice is in-app. On option A, heads review on the college Wi-Fi.
 
-**Note from Step 7:** the rate and the cap were settings, until they came out because nothing read them (section 0). This step adds them back: `review.sampleRate` (20%, the settings screen's only slider) and `review.weeklyCap` (30 per reviewer a week). The slider's end-to-end test, its arrow keys right to left, comes back with them (`e2e/settings.spec.ts` at 584319f).
+**Note from Step 7:** the rate and the cap were settings, until they came out because nothing read them (section 0). This step adds them back: `review.sampleRate` (20%, the settings screen's only slider) and `review.weeklyCap` (30 a week for the department: ADR-0031 keeps one sample whoever reviews it). Section 3 gives the rate 10% by default: settle the default here. The slider's end-to-end test, its arrow keys right to left, comes back with them (`e2e/settings.spec.ts` at 584319f).
 
 **Note from Step 12:** the return notice is a notification kind that opens the task (see the notes under Steps 22 and 26), sent in the transaction that records the decision, as a membership's notice is (`insertMembership()`).
 
 **Note from Step 19 (ADR-0027):** the plan's publish dialog already counts the reviews a week that the plan's items and the framework's ask of the head: their tasks whose evidence asks for approval, over the term's weeks. The sample draws from the same tasks.
+
+**Note from ADR-0031 (the owner's request, amended 24 October 2026):** the head delegates the review for the term, to one person or more of the department.
+- **The grant:** beside the six shared assignment templates, the base seed adds one without items, whose role (in `defaultRoles`) holds `review.decide` in the department. This step's migration adds the role and the template to colleges that exist already, and gives the head the key, as `0026` did for `assignment.manage`. The seed's template loader takes a template without items, which it cannot today.
+  - The head gives it on `/assignments` as the secretary's role is given (ADR-0028), for the whole term: the sheet shows no weeks, and the service refuses weeks for it.
+  - Giving it asks of the giver every key of its role in the department, and no one gives it to themselves.
+  - It ends when its holder's last other role in the department does, as the head's withdrawal would end it, with the same events and notice.
+- **The holders:** whoever holds `review.decide` in the department through a department membership, with an enabled account (`holdersIn()`), and no one else. The inbox names them, and links `/assignments` for whoever holds `assignment.manage` there.
+- **The key:** `review.decide` counts through a department membership only. Held across the college, the system role's included, it gives nothing (ADR-0031, decision 7). It decides the review's items and opens their evidence. Choosing the kinds that require approval asks a key no delegation holds.
+- **Deciding:**
+  - a delegate decides beside the head, in the department's one inbox, and the week's sample does not grow;
+  - a submission is decided once: with two deciders at once, the first decision stands and the second is refused, which a test proves concurrently. Returned work that comes back is a new submission;
+  - a decision on a closed term's item is refused.
+- **Undo and reopening (the owner's answer of 24 October):** each decider undoes their own decision within the undo window, while the work is unchanged. The head may reopen any decision of the term in the department, a delegate's included, by deciding again. Each is a new row; none is erased.
+- **Own work:** a delegate never decides their own work, nor sees it in their inbox. A work's own people are whoever submitted it and whoever uploaded its evidence. The head decides their own work (the owner's answer of 24 October). Each decision keeps who made it, which the trainer and the log see.
+- **Exam copies:** the head and the review's delegates see them and decide them; no one else ever does (the note under Step 30).
+- **The privacy notice and the record** change with this step (ADR-0013): the review's delegates see colleagues' sampled work, and every decision shows who made it.
 
 #### Step 31. Portfolio builder (M)
 
@@ -1437,6 +1457,8 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 14:** the closing group (axes 12 and 13, code `closing` in `db/seed/base.ts`) is the optional one; nothing marks it optional yet, so this step adds that marker when it treats the group differently.
 
+**Note from ADR-0034 (the owner's answer, 24 October 2026):** the marker is the head's: they mark each axis required or optional for the department's portfolios, with a key no delegation holds, the closing group optional until they do. A required axis always shows, an item with nothing uploaded empty and counted as missing; an optional axis shows only what was uploaded to it, and is left out when nothing was. An exam copy's place is its sample once the copy is approved (ADR-0031). A change of marks never changes an approved version. Readiness per axis follows the marks.
+
 > **Checkpoint: Audit 10.** Run `/audit 28,29,31`.
 
 #### Step 30. What is missing, portfolio approval and exam confidentiality (M)
@@ -1448,13 +1470,20 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 - A trainer-by-axis grid with counts and gaps.
 - Trainer portfolio approval at mid-term and at term end (dates from the calendar), showing what changed since the last approval.
 - A freeze date for the department portfolio.
-- Exam copies hidden from the secretary, and from anyone but their trainer and head, until the exam date.
+- Exam copies seen only by their trainer and by whoever holds `review.decide` in the task's department (the head and the review's delegates), and by no one else, in any view or file; their samples in the portfolio once approved (ADR-0031).
 
 **Done when:** approval freezes an immutable snapshot (Step 32 adds its PDF and hash), the change view is correct, and the confidentiality tests pass.
 
 **Note from ADR-0008:** Step 31 runs first, so the approval snapshot, the change view and the trainer-by-axis grid read its portfolio view by axis, curation included.
 
-**Note from Step 18:** an exam copy's payload names its exam's day (`examOn`), which the confidentiality rule reads.
+**Note from Step 18:** an exam copy's payload names its exam's day (`examOn`). The confidentiality rule no longer reads it, since the copy stays hidden from everyone outside its circle for good (ADR-0031).
+
+**Note from ADR-0031 (the owner's request, amended 24 October 2026):** the head delegates the portfolios' approval for the term, as Step 29 delegates the review, with the same rules on giving, holders and ending.
+- A template without items, whose role holds `portfolio.approve` in the department, which this step adds, with the migration for colleges that exist already. The key counts through a department membership only, and approves the trainers' portfolios and nothing more. The department portfolio's freeze date asks a key no delegation holds.
+- A delegate never approves their own portfolio; the head approves their own (the owner's answer of 24 October). Each approval keeps who made it, and a portfolio is approved once a milestone: the first approval stands.
+- **Exam copies (the owner's answers):** seen by their trainer and by whoever holds `review.decide` in the task's department, the head and the review's delegates, and by no one else, ever. Everywhere else they show as submitted, and approved once they are, without their own content or files: in the portfolio, its change view, the frozen version, and every page and file made from it. There the copy's sample stands for it once it is approved, and leaves again if the approval is undone. That holds for the portfolios' delegate without the review too, who approves a portfolio on what they see.
+- **What is missing (ADR-0034):** the grid and the approval count what the required axes lack, an approved exam copy with no sample among it; an optional axis's empty items count for nothing.
+- **The privacy notice and the record** change with this step (ADR-0013): the notice's line on exam questions and the record's Secret row say who sees an exam copy, and the portfolios' delegates see colleagues' portfolios.
 
 > **Checkpoint: UX review 3.** Run `/ux-review 21-30` (Today, My work, section page, task card, uploads, review inbox, missing grid).
 
@@ -1478,6 +1507,10 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 
 **Note from Step 41:** the worker image already carries Chromium, poppler and the identity font, and `node worker/print-check.ts` prints an Arabic page to PDF on the stack's network, which has no route out (CI's Production stack job runs it). It starts Chromium without its sandbox, which needs privileges a container lacks: Step 40 reviews that.
 
+**Note from ADR-0031:** an exam copy's pages go only into a PDF for its circle: its trainer, the head and the review's delegates. Every other PDF, the internal variant for anyone else included, lists it as submitted and approved, with its sample once approved and without its own pages, and caches apart. The display variant carries the sample too (the owner's answer of 24 October).
+
+**Note from ADR-0034:** an optional axis with nothing uploaded to it is left out of every PDF, its index included; a required axis's empty item shows empty.
+
 #### Step 33. Department and college portfolios (M)
 
 **Goal:** the department file and the college summary build themselves.
@@ -1489,6 +1522,10 @@ pnpm local:up | pnpm local:down | pnpm local:share | pnpm local:run
 **Note from ADR-0008:** meetings join the department portfolio in Step 37.
 
 **Note from Audit 3:** the secretary's and the quality reviewer's keys this step adds go to their default roles in `db/seed/base.ts` and, for colleges that exist already, in this step's migration (the note from Audit 3 under Step 10).
+
+**Note from ADR-0031:** the head's approval of the department portfolio's draft asks a key that no delegation holds, not `portfolio.approve`, so a secretary who holds the portfolios' delegation never approves the draft they prepared. The department portfolio shows exam copies as submitted and approved, with their samples and without their own content.
+
+**Note from ADR-0034:** the department portfolio lists as missing what the required axes lack, and leaves out an optional axis with nothing in it.
 
 > **Checkpoint: Audit 11.** Run `/audit 30,32,33`.
 >
